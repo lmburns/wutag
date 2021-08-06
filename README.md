@@ -1,5 +1,14 @@
-# wutag 🔱🏷️ 
+# wutag 🔱🏷️
 [![master](https://github.com/vv9k/wutag/actions/workflows/master.yml/badge.svg)](https://github.com/vv9k/wutag/actions/workflows/master.yml)
+
+## Fork
+* [x] `macOS` now uses the following locations:
+    * [x] `$HOME/.cache` instead of `$HOME/Library/Caches` for `wutag.registry`
+    * [x] `$HOME/.config` instead of `$HOME/Library/Application Support` for `wutag.yml`
+* Multiple registries
+* `rm` `-g` option to prevent having to use `-d ~` or whatever directory the file you want to remove is located
+* [x] `list ...` will be `local` by default and a `global` option will be added
+* [x] Display usage (count) of tags when using `list tags` or `list -g tags`
 
 CLI tool for tagging and organizing files by tags.
 
@@ -32,11 +41,11 @@ Default recursion depth is set to *2*. To increase it use `--max-depth` or `-m` 
 
 After tagging your files with `set` like:
  - `wutag set '*.jpg' photos`
- - `wutag set 'DCIM_12*' doge`  
-you can easily get the list of files with specified tags by doing `wutag search photos doge`. 
+ - `wutag set 'DCIM_12*' doge`
+you can easily get the list of files with specified tags by doing `wutag search photos doge`.
 
 To utilize the list by other programs pass the `--raw` or `-r` flag to `search` subcommand like:
- - `wutag search -r --any cat doge | xargs rm -rf  # please don't do this :(`. 
+ - `wutag search -r --any cat doge | xargs rm -rf  # please don't do this :(`.
 
 When `--any` flag is provided as in the example `wutag` will match files containing any of the provided tags rather than all of them.
 
@@ -44,7 +53,8 @@ If you are into emojis then surely you can use emojis to tag files 🙂 ```wutag
 
 ## Configuration
 
-`wutag` lets you configure base colors used when creating tags or modify other settings globally. To do this create a file `.wutag.yml` in your home directory like `~/.wutag.yml`.
+`wutag` lets you configure base colors used when creating tags or modify other settings globally.
+There will be a `wutag.yml` file located in `$XDG_CONFIG_HOME/wutag` or `$HOME/.config/wutag` with only `max_depth` in it. Colors can be added like so:
 
 Example configuration:
 ```yaml
@@ -58,7 +68,7 @@ colors:
 
 ## Tab completion
 
-To get tab completion use `wutag print-completions <shell> > /path/to/completions/dir/...` to enable it in your favourite shell.  
+To get tab completion use `wutag print-completions <shell> > /path/to/completions/dir/...` to enable it in your favourite shell.
 
 Available shells are:
  - `bash`

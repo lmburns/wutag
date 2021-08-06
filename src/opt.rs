@@ -48,11 +48,13 @@ pub enum ListObject {
 #[derive(Clap)]
 pub struct ListOpts {
     #[clap(subcommand)]
-    /// The object to list. Valid values are: `tags`, `files`.
+    /// The object to list. Valid values are: 'tags', 'files'.
     pub object: ListObject,
     #[clap(long, short)]
     /// If provided output will be raw so that it can be easily piped to other commands
     pub raw: bool,
+    #[clap(long, short)]
+    pub global: bool,
 }
 
 #[derive(Clap)]
@@ -75,6 +77,7 @@ pub struct ClearOpts {
     /// A glob pattern like '*.png'.
     pub pattern: String,
 }
+
 #[derive(Clap)]
 pub struct SearchOpts {
     #[clap(required = true)]
@@ -83,7 +86,7 @@ pub struct SearchOpts {
     /// If provided output will be raw so that it can be easily piped to other commands
     pub raw: bool,
     #[clap(long, short)]
-    /// If set to `true` all entries containing any of provided tags will be returned
+    /// If set to 'true' all entries containing any of provided tags will be returned
     pub any: bool,
 }
 
@@ -101,8 +104,8 @@ pub struct EditOpts {
     pub tag: String,
     #[clap(long, short)]
     /// Set the color of the tag to the specified color. Accepted values are hex colors like
-    /// `0x000000` or `#1F1F1F` or just plain `ff000a`. The colors are case insensitive meaning
-    /// `1f1f1f` is equivalent to `1F1F1F`.
+    /// '0x000000' or '#1F1F1F' or just plain 'ff000a'. The colors are case insensitive meaning
+    /// '1f1f1f' is equivalent to '1F1F1F'.
     pub color: String,
 }
 
@@ -147,7 +150,7 @@ pub enum Command {
     Rm(RmOpts),
     /// Clears all tags of the files that match the provided pattern.
     Clear(ClearOpts),
-    /// Searches for files that have all of the provided `tags`.
+    /// Searches for files that have all of the provided 'tags'.
     Search(SearchOpts),
     /// Copies tags from the specified file to files that match a pattern.
     Cp(CpOpts),

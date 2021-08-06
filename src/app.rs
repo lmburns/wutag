@@ -4,6 +4,9 @@ use colored::{Color, Colorize};
 use globwalk::DirEntry;
 use std::io;
 use std::path::PathBuf;
+use std::collections::HashMap;
+
+use tabular::{Table, Row};
 
 use crate::config::Config;
 use crate::opt::{
@@ -11,7 +14,7 @@ use crate::opt::{
     SearchOpts, SetOpts, Shell, APP_NAME,
 };
 use crate::registry::{EntryData, TagRegistry};
-use crate::util::{fmt_err, fmt_ok, fmt_path, fmt_tag, glob_ok};
+use crate::util::{contained_path, fmt_err, fmt_ok, fmt_path, fmt_tag, glob_ok, macos_dirs};
 use crate::DEFAULT_COLORS;
 use wutag_core::color::parse_color;
 use wutag_core::tag::{list_tags, DirEntryExt, Tag};
@@ -63,8 +66,9 @@ impl App {
             DEFAULT_COLORS.to_vec()
         };
 
-        let cache_dir = dirs::cache_dir().context("failed to determine cache directory")?;
-        let state_file = cache_dir.join("wutag.registry");
+
+        let cache_dir = macos_dirs(dirs::cache_dir(), ".cache");
+        let state_file = cache_dir.unwrap().join("wutag.registry");
 
         let registry =
             TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file));
@@ -116,6 +120,11 @@ impl App {
         match opts.object {
             ListObject::Files { with_tags } => {
                 for (id, file) in self.registry.list_entries_and_ids() {
+                    // Skips paths that are not contained within one another to respect the `-d` flag
+                    // Global is just another way to specify -d ~ (list files locally by default)
+                    if !opts.global && !contained_path(file.path(), &self.base_dir) {
+                        continue;
+                    }
                     if opts.raw {
                         print!("{}", file.path().display());
                     } else {
@@ -144,13 +153,45 @@ impl App {
                 }
             }
             ListObject::Tags => {
-                for tag in self.registry.list_tags() {
-                    if opts.raw {
-                        print!("{}\t", tag);
-                    } else {
-                        print!("{}\t", fmt_tag(tag));
+                // TODO: Respect raw
+                // I think both id and entry has to be listed here to be able to respect current directory
+                // This is really dirty
+                let mut utags = Vec::new();
+                for (&id, file) in self.registry.list_entries_and_ids() {
+                    if !opts.global && !contained_path(file.path(), &self.base_dir) {
+                        continue;
                     }
+                    let tags = self
+                        .registry
+                        .list_entry_tags(id)
+                        .map(|tags| {
+                            tags.iter().fold(String::new(), |mut acc, t| {
+                                acc.push_str(&format!("{} ", fmt_tag(t)));
+                                acc
+                            })
+                        })
+                        .unwrap_or_default()
+                        .clone();
+                    utags.push(tags);
                 }
+
+                let counted = utags.iter().fold(HashMap::new(), |mut acc, t| {
+                    *acc.entry(t.clone()).or_insert(0) += 1;
+                    acc
+                });
+
+                // Using this or TabWriter will not format correctly
+                // if count is on the right. I'm assuming it's because of
+                // the escape characters
+                let mut table = Table::new("{:<}  |  {:<}");
+                for (tag, count) in counted.iter() {
+                    table.add_row(Row::new()
+                        .with_cell(count.to_string().green().bold())
+                        .with_cell(tag)
+                    );
+                }
+                println!("{}", table);
+                // tab_handle.flush().expect("Error in flushing tab handle");
             }
         }
     }
@@ -272,6 +313,9 @@ impl App {
     }
 
     fn search(&self, opts: &SearchOpts) {
+        // FIX: Returns all files regardless of tags
+        // The else in this statement does 'any' automatically
+        // FIX: Also, raw here does not display tags
         if opts.any {
             for (&id, entry) in self.registry.list_entries_and_ids() {
                 if opts.raw {
@@ -291,9 +335,16 @@ impl App {
                 }
             }
         } else {
+            // TODO: expand '.' to $PWD
             for id in self.registry.list_entries_with_tags(&opts.tags) {
                 let path = match self.registry.get_entry(id) {
-                    Some(entry) => entry.path(),
+                    Some(entry) => {
+                        if !contained_path(entry.path(), &self.base_dir) {
+                            continue
+                        } else {
+                            entry.path()
+                        }
+                    },
                     None => continue,
                 };
                 if opts.raw {

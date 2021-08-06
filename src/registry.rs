@@ -25,6 +25,8 @@ impl EntryData {
     }
 }
 
+// impl AsRef<EntryData>
+
 pub type EntryId = usize;
 
 #[derive(Default, Deserialize, Serialize)]

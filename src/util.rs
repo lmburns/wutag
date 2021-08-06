@@ -1,7 +1,7 @@
 use colored::{ColoredString, Colorize};
 use globwalk::{DirEntry, GlobWalker, GlobWalkerBuilder};
 use std::fmt::Display;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::DEFAULT_MAX_DEPTH;
 use anyhow::{Context, Result};
@@ -21,6 +21,11 @@ pub fn fmt_path<P: AsRef<Path>>(path: P) -> String {
 
 pub fn fmt_tag(tag: &Tag) -> ColoredString {
     tag.name().color(*tag.color()).bold()
+}
+
+pub fn contained_path<P: AsRef<Path>>(file: P, path: P) -> bool {
+    file.as_ref().display().to_string()
+        .contains(path.as_ref().to_str().unwrap())
 }
 
 /// Returns a GlobWalker instance with base path set to `base_path` and pattern to `pattern`. If
@@ -54,4 +59,14 @@ where
     }
 
     Ok(())
+}
+
+/// Helper function to get different directories for macOS specifically
+/// Example: `cache_dir()` returns `$HOME/Library/Caches`, when this will return `$HOME/.cache`
+pub fn macos_dirs(dir_func: Option<PathBuf>, joined: &str) -> Result<PathBuf> {
+    if std::env::consts::OS == "macos" {
+        Ok(PathBuf::from(env!("HOME")).join(joined))
+    } else {
+        Ok(dir_func.context(format!("Invalid {} directory", joined))?)
+    }
 }

@@ -25,6 +25,7 @@ rand = "0.8"
 base64 = "0.13.0"
 dirs = "3"
 tabular = "0.1.4"
+glob = "0.3.0"
 
 [dev-dependencies]
 tempdir = "0.3"

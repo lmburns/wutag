@@ -17,7 +17,7 @@ use crate::registry::{EntryData, TagRegistry};
 use crate::util::{contained_path, fmt_err, fmt_ok, fmt_path, fmt_tag, glob_ok, macos_dirs};
 use crate::DEFAULT_COLORS;
 use wutag_core::color::parse_color;
-use wutag_core::tag::{list_tags, DirEntryExt, Tag};
+use wutag_core::tag::{DirEntryExt, Tag, list_tags};
 
 pub struct App {
     pub base_dir: PathBuf,
@@ -51,7 +51,11 @@ impl App {
     }
     pub fn new(opts: &Opts, config: Config) -> Result<App> {
         let base_dir = if let Some(base_dir) = &opts.dir {
-            base_dir.to_path_buf()
+            if base_dir.display().to_string() == "." {
+                std::env::current_dir().context("failed to determine current working directory")?
+            } else {
+                base_dir.to_path_buf()
+            }
         } else {
             std::env::current_dir().context("failed to determine current working directory")?
         };
@@ -184,6 +188,7 @@ impl App {
                 // if count is on the right. I'm assuming it's because of
                 // the escape characters
                 let mut table = Table::new("{:<}  |  {:<}");
+
                 for (tag, count) in counted.iter() {
                     table.add_row(Row::new()
                         .with_cell(count.to_string().green().bold())
@@ -191,7 +196,6 @@ impl App {
                     );
                 }
                 println!("{}", table);
-                // tab_handle.flush().expect("Error in flushing tab handle");
             }
         }
     }
@@ -235,48 +239,78 @@ impl App {
     }
 
     fn rm(&mut self, opts: &RmOpts) {
-        if let Err(e) = glob_ok(
-            &opts.pattern,
-            &self.base_dir.clone(),
-            self.max_depth,
-            |entry: &DirEntry| {
-                let id = self.registry.find_entry(entry.path());
-                let tags = opts
-                    .tags
-                    .iter()
-                    .map(|tag| {
-                        if let Some(id) = id {
-                            self.registry.untag_by_name(tag, id);
-                        }
-                        entry.get_tag(tag)
-                    })
-                    .collect::<Vec<_>>();
+        // Global matches a glob against only files that are tagged
+        // There may be a better way to do this. Lot's of repeated code here
+        // Would probably have to refactor glob_ok
+        if opts.global {
+            let pat = glob::Pattern::new(&opts.pattern).unwrap();
+            let ctags = opts.tags.iter().collect::<Vec<_>>();
+            for (&id, entry) in self.registry.clone().list_entries_and_ids() {
+                if pat.matches(entry.path().to_str().unwrap()) {
+                    let etags = self.registry.list_entry_tags(id)
+                        .map(|tags| {
+                            tags.iter().fold(Vec::new(), |mut acc, tag| {
+                                acc.push(
+                                    (
+                                        ctags.iter().find(|c| **c == &tag.to_string()),
+                                        tag.clone()
+                                     )
+                                );
+                                acc
+                            })
+                        })
+                        .unwrap_or_default();
 
-                if tags.is_empty() {
-                    return;
-                }
-
-                println!("{}:", fmt_path(entry.path()));
-                tags.iter().for_each(|tag| {
-                    let tag = match tag {
-                        Ok(tag) => tag,
-                        Err(e) => {
-                            err!('\t', e, entry);
-                            return;
-                        }
-                    };
-                    if let Err(e) = entry.untag(tag) {
-                        err!('\t', e, entry);
-                    } else {
-                        print!("\t{} {}", "X".bold().red(), fmt_tag(tag));
+                    for (tstr, t) in etags.clone().iter() {
+                        self.registry.untag_by_name(tstr.unwrap(), id);
+                        println!("{}:", fmt_path(entry.path()));
+                        print!("\t{} {}", "X".bold().red(), fmt_tag(t));
                     }
-                });
-                println!();
-            },
-        ) {
-            eprintln!("{}", fmt_err(e));
-        }
+                }
+            }
+        } else {
+            if let Err(e) = glob_ok(
+                &opts.pattern,
+                &self.base_dir.clone(),
+                self.max_depth,
+                |entry: &DirEntry| {
+                    let id = self.registry.find_entry(entry.path());
+                    let tags = opts
+                        .tags
+                        .iter()
+                        .map(|tag| {
+                            if let Some(id) = id {
+                                self.registry.untag_by_name(tag, id);
+                            }
+                            entry.get_tag(tag)
+                        })
+                        .collect::<Vec<_>>();
 
+                    if tags.is_empty() {
+                        return;
+                    }
+
+                    println!("{}:", fmt_path(entry.path()));
+                    tags.iter().for_each(|tag| {
+                        let tag = match tag {
+                            Ok(tag) => tag,
+                            Err(e) => {
+                                err!('\t', e, entry);
+                                return;
+                            }
+                        };
+                        if let Err(e) = entry.untag(tag) {
+                            err!('\t', e, entry);
+                        } else {
+                            print!("\t{} {}", "X".bold().red(), fmt_tag(tag));
+                        }
+                    });
+                    println!();
+                },
+            ) {
+                eprintln!("{}", fmt_err(e));
+            }
+        }
         self.save_registry();
     }
 
@@ -335,7 +369,6 @@ impl App {
                 }
             }
         } else {
-            // TODO: expand '.' to $PWD
             for id in self.registry.list_entries_with_tags(&opts.tags) {
                 let path = match self.registry.get_entry(id) {
                     Some(entry) => {

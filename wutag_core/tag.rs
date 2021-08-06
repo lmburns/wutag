@@ -9,6 +9,7 @@ use std::convert::TryFrom;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
+use std::str::FromStr;
 
 use crate::xattr::{list_xattrs, remove_xattr, set_xattr, Xattr};
 use crate::{Error, Result, WUTAG_NAMESPACE};
@@ -27,6 +28,13 @@ impl Hash for Tag {
         self.color.to_fg_str().hash(state);
     }
 }
+
+// impl FromStr for Tag {
+//     type Err = String;
+//     fn from_str(s: &str) -> Result<Self, <Self as FromStr>::Err> {
+//         Ok()
+//     }
+// }
 
 pub trait DirEntryExt {
     fn tag(&self, tag: &Tag) -> Result<()>;

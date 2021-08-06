@@ -32,11 +32,11 @@ impl Config {
                 .write(true)
                 .create(true)
                 .open(&path)
-                .with_context(|| format!("could not create alias file: '{}'", path.display()))?;
+                .with_context(|| format!("could not create wutag config: '{}'", path.display()))?;
 
             config_file
                 .write_all(initialization.as_bytes())
-                .with_context(|| format!("could not create alias file: '{}'", path.display()))?;
+                .with_context(|| format!("could not create wutag config: '{}'", path.display()))?;
             config_file.flush()?;
         }
 

@@ -25,11 +25,9 @@ impl EntryData {
     }
 }
 
-// impl AsRef<EntryData>
-
 pub type EntryId = usize;
 
-#[derive(Default, Deserialize, Serialize)]
+#[derive(Default, Deserialize, Serialize, Clone)]
 pub struct TagRegistry {
     tags: HashMap<Tag, Vec<EntryId>>,
     entries: HashMap<EntryId, EntryData>,

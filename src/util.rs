@@ -23,6 +23,7 @@ pub fn fmt_tag(tag: &Tag) -> ColoredString {
     tag.name().color(*tag.color()).bold()
 }
 
+/// Determine whether file (path) contains path and if so, return true
 pub fn contained_path<P: AsRef<Path>>(file: P, path: P) -> bool {
     file.as_ref().display().to_string()
         .contains(path.as_ref().to_str().unwrap())
@@ -61,8 +62,9 @@ where
     Ok(())
 }
 
-/// Helper function to get different directories for macOS specifically
-/// Example: `cache_dir()` returns `$HOME/Library/Caches`, when this will return `$HOME/.cache`
+/// Helper function to get different directories for `macOS` specifically
+/// Example: `dirs::cache_dir()` returns `$HOME/Library/Caches`, when this will return `$HOME/.cache`
+/// This can and is used to respect `XDG` defaults for `macOS`
 pub fn macos_dirs(dir_func: Option<PathBuf>, joined: &str) -> Result<PathBuf> {
     if std::env::consts::OS == "macos" {
         Ok(PathBuf::from(env!("HOME")).join(joined))

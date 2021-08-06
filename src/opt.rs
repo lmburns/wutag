@@ -67,6 +67,8 @@ pub struct SetOpts {
 
 #[derive(Clap)]
 pub struct RmOpts {
+    #[clap(long, short)]
+    pub global: bool,
     /// A glob pattern like '*.png'.
     pub pattern: String,
     pub tags: Vec<String>,

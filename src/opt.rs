@@ -68,6 +68,7 @@ pub struct SetOpts {
 #[derive(Clap)]
 pub struct RmOpts {
     #[clap(long, short)]
+    /// Only apply glob to existing files and not traverse entire file system
     pub global: bool,
     /// A glob pattern like '*.png'.
     pub pattern: String,
@@ -80,6 +81,8 @@ pub struct ClearOpts {
     pub pattern: String,
 }
 
+// TODO: Add global here as well
+
 #[derive(Clap)]
 pub struct SearchOpts {
     #[clap(required = true)]
@@ -87,6 +90,9 @@ pub struct SearchOpts {
     #[clap(long, short)]
     /// If provided output will be raw so that it can be easily piped to other commands
     pub raw: bool,
+    #[clap(long, short, hidden = true)]
+    /// This will display all tags on xattr. Some of the tags will not display when listing. So this is hidden
+    pub all: bool,
     #[clap(long, short)]
     /// If set to 'true' all entries containing any of provided tags will be returned
     pub any: bool,

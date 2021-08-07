@@ -239,33 +239,37 @@ impl App {
     }
 
     fn rm(&mut self, opts: &RmOpts) {
-        // Global matches a glob against only files that are tagged
-        // There may be a better way to do this. Lot's of repeated code here
-        // Would probably have to refactor glob_ok
+        // Global will match a glob against only files that are tagged
+        // There may be a better way to do this. Lot's of similar code here
         if opts.global {
             let pat = glob::Pattern::new(&opts.pattern).unwrap();
             let ctags = opts.tags.iter().collect::<Vec<_>>();
             for (&id, entry) in self.registry.clone().list_entries_and_ids() {
                 if pat.matches(entry.path().to_str().unwrap()) {
-                    let etags = self.registry.list_entry_tags(id)
+                    list_tags(entry.path())
                         .map(|tags| {
                             tags.iter().fold(Vec::new(), |mut acc, tag| {
                                 acc.push(
                                     (
                                         ctags.iter().find(|c| **c == &tag.to_string()),
-                                        tag.clone()
-                                     )
+                                        fmt_tag(&tag.clone()) // Gets the actual tag regardles of whether or not CLI tag matches
+                                    )
                                 );
                                 acc
                             })
                         })
-                        .unwrap_or_default();
-
-                    for (tstr, t) in etags.clone().iter() {
-                        self.registry.untag_by_name(tstr.unwrap(), id);
-                        println!("{}:", fmt_path(entry.path()));
-                        print!("\t{} {}", "X".bold().red(), fmt_tag(t));
-                    }
+                        .unwrap_or_default()
+                        .iter()
+                        .for_each(|(search, realtag)| {
+                            if search.is_some() {
+                                // Unwrap should be safe since checking above
+                                // I've had issues where 'None' is tag, but 'input_path' exists
+                                self.registry.untag_by_name(search.unwrap(), id);
+                                println!("{}:", fmt_path(entry.path()));
+                                print!("\t{} {}", "X".bold().red(), realtag);
+                                println!();
+                            }
+                        });
                 }
             }
         } else {
@@ -315,6 +319,7 @@ impl App {
     }
 
     fn clear(&mut self, opts: &ClearOpts) {
+        // TODO: Add global option
         if let Err(e) = glob_ok(
             &opts.pattern,
             &self.base_dir.clone(),
@@ -350,6 +355,7 @@ impl App {
         // FIX: Returns all files regardless of tags
         // The else in this statement does 'any' automatically
         // FIX: Also, raw here does not display tags
+        // Add all option to display tags in debug mode where you can see files with xattr that are not in registry
         if opts.any {
             for (&id, entry) in self.registry.list_entries_and_ids() {
                 if opts.raw {

@@ -69,6 +69,15 @@ impl DirEntryExt for DirEntry {
     }
 }
 
+// impl From<&Path> for DirEntry {
+//     fn from(item: &Path) -> Self {
+//         DirEntry {
+//             Path: PathBuf::from(item),
+//
+//         }
+//     }
+// }
+
 impl Tag {
     pub fn new<S>(name: S, color: Color) -> Self
     where

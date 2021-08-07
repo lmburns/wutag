@@ -252,7 +252,7 @@ impl App {
                                 acc.push(
                                     (
                                         ctags.iter().find(|c| **c == &tag.to_string()),
-                                        fmt_tag(&tag.clone()) // Gets the actual tag regardles of whether or not CLI tag matches
+                                        tag.to_owned()
                                     )
                                 );
                                 acc
@@ -262,11 +262,16 @@ impl App {
                         .iter()
                         .for_each(|(search, realtag)| {
                             if search.is_some() {
-                                // Unwrap should be safe since checking above
-                                // I've had issues where 'None' is tag, but 'input_path' exists
+                                // println!("SEARCH: {:?} REAL: {:?}", search, realtag);
                                 self.registry.untag_by_name(search.unwrap(), id);
                                 println!("{}:", fmt_path(entry.path()));
-                                print!("\t{} {}", "X".bold().red(), realtag);
+
+                                if let Err(e) = realtag.remove_from(entry.path()) {
+                                    err!('\t', e, entry);
+                                } else {
+                                    print!("\t{} {}", "X".bold().red(), fmt_tag(realtag));
+                                }
+
                                 println!();
                             }
                         });

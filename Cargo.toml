@@ -1,8 +1,13 @@
 [package]
 name = "wutag"
-version = "0.4.0"
-authors = ["wojciechkepka <wojtek.kepka@protonmail.com>"]
+description = "Tag files and manage them with color"
+version = "0.4.1"
+authors = ["wojciechkepka <wojtek.kepka@protonmail.com>", "Lucas Burns <lmb@lmburns.com>"]
 edition = "2018"
+repository = "https://github.com/lmburns/wutag"
+categories = ["command-line-utilities", "filesystem", "tagging"]
+keywords = ["cli", "shell", "utility", "tag", "files"]
+readme = "README.md"
 
 [lib]
 name = "wutag_core"

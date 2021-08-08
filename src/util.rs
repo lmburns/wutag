@@ -23,6 +23,29 @@ pub fn fmt_tag(tag: &Tag) -> ColoredString {
     tag.name().color(*tag.color()).bold()
 }
 
+pub fn fmt_local_path<P: AsRef<Path>>(path: P, local: P) -> String {
+    let mut replaced = local.as_ref().display().to_string();
+    if !replaced.ends_with("/") {
+        replaced.push_str("/");
+    }
+    format!("{}",
+        path.as_ref().display().to_string()
+        .replace(replaced.as_str(), "")
+        .bold().blue()
+    )
+}
+
+pub fn raw_local_path<P: AsRef<Path>>(path: P, local: P) -> String {
+    let mut replaced = local.as_ref().display().to_string();
+    if !replaced.ends_with("/") {
+        replaced.push_str("/");
+    }
+    format!("{}",
+        path.as_ref().display().to_string()
+        .replace(replaced.as_str(), "")
+    )
+}
+
 /// Determine whether file (path) contains path and if so, return true
 pub fn contained_path<P: AsRef<Path>>(file: P, path: P) -> bool {
     file.as_ref().display().to_string()

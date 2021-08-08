@@ -5,10 +5,14 @@
 * [x] `macOS` now uses the following locations:
     * [x] `$HOME/.cache` instead of `$HOME/Library/Caches` for `wutag.registry`
     * [x] `$HOME/.config` instead of `$HOME/Library/Application Support` for `wutag.yml`
-* Multiple registries
-* `rm` `-g` option to prevent having to use `-d ~` or whatever directory the file you want to remove is located
+* [x] `rm` `-g` option to prevent having to use `-d ~` or whatever directory the file you want to remove is located
 * [x] `list ...` will be `local` by default and a `global` option will be added
 * [x] Display usage (count) of tags when using `list tags` or `list -g tags`
+* [x] Multiple registries
+* [ ] Find way to force colored output on pipe
+* [ ] Differentiate between `set` and `add`
+* [ ] Configuration option for base file color
+* [ ] Case insensitive glob
 
 CLI tool for tagging and organizing files by tags.
 

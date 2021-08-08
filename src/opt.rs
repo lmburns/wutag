@@ -2,49 +2,82 @@
 use std::{path::PathBuf, str::FromStr};
 
 use anyhow::Error;
-use clap::{AppSettings, Clap};
+use clap::{AppSettings, Clap, crate_version};
 
+// crate_description
+// use colored::*;
+
+// pub const APP_VERSION: &str = "0.4.1";
 pub const APP_NAME: &str = "wutag";
-pub const APP_VERSION: &str = "0.4.0";
-pub const APP_AUTHOR: &str = "Wojciech Kępka <wojciech@wkepka.dev>";
-pub const APP_ABOUT: &str = "Tool to tag and manage tags of files.";
+pub const APP_AUTHOR: &str = "\
+      \x1b[01;38;5;13mWojciech Kępka\x1b[0m <\x1b[01;38;5;10mWwojciech@wkepka.dev\x1b[0m> \
+    \n\x1b[01;38;5;13mLucas Burns\x1b[0m    <\x1b[01;38;5;10mlmb@lmburns.com\x1b[0m>";
+pub static APP_ABOUT: &str = "\
+    \x1b[0;33mDESCRIPTION: \x1b[0;31mTag files and manage them with color\x1b[0m";
 
 #[derive(Clap)]
 #[clap(
-    version = APP_VERSION,
+    version = crate_version!(),
     author = APP_AUTHOR,
     about = APP_ABOUT,
     global_setting = AppSettings::ColoredHelp,
-    global_setting = AppSettings::ColorAuto
+    global_setting = AppSettings::ColorAlways,
+    global_setting = AppSettings::DisableHelpSubcommand,  // Disables help (use -h)
+    global_setting = AppSettings::VersionlessSubcommands, // Shows no --version
+    global_setting = AppSettings::InferSubcommands,       // l, li, lis == list
 )]
+
 pub struct Opts {
-    #[clap(short, long)]
-    /// When this parameter is specified the program will look for files starting from provided
-    /// path, otherwise defaults to current directory. Only applies to subcommands that take a
-    /// pattern as a positional argument.
+    #[clap(short, long, next_line_help = true,
+        long_about = "When specified, the program will look for files starting from the provided \
+        path, otherwise default to current working directory. Only applies to subcommands that \
+        take a pattern as a positional argument"
+    )]
+    /// Specify starting path for filesystem traversal
     pub dir: Option<PathBuf>,
-    #[clap(long, short)]
-    /// If provided increase maximum recursion depth of filesystem traversal to specified value,
-    /// otherwise default depth is 2. Only applies to subcommands that take a pattern as a
-    /// positional argument.
+    #[clap(long, short, next_line_help = true,
+        long_about = "\
+        Increase maximum recursion depth of filesystem traversal to specified value (default: 2). \
+        Only applies to subcommands that take a pattern as a positional argument."
+    )]
+    /// Increase maximum recursion depth (default: 2)
     pub max_depth: Option<usize>,
+    #[clap(long = "registry", short, next_line_help = true)]
+    /// Specify a different registry to use
+    pub reg: Option<PathBuf>,
     /// If passed the output won't be colored
     #[clap(long, short)]
+    /// Do not colorize output
     pub no_color: bool,
     #[clap(subcommand)]
     pub cmd: Command,
 }
 
+// It seems that 'name' has to be defined to use 'requires' or 'conflicts_with'
 #[derive(Clap)]
 pub enum ListObject {
     Tags,
     Files {
-        #[clap(long, short = 't')]
-        /// Should the tags of the entry be display.
+        #[clap(name = "with_tags", long = "with-tags", short = 't')]
+        /// Display tags along with the files
         with_tags: bool,
+        #[clap(
+            name = "formatted", conflicts_with = "garrulous",
+            long = "format", short, requires = "with_tags",
+            long_about = "Format the tags and files output into columns. Requires '--with-tags'"
+        )]
+        /// Format the tags and files output into columns
+        formatted: bool,
+        #[clap(
+            name = "garrulous", conflicts_with = "formatted",
+            long, short = 'G', requires = "with_tags"
+        )]
+        /// Display tags on a separate line
+        garrulous: bool
     },
 }
 
+// TODO: Write better code to use raw with formatted
 #[derive(Clap)]
 pub struct ListOpts {
     #[clap(subcommand)]
@@ -54,11 +87,15 @@ pub struct ListOpts {
     /// If provided output will be raw so that it can be easily piped to other commands
     pub raw: bool,
     #[clap(long, short)]
+    /// List all tags and files instead of locally
     pub global: bool,
 }
 
 #[derive(Clap)]
 pub struct SetOpts {
+    /// Clear tags before setting the tags (may implement a set and add command separately)
+    #[clap(long, short)]
+    pub clear: bool,
     /// A glob pattern like '*.png'.
     pub pattern: String,
     #[clap(required = true)]
@@ -79,9 +116,10 @@ pub struct RmOpts {
 pub struct ClearOpts {
     /// A glob pattern like '*.png'.
     pub pattern: String,
+    #[clap(long, short)]
+    /// Only apply glob to existing files and not traverse entire file system
+    pub global: bool,
 }
-
-// TODO: Add global here as well
 
 #[derive(Clap)]
 pub struct SearchOpts {
@@ -90,9 +128,9 @@ pub struct SearchOpts {
     #[clap(long, short)]
     /// If provided output will be raw so that it can be easily piped to other commands
     pub raw: bool,
-    #[clap(long, short, hidden = true)]
+    // #[clap(long, short, hidden = true)]
     /// This will display all tags on xattr. Some of the tags will not display when listing. So this is hidden
-    pub all: bool,
+    // pub all: bool,
     #[clap(long, short)]
     /// If set to 'true' all entries containing any of provided tags will be returned
     pub any: bool,
@@ -164,6 +202,7 @@ pub enum Command {
     Cp(CpOpts),
     /// Edits a tag.
     Edit(EditOpts),
+    #[clap(display_order = 1000)]
     /// Prints completions for the specified shell to stdout.
     PrintCompletions(CompletionsOpts),
     /// Clean the cached tag registry.

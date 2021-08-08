@@ -28,13 +28,6 @@ impl Hash for Tag {
     }
 }
 
-// impl FromStr for Tag {
-//     type Err = String;
-//     fn from_str(s: &str) -> Result<Self, <Self as FromStr>::Err> {
-//         Ok()
-//     }
-// }
-
 pub trait DirEntryExt {
     fn tag(&self, tag: &Tag) -> Result<()>;
     fn untag(&self, tag: &Tag) -> Result<()>;
@@ -68,15 +61,6 @@ impl DirEntryExt for DirEntry {
         has_tags(self.path())
     }
 }
-
-// impl From<&Path> for DirEntry {
-//     fn from(item: &Path) -> Self {
-//         DirEntry {
-//             Path: PathBuf::from(item),
-//
-//         }
-//     }
-// }
 
 impl Tag {
     pub fn new<S>(name: S, color: Color) -> Self

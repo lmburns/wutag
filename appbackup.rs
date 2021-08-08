@@ -70,6 +70,7 @@ impl App {
             DEFAULT_COLORS.to_vec()
         };
 
+
         let cache_dir = macos_dirs(dirs::cache_dir(), ".cache");
         let state_file = cache_dir.unwrap().join("wutag.registry");
 
@@ -79,9 +80,6 @@ impl App {
             match meta {
                 Ok(file) => {
                     if file.is_file() {
-                        // Check extension
-                        // let file_ext = &opts.reg.clone().unwrap().extension().and_then(OsStr::to_str);
-                        // if &file_ext.unwrap_or("NA") == &"registry" { println!("GOOD"); }
                         TagRegistry::load(&registry).unwrap_or_else(|_| TagRegistry::new(&registry))
                     } else {
                         eprintln!("{}",
@@ -102,7 +100,7 @@ impl App {
                         TagRegistry::load(&registry).unwrap_or_else(|_| TagRegistry::new(&registry))
                     } else {
                         eprintln!("{}",
-                            fmt_err(format!("{} is a directory path. Using default", registry.display().to_string()))
+                            fmt_err(format!("{} is not a file. Using default", registry.display().to_string()))
                         );
                         TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
                     }
@@ -156,6 +154,7 @@ impl App {
         }
     }
 
+    // TODO: List files locally without full path
     fn list(&self, opts: &ListOpts) {
         match opts.object {
             ListObject::Files { with_tags, formatted, garrulous } => {

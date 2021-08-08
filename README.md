@@ -5,14 +5,20 @@
 * [x] `macOS` now uses the following locations:
     * [x] `$HOME/.cache` instead of `$HOME/Library/Caches` for `wutag.registry`
     * [x] `$HOME/.config` instead of `$HOME/Library/Application Support` for `wutag.yml`
-* [x] `rm` `-g` option to prevent having to use `-d ~` or whatever directory the file you want to remove is located
-* [x] `list ...` will be `local` by default and a `global` option will be added
-* [x] Display usage (count) of tags when using `list tags` or `list -g tags`
-* [x] Multiple registries
+* [x] `list`, `rm`, `clear`, and `search` have `--global` option to match only on files that are already tagged
+    * `wutag -g rm '**/z*.md' flag_name`
+* [x] `list [FLAGS] (files|tags) [OPTS]` is local by default. Use `-g|--global` to view all tagged files
+* [x] `list files -t` does not display full path of files unless `-g|--global` is used. Instead it is directory-relative
+* [x] `list files -tG` displays `tags` and `files` on separate lines (`--garrulous` is taken from [`tag`](https://github.com/jdbery/tag))
+* [x] `list tags` displays the count of each tag
+* [x] `list files -tf` displays `tags` and `files` in a column `-f`ormat (requires `-t|--with-tags`)
+* [x] Case insensitive globbing applies to any pattern, as well as the `-g|--global` option
+* [x] Multiple registries are available with the `-r|--registry` option
+* [x] `wutag` respects the `NO_COLOR` environment variable when displaying output (that is `export NO_COLOR=1`)
 * [ ] Find way to force colored output on pipe
 * [ ] Differentiate between `set` and `add`
 * [ ] Configuration option for base file color
-* [ ] Case insensitive glob
+* [ ] Use `wutag list files -t` as a default command if there are none listed
 
 CLI tool for tagging and organizing files by tags.
 

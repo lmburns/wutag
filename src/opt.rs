@@ -45,9 +45,22 @@ pub struct Opts {
     #[clap(long = "registry", short, next_line_help = true)]
     /// Specify a different registry to use
     pub reg: Option<PathBuf>,
-    /// If passed the output won't be colored
-    #[clap(long, short)]
-    /// Do not colorize output
+    #[clap(long, short = 'i',
+        long_about = "\
+        Turn the glob into a case insensitive one (default: case sensitive). \
+        Only applies to subcommands that take a pattern as a positional argument."
+    )]
+    /// Case insensitively search
+    pub case_insensitive: bool,
+    #[clap(long, short,
+        long_about = "\
+        Apply operation to files that are already tagged instead of traversing into local directories \
+        or directories specified with '-d|--dir'. Only applies to 'search', 'list', 'rm', and 'clear'."
+    )]
+    /// List all tags and files instead of locally
+    pub global: bool,
+    #[clap(long, short, env = "NO_COLOR")]
+    /// Do not colorize the output
     pub no_color: bool,
     #[clap(subcommand)]
     pub cmd: Command,
@@ -72,12 +85,11 @@ pub enum ListObject {
             name = "garrulous", conflicts_with = "formatted",
             long, short = 'G', requires = "with_tags"
         )]
-        /// Display tags on a separate line
+        /// Display tags and files on separate lines
         garrulous: bool
     },
 }
 
-// TODO: Write better code to use raw with formatted
 #[derive(Clap)]
 pub struct ListOpts {
     #[clap(subcommand)]
@@ -86,9 +98,6 @@ pub struct ListOpts {
     #[clap(long, short)]
     /// If provided output will be raw so that it can be easily piped to other commands
     pub raw: bool,
-    #[clap(long, short)]
-    /// List all tags and files instead of locally
-    pub global: bool,
 }
 
 #[derive(Clap)]
@@ -105,8 +114,6 @@ pub struct SetOpts {
 #[derive(Clap)]
 pub struct RmOpts {
     #[clap(long, short)]
-    /// Only apply glob to existing files and not traverse entire file system
-    pub global: bool,
     /// A glob pattern like '*.png'.
     pub pattern: String,
     pub tags: Vec<String>,
@@ -116,9 +123,6 @@ pub struct RmOpts {
 pub struct ClearOpts {
     /// A glob pattern like '*.png'.
     pub pattern: String,
-    #[clap(long, short)]
-    /// Only apply glob to existing files and not traverse entire file system
-    pub global: bool,
 }
 
 #[derive(Clap)]
@@ -128,9 +132,6 @@ pub struct SearchOpts {
     #[clap(long, short)]
     /// If provided output will be raw so that it can be easily piped to other commands
     pub raw: bool,
-    // #[clap(long, short, hidden = true)]
-    /// This will display all tags on xattr. Some of the tags will not display when listing. So this is hidden
-    // pub all: bool,
     #[clap(long, short)]
     /// If set to 'true' all entries containing any of provided tags will be returned
     pub any: bool,
@@ -188,6 +189,7 @@ pub struct CompletionsOpts {
 
 #[derive(Clap)]
 pub enum Command {
+    #[clap(alias = "ls")]
     /// Lists all available tags or files.
     List(ListOpts),
     /// Tags the files that match the given pattern with specified tags.

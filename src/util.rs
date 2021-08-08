@@ -55,7 +55,12 @@ pub fn contained_path<P: AsRef<Path>>(file: P, path: P) -> bool {
 /// Returns a GlobWalker instance with base path set to `base_path` and pattern to `pattern`. If
 /// max_depth is specified the GlobWalker will have it's max depth set to its value, otherwise max
 /// depth will be [DEFAULT_MAX_DEPTH](DEFAULT_MAX_DEPTH).
-pub fn glob_walker<S>(dir: S, pattern: S, max_depth: Option<usize>) -> Result<GlobWalker>
+pub fn glob_walker<S>(
+    dir: S,
+    pattern: S,
+    max_depth: Option<usize>,
+    case_insensitive: bool
+) -> Result<GlobWalker>
 where
     S: AsRef<str>,
 {
@@ -66,19 +71,31 @@ where
     } else {
         builder = builder.max_depth(DEFAULT_MAX_DEPTH);
     }
+
+    if case_insensitive {
+        builder = builder.case_insensitive(true);
+    } else {
+        builder = builder.case_insensitive(false);
+    }
     builder.build().context("invalid path")
 }
 
 /// Utility function that executes the function `f` on all directory entries that are Ok, by
 /// default ignores all errors.
-pub fn glob_ok<P, F>(pattern: &str, base_path: P, max_depth: Option<usize>, mut f: F) -> Result<()>
+pub fn glob_ok<P, F>(
+    pattern: &str,
+    base_path: P,
+    max_depth: Option<usize>,
+    case_insensitive: bool,
+    mut f: F
+) -> Result<()>
 where
     P: AsRef<Path>,
     F: FnMut(&DirEntry),
 {
     let base_path = base_path.as_ref().to_string_lossy().to_string();
 
-    for entry in glob_walker(base_path.as_str(), pattern, max_depth)?.flatten() {
+    for entry in glob_walker(base_path.as_str(), pattern, max_depth, case_insensitive)?.flatten() {
         f(&entry);
     }
 

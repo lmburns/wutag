@@ -24,7 +24,9 @@ pub struct App {
     pub max_depth: Option<usize>,
     pub colors: Vec<Color>,
     pub no_color: bool,
+    pub global: bool,
     pub registry: TagRegistry,
+    pub case_insensitive: bool,
 }
 
 macro_rules! err {
@@ -121,7 +123,9 @@ impl App {
             },
             colors,
             no_color: opts.no_color,
+            global: opts.global,
             registry,
+            case_insensitive: opts.case_insensitive,
         })
     }
 
@@ -162,13 +166,13 @@ impl App {
 
                 let global_opts = |local: String, global: String| {
                     if garrulous {
-                        if !opts.global {
+                        if !self.global {
                             println!("{}", local);
                         } else {
                             println!("{}", global);
                         }
                     } else {
-                        if !opts.global {
+                        if !self.global {
                             print!("{}", local);
                         } else {
                             print!("{}", global);
@@ -181,7 +185,7 @@ impl App {
                 for (id, file) in self.registry.list_entries_and_ids() {
                     // Skips paths that are not contained within one another to respect the `-d` flag
                     // Global is just another way to specify -d ~ (list files locally by default)
-                    if !opts.global && !contained_path(file.path(), &self.base_dir) {
+                    if !self.global && !contained_path(file.path(), &self.base_dir) {
                         continue;
                     }
 
@@ -236,7 +240,7 @@ impl App {
                 let mut utags = Vec::new();
                 let mut table = Table::new("{:<}  |  {:<}");
                 for (&id, file) in self.registry.list_entries_and_ids() {
-                    if !opts.global && !contained_path(file.path(), &self.base_dir) {
+                    if !self.global && !contained_path(file.path(), &self.base_dir) {
                         continue;
                     }
                     let tags = self
@@ -288,6 +292,7 @@ impl App {
             &opts.pattern,
             &self.base_dir.clone(),
             self.max_depth,
+            self.case_insensitive,
             |entry: &DirEntry| {
                 println!("{}:", fmt_path(entry.path()));
                 tags.iter().for_each(|tag| {
@@ -312,11 +317,16 @@ impl App {
     fn rm(&mut self, opts: &RmOpts) {
         // Global will match a glob against only files that are tagged
         // There may be a better way to do this. Lot's of similar code here
-        if opts.global {
+        if self.global {
             let pat = glob::Pattern::new(&opts.pattern).unwrap();
+            let matchopts = glob::MatchOptions {
+                case_sensitive: if self.case_insensitive { false } else { true },
+                require_literal_separator: false,
+                require_literal_leading_dot: false
+            };
             let ctags = opts.tags.iter().collect::<Vec<_>>();
             for (&id, entry) in self.registry.clone().list_entries_and_ids() {
-                if pat.matches(entry.path().to_str().unwrap()) {
+                if pat.matches_with(entry.path().to_str().unwrap(), matchopts) {
                     list_tags(entry.path())
                         .map(|tags| {
                             tags.iter().fold(Vec::new(), |mut acc, tag| {
@@ -353,6 +363,7 @@ impl App {
                 &opts.pattern,
                 &self.base_dir.clone(),
                 self.max_depth,
+                self.case_insensitive,
                 |entry: &DirEntry| {
                     let id = self.registry.find_entry(entry.path());
                     let tags = opts
@@ -395,10 +406,15 @@ impl App {
     }
 
     fn clear(&mut self, opts: &ClearOpts) {
-        if opts.global {
+        if self.global {
             let pat = glob::Pattern::new(&opts.pattern).unwrap();
+            let matchopts = glob::MatchOptions {
+                case_sensitive: if self.case_insensitive { false } else { true } ,
+                require_literal_separator: false,
+                require_literal_leading_dot: false
+            };
             for (&id, entry) in self.registry.clone().list_entries_and_ids() {
-                if pat.matches(entry.path().to_str().unwrap()) {
+                if pat.matches_with(entry.path().to_str().unwrap(), matchopts) {
                     self.registry.clear_entry(id);
                     match has_tags(entry.path()) {
                         Ok(has_tags) => {
@@ -422,6 +438,7 @@ impl App {
                 &opts.pattern,
                 &self.base_dir.clone(),
                 self.max_depth,
+                self.case_insensitive,
                 |entry: &DirEntry| {
                     if let Some(id) = self.registry.find_entry(entry.path()) {
                         self.registry.clear_entry(id);
@@ -471,6 +488,7 @@ impl App {
                 }
             }
         } else {
+            // TODO: Add global option
             for id in self.registry.list_entries_with_tags(&opts.tags) {
                 let path = match self.registry.get_entry(id) {
                     Some(entry) => {
@@ -509,6 +527,7 @@ impl App {
                     &opts.pattern,
                     &self.base_dir.clone(),
                     self.max_depth,
+                    self.case_insensitive,
                     |entry: &DirEntry| {
                         println!("{}:", fmt_path(entry.path()));
                         for tag in &tags {

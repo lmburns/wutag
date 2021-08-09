@@ -235,8 +235,7 @@ impl App {
                 }
                 if formatted { println!("{}", table); }
             }
-            ListObject::Tags => {
-                // TODO: Respect raw
+            ListObject::Tags { for_completions } => {
                 // I think both id and entry has to be listed here to be able to respect current directory
                 // This is really dirty
                 let mut utags = Vec::new();
@@ -250,7 +249,10 @@ impl App {
                         .list_entry_tags(id)
                         .map(|tags| {
                             tags.iter().fold(String::new(), |mut acc, t| {
-                                acc.push_str(&format!("{} ", fmt_tag(t)));
+                                acc.push_str(&format!("{} ",
+                                        if opts.raw { t.name().white() } else { fmt_tag(t) }
+                                    )
+                                );
                                 acc
                             })
                         })
@@ -266,13 +268,23 @@ impl App {
                 })
                 .iter()
                 .for_each(|(tag, count)| {
+                    // What's up with empty row at end?
                     table.add_row(Row::new()
-                        .with_cell(count.to_string().green().bold())
+                        .with_cell(
+                            if opts.raw {
+                                count.to_string().white()
+                            } else {
+                                count.to_string().green().bold()
+                            })
                         .with_cell(tag)
                     );
                 });
                 // Can't get this to work if cells are reversed
-                println!("{}", table);
+                if for_completions {
+                    utags.iter().for_each(|tag| println!("{}", tag) );
+                } else {
+                    println!("{}", table);
+                }
             }
         }
     }

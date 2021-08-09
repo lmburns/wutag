@@ -2,9 +2,9 @@
 use std::{path::PathBuf, str::FromStr, env};
 
 use anyhow::Error;
-use clap::{AppSettings, Clap, crate_version};
+use clap::{AppSettings, Clap, crate_version, ValueHint};
 
-// pub const APP_VERSION: &str = "0.4.2";
+// pub const APP_VERSION: &str = "0.4.3";
 pub const APP_NAME: &str = "wutag";
 pub const APP_AUTHOR: &str = "\
       \x1b[01;38;5;13mWojciech Kępka\x1b[0m <\x1b[01;38;5;10mWwojciech@wkepka.dev\x1b[0m> \
@@ -24,46 +24,48 @@ pub static APP_ABOUT: &str = "\
     global_setting = AppSettings::InferSubcommands,       // l, li, lis == list
 )]
 pub struct Opts {
+    /// Specify starting path for filesystem traversal
     #[clap(short, long, next_line_help = true,
-        long_about = "When specified, the program will look for files starting from the provided \
+        value_hint = ValueHint::DirPath,
+        long_about = "\
+        When specified, the program will look for files starting from the provided \
         path, otherwise default to current working directory. Only applies to subcommands that \
         take a pattern as a positional argument"
     )]
-    /// Specify starting path for filesystem traversal
     pub dir: Option<PathBuf>,
+    /// Increase maximum recursion depth (default: 2)
     #[clap(long, short, next_line_help = true,
         long_about = "\
         Increase maximum recursion depth of filesystem traversal to specified value (default: 2). \
         Only applies to subcommands that take a pattern as a positional argument."
     )]
-    /// Increase maximum recursion depth (default: 2)
     pub max_depth: Option<usize>,
-    #[clap(long = "registry", short, next_line_help = true)]
     /// Specify a different registry to use
+    #[clap(long = "registry", short, next_line_help = true, value_hint = ValueHint::FilePath)]
     pub reg: Option<PathBuf>,
+    /// Case insensitively search
     #[clap(long, short = 'i',
         long_about = "\
         Turn the glob into a case insensitive one (default: case sensitive). \
         Only applies to subcommands that take a pattern as a positional argument."
     )]
-    /// Case insensitively search
     pub case_insensitive: bool,
+    /// List all tags and files instead of locally
     #[clap(long, short,
         long_about = "\
         Apply operation to files that are already tagged instead of traversing into local directories \
         or directories specified with '-d|--dir'. Only applies to 'search', 'list', 'rm', and 'clear'."
     )]
-    /// List all tags and files instead of locally
     pub global: bool,
-    #[clap(long, short, env = "NO_COLOR")]
     /// Do not colorize the output
+    #[clap(long, short, env = "NO_COLOR", takes_value = false)]
     pub no_color: bool,
     #[clap(subcommand)]
     pub cmd: Command,
 }
 
-// Default command to run if no arguments are passed
 impl Opts {
+    /// Default command to run if no arguments are passed
     pub fn base() -> Self {
         Self {
             global: true,
@@ -91,58 +93,60 @@ impl Default for Command {
 // It seems that 'name' has to be defined to use 'requires' or 'conflicts_with'
 #[derive(Clap, Debug)]
 pub enum ListObject {
-    Tags,
+    Tags {
+        #[clap(long = "completions", short = 'c', hidden = true)]
+        for_completions: bool,
+    },
     Files {
-        #[clap(name = "with_tags", long = "with-tags", short = 't')]
         /// Display tags along with the files
+        #[clap(name = "with_tags", long = "with-tags", short = 't')]
         with_tags: bool,
+        /// Format the tags and files output into columns
         #[clap(
             name = "formatted", conflicts_with = "garrulous",
             long = "format", short, requires = "with_tags",
             long_about = "Format the tags and files output into columns. Requires '--with-tags'"
         )]
-        /// Format the tags and files output into columns
         formatted: bool,
+        /// Display tags and files on separate lines
         #[clap(
             name = "garrulous", conflicts_with = "formatted",
             long, short = 'G', requires = "with_tags"
         )]
-        /// Display tags and files on separate lines
         garrulous: bool
     },
 }
 
 #[derive(Clap, Debug)]
 pub struct ListOpts {
-    #[clap(subcommand)]
     /// The object to list. Valid values are: 'tags', 'files'.
+    #[clap(subcommand)]
     pub object: ListObject,
-    #[clap(long, short)]
     /// If provided output will be raw so that it can be easily piped to other commands
+    #[clap(long, short)]
     pub raw: bool,
 }
 
 #[derive(Clap, Debug)]
 pub struct SetOpts {
-    #[clap(long, short)]
     /// Clear tags before setting the tags (may implement a set and add command separately)
+    #[clap(long, short)]
     pub clear: bool,
-    /// A glob pattern like '*.png'.
+    /// A glob pattern like "*.png".
     pub pattern: String,
-    #[clap(required = true)]
     pub tags: Vec<String>,
 }
 
 #[derive(Clap, Debug)]
 pub struct RmOpts {
-    /// A glob pattern like '*.png'.
+    /// A glob pattern like "*.png".
     pub pattern: String,
     pub tags: Vec<String>,
 }
 
 #[derive(Clap, Debug)]
 pub struct ClearOpts {
-    /// A glob pattern like '*.png'.
+    /// A glob pattern like "*.png".
     pub pattern: String,
 }
 
@@ -150,19 +154,20 @@ pub struct ClearOpts {
 pub struct SearchOpts {
     #[clap(required = true)]
     pub tags: Vec<String>,
-    #[clap(long, short)]
     /// If provided output will be raw so that it can be easily piped to other commands
-    pub raw: bool,
     #[clap(long, short)]
+    pub raw: bool,
     /// If set to 'true' all entries containing any of provided tags will be returned
+    #[clap(long, short)]
     pub any: bool,
 }
 
 #[derive(Clap, Debug)]
 pub struct CpOpts {
     /// Path to the file from which to copy tags from
+    #[clap(value_hint = ValueHint::FilePath)]
     pub input_path: PathBuf,
-    /// A glob pattern like '*.png'.
+    /// A glob pattern like "*.png".
     pub pattern: String,
 }
 
@@ -201,17 +206,24 @@ impl FromStr for Shell {
     }
 }
 
+impl Shell {
+    pub fn variants() -> [&'static str; 5] {
+        ["bash", "elvish", "fish", "powershell", "zsh"]
+    }
+}
+
 #[derive(Clap, Debug)]
 pub struct CompletionsOpts {
-    /// A shell for which to print completions. Available shells are: bash, elvish, fish,
+    /// Shell to print completions. Available shells are: bash, elvish, fish,
     /// powershell, zsh
+    #[clap(long, possible_values = &Shell::variants())]
     pub shell: Shell,
 }
 
 #[derive(Clap, Debug)]
 pub enum Command {
-    #[clap(alias = "ls")]
     /// Lists all available tags or files.
+    #[clap(aliases = &["ls", "l", "li", "lis"])] // Have to do this to be compatible with InferSubcommands
     List(ListOpts),
     /// Tags the files that match the given pattern with specified tags.
     Set(SetOpts),
@@ -225,8 +237,8 @@ pub enum Command {
     Cp(CpOpts),
     /// Edits a tag.
     Edit(EditOpts),
-    #[clap(display_order = 1000)]
     /// Prints completions for the specified shell to stdout.
+    #[clap(display_order = 1000)]
     PrintCompletions(CompletionsOpts),
     /// Clean the cached tag registry.
     CleanCache,

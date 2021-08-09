@@ -16,10 +16,15 @@
 * [x] Multiple registries are available with the `-r|--registry` option
 * [ ] (Maybe) Add registry to `ERROR` message (would be difficult to implement, have to use registry in the metadata)
 * [x] `wutag` respects the `NO_COLOR` environment variable when displaying output (that is `export NO_COLOR=1`)
+* [x] Display a message when clearing cache with `clean-cache`
+* [x] Use `wutag list files -t` as a default command if there are none listed
+* [x] Alias `list` with `ls` and infer all other subcommands, i.e., `clean` == `clean-cache`; `p`, `pr`, `pri` ... == `print-completions`
+    * As long as the command can be clearly inferred with no ambiguity
 * [ ] Find way to force colored output on pipe
 * [ ] Differentiate between `set` and `add`
 * [ ] Configuration option for base file color
-* [ ] Use `wutag list files -t` as a default command if there are none listed
+* [ ] List tags and use them for completions
+* [ ] Fix `any` vs the normal `all` (it doesn't work)
 
 CLI tool for tagging and organizing files by tags.
 
@@ -79,7 +84,7 @@ colors:
 
 ## Tab completion
 
-To get tab completion use `wutag print-completions <shell> > /path/to/completions/dir/...` to enable it in your favourite shell.
+To get tab completion use `wutag print-completions --shell <shell> > /path/to/completions/dir/...` to enable it in your favorite shell.
 
 Available shells are:
  - `bash`
@@ -89,40 +94,48 @@ Available shells are:
  - `zsh`
 
  To enable completions on the fly use:
- - `. <(wutag print-completions bash)`
+ - `. <(wutag print-completions --shell zsh)`
 
 
 ## User interface
-```
+### Usage
+```sh
 USAGE:
     wutag [FLAGS] [OPTIONS] <SUBCOMMAND>
 
 FLAGS:
-    -h, --help        Prints help information
-    -n, --no-color    If passed the output won't be colored
-    -V, --version     Prints version information
+    -i, --case-insensitive    Case insensitively search
+    -g, --global              List all tags and files instead of locally
+    -h, --help                Prints help information
+    -n, --no-color            Do not colorize the output [env: NO_COLOR=]
+    -V, --version             Prints version information
 
 OPTIONS:
-    -d, --dir <dir>                When this parameter is specified the program will look for files
-                                   starting from provided path, otherwise defaults to current
-                                   directory. Only applies to subcommands that take a pattern as a
-                                   positional argument
-    -m, --max-depth <max-depth>    If provided increase maximum recursion depth of filesystem
-                                   traversal to specified value, otherwise default depth is 2. Only
-                                   applies to subcommands that take a pattern as a positional
-                                   argument
+    -d, --dir <dir>
+            Specify starting path for filesystem traversal
+
+    -m, --max-depth <max-depth>
+            Increase maximum recursion depth (default: 2)
+
+    -r, --registry <reg>
+            Specify a different registry to use
+
 
 SUBCOMMANDS:
+    clean-cache          Clean the cached tag registry
     clear                Clears all tags of the files that match the provided pattern
     cp                   Copies tags from the specified file to files that match a pattern
     edit                 Edits a tag
-    help                 Prints this message or the help of the given subcommand(s)
     list                 Lists all available tags or files
-    print-completions    Prints completions for the specified shell to stdout
     rm                   Removes the specified tags of the files that match the provided pattern
-    search               Searches for files that have all of the provided `tags`
+    search               Searches for files that have all of the provided 'tags'
     set                  Tags the files that match the given pattern with specified tags
+    print-completions    Prints completions for the specified shell to stdout
 ```
+
+### More help
+Use the `--help` flag for longer explanations on some flags, as well as `--help|-h` after each subcommand
+to see the available options. Tip: If completions are installed it will help a ton.
 
 ## License
 [MIT](https://github.com/vv9k/wutag/blob/master/LICENSE)

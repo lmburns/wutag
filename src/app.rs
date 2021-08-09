@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::IntoApp;
 use colored::{Color, Colorize};
 use globwalk::DirEntry;
@@ -8,10 +8,10 @@ use std::collections::HashMap;
 
 use tabular::{Table, Row};
 
-use crate::config::Config;
+use crate::{config::Config, comp_helper};
 use crate::opt::{
     ClearOpts, Command, CompletionsOpts, CpOpts, EditOpts, ListObject, ListOpts, Opts, RmOpts,
-    SearchOpts, SetOpts, Shell, APP_NAME,
+    SearchOpts, AddOpts, SetOpts, Shell, APP_NAME,
 };
 use crate::registry::{EntryData, TagRegistry};
 use crate::util::{contained_path, fmt_err, fmt_ok, fmt_path, fmt_local_path, raw_local_path, fmt_tag, glob_ok, macos_dirs};
@@ -76,7 +76,7 @@ impl App {
         let state_file = cache_dir.unwrap().join("wutag.registry");
 
         let registry = if let Some(registry) = &opts.reg {
-            let meta = fs::metadata(&registry);
+        let meta = fs::metadata(&registry);
 
             match meta {
                 Ok(file) => {
@@ -142,6 +142,7 @@ impl App {
 
         match cmd {
             Command::List(ref opts) => self.list(opts),
+            Command::Add(opts) => self.add(&opts),
             Command::Set(opts) => self.set(&opts),
             Command::Rm(ref opts) => self.rm(opts),
             Command::Clear(ref opts) => self.clear(opts),
@@ -158,7 +159,8 @@ impl App {
         if let Err(e) = self.registry.save() {
             println!("{:?}", e);
         } else {
-            println!("✔ {}: {}",
+            println!("{} {}: {}",
+                "✔".green().bold(),
                 "CACHE CLEARED".red().bold(),
                 self.registry.path.to_path_buf().display()
                     .to_string().green().bold()
@@ -289,7 +291,7 @@ impl App {
         }
     }
 
-    fn set(&mut self, opts: &SetOpts) {
+    fn add(&mut self, opts: &AddOpts) {
         let tags = opts
             .tags
             .iter()
@@ -328,6 +330,54 @@ impl App {
         self.save_registry();
     }
 
+    fn set(&mut self, opts: &SetOpts) {
+        let tags = opts
+            .tags
+            .iter()
+            .map(|t| Tag::random(t, &self.colors))
+            .collect::<Vec<_>>();
+
+        if let Err(e) = glob_ok(
+            &opts.pattern,
+            &self.base_dir.clone(),
+            self.max_depth,
+            self.case_insensitive,
+            |entry: &DirEntry| {
+                println!("{}:", fmt_path(entry.path()));
+                if let Some(id) = self.registry.find_entry(entry.path()) {
+                    self.registry.clear_entry(id);
+                }
+                match entry.has_tags() {
+                    Ok(has_tags) => {
+                        if has_tags {
+                            if let Err(e) = entry.clear_tags() {
+                                err!('\t', e, entry);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        err!(e, entry);
+                    }
+                }
+
+                tags.iter().for_each(|tag| {
+                    if let Err(e) = entry.tag(tag) {
+                        err!('\t', e, entry);
+                    } else {
+                        let entry = EntryData::new(entry.path());
+                        let id = self.registry.add_or_update_entry(entry);
+                        self.registry.tag_entry(tag, id);
+                        print!("\t{} {}", "+".bold().green(), fmt_tag(tag));
+                    }
+                });
+                println!();
+            },
+        ) {
+            eprintln!("{}", fmt_err(e));
+        }
+        self.save_registry();
+    }
+
     fn rm(&mut self, opts: &RmOpts) {
         // Global will match a glob against only files that are tagged
         // There may be a better way to do this. Lot's of similar code here
@@ -338,6 +388,7 @@ impl App {
                 require_literal_separator: false,
                 require_literal_leading_dot: false
             };
+
             let ctags = opts.tags.iter().collect::<Vec<_>>();
             for (&id, entry) in self.registry.clone().list_entries_and_ids() {
                 if pat.matches_with(entry.path().to_str().unwrap(), matchopts) {
@@ -585,6 +636,22 @@ impl App {
     }
 
     fn print_completions(&self, opts: &CompletionsOpts) {
+        fn replace(
+            haystack: &mut String,
+            needle: &str,
+            replacement: &str
+        ) -> Result<()> {
+            if let Some(index) = haystack.find(needle) {
+                haystack.replace_range(index..index + needle.len(), replacement);
+                Ok(())
+            } else {
+                Err(anyhow!(
+                "Failed to find text:\n{}\n…in completion script:\n{}",
+                needle, haystack
+                ))
+            }
+        }
+
         use clap_generate::{
             generate,
             generators::{Bash, Elvish, Fish, PowerShell, Zsh},
@@ -592,12 +659,29 @@ impl App {
 
         let mut app = Opts::into_app();
 
+        let buffer = Vec::new();
+        let mut cursor = io::Cursor::new(buffer);
+
         match opts.shell {
-            Shell::Bash => generate::<Bash, _>(&mut app, APP_NAME, &mut io::stdout()),
-            Shell::Elvish => generate::<Elvish, _>(&mut app, APP_NAME, &mut io::stdout()),
-            Shell::Fish => generate::<Fish, _>(&mut app, APP_NAME, &mut io::stdout()),
-            Shell::PowerShell => generate::<PowerShell, _>(&mut app, APP_NAME, &mut io::stdout()),
-            Shell::Zsh => generate::<Zsh, _>(&mut app, APP_NAME, &mut io::stdout()),
+            Shell::Bash => generate::<Bash, _>(&mut app, APP_NAME, &mut cursor),
+            Shell::Elvish => generate::<Elvish, _>(&mut app, APP_NAME, &mut cursor),
+            Shell::Fish => generate::<Fish, _>(&mut app, APP_NAME, &mut cursor),
+            Shell::PowerShell => generate::<PowerShell, _>(&mut app, APP_NAME, &mut cursor),
+            Shell::Zsh => generate::<Zsh, _>(&mut app, APP_NAME, &mut cursor),
         }
+
+        let buffer = cursor.into_inner();
+        let mut script = String::from_utf8(buffer).expect("Clap completion not UTF-8");
+
+        match opts.shell {
+            Shell::Zsh => {
+                for (needle, replacement) in comp_helper::ZSH_COMPLETION_REP {
+                    replace(&mut script, needle, replacement).expect("Failed to replace completion script");
+                }
+            },
+            _ => println!(),
+        }
+
+        println!("{}", script.trim())
     }
 }

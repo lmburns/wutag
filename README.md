@@ -20,8 +20,10 @@
 * [x] Use `wutag list files -t` as a default command if there are none listed
 * [x] Alias `list` with `ls` and infer all other subcommands, i.e., `clean` == `clean-cache`; `p`, `pr`, `pri` ... == `print-completions`
     * As long as the command can be clearly inferred with no ambiguity
+* [x] Differentiate between `set` and `add` (added `wutag add`)
+    * `set` will clear tags before adding them
+    * `add` replaces the old `set` command, which will either add or update tags
 * [ ] Find way to force colored output on pipe
-* [ ] Differentiate between `set` and `add`
 * [ ] Configuration option for base file color
 * [ ] List tags and use them for completions
 * [ ] Fix `any` vs the normal `all` (it doesn't work)
@@ -99,13 +101,13 @@ Available shells are:
 
 ## User interface
 ### Usage
-```sh
+```
 USAGE:
     wutag [FLAGS] [OPTIONS] <SUBCOMMAND>
 
 FLAGS:
     -i, --case-insensitive    Case insensitively search
-    -g, --global              List all tags and files instead of locally
+    -g, --global              Apply operation to all tags and files instead of locally
     -h, --help                Prints help information
     -n, --no-color            Do not colorize the output [env: NO_COLOR=]
     -V, --version             Prints version information
@@ -122,14 +124,15 @@ OPTIONS:
 
 
 SUBCOMMANDS:
+    add                  Add tag(s) to files that match the given pattern
     clean-cache          Clean the cached tag registry
     clear                Clears all tags of the files that match the provided pattern
     cp                   Copies tags from the specified file to files that match a pattern
     edit                 Edits a tag
     list                 Lists all available tags or files
-    rm                   Removes the specified tags of the files that match the provided pattern
+    rm                   Remove tag(s) from the files that match the provided pattern
     search               Searches for files that have all of the provided 'tags'
-    set                  Tags the files that match the given pattern with specified tags
+    set                  Set tag(s) on files that match the given pattern
     print-completions    Prints completions for the specified shell to stdout
 ```
 

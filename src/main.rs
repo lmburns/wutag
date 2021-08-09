@@ -1,4 +1,5 @@
 mod app;
+mod comp_helper;
 mod config;
 mod opt;
 mod registry;

@@ -50,7 +50,7 @@ pub struct Opts {
         Only applies to subcommands that take a pattern as a positional argument."
     )]
     pub case_insensitive: bool,
-    /// List all tags and files instead of locally
+    /// Apply operation to all tags and files instead of locally
     #[clap(long, short,
         long_about = "\
         Apply operation to files that are already tagged instead of traversing into local directories \
@@ -128,10 +128,14 @@ pub struct ListOpts {
 }
 
 #[derive(Clap, Debug)]
+pub struct AddOpts {
+    /// A glob pattern like "*.png".
+    pub pattern: String,
+    pub tags: Vec<String>,
+}
+
+#[derive(Clap, Debug)]
 pub struct SetOpts {
-    /// Clear tags before setting the tags (may implement a set and add command separately)
-    #[clap(long, short)]
-    pub clear: bool,
     /// A glob pattern like "*.png".
     pub pattern: String,
     pub tags: Vec<String>,
@@ -225,21 +229,24 @@ pub enum Command {
     /// Lists all available tags or files.
     #[clap(aliases = &["ls", "l", "li", "lis"])] // Have to do this to be compatible with InferSubcommands
     List(ListOpts),
-    /// Tags the files that match the given pattern with specified tags.
+    /// Set tag(s) on files that match the given pattern
     Set(SetOpts),
-    /// Removes the specified tags of the files that match the provided pattern.
+    /// Add tag(s) to files that match the given pattern
+    Add(AddOpts),
+    /// Remove tag(s) from the files that match the provided pattern
+    #[clap(aliases = &["remove", "r"])]
     Rm(RmOpts),
-    /// Clears all tags of the files that match the provided pattern.
+    /// Clears all tags of the files that match the provided pattern
     Clear(ClearOpts),
-    /// Searches for files that have all of the provided 'tags'.
+    /// Searches for files that have all of the provided 'tags'
     Search(SearchOpts),
-    /// Copies tags from the specified file to files that match a pattern.
+    /// Copies tags from the specified file to files that match a pattern
     Cp(CpOpts),
-    /// Edits a tag.
+    /// Edits a tag
     Edit(EditOpts),
-    /// Prints completions for the specified shell to stdout.
+    /// Prints completions for the specified shell to stdout
     #[clap(display_order = 1000)]
     PrintCompletions(CompletionsOpts),
-    /// Clean the cached tag registry.
+    /// Clean the cached tag registry
     CleanCache,
 }

@@ -3,153 +3,156 @@
 autoload -U is-at-least
 
 _wutag() {
-  typeset -A opt_args
-  typeset -a _arguments_options
-  local ret=1
+    typeset -A opt_args
+    typeset -a _arguments_options
+    local ret=1
 
-if is-at-least 5.2; then
-    _arguments_options=(-s -S -C)
-else
-    _arguments_options=(-s -C)
-fi
+    if is-at-least 5.2; then
+        _arguments_options=(-s -S -C)
+    else
+        _arguments_options=(-s -C)
+    fi
 
-local context curcontext="$curcontext" state line
+    local context curcontext="$curcontext" state line
+    _arguments "${_arguments_options[@]}" \
+'-d+[Specify starting path for filesystem traversal]: :_files -/' \
+'--dir=[Specify starting path for filesystem traversal]: :_files -/' \
+'-m+[Increase maximum recursion depth (default: 2)]' \
+'--max-depth=[Increase maximum recursion depth (default: 2)]' \
+'-r+[Specify a different registry to use]: :_files' \
+'--registry=[Specify a different registry to use]: :_files' \
+'-i[Case insensitively search]' \
+'--case-insensitive[Case insensitively search]' \
+'-g[Apply operation to all tags and files instead of locally]' \
+'--global[Apply operation to all tags and files instead of locally]' \
+'-n[Do not colorize the output]' \
+'--no-color[Do not colorize the output]' \
+'-h[Prints help information]' \
+'--help[Prints help information]' \
+'-V[Prints version information]' \
+'--version[Prints version information]' \
+":: :_wutag_commands" \
+"*::: :->wutag" \
+&& ret=0
+    case $state in
+    (wutag)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:wutag-command-$line[1]:"
+        case $line[1] in
+            (list)
 _arguments "${_arguments_options[@]}" \
-    '-d+[Specify starting path for filesystem traversal]: :_files -/' \
-    '--dir=[Specify starting path for filesystem traversal]: :_files -/' \
-    '-m+[Increase maximum recursion depth (default: 2)]' \
-    '--max-depth=[Increase maximum recursion depth (default: 2)]' \
-    '-r+[Specify a different registry to use]: :_files' \
-    '--registry=[Specify a different registry to use]: :_files' \
-    '-n+[Do not colorize the output]' \
-    '--no-color=[Do not colorize the output]' \
-    '-i[Case insensitively search]' \
-    '--case-insensitive[Case insensitively search]' \
-    '-g[List all tags and files instead of locally]' \
-    '--global[List all tags and files instead of locally]' \
-    '-h[Prints help information]' \
-    '--help[Prints help information]' \
-    '-V[Prints version information]' \
-    '--version[Prints version information]' \
-    ":: :_wutag_commands" \
-    "*::: :->wutag" \
-    && ret=0
-
+'-r[If provided output will be raw so that it can be easily piped to other commands]' \
+'--raw[If provided output will be raw so that it can be easily piped to other commands]' \
+'-h[Prints help information]' \
+'--help[Prints help information]' \
+":: :_wutag__list_commands" \
+"*::: :->list" \
+&& ret=0
 case $state in
-  (wutag)
-    words=($line[1] "${words[@]}")
-    (( CURRENT += 1 ))
-    curcontext="${curcontext%:*:*}:wutag-command-$line[1]:"
-
-    case $line[1] in
-      (list)
-        _arguments "${_arguments_options[@]}" \
-          '-r[If provided output will be raw so that it can be easily piped to other commands]' \
-          '--raw[If provided output will be raw so that it can be easily piped to other commands]' \
-          '-h[Prints help information]' \
-          '--help[Prints help information]' \
-          ":: :_wutag__list_commands" \
-          "*::: :->list" \
-          && ret=0
-
-      case $state in
-        (list)
-          words=($line[1] "${words[@]}")
-          (( CURRENT += 1 ))
-          curcontext="${curcontext%:*:*}:wutag-list-command-$line[1]:"
-          case $line[1] in
+    (list)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:wutag-list-command-$line[1]:"
+        case $line[1] in
             (tags)
-              _arguments "${_arguments_options[@]}" \
-                '-c[]' \
-                '--completions[]' \
-                '-h[Prints help information]' \
-                '--help[Prints help information]' \
-                && ret=0
-              ;;
-            (files)
-              _arguments "${_arguments_options[@]}" \
-                '-t[Display tags along with the files]' \
-                '--with-tags[Display tags along with the files]' \
-                '(-G --garrulous)-f[Format the tags and files output into columns]' \
-                '(-G --garrulous)--format[Format the tags and files output into columns]' \
-                '(-f --format)-G[Display tags and files on separate lines]' \
-                '(-f --format)--garrulous[Display tags and files on separate lines]' \
-                '-h[Prints help information]' \
-                '--help[Prints help information]' \
-                && ret=0
-            ;;
-            esac
-          ;;
-      esac
-      ;;
-      (set)
-        _arguments "${_arguments_options[@]}" \
-          '-c[Clear tags before setting the tags (may implement a set and add command separately)]' \
-          '--clear[Clear tags before setting the tags (may implement a set and add command separately)]' \
-          '-h[Prints help information]' \
-          '--help[Prints help information]' \
-          ':pattern -- A glob pattern like "*.png":' \
-          '*::tags:' \
-          && ret=0
-      ;;
-      (rm)
-        _arguments "${_arguments_options[@]}" \
-          '-h[Prints help information]' \
-          '--help[Prints help information]' \
-          ':pattern -- A glob pattern like "*.png":' \
-          '*::tags:' \
-          && ret=0
-      ;;
-      (clear)
-        _arguments "${_arguments_options[@]}" \
-          '-h[Prints help information]' \
-          '--help[Prints help information]' \
-          ':pattern -- A glob pattern like "*.png":' \
-          && ret=0
-      ;;
-      (search)
-        _arguments "${_arguments_options[@]}" \
-          '-r[If provided output will be raw so that it can be easily piped to other commands]' \
-          '--raw[If provided output will be raw so that it can be easily piped to other commands]' \
-          '-a[If set to '\''true'\'' all entries containing any of provided tags will be returned]' \
-          '--any[If set to '\''true'\'' all entries containing any of provided tags will be returned]' \
-          '-h[Prints help information]' \
-          '--help[Prints help information]' \
-          '*::tags:' \
-          && ret=0
-      ;;
-      (cp)
-        _arguments "${_arguments_options[@]}" \
-          '-h[Prints help information]' \
-          '--help[Prints help information]' \
-          ':input-path -- Path to the file from which to copy tags from:_files' \
-          ':pattern -- A glob pattern like "*.png":' \
-          && ret=0
-      ;;
-      (edit)
-        _arguments "${_arguments_options[@]}" \
-          '-c+[Set the color of the tag to the specified color. Accepted values are hex colors like '\''0x000000'\'' or '\''#1F1F1F'\'' or just plain '\''ff000a'\''. The colors are case insensitive meaning '\''1f1f1f'\'' is equivalent to '\''1F1F1F'\'']' \
-          '--color=[Set the color of the tag to the specified color. Accepted values are hex colors like '\''0x000000'\'' or '\''#1F1F1F'\'' or just plain '\''ff000a'\''. The colors are case insensitive meaning '\''1f1f1f'\'' is equivalent to '\''1F1F1F'\'']' \
-          '-h[Prints help information]' \
-          '--help[Prints help information]' \
-          ':tag -- The tag to edit:' \
-          && ret=0
-      ;;
-      (print-completions)
-      _arguments "${_arguments_options[@]}" \
-      '-h[Prints help information]' \
-      '--help[Prints help information]' \
-      ':shell -- A shell for which to print completions. Available shells are\: bash, elvish, fish, powershell, zsh:' \
-      && ret=0
-      ;;
-      (clean-cache)
-      _arguments "${_arguments_options[@]}" \
-      '-h[Prints help information]' \
-      '--help[Prints help information]' \
-      && ret=0
-      ;;
-    esac
-  ;;
+_arguments "${_arguments_options[@]}" \
+'-c[]' \
+'--completions[]' \
+'-h[Prints help information]' \
+'--help[Prints help information]' \
+&& ret=0
+;;
+(files)
+_arguments "${_arguments_options[@]}" \
+'-t[Display tags along with the files]' \
+'--with-tags[Display tags along with the files]' \
+'(-G --garrulous)-f[Format the tags and files output into columns]' \
+'(-G --garrulous)--format[Format the tags and files output into columns]' \
+'(-f --format)-G[Display tags and files on separate lines]' \
+'(-f --format)--garrulous[Display tags and files on separate lines]' \
+'-h[Prints help information]' \
+'--help[Prints help information]' \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(set)
+_arguments "${_arguments_options[@]}" \
+'-h[Prints help information]' \
+'--help[Prints help information]' \
+':pattern -- A glob pattern like "*.png":' \
+'*::_wutag_tags:' \
+&& ret=0
+;;
+(add)
+_arguments "${_arguments_options[@]}" \
+'-h[Prints help information]' \
+'--help[Prints help information]' \
+':pattern -- A glob pattern like "*.png":' \
+'*::tags:_wutag_tags' \
+&& ret=0
+;;
+(rm)
+_arguments "${_arguments_options[@]}" \
+'-h[Prints help information]' \
+'--help[Prints help information]' \
+':pattern -- A glob pattern like "*.png":' \
+'*::tags:_wutag_tags' \
+&& ret=0
+;;
+(clear)
+_arguments "${_arguments_options[@]}" \
+'-h[Prints help information]' \
+'--help[Prints help information]' \
+':pattern -- A glob pattern like "*.png":' \
+&& ret=0
+;;
+(search)
+_arguments "${_arguments_options[@]}" \
+'-r[If provided output will be raw so that it can be easily piped to other commands]' \
+'--raw[If provided output will be raw so that it can be easily piped to other commands]' \
+'-a[If set to '\''true'\'' all entries containing any of provided tags will be returned]' \
+'--any[If set to '\''true'\'' all entries containing any of provided tags will be returned]' \
+'-h[Prints help information]' \
+'--help[Prints help information]' \
+'*::tags:' \
+&& ret=0
+;;
+(cp)
+_arguments "${_arguments_options[@]}" \
+'-h[Prints help information]' \
+'--help[Prints help information]' \
+':input-path -- Path to the file from which to copy tags from:_files' \
+':pattern -- A glob pattern like "*.png":' \
+&& ret=0
+;;
+(edit)
+_arguments "${_arguments_options[@]}" \
+'-c+[Set the color of the tag to the specified color. Accepted values are hex colors like '\''0x000000'\'' or '\''#1F1F1F'\'' or just plain '\''ff000a'\''. The colors are case insensitive meaning '\''1f1f1f'\'' is equivalent to '\''1F1F1F'\'']' \
+'--color=[Set the color of the tag to the specified color. Accepted values are hex colors like '\''0x000000'\'' or '\''#1F1F1F'\'' or just plain '\''ff000a'\''. The colors are case insensitive meaning '\''1f1f1f'\'' is equivalent to '\''1F1F1F'\'']' \
+'-h[Prints help information]' \
+'--help[Prints help information]' \
+':tag -- The tag to edit:_wutag_tags' \
+&& ret=0
+;;
+(print-completions)
+_arguments "${_arguments_options[@]}" \
+'--shell=[Shell to print completions. Available shells are: bash, elvish, fish, powershell, zsh]: :(bash elvish fish powershell zsh)' \
+'-h[Prints help information]' \
+'--help[Prints help information]' \
+&& ret=0
+;;
+(clean-cache)
+_arguments "${_arguments_options[@]}" \
+'-h[Prints help information]' \
+'--help[Prints help information]' \
+&& ret=0
+;;
+        esac
+    ;;
 esac
 }
 
@@ -157,8 +160,9 @@ esac
 _wutag_commands() {
     local commands; commands=(
         "list:Lists all available tags or files" \
-"set:Tags the files that match the given pattern with specified tags" \
-"rm:Removes the specified tags of the files that match the provided pattern" \
+"set:Set tag(s) on files that match the given pattern" \
+"add:Add tag(s) to files that match the given pattern" \
+"rm:Remove tag(s) from the files that match the provided pattern" \
 "clear:Clears all tags of the files that match the provided pattern" \
 "search:Searches for files that have all of the provided 'tags'" \
 "cp:Copies tags from the specified file to files that match a pattern" \
@@ -168,85 +172,24 @@ _wutag_commands() {
     )
     _describe -t commands 'wutag commands' commands "$@"
 }
-(( $+functions[_wutag__clean-cache_commands] )) ||
-_wutag__clean-cache_commands() {
-    local commands; commands=(
-
-    )
-    _describe -t commands 'wutag clean-cache commands' commands "$@"
-}
-(( $+functions[_wutag__clear_commands] )) ||
-_wutag__clear_commands() {
-    local commands; commands=(
-
-    )
-    _describe -t commands 'wutag clear commands' commands "$@"
-}
-(( $+functions[_wutag__cp_commands] )) ||
-_wutag__cp_commands() {
-    local commands; commands=(
-
-    )
-    _describe -t commands 'wutag cp commands' commands "$@"
-}
-(( $+functions[_wutag__edit_commands] )) ||
-_wutag__edit_commands() {
-    local commands; commands=(
-
-    )
-    _describe -t commands 'wutag edit commands' commands "$@"
-}
-(( $+functions[_wutag__list__files_commands] )) ||
-_wutag__list__files_commands() {
-    local commands; commands=(
-
-    )
-    _describe -t commands 'wutag list files commands' commands "$@"
-}
 (( $+functions[_wutag__list_commands] )) ||
 _wutag__list_commands() {
     local commands; commands=(
         "tags:" \
-"files:" \
+        "files:" \
     )
     _describe -t commands 'wutag list commands' commands "$@"
 }
-(( $+functions[_wutag__print-completions_commands] )) ||
-_wutag__print-completions_commands() {
-    local commands; commands=(
-
+(( $+functions[_wutag_tags] )) ||
+_wutag_tags() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+    local -a tags; wtags=(
+        ${(@f)$(_call_program commands wutag -g list -r tags -c)}
     )
-    _describe -t commands 'wutag print-completions commands' commands "$@"
-}
-(( $+functions[_wutag__rm_commands] )) ||
-_wutag__rm_commands() {
-    local commands; commands=(
 
-    )
-    _describe -t commands 'wutag rm commands' commands "$@"
-}
-(( $+functions[_wutag__search_commands] )) ||
-_wutag__search_commands() {
-    local commands; commands=(
-
-    )
-    _describe -t commands 'wutag search commands' commands "$@"
-}
-(( $+functions[_wutag__set_commands] )) ||
-_wutag__set_commands() {
-    local commands; commands=(
-
-    )
-    _describe -t commands 'wutag set commands' commands "$@"
-}
-(( $+functions[_wutag__list__tags_commands] )) ||
-_wutag__list__tags_commands() {
-    local commands; commands=(
-
-    )
-    _describe -t commands 'wutag list tags commands' commands "$@"
-}
+    _describe -t wtags 'tags' wtags && ret=0
+    return ret
+}}
 
 _wutag "$@"
-
-# vim: ft=zsh:et:sw=2:ts=2:sts=2:fdm=marker:fmr={{{,}}}:

@@ -25,8 +25,8 @@ pub fn fmt_tag(tag: &Tag) -> ColoredString {
 
 pub fn fmt_local_path<P: AsRef<Path>>(path: P, local: P) -> String {
     let mut replaced = local.as_ref().display().to_string();
-    if !replaced.ends_with("/") {
-        replaced.push_str("/");
+    if !replaced.ends_with('/') {
+        replaced.push('/');
     }
     format!("{}",
         path.as_ref().display().to_string()
@@ -37,13 +37,11 @@ pub fn fmt_local_path<P: AsRef<Path>>(path: P, local: P) -> String {
 
 pub fn raw_local_path<P: AsRef<Path>>(path: P, local: P) -> String {
     let mut replaced = local.as_ref().display().to_string();
-    if !replaced.ends_with("/") {
-        replaced.push_str("/");
+    if !replaced.ends_with('/') {
+        replaced.push('/');
     }
-    format!("{}",
-        path.as_ref().display().to_string()
+    path.as_ref().display().to_string()
         .replace(replaced.as_str(), "")
-    )
 }
 
 /// Determine whether file (path) contains path and if so, return true

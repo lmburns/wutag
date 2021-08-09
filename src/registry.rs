@@ -31,7 +31,7 @@ pub type EntryId = usize;
 pub struct TagRegistry {
     tags: HashMap<Tag, Vec<EntryId>>,
     entries: HashMap<EntryId, EntryData>,
-    path: PathBuf,
+    pub path: PathBuf,
 }
 
 impl TagRegistry {

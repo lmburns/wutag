@@ -14,6 +14,7 @@
 * [x] `list files -tf` displays `tags` and `files` in a column `-f`ormat (requires `-t|--with-tags`)
 * [x] Case insensitive globbing applies to any pattern, as well as the `-g|--global` option
 * [x] Multiple registries are available with the `-r|--registry` option
+* [ ] (Maybe) Add registry to `ERROR` message (would be difficult to implement, have to use registry in the metadata)
 * [x] `wutag` respects the `NO_COLOR` environment variable when displaying output (that is `export NO_COLOR=1`)
 * [ ] Find way to force colored output on pipe
 * [ ] Differentiate between `set` and `add`

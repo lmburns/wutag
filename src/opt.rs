@@ -1,13 +1,10 @@
 //! Options used by the main executable
-use std::{path::PathBuf, str::FromStr};
+use std::{path::PathBuf, str::FromStr, env};
 
 use anyhow::Error;
 use clap::{AppSettings, Clap, crate_version};
 
-// crate_description
-// use colored::*;
-
-// pub const APP_VERSION: &str = "0.4.1";
+// pub const APP_VERSION: &str = "0.4.2";
 pub const APP_NAME: &str = "wutag";
 pub const APP_AUTHOR: &str = "\
       \x1b[01;38;5;13mWojciech Kępka\x1b[0m <\x1b[01;38;5;10mWwojciech@wkepka.dev\x1b[0m> \
@@ -15,7 +12,7 @@ pub const APP_AUTHOR: &str = "\
 pub static APP_ABOUT: &str = "\
     \x1b[0;33mDESCRIPTION: \x1b[0;31mTag files and manage them with color\x1b[0m";
 
-#[derive(Clap)]
+#[derive(Clap, Default, Debug)]
 #[clap(
     version = crate_version!(),
     author = APP_AUTHOR,
@@ -26,7 +23,6 @@ pub static APP_ABOUT: &str = "\
     global_setting = AppSettings::VersionlessSubcommands, // Shows no --version
     global_setting = AppSettings::InferSubcommands,       // l, li, lis == list
 )]
-
 pub struct Opts {
     #[clap(short, long, next_line_help = true,
         long_about = "When specified, the program will look for files starting from the provided \
@@ -66,8 +62,34 @@ pub struct Opts {
     pub cmd: Command,
 }
 
+// Default command to run if no arguments are passed
+impl Opts {
+    pub fn base() -> Self {
+        Self {
+            global: true,
+            cmd: Command::default(),
+            ..Default::default()
+        }
+    }
+}
+
+impl Default for Command {
+    fn default() -> Self {
+        Self::List(
+            ListOpts {
+                object: ListObject::Files {
+                    with_tags: true,
+                    formatted: true,
+                    garrulous: false,
+                },
+                raw: false,
+            }
+        )
+    }
+}
+
 // It seems that 'name' has to be defined to use 'requires' or 'conflicts_with'
-#[derive(Clap)]
+#[derive(Clap, Debug)]
 pub enum ListObject {
     Tags,
     Files {
@@ -90,7 +112,7 @@ pub enum ListObject {
     },
 }
 
-#[derive(Clap)]
+#[derive(Clap, Debug)]
 pub struct ListOpts {
     #[clap(subcommand)]
     /// The object to list. Valid values are: 'tags', 'files'.
@@ -100,10 +122,10 @@ pub struct ListOpts {
     pub raw: bool,
 }
 
-#[derive(Clap)]
+#[derive(Clap, Debug)]
 pub struct SetOpts {
-    /// Clear tags before setting the tags (may implement a set and add command separately)
     #[clap(long, short)]
+    /// Clear tags before setting the tags (may implement a set and add command separately)
     pub clear: bool,
     /// A glob pattern like '*.png'.
     pub pattern: String,
@@ -111,21 +133,20 @@ pub struct SetOpts {
     pub tags: Vec<String>,
 }
 
-#[derive(Clap)]
+#[derive(Clap, Debug)]
 pub struct RmOpts {
-    #[clap(long, short)]
     /// A glob pattern like '*.png'.
     pub pattern: String,
     pub tags: Vec<String>,
 }
 
-#[derive(Clap)]
+#[derive(Clap, Debug)]
 pub struct ClearOpts {
     /// A glob pattern like '*.png'.
     pub pattern: String,
 }
 
-#[derive(Clap)]
+#[derive(Clap, Debug)]
 pub struct SearchOpts {
     #[clap(required = true)]
     pub tags: Vec<String>,
@@ -137,7 +158,7 @@ pub struct SearchOpts {
     pub any: bool,
 }
 
-#[derive(Clap)]
+#[derive(Clap, Debug)]
 pub struct CpOpts {
     /// Path to the file from which to copy tags from
     pub input_path: PathBuf,
@@ -145,7 +166,7 @@ pub struct CpOpts {
     pub pattern: String,
 }
 
-#[derive(Clap)]
+#[derive(Clap, Debug)]
 pub struct EditOpts {
     /// The tag to edit
     pub tag: String,
@@ -156,7 +177,7 @@ pub struct EditOpts {
     pub color: String,
 }
 
-#[derive(Clap)]
+#[derive(Clap, Debug)]
 #[allow(clippy::enum_variant_names)]
 pub enum Shell {
     Bash,
@@ -180,14 +201,14 @@ impl FromStr for Shell {
     }
 }
 
-#[derive(Clap)]
+#[derive(Clap, Debug)]
 pub struct CompletionsOpts {
     /// A shell for which to print completions. Available shells are: bash, elvish, fish,
     /// powershell, zsh
     pub shell: Shell,
 }
 
-#[derive(Clap)]
+#[derive(Clap, Debug)]
 pub enum Command {
     #[clap(alias = "ls")]
     /// Lists all available tags or files.

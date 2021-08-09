@@ -93,7 +93,7 @@ impl App {
                     }
                 },
                 _ => {
-                    if !registry.display().to_string().ends_with("/") {
+                    if !registry.display().to_string().ends_with('/') {
                         fs::create_dir_all(&registry.parent().expect("Could not get parent of nonexisting path"))
                             .with_context(|| {
                                 format!(
@@ -157,6 +157,12 @@ impl App {
         self.registry.clear();
         if let Err(e) = self.registry.save() {
             println!("{:?}", e);
+        } else {
+            println!("✔ {}: {}",
+                "CACHE CLEARED".red().bold(),
+                self.registry.path.to_path_buf().display()
+                    .to_string().green().bold()
+            );
         }
     }
 
@@ -171,12 +177,10 @@ impl App {
                         } else {
                             println!("{}", global);
                         }
+                    } else if !self.global {
+                        print!("{}", local);
                     } else {
-                        if !self.global {
-                            print!("{}", local);
-                        } else {
-                            print!("{}", global);
-                        }
+                        print!("{}", global);
                     }
                 };
 
@@ -220,12 +224,10 @@ impl App {
                                 .with_cell(fmt_path(file.path()))
                                 .with_cell(tags)
                             );
-                        } else {
-                            if garrulous {
+                        } else if garrulous {
                                 println!("\t{}", tags);
-                            } else {
-                                println!(": {}", tags);
-                            }
+                        } else {
+                            println!(": {}", tags);
                         }
                     } else {
                         println!();
@@ -320,7 +322,7 @@ impl App {
         if self.global {
             let pat = glob::Pattern::new(&opts.pattern).unwrap();
             let matchopts = glob::MatchOptions {
-                case_sensitive: if self.case_insensitive { false } else { true },
+                case_sensitive: !self.case_insensitive,
                 require_literal_separator: false,
                 require_literal_leading_dot: false
             };
@@ -358,8 +360,7 @@ impl App {
                         });
                 }
             }
-        } else {
-            if let Err(e) = glob_ok(
+        } else if let Err(e) = glob_ok(
                 &opts.pattern,
                 &self.base_dir.clone(),
                 self.max_depth,
@@ -401,7 +402,6 @@ impl App {
             ) {
                 eprintln!("{}", fmt_err(e));
             }
-        }
         self.save_registry();
     }
 
@@ -409,7 +409,7 @@ impl App {
         if self.global {
             let pat = glob::Pattern::new(&opts.pattern).unwrap();
             let matchopts = glob::MatchOptions {
-                case_sensitive: if self.case_insensitive { false } else { true } ,
+                case_sensitive: !self.case_insensitive,
                 require_literal_separator: false,
                 require_literal_leading_dot: false
             };
@@ -433,8 +433,7 @@ impl App {
                     }
                 }
             }
-        } else {
-            if let Err(e) = glob_ok(
+        } else if let Err(e) = glob_ok(
                 &opts.pattern,
                 &self.base_dir.clone(),
                 self.max_depth,
@@ -462,7 +461,6 @@ impl App {
             ) {
                 eprintln!("{}", fmt_err(e));
             }
-        }
         self.save_registry();
     }
 

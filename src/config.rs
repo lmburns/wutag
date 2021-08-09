@@ -12,6 +12,7 @@ const CONFIG_FILE: &str = "wutag.yml";
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct Config {
     pub max_depth: Option<usize>,
+    pub base_color: Option<String>,
     pub colors: Option<Vec<String>>,
 }
 

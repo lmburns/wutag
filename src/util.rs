@@ -2,6 +2,7 @@ use colored::{ColoredString, Colorize};
 use globwalk::{DirEntry, GlobWalker, GlobWalkerBuilder};
 use std::fmt::Display;
 use std::path::{Path, PathBuf};
+use lscolors::{LsColors, Style};
 
 use crate::DEFAULT_MAX_DEPTH;
 use anyhow::{Context, Result};
@@ -15,24 +16,52 @@ pub fn fmt_ok<S: AsRef<str>>(msg: S) -> String {
     format!("{} {}", "OK".green().bold(), msg.as_ref().white())
 }
 
-pub fn fmt_path<P: AsRef<Path>>(path: P) -> String {
-    format!("{}", path.as_ref().display().to_string().bold().blue())
+pub fn fmt_path<P: AsRef<Path>>(path: P, config: bool) -> String {
+    // Maybe only use ansi_term?
+    if config {
+        let lscolors = LsColors::from_env().unwrap_or_default();
+
+        let style = lscolors.style_for_path(path.as_ref());
+        let style = style
+            .map(Style::to_ansi_term_style)
+            .unwrap_or(ansi_term::Color::Blue.bold());
+
+        format!("{}", style.paint(path.as_ref().display().to_string()))
+    } else {
+        format!("{}", path.as_ref().display().to_string().bold().blue())
+    }
 }
 
 pub fn fmt_tag(tag: &Tag) -> ColoredString {
     tag.name().color(*tag.color()).bold()
 }
 
-pub fn fmt_local_path<P: AsRef<Path>>(path: P, local: P) -> String {
+pub fn fmt_local_path<P: AsRef<Path>>(path: P, local: P, config: bool) -> String {
     let mut replaced = local.as_ref().display().to_string();
     if !replaced.ends_with('/') {
         replaced.push('/');
     }
-    format!("{}",
-        path.as_ref().display().to_string()
-        .replace(replaced.as_str(), "")
-        .bold().blue()
-    )
+    if config {
+        let lscolors = LsColors::from_env().unwrap_or_default();
+
+        let style = lscolors.style_for_path(path.as_ref());
+        let style = style
+            .map(Style::to_ansi_term_style)
+            .unwrap_or(ansi_term::Color::Blue.bold());
+
+        format!("{}",
+            style.paint(
+                path.as_ref().display().to_string()
+                    .replace(replaced.as_str(), "")
+            )
+        )
+    } else {
+        format!("{}",
+            path.as_ref().display().to_string()
+            .replace(replaced.as_str(), "")
+            .bold().blue()
+        )
+    }
 }
 
 pub fn raw_local_path<P: AsRef<Path>>(path: P, local: P) -> String {
@@ -104,6 +133,7 @@ where
 /// Example: `dirs::cache_dir()` returns `$HOME/Library/Caches`, when this will return `$HOME/.cache`
 /// This can and is used to respect `XDG` defaults for `macOS`
 pub fn macos_dirs(dir_func: Option<PathBuf>, joined: &str) -> Result<PathBuf> {
+    #[cfg(target_os = "macos")]
     if std::env::consts::OS == "macos" {
         Ok(PathBuf::from(env!("HOME")).join(joined))
     } else {

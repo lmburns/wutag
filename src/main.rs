@@ -34,12 +34,14 @@ pub const DEFAULT_COLORS: &[Color] = &[
 fn main() {
     let config = Config::load_default_location().unwrap_or_default();
 
-    // let opts = Opts::try_parse();
+    // if let Err(e) = App::run(
+    //     Opts::try_parse().unwrap_or_default(),
+    //     config
+    // ) {
+    //     eprintln!("{}", e);
+    // }
 
-    // Really need to fix this
-    let arglen: Vec<String> = std::env::args().collect();
-
-    if arglen.len() > 1 {
+    if std::env::args().len() > 1 {
         if let Err(e) = App::run(Opts::parse(), config) {
             eprintln!("{}", e);
         }

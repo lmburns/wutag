@@ -1,34 +1,71 @@
 # wutag 🔱🏷️
 [![master](https://github.com/vv9k/wutag/actions/workflows/master.yml/badge.svg)](https://github.com/vv9k/wutag/actions/workflows/master.yml)
+A command line tool for tagging files
 
 ## Fork
+#### New directory locations
 * [x] `macOS` now uses the following locations:
     * [x] `$HOME/.cache` instead of `$HOME/Library/Caches` for `wutag.registry`
     * [x] `$HOME/.config` instead of `$HOME/Library/Application Support` for `wutag.yml`
+
+#### Global option
 * [x] `list`, `rm`, `clear`, and `search` have `--global` option to match only on files that are already tagged
     * `wutag -g rm '**/z*.md' flag_name`
 * [x] `list [FLAGS] (files|tags) [OPTS]` is local by default. Use `-g|--global` to view all tagged files
+
+#### Display and formatting
 * [x] `list files -t` does not display full path of files unless `-g|--global` is used. Instead it is directory-relative
 * [x] `list files -tG` displays `tags` and `files` on separate lines (`--garrulous` is taken from [`tag`](https://github.com/jdbery/tag))
 * [x] `list tags` displays the count of each tag
 * [x] `list files -tf` displays `tags` and `files` in a column `-f`ormat (requires `-t|--with-tags`)
+* [x] Display a success message of which registry is cleaned when clearing cache with `clean-cache`
+
+#### Improved globbing
 * [x] Case insensitive globbing applies to any pattern, as well as the `-g|--global` option
+* [x] Both `--global` and non-`global` options have extended features
+    * [`globwalk`](https://github.com/Gilnaa/globwalk) for non-`global`
+    * [`globset`](https://docs.rs/globset/0.4.8/globset/#syntax) for `--global`
+        * This has more features than the above
+        * Only applies to `rm` and `clear` commands when using `--global`
+* [ ] Am looking for a crate with good extended globbing
+    * [`globber`](https://docs.rs/globber/0.1.3/globber/index.html#syntax) has more features, but doesn't support case-insensitivity
+
+#### Multiple registries
 * [x] Multiple registries are available with the `-r|--registry` option
-* [ ] (Maybe) Add registry to `ERROR` message (would be difficult to implement, have to use registry in the metadata)
+* [ ] FIXME: Error if setting a tag to name `registry` if unquoted
+    * (Maybe) Add registry to `ERROR` message (would be difficult to implement, have to use registry in the metadata)
+    * Registries can also be used through the `WUTAG_REGISTRY` environment variable
+    * Tildes (`~`), and other environment variables can be used when declaring the registry:
+```sh
+`WUTAG_REGISTRY="$XDG_CONFIG_HOME/wutag/my.registry wutag set '*.rs' rust"`
+```
+
 * [x] `wutag` respects the `NO_COLOR` environment variable when displaying output (that is `export NO_COLOR=1`)
-* [x] Display a message when clearing cache with `clean-cache`
-* [x] Use `wutag list files -t` as a default command if there are none listed
+
+#### Default command
+* [x] Use `wutag list files -t` as a default command if there are none listed (i.e., using only `wutag`)
+    * Trying to decide whether or not local or global should be default
+
+#### Aliases and subcommand inferencing
 * [x] Alias `list` with `ls` and infer all other subcommands, i.e., `clean` == `clean-cache`; `p`, `pr`, `pri` ... == `print-completions`
     * As long as the command can be clearly inferred with no ambiguity
-* [x] Differentiate between `set` and `add` (added `wutag add`)
-    * `set` will clear tags before adding them
-    * `add` replaces the old `set` command, which will either add or update tags
+
+#### New command similar to what `add` vs `set` would be
+* [x] Differentiate between `set` and `add` (added `wutag set --clear`)
+    * May instead use `add` and `set` at some point
+    * For the time being, `set --clear` will `clear` the tags before setting it
+
+#### Completions
+* [x] List tags and use them for completions
+    * Improves completion capabilities
+    * When using any command that requires an existing tag, pressing `<tab>` will autocomplete
+    * `clap::ValueHints` is also used to complete paths and files
+
+#### Todo
 * [ ] Find way to force colored output on pipe
 * [ ] Configuration option for base file color
-* [ ] List tags and use them for completions
 * [ ] Fix `any` vs the normal `all` (it doesn't work)
-
-CLI tool for tagging and organizing files by tags.
+* [ ] `raw` does not work with formatted (fix or find way to implement `conflicts_with`)
 
 ![Example usage](https://github.com/vv9k/wutag/blob/master/static/usage.svg)
 

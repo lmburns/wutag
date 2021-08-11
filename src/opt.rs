@@ -41,7 +41,9 @@ pub struct Opts {
     )]
     pub max_depth: Option<usize>,
     /// Specify a different registry to use
-    #[clap(long = "registry", short, next_line_help = true, value_hint = ValueHint::FilePath)]
+    #[clap(long = "registry", short, next_line_help = true,
+        value_hint = ValueHint::FilePath, env = "WUTAG_REGISTRY"
+    )]
     pub reg: Option<PathBuf>,
     /// Case insensitively search
     #[clap(long, short = 'i',
@@ -57,6 +59,9 @@ pub struct Opts {
         or directories specified with '-d|--dir'. Only applies to 'search', 'list', 'rm', and 'clear'."
     )]
     pub global: bool,
+    /// Respect 'LS_COLORS' environment variable when coloring the output
+    #[clap(long)]
+    pub ls_colors: bool,
     /// Do not colorize the output
     #[clap(long, short, env = "NO_COLOR", takes_value = false)]
     pub no_color: bool,
@@ -68,11 +73,15 @@ impl Opts {
     /// Default command to run if no arguments are passed
     pub fn base() -> Self {
         Self {
-            global: true,
+            global: false,
             cmd: Command::default(),
             ..Default::default()
         }
     }
+
+    // pub fn len(&self) -> usize {
+    //     std::env::args_os().len()
+    // }
 }
 
 impl Default for Command {
@@ -128,14 +137,10 @@ pub struct ListOpts {
 }
 
 #[derive(Clap, Debug)]
-pub struct AddOpts {
-    /// A glob pattern like "*.png".
-    pub pattern: String,
-    pub tags: Vec<String>,
-}
-
-#[derive(Clap, Debug)]
 pub struct SetOpts {
+    /// Clear all tags before setting them
+    #[clap(long, short)]
+    pub clear: bool,
     /// A glob pattern like "*.png".
     pub pattern: String,
     pub tags: Vec<String>,
@@ -143,6 +148,9 @@ pub struct SetOpts {
 
 #[derive(Clap, Debug)]
 pub struct RmOpts {
+    /// Use extended glob features
+    #[clap(long = "extended", short = 'x')]
+    pub extended_glob: bool,
     /// A glob pattern like "*.png".
     pub pattern: String,
     pub tags: Vec<String>,
@@ -231,8 +239,6 @@ pub enum Command {
     List(ListOpts),
     /// Set tag(s) on files that match the given pattern
     Set(SetOpts),
-    /// Add tag(s) to files that match the given pattern
-    Add(AddOpts),
     /// Remove tag(s) from the files that match the provided pattern
     #[clap(aliases = &["remove", "r"])]
     Rm(RmOpts),

@@ -103,23 +103,14 @@ _wutag_tags() {
 
     _describe -t wtags 'tags' wtags && ret=0
     return ret
-}"#
+}"#,
     ),
     // Make this replace globally
-    (
-        r#"'*::tags:' \"#,
-        r#"'*::_wutag_tags:' \"#
-    ),
-    (
-        r#"'*::tags:' \"#,
-        r#"'*::tags:_wutag_tags' \"#
-    ),
-    (
-        r#"'*::tags:' \"#,
-        r#"'*::tags:_wutag_tags' \"#
-    ),
+    (r#"'*::tags:' \"#, r#"'*::_wutag_tags:' \"#),
+    (r#"'*::tags:' \"#, r#"'*::tags:_wutag_tags' \"#),
+    (r#"'*::tags:' \"#, r#"'*::tags:_wutag_tags' \"#),
     (
         r#"':tag -- The tag to edit:' \"#,
-        r#"':tag -- The tag to edit:_wutag_tags' \"#
+        r#"':tag -- The tag to edit:_wutag_tags' \"#,
     ),
 ];

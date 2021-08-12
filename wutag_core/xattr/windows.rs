@@ -38,5 +38,6 @@ where
 //################################################################################
 // Impl
 //################################################################################
-// Blocked by `windows-rs` `bindings::windows::win32::system_services::WIN32_STREAM_ID` type having unsupported field
-// type.
+// Blocked by `windows-rs`
+// `bindings::windows::win32::system_services::WIN32_STREAM_ID` type having
+// unsupported field type.

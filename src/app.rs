@@ -1,43 +1,46 @@
 use anyhow::{anyhow, Context, Result};
+use atty::Stream;
 use clap::IntoApp;
 use colored::{Color, Colorize};
 use globwalk::DirEntry;
 use shellexpand::LookupError;
-use atty::Stream;
 
 use std::{
+    borrow::Cow,
+    collections::HashMap,
+    env, fs,
     io::{self, Write},
-    fs,
-    env,
-    borrow::Cow
+    path::PathBuf,
 };
-use std::path::PathBuf;
-use std::collections::HashMap;
 
-use crate::{config::Config, comp_helper};
-use crate::opt::{
-    ClearOpts, Command, CompletionsOpts, CpOpts,
-    EditOpts, ListObject, ListOpts, Opts, RmOpts,
-    SearchOpts, SetOpts, Shell, APP_NAME,
+use crate::{
+    comp_helper,
+    config::Config,
+    opt::{
+        ClearOpts, Command, CompletionsOpts, CpOpts, EditOpts, ListObject, ListOpts, Opts, RmOpts,
+        SearchOpts, SetOpts, Shell, APP_NAME,
+    },
+    registry::{EntryData, TagRegistry},
+    util::{
+        contained_path, fmt_err, fmt_local_path, fmt_ok, fmt_path, fmt_tag, glob_ok, macos_dirs,
+        raw_local_path,
+    },
+    DEFAULT_COLORS,
 };
-use crate::registry::{EntryData, TagRegistry};
-use crate::util::{
-    contained_path, fmt_err, fmt_ok, fmt_path,
-    fmt_local_path, raw_local_path, fmt_tag, glob_ok, macos_dirs
+use wutag_core::{
+    color::parse_color,
+    tag::{clear_tags, has_tags, list_tags, DirEntryExt, Tag},
 };
-use crate::DEFAULT_COLORS;
-use wutag_core::color::parse_color;
-use wutag_core::tag::{DirEntryExt, Tag, clear_tags, list_tags, has_tags};
 
 pub(crate) struct App {
-    pub(crate) base_dir: PathBuf,
-    pub(crate) max_depth: Option<usize>,
-    pub(crate) colors: Vec<Color>,
-    pub(crate) global: bool,
-    pub(crate) registry: TagRegistry,
+    pub(crate) base_dir:         PathBuf,
+    pub(crate) max_depth:        Option<usize>,
+    pub(crate) colors:           Vec<Color>,
+    pub(crate) global:           bool,
+    pub(crate) registry:         TagRegistry,
     pub(crate) case_insensitive: bool,
-    pub(crate) ls_colors: bool,
-    pub(crate) color_when: String,
+    pub(crate) ls_colors:        bool,
+    pub(crate) color_when:       String,
 }
 
 /// Format errors
@@ -59,7 +62,11 @@ macro_rules! err {
 /// Makeshift ternary 2 == 2 ? "yes" : "no"
 macro_rules! ternary {
     ($c:expr, $v:expr, $v1:expr) => {
-        if $c {$v} else {$v1}
+        if $c {
+            $v
+        } else {
+            $v1
+        }
     };
 }
 
@@ -70,6 +77,7 @@ impl App {
 
         Ok(())
     }
+
     pub(crate) fn new(opts: &Opts, config: Config) -> Result<App> {
         let base_dir = if let Some(base_dir) = &opts.dir {
             if base_dir.display().to_string() == "." {
@@ -98,54 +106,65 @@ impl App {
             Some(ref s) if s == "always" => "always",
             Some(ref s) if s == "never" => "never",
             _ => ternary!(
-                    no_color_val.is_none() && atty::is(Stream::Stdout),
-                    "auto",
-                    "never"
-                )
+                no_color_val.is_none() && atty::is(Stream::Stdout),
+                "auto",
+                "never"
+            ),
         };
 
         let cache_dir = macos_dirs(dirs::cache_dir(), ".cache");
         let state_file = cache_dir.unwrap().join("wutag.registry");
 
         let registry = if let Some(registry) = &opts.reg {
-
             // Expand both tlide '~' and environment variables in 'WUTAG_REGISTRY' env var
             let registry = &PathBuf::from(
-                shellexpand::full(
-                    &registry.display().to_string()
-                ).unwrap_or_else(|_| {
-                    Cow::from(LookupError {
-                        var_name: "UNKNOWN_ENVIRONMENT_VARIABLE".into(),
-                        cause: env::VarError::NotPresent
-                    }.to_string())
-                }).to_string()
+                shellexpand::full(&registry.display().to_string())
+                    .unwrap_or_else(|_| {
+                        Cow::from(
+                            LookupError {
+                                var_name: "UNKNOWN_ENVIRONMENT_VARIABLE".into(),
+                                cause:    env::VarError::NotPresent,
+                            }
+                            .to_string(),
+                        )
+                    })
+                    .to_string(),
             );
 
             if registry.is_file() && registry.file_name().is_some() {
                 TagRegistry::load(&registry).unwrap_or_else(|_| TagRegistry::new(&registry))
             } else if registry.is_dir() && registry.file_name().is_some() {
-                eprintln!("{}",
-                    fmt_err(
-                        format!("{} is not a file. Using default", registry.display().to_string())
-                    )
+                eprintln!(
+                    "{}",
+                    fmt_err(format!(
+                        "{} is not a file. Using default",
+                        registry.display().to_string()
+                    ))
                 );
                 TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
             } else if !registry.display().to_string().ends_with('/') {
-                fs::create_dir_all(&registry.parent().expect("Could not get parent of nonexisting path"))
-                    .with_context(|| {
-                        format!(
-                            "unable to create registry directory: '{}'",
-                            registry.display()
-                        )
+                fs::create_dir_all(
+                    &registry
+                        .parent()
+                        .expect("Could not get parent of nonexisting path"),
+                )
+                .with_context(|| {
+                    format!(
+                        "unable to create registry directory: '{}'",
+                        registry.display()
+                    )
                 })?;
                 TagRegistry::load(&registry).unwrap_or_else(|_| TagRegistry::new(&registry))
             } else {
-                eprintln!("{}",
-                    fmt_err(format!("{} is a directory path. Using default", registry.display().to_string()))
+                eprintln!(
+                    "{}",
+                    fmt_err(format!(
+                        "{} is a directory path. Using default",
+                        registry.display().to_string()
+                    ))
                 );
                 TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
             }
-
         } else {
             TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
         };
@@ -162,7 +181,7 @@ impl App {
             registry,
             case_insensitive: opts.case_insensitive,
             ls_colors: opts.ls_colors,
-            color_when: color_when.to_string()
+            color_when: color_when.to_string(),
         })
     }
 
@@ -195,11 +214,17 @@ impl App {
         if let Err(e) = self.registry.save() {
             println!("{:?}", e);
         } else {
-            println!("{} {}: {}",
+            println!(
+                "{} {}: {}",
                 "✔".green().bold(),
                 "CACHE CLEARED".red().bold(),
-                self.registry.path.to_path_buf().display()
-                    .to_string().green().bold()
+                self.registry
+                    .path
+                    .to_path_buf()
+                    .display()
+                    .to_string()
+                    .green()
+                    .bold()
             );
         }
     }
@@ -211,8 +236,11 @@ impl App {
         let mut tab_handle = tabwriter::TabWriter::new(handle);
 
         match opts.object {
-            ListObject::Files { with_tags, formatted, garrulous } => {
-
+            ListObject::Files {
+                with_tags,
+                formatted,
+                garrulous,
+            } => {
                 let global_opts = |local: String, global: String| {
                     if garrulous {
                         ternary!(self.global, println!("{}", global), println!("{}", local));
@@ -224,19 +252,17 @@ impl App {
                 };
 
                 for (id, file) in self.registry.list_entries_and_ids() {
-                    // Skips paths that are not contained within one another to respect the `-d` flag
-                    // Global is just another way to specify -d ~ (list files locally by default)
+                    // Skips paths that are not contained within one another to respect the `-d`
+                    // flag Global is just another way to specify -d ~ (list files locally
+                    // by default)
                     if !self.global && !contained_path(file.path(), &self.base_dir) {
                         continue;
                     }
 
                     if opts.raw {
                         global_opts(
-                            raw_local_path(
-                                file.path(),
-                                &self.base_dir
-                            ),
-                            file.path().display().to_string()
+                            raw_local_path(file.path(), &self.base_dir),
+                            file.path().display().to_string(),
                         );
                     } else if !formatted {
                         global_opts(
@@ -244,13 +270,9 @@ impl App {
                                 file.path(),
                                 &self.base_dir,
                                 self.ls_colors,
-                                &self.color_when
+                                &self.color_when,
                             ),
-                            fmt_path(
-                                file.path(),
-                                self.ls_colors,
-                                &self.color_when
-                            )
+                            fmt_path(file.path(), self.ls_colors, &self.color_when),
                         );
                     }
 
@@ -276,11 +298,7 @@ impl App {
                                 "{}\t{}",
                                 ternary!(
                                     self.global,
-                                    fmt_path(
-                                        file.path(),
-                                        self.ls_colors,
-                                        &self.color_when
-                                    ),
+                                    fmt_path(file.path(), self.ls_colors, &self.color_when),
                                     fmt_local_path(
                                         file.path(),
                                         &self.base_dir,
@@ -289,9 +307,10 @@ impl App {
                                     )
                                 ),
                                 tags
-                            ).expect("Unable to write to tab handler");
+                            )
+                            .expect("Unable to write to tab handler");
                         } else if garrulous {
-                                println!("\t{}", tags);
+                            println!("\t{}", tags);
                         } else {
                             println!(": {}", tags);
                         }
@@ -299,11 +318,13 @@ impl App {
                         println!();
                     }
                 }
-                if formatted { tab_handle.flush().expect("Unable to flush tab handler"); }
-            }
+                if formatted {
+                    tab_handle.flush().expect("Unable to flush tab handler");
+                }
+            },
             ListObject::Tags { for_completions } => {
-                // I think both id and entry has to be listed here to be able to respect current directory
-                // This is really dirty
+                // I think both id and entry has to be listed here to be able to respect current
+                // directory This is really dirty
                 let mut utags = Vec::new();
                 for (&id, file) in self.registry.list_entries_and_ids() {
                     if !self.global && !contained_path(file.path(), &self.base_dir) {
@@ -314,10 +335,14 @@ impl App {
                         .list_entry_tags(id)
                         .map(|tags| {
                             tags.iter().fold(String::new(), |mut acc, t| {
-                                acc.push_str(&format!("{} ",
-                                        if opts.raw { t.name().white() } else { fmt_tag(t) }
-                                    )
-                                );
+                                acc.push_str(&format!(
+                                    "{} ",
+                                    if opts.raw {
+                                        t.name().white()
+                                    } else {
+                                        fmt_tag(t)
+                                    }
+                                ));
                                 acc
                             })
                         })
@@ -326,31 +351,33 @@ impl App {
                     utags.push(tags);
                 }
 
-                utags.iter()
+                utags
+                    .iter()
                     .fold(HashMap::new(), |mut acc, t| {
                         *acc.entry(t.clone()).or_insert(0) += 1;
                         acc
-                })
-                .iter()
-                .for_each(|(tag, count)| {
-                    writeln!(
-                        tab_handle,
-                        "{}\t{}",
-                        ternary!(
-                            opts.raw,
-                            count.to_string().white(),
-                            count.to_string().green().bold()
-                        ),
-                        tag
-                    ).expect("Unable to write to tab handler");
-                });
+                    })
+                    .iter()
+                    .for_each(|(tag, count)| {
+                        writeln!(
+                            tab_handle,
+                            "{}\t{}",
+                            ternary!(
+                                opts.raw,
+                                count.to_string().white(),
+                                count.to_string().green().bold()
+                            ),
+                            tag
+                        )
+                        .expect("Unable to write to tab handler");
+                    });
                 // Can't get this to work if cells are reversed
                 if for_completions {
-                    utags.iter().for_each(|tag| println!("{}", tag) );
+                    utags.iter().for_each(|tag| println!("{}", tag));
                 } else {
                     tab_handle.flush().expect("Unable to flush tab handler");
                 }
-            }
+            },
         }
     }
 
@@ -373,24 +400,25 @@ impl App {
             self.max_depth,
             self.case_insensitive,
             |entry: &DirEntry| {
-                println!("{}:", fmt_path(entry.path(), self.ls_colors, &self.color_when));
+                println!(
+                    "{}:",
+                    fmt_path(entry.path(), self.ls_colors, &self.color_when)
+                );
                 tags.iter().for_each(|tag| {
-
                     if opts.clear {
                         if let Some(id) = self.registry.find_entry(entry.path()) {
                             self.registry.clear_entry(id);
                         }
                         match entry.has_tags() {
-                            Ok(has_tags) => {
+                            Ok(has_tags) =>
                                 if has_tags {
                                     if let Err(e) = entry.clear_tags() {
                                         err!('\t', e, entry);
                                     }
-                                }
-                            }
+                                },
                             Err(e) => {
                                 err!(e, entry);
-                            }
+                            },
                         }
                     }
 
@@ -423,11 +451,13 @@ impl App {
                 builder.case_insensitive(false)
             };
 
-            let pat = builder.build()
+            let pat = builder
+                .build()
                 .expect("Invalid glob sequence")
                 .compile_matcher();
 
             // How to implement if statement with two different return types?
+            // Talking about extended glob
 
             let ctags = opts.tags.iter().collect::<Vec<_>>();
             for (&id, entry) in self.registry.clone().list_entries_and_ids() {
@@ -435,12 +465,10 @@ impl App {
                     list_tags(entry.path())
                         .map(|tags| {
                             tags.iter().fold(Vec::new(), |mut acc, tag| {
-                                acc.push(
-                                    (
-                                        ctags.iter().find(|c| **c == &tag.to_string()),
-                                        tag.to_owned()
-                                    )
-                                );
+                                acc.push((
+                                    ctags.iter().find(|c| **c == &tag.to_string()),
+                                    tag.to_owned(),
+                                ));
                                 acc
                             })
                         })
@@ -450,7 +478,8 @@ impl App {
                             if search.is_some() {
                                 // println!("SEARCH: {:?} REAL: {:?}", search, realtag);
                                 self.registry.untag_by_name(search.unwrap(), id);
-                                println!("{}:",
+                                println!(
+                                    "{}:",
                                     fmt_path(entry.path(), self.ls_colors, &self.color_when)
                                 );
 
@@ -466,47 +495,50 @@ impl App {
                 }
             }
         } else if let Err(e) = glob_ok(
-                &opts.pattern,
-                &self.base_dir.clone(),
-                self.max_depth,
-                self.case_insensitive,
-                |entry: &DirEntry| {
-                    let id = self.registry.find_entry(entry.path());
-                    let tags = opts
-                        .tags
-                        .iter()
-                        .map(|tag| {
-                            if let Some(id) = id {
-                                self.registry.untag_by_name(tag, id);
-                            }
-                            entry.get_tag(tag)
-                        })
-                        .collect::<Vec<_>>();
-
-                    if tags.is_empty() {
-                        return;
-                    }
-
-                    println!("{}:", fmt_path(entry.path(), self.ls_colors, &self.color_when));
-                    tags.iter().for_each(|tag| {
-                        let tag = match tag {
-                            Ok(tag) => tag,
-                            Err(e) => {
-                                err!('\t', e, entry);
-                                return;
-                            }
-                        };
-                        if let Err(e) = entry.untag(tag) {
-                            err!('\t', e, entry);
-                        } else {
-                            print!("\t{} {}", "X".bold().red(), fmt_tag(tag));
+            &opts.pattern,
+            &self.base_dir.clone(),
+            self.max_depth,
+            self.case_insensitive,
+            |entry: &DirEntry| {
+                let id = self.registry.find_entry(entry.path());
+                let tags = opts
+                    .tags
+                    .iter()
+                    .map(|tag| {
+                        if let Some(id) = id {
+                            self.registry.untag_by_name(tag, id);
                         }
-                    });
-                    println!();
-                },
-            ) {
-                eprintln!("{}", fmt_err(e));
-            }
+                        entry.get_tag(tag)
+                    })
+                    .collect::<Vec<_>>();
+
+                if tags.is_empty() {
+                    return;
+                }
+
+                println!(
+                    "{}:",
+                    fmt_path(entry.path(), self.ls_colors, &self.color_when)
+                );
+                tags.iter().for_each(|tag| {
+                    let tag = match tag {
+                        Ok(tag) => tag,
+                        Err(e) => {
+                            err!('\t', e, entry);
+                            return;
+                        },
+                    };
+                    if let Err(e) = entry.untag(tag) {
+                        err!('\t', e, entry);
+                    } else {
+                        print!("\t{} {}", "X".bold().red(), fmt_tag(tag));
+                    }
+                });
+                println!();
+            },
+        ) {
+            eprintln!("{}", fmt_err(e));
+        }
         self.save_registry();
     }
 
@@ -518,7 +550,8 @@ impl App {
             } else {
                 builder.case_insensitive(false)
             };
-            let pat = builder.build()
+            let pat = builder
+                .build()
                 .expect("Invalid glob sequence")
                 .compile_matcher();
 
@@ -526,9 +559,10 @@ impl App {
                 if pat.is_match(entry.path().to_str().unwrap()) {
                     self.registry.clear_entry(id);
                     match has_tags(entry.path()) {
-                        Ok(has_tags) => {
+                        Ok(has_tags) =>
                             if has_tags {
-                                println!("{}:",
+                                println!(
+                                    "{}:",
                                     fmt_path(entry.path(), self.ls_colors, &self.color_when)
                                 );
                                 if let Err(e) = clear_tags(entry.path()) {
@@ -536,44 +570,43 @@ impl App {
                                 } else {
                                     println!("\t{}", fmt_ok("cleared"));
                                 }
-                            }
-                        }
+                            },
                         Err(e) => {
                             err!(e, entry);
-                        }
+                        },
                     }
                 }
             }
         } else if let Err(e) = glob_ok(
-                &opts.pattern,
-                &self.base_dir.clone(),
-                self.max_depth,
-                self.case_insensitive,
-                |entry: &DirEntry| {
-                    if let Some(id) = self.registry.find_entry(entry.path()) {
-                        self.registry.clear_entry(id);
-                    }
-                    match entry.has_tags() {
-                        Ok(has_tags) => {
-                            if has_tags {
-                                println!("{}:",
-                                    fmt_path(entry.path(), self.ls_colors, &self.color_when)
-                                );
-                                if let Err(e) = entry.clear_tags() {
-                                    err!('\t', e, entry);
-                                } else {
-                                    println!("\t{}", fmt_ok("cleared"));
-                                }
+            &opts.pattern,
+            &self.base_dir.clone(),
+            self.max_depth,
+            self.case_insensitive,
+            |entry: &DirEntry| {
+                if let Some(id) = self.registry.find_entry(entry.path()) {
+                    self.registry.clear_entry(id);
+                }
+                match entry.has_tags() {
+                    Ok(has_tags) =>
+                        if has_tags {
+                            println!(
+                                "{}:",
+                                fmt_path(entry.path(), self.ls_colors, &self.color_when)
+                            );
+                            if let Err(e) = entry.clear_tags() {
+                                err!('\t', e, entry);
+                            } else {
+                                println!("\t{}", fmt_ok("cleared"));
                             }
-                        }
-                        Err(e) => {
-                            err!(e, entry);
-                        }
-                    }
-                },
-            ) {
-                eprintln!("{}", fmt_err(e));
-            }
+                        },
+                    Err(e) => {
+                        err!(e, entry);
+                    },
+                }
+            },
+        ) {
+            eprintln!("{}", fmt_err(e));
+        }
         self.save_registry();
     }
 
@@ -605,13 +638,12 @@ impl App {
         } else {
             for id in self.registry.list_entries_with_tags(&opts.tags) {
                 let path = match self.registry.get_entry(id) {
-                    Some(entry) => {
+                    Some(entry) =>
                         if !self.global && !contained_path(entry.path(), &self.base_dir) {
-                            continue
+                            continue;
                         } else {
                             entry.path()
-                        }
-                    },
+                        },
                     None => continue,
                 };
                 if opts.raw {
@@ -632,17 +664,8 @@ impl App {
                         "{}: {}",
                         ternary!(
                             self.global,
-                            fmt_path(
-                                path,
-                                self.ls_colors,
-                                &self.color_when
-                            ),
-                            fmt_local_path(
-                                path,
-                                &self.base_dir,
-                                self.ls_colors,
-                                &self.color_when
-                            )
+                            fmt_path(path, self.ls_colors, &self.color_when),
+                            fmt_local_path(path, &self.base_dir, self.ls_colors, &self.color_when)
                         ),
                         tags
                     )
@@ -661,7 +684,8 @@ impl App {
                     self.max_depth,
                     self.case_insensitive,
                     |entry: &DirEntry| {
-                        println!("{}:",
+                        println!(
+                            "{}:",
                             fmt_path(entry.path(), self.ls_colors, &self.color_when)
                         );
                         for tag in &tags {
@@ -680,7 +704,7 @@ impl App {
                 }
 
                 self.save_registry();
-            }
+            },
             Err(e) => eprintln!(
                 "failed to get source tags from `{}` - {}",
                 path.display(),
@@ -695,7 +719,7 @@ impl App {
             Err(e) => {
                 eprintln!("{}", fmt_err(e));
                 return;
-            }
+            },
         };
         let old_tag = self.registry.get_tag(&opts.tag).cloned();
         if self.registry.update_tag_color(&opts.tag, color) {
@@ -709,18 +733,15 @@ impl App {
     }
 
     fn print_completions(&self, opts: &CompletionsOpts) {
-        fn replace(
-            haystack: &mut String,
-            needle: &str,
-            replacement: &str
-        ) -> Result<()> {
+        fn replace(haystack: &mut String, needle: &str, replacement: &str) -> Result<()> {
             if let Some(index) = haystack.find(needle) {
                 haystack.replace_range(index..index + needle.len(), replacement);
                 Ok(())
             } else {
                 Err(anyhow!(
-                "Failed to find text:\n{}\n…in completion script:\n{}",
-                needle, haystack
+                    "Failed to find text:\n{}\n…in completion script:\n{}",
+                    needle,
+                    haystack
                 ))
             }
         }
@@ -747,11 +768,11 @@ impl App {
         let mut script = String::from_utf8(buffer).expect("Clap completion not UTF-8");
 
         match opts.shell {
-            Shell::Zsh => {
+            Shell::Zsh =>
                 for (needle, replacement) in comp_helper::ZSH_COMPLETION_REP {
-                    replace(&mut script, needle, replacement).expect("Failed to replace completion script");
-                }
-            },
+                    replace(&mut script, needle, replacement)
+                        .expect("Failed to replace completion script");
+                },
             _ => println!(),
         }
 

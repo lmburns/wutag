@@ -24,6 +24,9 @@ run *ARGS:
 fmt:
   cargo fmt -- --check --files-with-diff {{CI}}
 
+fmt-all:
+  cargo fmt --all -- --check --files-with-diff {{CI}}
+
 audit:
   cargo audit --deny warnings {{CI}}
 

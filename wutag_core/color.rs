@@ -22,7 +22,7 @@ pub fn color_from_fg_str(s: &str) -> Option<Color> {
         "95" => Some(Color::BrightMagenta),
         "96" => Some(Color::BrightCyan),
         "97" => Some(Color::BrightWhite),
-        color => {
+        color =>
             if color.starts_with("38;2;") {
                 let mut it = s.split(';');
                 it.next()?;
@@ -34,8 +34,7 @@ pub fn color_from_fg_str(s: &str) -> Option<Color> {
                 })
             } else {
                 None
-            }
-        }
+            },
     }
 }
 
@@ -66,9 +65,10 @@ fn parse_hex(color: &str) -> Option<(u8, u8, u8)> {
     ))
 }
 
-/// Parses a [Color](colored::Color) from a String. If the provided string starts with
-/// `0x` or `#` or without any prefix the color will be treated as hex color notation so any colors like `0x1f1f1f` or
-/// `#ABBA12` or `121212` are valid.
+/// Parses a [Color](colored::Color) from a String. If the provided string
+/// starts with `0x` or `#` or without any prefix the color will be treated as
+/// hex color notation so any colors like `0x1f1f1f` or `#ABBA12` or `121212`
+/// are valid.
 pub fn parse_color<S: AsRef<str>>(color: S) -> Result<Color> {
     let color = color.as_ref();
     macro_rules! if_6 {
@@ -104,30 +104,21 @@ mod tests {
     use colored::Color::*;
     #[test]
     fn parses_colors() {
-        assert_eq!(
-            parse_color("0xffffff").unwrap(),
-            TrueColor {
-                r: 255,
-                g: 255,
-                b: 255
-            }
-        );
-        assert_eq!(
-            parse_color("#ffffff").unwrap(),
-            TrueColor {
-                r: 255,
-                g: 255,
-                b: 255
-            }
-        );
-        assert_eq!(
-            parse_color("0ff00f").unwrap(),
-            TrueColor {
-                r: 15,
-                g: 240,
-                b: 15
-            }
-        );
+        assert_eq!(parse_color("0xffffff").unwrap(), TrueColor {
+            r: 255,
+            g: 255,
+            b: 255,
+        });
+        assert_eq!(parse_color("#ffffff").unwrap(), TrueColor {
+            r: 255,
+            g: 255,
+            b: 255,
+        });
+        assert_eq!(parse_color("0ff00f").unwrap(), TrueColor {
+            r: 15,
+            g: 240,
+            b: 15,
+        });
     }
     #[test]
     fn errors_on_invalid_colors() {

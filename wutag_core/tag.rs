@@ -3,21 +3,25 @@ use colored::Color;
 use globwalk::DirEntry;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
-use std::collections::BTreeSet;
-use std::convert::TryFrom;
-use std::fmt;
-use std::hash::{Hash, Hasher};
-use std::path::Path;
+use std::{
+    cmp::Ordering,
+    collections::BTreeSet,
+    convert::TryFrom,
+    fmt,
+    hash::{Hash, Hasher},
+    path::Path,
+};
 
-use crate::xattr::{list_xattrs, remove_xattr, set_xattr, Xattr};
-use crate::{Error, Result, WUTAG_NAMESPACE};
+use crate::{
+    xattr::{list_xattrs, remove_xattr, set_xattr, Xattr},
+    Error, Result, WUTAG_NAMESPACE,
+};
 
 pub const DEFAULT_COLOR: Color = Color::BrightWhite;
 
 #[derive(Clone, Debug, Deserialize, Eq, Serialize)]
 pub struct Tag {
-    name: String,
+    name:  String,
     color: Color,
 }
 
@@ -42,21 +46,27 @@ impl DirEntryExt for DirEntry {
     fn tag(&self, tag: &Tag) -> Result<()> {
         tag.save_to(self.path())
     }
+
     fn untag(&self, tag: &Tag) -> Result<()> {
         tag.remove_from(self.path())
     }
+
     fn get_tag<T: AsRef<str>>(&self, tag: T) -> Result<Tag> {
         get_tag(self.path(), tag)
     }
+
     fn list_tags(&self) -> Result<Vec<Tag>> {
         list_tags(self.path())
     }
+
     fn list_tags_btree(&self) -> Result<BTreeSet<Tag>> {
         list_tags_btree(self.path())
     }
+
     fn clear_tags(&self) -> Result<()> {
         clear_tags(self.path())
     }
+
     fn has_tags(&self) -> Result<bool> {
         has_tags(self.path())
     }
@@ -102,7 +112,8 @@ impl Tag {
             .map_err(Error::from)
     }
 
-    /// Tags the file at the given `path` with this tag. If the tag exists returns an error.
+    /// Tags the file at the given `path` with this tag. If the tag exists
+    /// returns an error.
     pub fn save_to<P>(&self, path: P) -> Result<()>
     where
         P: AsRef<Path>,
@@ -115,8 +126,8 @@ impl Tag {
         set_xattr(path, self.hash()?.as_str(), "")
     }
 
-    /// Removes this tag from the file at the given `path`. If the tag doesn't exists returns
-    /// [Error::TagNotFound](wutag::Error::TagNotFound)
+    /// Removes this tag from the file at the given `path`. If the tag doesn't
+    /// exists returns [Error::TagNotFound](wutag::Error::TagNotFound)
     pub fn remove_from<P>(&self, path: P) -> Result<()>
     where
         P: AsRef<Path>,
@@ -168,6 +179,7 @@ macro_rules! next_or_else {
 
 impl TryFrom<Xattr> for Tag {
     type Error = Error;
+
     fn try_from(xattr: Xattr) -> Result<Self> {
         let key = xattr.key();
 

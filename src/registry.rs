@@ -5,9 +5,11 @@ use wutag_core::tag::Tag;
 use anyhow::{Context, Result};
 use colored::Color;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
 pub(crate) struct EntryData {
@@ -20,6 +22,7 @@ impl EntryData {
             path: path.as_ref().to_path_buf(),
         }
     }
+
     pub(crate) fn path(&self) -> &Path {
         &self.path
     }
@@ -29,13 +32,14 @@ pub(crate) type EntryId = usize;
 
 #[derive(Default, Deserialize, Serialize, Clone)]
 pub(crate) struct TagRegistry {
-    tags: HashMap<Tag, Vec<EntryId>>,
-    entries: HashMap<EntryId, EntryData>,
+    tags:            HashMap<Tag, Vec<EntryId>>,
+    entries:         HashMap<EntryId, EntryData>,
     pub(crate) path: PathBuf,
 }
 
 impl TagRegistry {
-    /// Creates a new instance of `TagRegistry` with a `path` without loading it.
+    /// Creates a new instance of `TagRegistry` with a `path` without loading
+    /// it.
     pub(crate) fn new<P: AsRef<Path>>(path: P) -> Self {
         Self {
             path: path.as_ref().to_path_buf(),
@@ -98,8 +102,8 @@ impl TagRegistry {
         self.tags.get_mut(tag).unwrap()
     }
 
-    /// Adds the `tag` to an entry with `entry` id. Returns the id if the entry was already tagged
-    /// or `None` if the tag was added.
+    /// Adds the `tag` to an entry with `entry` id. Returns the id if the entry
+    /// was already tagged or `None` if the tag was added.
     pub(crate) fn tag_entry(&mut self, tag: &Tag, entry: EntryId) -> Option<EntryId> {
         let entries = self.mut_tag_entries(tag);
 
@@ -123,8 +127,8 @@ impl TagRegistry {
         }
     }
 
-    /// Removes the `tag` from an entry with `entry` id. Returns the entry data if it has no tags
-    /// left or `None` otherwise.
+    /// Removes the `tag` from an entry with `entry` id. Returns the entry data
+    /// if it has no tags left or `None` otherwise.
     pub(crate) fn untag_entry(&mut self, tag: &Tag, entry: EntryId) -> Option<EntryData> {
         let entries = self.mut_tag_entries(tag);
 
@@ -141,8 +145,8 @@ impl TagRegistry {
         None
     }
 
-    /// Removes the tag with the `tag_name` from the `entry` returning the entry if it has no tags
-    /// left or `None` otherwise.
+    /// Removes the tag with the `tag_name` from the `entry` returning the entry
+    /// if it has no tags left or `None` otherwise.
     pub(crate) fn untag_by_name(&mut self, tag_name: &str, entry: EntryId) -> Option<EntryData> {
         let tag = self.get_tag(tag_name)?.to_owned();
         self.untag_entry(&tag, entry)
@@ -247,8 +251,8 @@ impl TagRegistry {
         self.tags.keys().find(|t| t.name() == tag.as_ref())
     }
 
-    /// Updates the color of the `tag`. Returns `true` if the tag was found and updated and `false`
-    /// otherwise.
+    /// Updates the color of the `tag`. Returns `true` if the tag was found and
+    /// updated and `false` otherwise.
     pub(crate) fn update_tag_color<T: AsRef<str>>(&mut self, tag: T, color: Color) -> bool {
         if let Some(mut t) = self.tags.keys().find(|t| t.name() == tag.as_ref()).cloned() {
             let data = self.tags.remove(&t).expect("removed tag");

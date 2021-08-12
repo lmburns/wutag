@@ -4,14 +4,16 @@ use libc::XATTR_NOFOLLOW;
 use libc::{getxattr, listxattr, removexattr, setxattr, XATTR_CREATE};
 #[cfg(target_os = "linux")]
 use libc::{lgetxattr, llistxattr, lremovexattr, lsetxattr};
-use std::ffi::{CStr, CString, OsStr};
-use std::fs;
-use std::io;
-use std::mem;
-use std::os::raw::{c_char, c_void};
-use std::os::unix::ffi::OsStrExt;
-use std::path::Path;
-use std::ptr;
+use std::{
+    ffi::{CStr, CString, OsStr},
+    fs, io, mem,
+    os::{
+        raw::{c_char, c_void},
+        unix::ffi::OsStrExt,
+    },
+    path::Path,
+    ptr,
+};
 
 use crate::{Error, Result};
 
@@ -23,8 +25,8 @@ fn is_symlink(path: &Path) -> bool {
     is_symlink
 }
 
-/// Sets the value of the extended attribute identified by `name` and associated with the given `path` in the
-/// filesystem.
+/// Sets the value of the extended attribute identified by `name` and associated
+/// with the given `path` in the filesystem.
 pub fn set_xattr<P, S>(path: P, name: S, value: S) -> Result<()>
 where
     P: AsRef<Path>,
@@ -36,8 +38,8 @@ where
     _set_xattr(path, name.as_ref(), value.as_ref(), size, is_symlink(path))
 }
 
-/// Retrieves the value of the extended attribute identified by `name` and associated with the given
-/// `path` in the filesystem.
+/// Retrieves the value of the extended attribute identified by `name` and
+/// associated with the given `path` in the filesystem.
 pub fn get_xattr<P, S>(path: P, name: S) -> Result<String>
 where
     P: AsRef<Path>,
@@ -47,8 +49,8 @@ where
     _get_xattr(path, name.as_ref(), is_symlink(path))
 }
 
-/// Retrieves a list of all extended attributes with their values associated with the given `path`
-/// in the filesystem.
+/// Retrieves a list of all extended attributes with their values associated
+/// with the given `path` in the filesystem.
 pub fn list_xattrs<P>(path: P) -> Result<Vec<(String, String)>>
 where
     P: AsRef<Path>,
@@ -57,8 +59,8 @@ where
     _list_xattrs(path, is_symlink(path))
 }
 
-/// Removes the extended attribute identified by `name` and associated with the given `path` in the
-/// filesystem.
+/// Removes the extended attribute identified by `name` and associated with the
+/// given `path` in the filesystem.
 pub fn remove_xattr<P, S>(path: P, name: S) -> Result<()>
 where
     P: AsRef<Path>,
@@ -175,7 +177,8 @@ fn _set_xattr(
     name: &str,
     value: &str,
     size: usize,
-    symlink: bool, // if provided path is a symlink set the attribute on the symlink not the file/directory it points to
+    symlink: bool, /* if provided path is a symlink set the attribute on the symlink not the
+                    * file/directory it points to */
 ) -> Result<()> {
     let path = CString::new(path.to_string_lossy().as_bytes())?;
     let name = CString::new(name.as_bytes())?;

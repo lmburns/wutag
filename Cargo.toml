@@ -36,6 +36,7 @@ lscolors = "0.7.1"
 ansi_term = "0.12.1"
 atty = "0.2.14"
 tabwriter = "1.2.1"
+ignore = "0.4.18"
 
 [dev-dependencies]
 tempdir = "0.3"

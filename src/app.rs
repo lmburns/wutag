@@ -29,17 +29,18 @@ use crate::DEFAULT_COLORS;
 use wutag_core::color::parse_color;
 use wutag_core::tag::{DirEntryExt, Tag, clear_tags, list_tags, has_tags};
 
-pub struct App {
-    pub base_dir: PathBuf,
-    pub max_depth: Option<usize>,
-    pub colors: Vec<Color>,
-    pub global: bool,
-    pub registry: TagRegistry,
-    pub case_insensitive: bool,
-    pub ls_colors: bool,
-    pub color_when: String,
+pub(crate) struct App {
+    pub(crate) base_dir: PathBuf,
+    pub(crate) max_depth: Option<usize>,
+    pub(crate) colors: Vec<Color>,
+    pub(crate) global: bool,
+    pub(crate) registry: TagRegistry,
+    pub(crate) case_insensitive: bool,
+    pub(crate) ls_colors: bool,
+    pub(crate) color_when: String,
 }
 
+/// Format errors
 macro_rules! err {
     ($err:ident, $entry:ident) => {
         err!("", $err, $entry);
@@ -55,14 +56,21 @@ macro_rules! err {
     }};
 }
 
+/// Makeshift ternary 2 == 2 ? "yes" : "no"
+macro_rules! ternary {
+    ($c:expr, $v:expr, $v1:expr) => {
+        if $c {$v} else {$v1}
+    };
+}
+
 impl App {
-    pub fn run(opts: Opts, config: Config) -> Result<()> {
+    pub(crate) fn run(opts: Opts, config: Config) -> Result<()> {
         let mut app = Self::new(&opts, config)?;
         app.run_command(opts.cmd);
 
         Ok(())
     }
-    pub fn new(opts: &Opts, config: Config) -> Result<App> {
+    pub(crate) fn new(opts: &Opts, config: Config) -> Result<App> {
         let base_dir = if let Some(base_dir) = &opts.dir {
             if base_dir.display().to_string() == "." {
                 std::env::current_dir().context("failed to determine current working directory")?
@@ -89,13 +97,11 @@ impl App {
         let color_when = match opts.color_when {
             Some(ref s) if s == "always" => "always",
             Some(ref s) if s == "never" => "never",
-            _ => {
-                if no_color_val.is_none() && atty::is(Stream::Stdout) {
-                    "auto"
-                } else {
+            _ => ternary!(
+                    no_color_val.is_none() && atty::is(Stream::Stdout),
+                    "auto",
                     "never"
-                }
-            }
+                )
         };
 
         let cache_dir = macos_dirs(dirs::cache_dir(), ".cache");
@@ -119,7 +125,9 @@ impl App {
                 TagRegistry::load(&registry).unwrap_or_else(|_| TagRegistry::new(&registry))
             } else if registry.is_dir() && registry.file_name().is_some() {
                 eprintln!("{}",
-                    fmt_err(format!("{} is not a file. Using default", registry.display().to_string()))
+                    fmt_err(
+                        format!("{} is not a file. Using default", registry.display().to_string())
+                    )
                 );
                 TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
             } else if !registry.display().to_string().ends_with('/') {
@@ -164,7 +172,7 @@ impl App {
         }
     }
 
-    pub fn run_command(&mut self, cmd: Command) {
+    pub(crate) fn run_command(&mut self, cmd: Command) {
         if self.color_when == "never" {
             colored::control::SHOULD_COLORIZE.set_override(false);
         }
@@ -207,15 +215,11 @@ impl App {
 
                 let global_opts = |local: String, global: String| {
                     if garrulous {
-                        if !self.global {
-                            println!("{}", local);
-                        } else {
-                            println!("{}", global);
-                        }
-                    } else if !self.global {
-                        print!("{}", local);
-                    } else {
+                        ternary!(self.global, println!("{}", global), println!("{}", local));
+                    } else if self.global {
                         print!("{}", global);
+                    } else {
+                        print!("{}", local);
                     }
                 };
 
@@ -270,20 +274,20 @@ impl App {
                             writeln!(
                                 tab_handle,
                                 "{}\t{}",
-                                if self.global {
+                                ternary!(
+                                    self.global,
                                     fmt_path(
                                         file.path(),
                                         self.ls_colors,
                                         &self.color_when
-                                    )
-                                } else {
+                                    ),
                                     fmt_local_path(
                                         file.path(),
                                         &self.base_dir,
                                         self.ls_colors,
                                         &self.color_when
                                     )
-                                },
+                                ),
                                 tags
                             ).expect("Unable to write to tab handler");
                         } else if garrulous {
@@ -332,11 +336,11 @@ impl App {
                     writeln!(
                         tab_handle,
                         "{}\t{}",
-                        if opts.raw {
-                            count.to_string().white()
-                        } else {
+                        ternary!(
+                            opts.raw,
+                            count.to_string().white(),
                             count.to_string().green().bold()
-                        },
+                        ),
                         tag
                     ).expect("Unable to write to tab handler");
                 });
@@ -599,11 +603,10 @@ impl App {
                 }
             }
         } else {
-            // TODO: Add global option
             for id in self.registry.list_entries_with_tags(&opts.tags) {
                 let path = match self.registry.get_entry(id) {
                     Some(entry) => {
-                        if !contained_path(entry.path(), &self.base_dir) {
+                        if !self.global && !contained_path(entry.path(), &self.base_dir) {
                             continue
                         } else {
                             entry.path()
@@ -624,9 +627,23 @@ impl App {
                             })
                         })
                         .unwrap_or_default();
+
                     println!(
                         "{}: {}",
-                        fmt_path(path, self.ls_colors, &self.color_when),
+                        ternary!(
+                            self.global,
+                            fmt_path(
+                                path,
+                                self.ls_colors,
+                                &self.color_when
+                            ),
+                            fmt_local_path(
+                                path,
+                                &self.base_dir,
+                                self.ls_colors,
+                                &self.color_when
+                            )
+                        ),
                         tags
                     )
                 }

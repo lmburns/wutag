@@ -4,12 +4,11 @@ use std::{path::PathBuf, str::FromStr, env};
 use anyhow::Error;
 use clap::{AppSettings, Clap, crate_version, ValueHint};
 
-// pub const APP_VERSION: &str = "0.4.4";
-pub const APP_NAME: &str = "wutag";
-pub const APP_AUTHOR: &str = "\
+pub(crate) const APP_NAME: &str = "wutag";
+pub(crate) const APP_AUTHOR: &str = "\
       \x1b[01;38;5;3mWojciech Kępka\x1b[0m <\x1b[01;38;5;10mWwojciech@wkepka.dev\x1b[0m> \
     \n\x1b[01;38;5;3mLucas Burns\x1b[0m    <\x1b[01;38;5;10mlmb@lmburns.com\x1b[0m>";
-pub static APP_ABOUT: &str = "\
+pub(crate) static APP_ABOUT: &str = "\
     \x1b[0;33mDESCRIPTION: \x1b[0;32mTag files and manage them with color\x1b[0m";
 
 #[derive(Clap, Default, Debug)]
@@ -25,7 +24,7 @@ pub static APP_ABOUT: &str = "\
     after_help = "See wutag --help for some longer explanations of options",
     override_usage = "wutag [FLAGS] [OPTIONS] <SUBCOMMAND> xx",
 )]
-pub struct Opts {
+pub(crate) struct Opts {
     /// Specify starting path for filesystem traversal
     #[clap(short, long, next_line_help = true,
         value_hint = ValueHint::DirPath,
@@ -34,36 +33,36 @@ pub struct Opts {
         path, otherwise default to current working directory. Only applies to subcommands that \
         take a pattern as a positional argument"
     )]
-    pub dir: Option<PathBuf>,
+    pub(crate) dir: Option<PathBuf>,
     /// Increase maximum recursion depth [default: 2]
     #[clap(long, short, next_line_help = true, value_name = "depth",
         long_about = "\
         Increase maximum recursion depth of filesystem traversal to specified value (default: 2). \
         Only applies to subcommands that take a pattern as a positional argument."
     )]
-    pub max_depth: Option<usize>,
+    pub(crate) max_depth: Option<usize>,
     /// Specify a different registry to use
     #[clap(long = "registry", short, next_line_help = true,
         value_hint = ValueHint::FilePath, env = "WUTAG_REGISTRY"
     )]
-    pub reg: Option<PathBuf>,
+    pub(crate) reg: Option<PathBuf>,
     /// Case insensitively search
     #[clap(long, short = 'i',
         long_about = "\
         Turn the glob into a case insensitive one (default: case sensitive). \
         Only applies to subcommands that take a pattern as a positional argument."
     )]
-    pub case_insensitive: bool,
+    pub(crate) case_insensitive: bool,
     /// Apply operation to all tags and files instead of locally
     #[clap(long, short,
         long_about = "\
         Apply operation to files that are already tagged instead of traversing into local directories \
         or directories specified with '-d|--dir'. Only applies to 'search', 'list', 'rm', and 'clear'."
     )]
-    pub global: bool,
+    pub(crate) global: bool,
     /// Respect 'LS_COLORS' environment variable when coloring the output
     #[clap(long, short = '/')]
-    pub ls_colors: bool,
+    pub(crate) ls_colors: bool,
     /// When to colorize output
     #[clap(long = "color", short = 'c', value_name = "when",
         next_line_help = true, possible_values = &["never", "auto", "always"],
@@ -71,18 +70,18 @@ pub struct Opts {
         When to colorize output (usually meant for piping). Valid values are: always, \
         auto, never. The always selection only applies to the path as of now."
     )]
-    pub color_when: Option<String>,
+    pub(crate) color_when: Option<String>,
     #[clap(subcommand)]
-    pub cmd: Command,
+    pub(crate) cmd: Command,
 }
 
     // /// Do not colorize the output
     // #[clap(long, short, env = "NO_COLOR", takes_value = false)]
-    // pub no_color: bool,
+    // pub(crate) no_color: bool,
 
 impl Opts {
     /// Default command to run if no arguments are passed
-    pub fn base() -> Self {
+    pub(crate) fn base() -> Self {
         Self {
             global: false,
             cmd: Command::default(),
@@ -108,7 +107,7 @@ impl Default for Command {
 
 // It seems that 'name' has to be defined to use 'requires' or 'conflicts_with'
 #[derive(Clap, Debug)]
-pub enum ListObject {
+pub(crate) enum ListObject {
     Tags {
         #[clap(long = "completions", short = 'c', hidden = true)]
         for_completions: bool,
@@ -134,76 +133,76 @@ pub enum ListObject {
 }
 
 #[derive(Clap, Debug)]
-pub struct ListOpts {
+pub(crate) struct ListOpts {
     /// The object to list. Valid values are: 'tags', 'files'.
     #[clap(subcommand)]
-    pub object: ListObject,
+    pub(crate) object: ListObject,
     /// If provided output will be raw so that it can be easily piped to other commands
     #[clap(long, short)]
-    pub raw: bool,
+    pub(crate) raw: bool,
 }
 
 #[derive(Clap, Debug)]
-pub struct SetOpts {
+pub(crate) struct SetOpts {
     /// Clear all tags before setting them
     #[clap(long, short)]
-    pub clear: bool,
+    pub(crate) clear: bool,
     /// A glob pattern like "*.png".
-    pub pattern: String,
-    pub tags: Vec<String>,
+    pub(crate) pattern: String,
+    pub(crate) tags: Vec<String>,
 }
 
 #[derive(Clap, Debug)]
-pub struct RmOpts {
+pub(crate) struct RmOpts {
     /// Use extended glob features
     #[clap(long = "extended", short = 'x')]
-    pub extended_glob: bool,
+    pub(crate) extended_glob: bool,
     /// A glob pattern like "*.png".
-    pub pattern: String,
-    pub tags: Vec<String>,
+    pub(crate) pattern: String,
+    pub(crate) tags: Vec<String>,
 }
 
 #[derive(Clap, Debug)]
-pub struct ClearOpts {
+pub(crate) struct ClearOpts {
     /// A glob pattern like "*.png".
-    pub pattern: String,
+    pub(crate) pattern: String,
 }
 
 #[derive(Clap, Debug)]
-pub struct SearchOpts {
+pub(crate) struct SearchOpts {
     #[clap(required = true)]
-    pub tags: Vec<String>,
+    pub(crate) tags: Vec<String>,
     /// If provided output will be raw so that it can be easily piped to other commands
     #[clap(long, short)]
-    pub raw: bool,
+    pub(crate) raw: bool,
     /// If set to 'true' all entries containing any of provided tags will be returned
     #[clap(long, short)]
-    pub any: bool,
+    pub(crate) any: bool,
 }
 
 #[derive(Clap, Debug)]
-pub struct CpOpts {
+pub(crate) struct CpOpts {
     /// Path to the file from which to copy tags from
     #[clap(value_hint = ValueHint::FilePath)]
-    pub input_path: PathBuf,
+    pub(crate) input_path: PathBuf,
     /// A glob pattern like "*.png".
-    pub pattern: String,
+    pub(crate) pattern: String,
 }
 
 #[derive(Clap, Debug)]
-pub struct EditOpts {
+pub(crate) struct EditOpts {
     /// The tag to edit
-    pub tag: String,
+    pub(crate) tag: String,
     #[clap(long, short)]
     /// Set the color of the tag to the specified color. Accepted values are hex colors like
     /// '0x000000' or '#1F1F1F' or just plain 'ff000a'. The colors are case insensitive meaning
     /// '1f1f1f' is equivalent to '1F1F1F'.
-    pub color: String,
+    pub(crate) color: String,
 }
 
 #[derive(Clap, Debug)]
 #[allow(clippy::enum_variant_names)]
-pub enum Shell {
+pub(crate) enum Shell {
     Bash,
     Elvish,
     Fish,
@@ -226,21 +225,21 @@ impl FromStr for Shell {
 }
 
 impl Shell {
-    pub fn variants() -> [&'static str; 5] {
+    pub(crate) fn variants() -> [&'static str; 5] {
         ["bash", "elvish", "fish", "powershell", "zsh"]
     }
 }
 
 #[derive(Clap, Debug)]
-pub struct CompletionsOpts {
+pub(crate) struct CompletionsOpts {
     /// Shell to print completions. Available shells are: bash, elvish, fish,
     /// powershell, zsh
     #[clap(long, possible_values = &Shell::variants())]
-    pub shell: Shell,
+    pub(crate) shell: Shell,
 }
 
 #[derive(Clap, Debug)]
-pub enum Command {
+pub(crate) enum Command {
     /// Lists all available tags or files.
     #[clap(aliases = &["ls", "l", "li", "lis"])] // Have to do this to be compatible with InferSubcommands
     List(ListOpts),

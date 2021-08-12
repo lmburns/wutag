@@ -10,33 +10,33 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
-pub struct EntryData {
+pub(crate) struct EntryData {
     path: PathBuf,
 }
 
 impl EntryData {
-    pub fn new<P: AsRef<Path>>(path: P) -> Self {
+    pub(crate) fn new<P: AsRef<Path>>(path: P) -> Self {
         Self {
             path: path.as_ref().to_path_buf(),
         }
     }
-    pub fn path(&self) -> &Path {
+    pub(crate) fn path(&self) -> &Path {
         &self.path
     }
 }
 
-pub type EntryId = usize;
+pub(crate) type EntryId = usize;
 
 #[derive(Default, Deserialize, Serialize, Clone)]
-pub struct TagRegistry {
+pub(crate) struct TagRegistry {
     tags: HashMap<Tag, Vec<EntryId>>,
     entries: HashMap<EntryId, EntryData>,
-    pub path: PathBuf,
+    pub(crate) path: PathBuf,
 }
 
 impl TagRegistry {
     /// Creates a new instance of `TagRegistry` with a `path` without loading it.
-    pub fn new<P: AsRef<Path>>(path: P) -> Self {
+    pub(crate) fn new<P: AsRef<Path>>(path: P) -> Self {
         Self {
             path: path.as_ref().to_path_buf(),
             ..Default::default()
@@ -44,7 +44,7 @@ impl TagRegistry {
     }
 
     /// Loads a registry from the specified `path`.
-    pub fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub(crate) fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
         let path = path.as_ref();
         let data = fs::read(path).context("failed to read saved registry")?;
 
@@ -52,19 +52,19 @@ impl TagRegistry {
     }
 
     /// Saves the registry serialized to the path from which it was loaded.
-    pub fn save(&self) -> Result<()> {
+    pub(crate) fn save(&self) -> Result<()> {
         let serialized = serde_cbor::to_vec(&self).context("failed to serialize tag registry")?;
         fs::write(&self.path, &serialized).context("failed to save registry")
     }
 
     /// Clears this tag registry by removing all entries and tags.
-    pub fn clear(&mut self) {
+    pub(crate) fn clear(&mut self) {
         self.tags.clear();
         self.entries.clear();
     }
 
     /// Updates the entry or adds it if it is not present.
-    pub fn add_or_update_entry(&mut self, entry: EntryData) -> EntryId {
+    pub(crate) fn add_or_update_entry(&mut self, entry: EntryData) -> EntryId {
         let pos = self
             .list_entries_and_ids()
             .find(|(_, e)| **e == entry)
@@ -100,7 +100,7 @@ impl TagRegistry {
 
     /// Adds the `tag` to an entry with `entry` id. Returns the id if the entry was already tagged
     /// or `None` if the tag was added.
-    pub fn tag_entry(&mut self, tag: &Tag, entry: EntryId) -> Option<EntryId> {
+    pub(crate) fn tag_entry(&mut self, tag: &Tag, entry: EntryId) -> Option<EntryId> {
         let entries = self.mut_tag_entries(tag);
 
         if let Some(entry) = entries.iter().find(|&e| *e == entry) {
@@ -125,7 +125,7 @@ impl TagRegistry {
 
     /// Removes the `tag` from an entry with `entry` id. Returns the entry data if it has no tags
     /// left or `None` otherwise.
-    pub fn untag_entry(&mut self, tag: &Tag, entry: EntryId) -> Option<EntryData> {
+    pub(crate) fn untag_entry(&mut self, tag: &Tag, entry: EntryId) -> Option<EntryData> {
         let entries = self.mut_tag_entries(tag);
 
         if let Some(pos) = entries.iter().position(|e| *e == entry) {
@@ -143,13 +143,13 @@ impl TagRegistry {
 
     /// Removes the tag with the `tag_name` from the `entry` returning the entry if it has no tags
     /// left or `None` otherwise.
-    pub fn untag_by_name(&mut self, tag_name: &str, entry: EntryId) -> Option<EntryData> {
+    pub(crate) fn untag_by_name(&mut self, tag_name: &str, entry: EntryId) -> Option<EntryData> {
         let tag = self.get_tag(tag_name)?.to_owned();
         self.untag_entry(&tag, entry)
     }
 
     /// Clears all tags of the `entry`.
-    pub fn clear_entry(&mut self, entry: EntryId) {
+    pub(crate) fn clear_entry(&mut self, entry: EntryId) {
         let mut to_remove = vec![];
         self.tags.iter_mut().for_each(|(tag, entries)| {
             if let Some(idx) = entries.iter().copied().position(|e| e == entry) {
@@ -168,7 +168,7 @@ impl TagRegistry {
     }
 
     /// Finds the entry by a `path`. Returns the id of the entry if found.
-    pub fn find_entry<P: AsRef<Path>>(&self, path: P) -> Option<EntryId> {
+    pub(crate) fn find_entry<P: AsRef<Path>>(&self, path: P) -> Option<EntryId> {
         self.entries
             .iter()
             .find(|(_, entry)| entry.path == path.as_ref())
@@ -176,7 +176,7 @@ impl TagRegistry {
     }
 
     /// Lists tags of the `entry` if such entry exists.
-    pub fn list_entry_tags(&self, entry: EntryId) -> Option<Vec<&Tag>> {
+    pub(crate) fn list_entry_tags(&self, entry: EntryId) -> Option<Vec<&Tag>> {
         let tags = self
             .tags
             .iter()
@@ -195,7 +195,7 @@ impl TagRegistry {
     }
 
     /// Returns entries that have all of the `tags`.
-    pub fn list_entries_with_tags<T, S>(&self, tags: T) -> Vec<EntryId>
+    pub(crate) fn list_entries_with_tags<T, S>(&self, tags: T) -> Vec<EntryId>
     where
         T: IntoIterator<Item = S>,
         S: AsRef<str>,
@@ -218,38 +218,38 @@ impl TagRegistry {
     }
 
     /// Lists ids of all entries present in the registry.
-    pub fn list_entries_ids(&self) -> impl Iterator<Item = &EntryId> {
+    pub(crate) fn list_entries_ids(&self) -> impl Iterator<Item = &EntryId> {
         self.entries.keys()
     }
 
     /// Lists data of all entries present in the registry.
-    pub fn list_entries(&self) -> impl Iterator<Item = &EntryData> {
+    pub(crate) fn list_entries(&self) -> impl Iterator<Item = &EntryData> {
         self.entries.values()
     }
 
     /// Lists ids and data of all entries present in the registry.
-    pub fn list_entries_and_ids(&self) -> impl Iterator<Item = (&EntryId, &EntryData)> {
+    pub(crate) fn list_entries_and_ids(&self) -> impl Iterator<Item = (&EntryId, &EntryData)> {
         self.entries.iter()
     }
 
     /// Lists available tags.
-    pub fn list_tags(&self) -> impl Iterator<Item = &Tag> {
+    pub(crate) fn list_tags(&self) -> impl Iterator<Item = &Tag> {
         self.tags.keys()
     }
 
     /// Returns data of the entry with `id` if such entry exists.
-    pub fn get_entry(&self, id: EntryId) -> Option<&EntryData> {
+    pub(crate) fn get_entry(&self, id: EntryId) -> Option<&EntryData> {
         self.entries.get(&id)
     }
 
     /// Returns the tag with the name `tag` if it exists.
-    pub fn get_tag<T: AsRef<str>>(&self, tag: T) -> Option<&Tag> {
+    pub(crate) fn get_tag<T: AsRef<str>>(&self, tag: T) -> Option<&Tag> {
         self.tags.keys().find(|t| t.name() == tag.as_ref())
     }
 
     /// Updates the color of the `tag`. Returns `true` if the tag was found and updated and `false`
     /// otherwise.
-    pub fn update_tag_color<T: AsRef<str>>(&mut self, tag: T, color: Color) -> bool {
+    pub(crate) fn update_tag_color<T: AsRef<str>>(&mut self, tag: T, color: Color) -> bool {
         if let Some(mut t) = self.tags.keys().find(|t| t.name() == tag.as_ref()).cloned() {
             let data = self.tags.remove(&t).expect("removed tag");
             t.set_color(&color);

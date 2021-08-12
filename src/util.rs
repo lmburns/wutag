@@ -8,15 +8,15 @@ use crate::DEFAULT_MAX_DEPTH;
 use anyhow::{Context, Result};
 use wutag_core::tag::Tag;
 
-pub fn fmt_err<E: Display>(err: E) -> String {
+pub(crate) fn fmt_err<E: Display>(err: E) -> String {
     format!("{} {}", "ERROR".red().bold(), format!("{}", err).white())
 }
 
-pub fn fmt_ok<S: AsRef<str>>(msg: S) -> String {
+pub(crate) fn fmt_ok<S: AsRef<str>>(msg: S) -> String {
     format!("{} {}", "OK".green().bold(), msg.as_ref().white())
 }
 
-pub fn fmt_path<P: AsRef<Path>>(
+pub(crate) fn fmt_path<P: AsRef<Path>>(
     path: P,
     ls_colors: bool,
     color_when: &str,
@@ -48,7 +48,7 @@ pub fn fmt_path<P: AsRef<Path>>(
 }
 
 /// Format a local path (i.e., remove path components before files local to directory)
-pub fn fmt_local_path<P: AsRef<Path>>(
+pub(crate) fn fmt_local_path<P: AsRef<Path>>(
     path: P,
     local_path: P,
     ls_colors: bool,
@@ -92,11 +92,11 @@ pub fn fmt_local_path<P: AsRef<Path>>(
     }
 }
 
-pub fn fmt_tag(tag: &Tag) -> ColoredString {
+pub(crate) fn fmt_tag(tag: &Tag) -> ColoredString {
     tag.name().color(*tag.color()).bold()
 }
 
-pub fn raw_local_path<P: AsRef<Path>>(path: P, local: P) -> String {
+pub(crate) fn raw_local_path<P: AsRef<Path>>(path: P, local: P) -> String {
     let mut replaced = local.as_ref().display().to_string();
     if !replaced.ends_with('/') {
         replaced.push('/');
@@ -106,7 +106,7 @@ pub fn raw_local_path<P: AsRef<Path>>(path: P, local: P) -> String {
 }
 
 /// Determine whether file (path) contains path and if so, return true
-pub fn contained_path<P: AsRef<Path>>(file: P, path: P) -> bool {
+pub(crate) fn contained_path<P: AsRef<Path>>(file: P, path: P) -> bool {
     file.as_ref().display().to_string()
         .contains(path.as_ref().to_str().unwrap())
 }
@@ -114,7 +114,7 @@ pub fn contained_path<P: AsRef<Path>>(file: P, path: P) -> bool {
 /// Returns a GlobWalker instance with base path set to `base_path` and pattern to `pattern`. If
 /// max_depth is specified the GlobWalker will have it's max depth set to its value, otherwise max
 /// depth will be [DEFAULT_MAX_DEPTH](DEFAULT_MAX_DEPTH).
-pub fn glob_walker<S>(
+pub(crate) fn glob_walker<S>(
     dir: S,
     pattern: S,
     max_depth: Option<usize>,
@@ -141,7 +141,7 @@ where
 
 /// Utility function that executes the function `f` on all directory entries that are Ok, by
 /// default ignores all errors.
-pub fn glob_ok<P, F>(
+pub(crate) fn glob_ok<P, F>(
     pattern: &str,
     base_path: P,
     max_depth: Option<usize>,
@@ -164,7 +164,7 @@ where
 /// Helper function to get different directories for `macOS` specifically
 /// Example: `dirs::cache_dir()` returns `$HOME/Library/Caches`, when this will return `$HOME/.cache`
 /// This can and is used to respect `XDG` defaults for `macOS`
-pub fn macos_dirs(dir_func: Option<PathBuf>, joined: &str) -> Result<PathBuf> {
+pub(crate) fn macos_dirs(dir_func: Option<PathBuf>, joined: &str) -> Result<PathBuf> {
     #[cfg(target_os = "macos")]
     if std::env::consts::OS == "macos" {
         Ok(PathBuf::from(env!("HOME")).join(joined))

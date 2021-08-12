@@ -42,6 +42,9 @@ build-release:
 test:
   cargo test {{CI}}
 
+###################################################################################
+###################################################################################
+
 man:
   help2man \
     --name 'tag files colorfully' \
@@ -58,21 +61,16 @@ view-man: man
 
 # replace FROM TO *GO:
 #   ruplacer '{{FROM}}' '{{TO}}' {{GO}} src/*.rs
+#
+# update-version NEW *GO:
+#   just replace {{version}} {{NEW}} {{GO}}
+#   just man
 
-replace-i FROM TO:
+replace FROM TO:
   -fd -tf -e rs -e toml | sad '{{FROM}}' '{{TO}}'
 
-update-version-i NEW:
+update-version NEW:
   -just replace-i {{version}} {{NEW}}
-
-update-version NEW *GO:
-  just replace {{version}} {{NEW}} {{GO}}
-  just man
-
-no-changes:
-  git diff --no-ext-diff --quiet --exit-code
-
-# set shell := ["zsh", "-euyc"]
 
 @lint:
   print -Pr "%F{2}%BChecking for FIXME/TODO...%b%f"
@@ -85,6 +83,15 @@ no-changes:
 
 @code-overall:
   tokei -t rust
+
+###################################################################################
+###################################################################################
+
+no-changes:
+  git diff --no-ext-diff --quiet --exit-code
+
+d-merged:
+  git branch --merged | egrep -v "(^\*|master|dev) | xargs git branch -d"
 
 ###################################################################################
 ###################################################################################
@@ -112,7 +119,9 @@ edit-rust:
       --exit-0 \
       --bind=ctrl-x:toggle-sort \
       --preview-window=':nohidden,right:65%:wrap' \
-      --preview='([[ -f {} ]] && (bat --style=numbers --color=always {})) || ([[ -d {} ]] && (exa -TL 3 --color=always --icons {} | less)) || echo {} 2> /dev/null | head -200'
+      --preview='([[ -f {} ]] && (bat --style=numbers --color=always {})) || \
+                 ([[ -d {} ]] && (exa -TL 3 --color=always --icons {} | less)) || \
+                 echo {} 2> /dev/null | head -200'
     )"
   ) || return
   [[ -n "$sel" ]] && ${EDITOR:-vim} "${sel[@]}"

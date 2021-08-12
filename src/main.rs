@@ -13,9 +13,9 @@ use config::Config;
 use opt::Opts;
 
 /// Default max depth passed to [GlobWalker](globwalker::GlobWalker)
-pub const DEFAULT_MAX_DEPTH: usize = 2;
+pub(crate) const DEFAULT_MAX_DEPTH: usize = 2;
 /// Default colors used for tags
-pub const DEFAULT_COLORS: &[Color] = &[
+pub(crate) const DEFAULT_COLORS: &[Color] = &[
     Red,
     Green,
     Blue,

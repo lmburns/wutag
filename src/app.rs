@@ -3,9 +3,14 @@ use clap::IntoApp;
 use colored::{Color, Colorize};
 use globwalk::DirEntry;
 use shellexpand::LookupError;
-use tabular::{Table, Row};
+use atty::Stream;
 
-use std::{io, fs, env, borrow::Cow};
+use std::{
+    io::{self, Write},
+    fs,
+    env,
+    borrow::Cow
+};
 use std::path::PathBuf;
 use std::collections::HashMap;
 
@@ -28,11 +33,11 @@ pub struct App {
     pub base_dir: PathBuf,
     pub max_depth: Option<usize>,
     pub colors: Vec<Color>,
-    pub no_color: bool,
     pub global: bool,
     pub registry: TagRegistry,
     pub case_insensitive: bool,
     pub ls_colors: bool,
+    pub color_when: String,
 }
 
 macro_rules! err {
@@ -78,6 +83,21 @@ impl App {
             DEFAULT_COLORS.to_vec()
         };
 
+        // || (no_color_val.is_some() && no_color_val.unwrap() == OsString::from("0")))
+
+        let no_color_val = env::var_os("NO_COLOR");
+        let color_when = match opts.color_when {
+            Some(ref s) if s == "always" => "always",
+            Some(ref s) if s == "never" => "never",
+            _ => {
+                if no_color_val.is_none() && atty::is(Stream::Stdout) {
+                    "auto"
+                } else {
+                    "never"
+                }
+            }
+        };
+
         let cache_dir = macos_dirs(dirs::cache_dir(), ".cache");
         let state_file = cache_dir.unwrap().join("wutag.registry");
 
@@ -85,13 +105,15 @@ impl App {
 
             // Expand both tlide '~' and environment variables in 'WUTAG_REGISTRY' env var
             let registry = &PathBuf::from(
-                shellexpand::full(&registry.display().to_string()).unwrap_or_else(|_| {
+                shellexpand::full(
+                    &registry.display().to_string()
+                ).unwrap_or_else(|_| {
                     Cow::from(LookupError {
                         var_name: "UNKNOWN_ENVIRONMENT_VARIABLE".into(),
                         cause: env::VarError::NotPresent
                     }.to_string())
                 }).to_string()
-                );
+            );
 
             if registry.is_file() && registry.file_name().is_some() {
                 TagRegistry::load(&registry).unwrap_or_else(|_| TagRegistry::new(&registry))
@@ -128,11 +150,11 @@ impl App {
                 config.max_depth
             },
             colors,
-            no_color: opts.no_color,
             global: opts.global,
             registry,
             case_insensitive: opts.case_insensitive,
             ls_colors: opts.ls_colors,
+            color_when: color_when.to_string()
         })
     }
 
@@ -143,7 +165,7 @@ impl App {
     }
 
     pub fn run_command(&mut self, cmd: Command) {
-        if self.no_color {
+        if self.color_when == "never" {
             colored::control::SHOULD_COLORIZE.set_override(false);
         }
 
@@ -175,6 +197,11 @@ impl App {
     }
 
     fn list(&self, opts: &ListOpts) {
+        let stdout = io::stdout();
+        let std_lock = stdout.lock();
+        let handle = io::BufWriter::new(std_lock);
+        let mut tab_handle = tabwriter::TabWriter::new(handle);
+
         match opts.object {
             ListObject::Files { with_tags, formatted, garrulous } => {
 
@@ -191,8 +218,6 @@ impl App {
                         print!("{}", global);
                     }
                 };
-
-                let mut table = Table::new("{:<}   {:<}");
 
                 for (id, file) in self.registry.list_entries_and_ids() {
                     // Skips paths that are not contained within one another to respect the `-d` flag
@@ -214,11 +239,13 @@ impl App {
                             fmt_local_path(
                                 file.path(),
                                 &self.base_dir,
-                                self.ls_colors
+                                self.ls_colors,
+                                &self.color_when
                             ),
                             fmt_path(
                                 file.path(),
-                                self.ls_colors
+                                self.ls_colors,
+                                &self.color_when
                             )
                         );
                     }
@@ -240,16 +267,25 @@ impl App {
                             .join(" ");
 
                         if formatted {
-                            table.add_row(Row::new()
-                                .with_cell(
-                                    if self.global {
-                                        fmt_path(file.path(), self.ls_colors)
-                                    } else {
-                                        fmt_local_path(file.path(), &self.base_dir, self.ls_colors)
-                                    }
-                                )
-                                .with_cell(tags)
-                            );
+                            writeln!(
+                                tab_handle,
+                                "{}\t{}",
+                                if self.global {
+                                    fmt_path(
+                                        file.path(),
+                                        self.ls_colors,
+                                        &self.color_when
+                                    )
+                                } else {
+                                    fmt_local_path(
+                                        file.path(),
+                                        &self.base_dir,
+                                        self.ls_colors,
+                                        &self.color_when
+                                    )
+                                },
+                                tags
+                            ).expect("Unable to write to tab handler");
                         } else if garrulous {
                                 println!("\t{}", tags);
                         } else {
@@ -259,13 +295,12 @@ impl App {
                         println!();
                     }
                 }
-                if formatted { println!("{}", table); }
+                if formatted { tab_handle.flush().expect("Unable to flush tab handler"); }
             }
             ListObject::Tags { for_completions } => {
                 // I think both id and entry has to be listed here to be able to respect current directory
                 // This is really dirty
                 let mut utags = Vec::new();
-                let mut table = Table::new("{:<}  |  {:<}");
                 for (&id, file) in self.registry.list_entries_and_ids() {
                     if !self.global && !contained_path(file.path(), &self.base_dir) {
                         continue;
@@ -294,22 +329,22 @@ impl App {
                 })
                 .iter()
                 .for_each(|(tag, count)| {
-                    // What's up with empty row at end?
-                    table.add_row(Row::new()
-                        .with_cell(
-                            if opts.raw {
-                                count.to_string().white()
-                            } else {
-                                count.to_string().green().bold()
-                            })
-                        .with_cell(tag)
-                    );
+                    writeln!(
+                        tab_handle,
+                        "{}\t{}",
+                        if opts.raw {
+                            count.to_string().white()
+                        } else {
+                            count.to_string().green().bold()
+                        },
+                        tag
+                    ).expect("Unable to write to tab handler");
                 });
                 // Can't get this to work if cells are reversed
                 if for_completions {
                     utags.iter().for_each(|tag| println!("{}", tag) );
                 } else {
-                    println!("{}", table);
+                    tab_handle.flush().expect("Unable to flush tab handler");
                 }
             }
         }
@@ -334,7 +369,7 @@ impl App {
             self.max_depth,
             self.case_insensitive,
             |entry: &DirEntry| {
-                println!("{}:", fmt_path(entry.path(), self.ls_colors));
+                println!("{}:", fmt_path(entry.path(), self.ls_colors, &self.color_when));
                 tags.iter().for_each(|tag| {
 
                     if opts.clear {
@@ -383,6 +418,7 @@ impl App {
             } else {
                 builder.case_insensitive(false)
             };
+
             let pat = builder.build()
                 .expect("Invalid glob sequence")
                 .compile_matcher();
@@ -410,7 +446,9 @@ impl App {
                             if search.is_some() {
                                 // println!("SEARCH: {:?} REAL: {:?}", search, realtag);
                                 self.registry.untag_by_name(search.unwrap(), id);
-                                println!("{}:", fmt_path(entry.path(), self.ls_colors));
+                                println!("{}:",
+                                    fmt_path(entry.path(), self.ls_colors, &self.color_when)
+                                );
 
                                 if let Err(e) = realtag.remove_from(entry.path()) {
                                     err!('\t', e, entry);
@@ -445,7 +483,7 @@ impl App {
                         return;
                     }
 
-                    println!("{}:", fmt_path(entry.path(), self.ls_colors));
+                    println!("{}:", fmt_path(entry.path(), self.ls_colors, &self.color_when));
                     tags.iter().for_each(|tag| {
                         let tag = match tag {
                             Ok(tag) => tag,
@@ -486,7 +524,9 @@ impl App {
                     match has_tags(entry.path()) {
                         Ok(has_tags) => {
                             if has_tags {
-                                println!("{}:", fmt_path(entry.path(), self.ls_colors));
+                                println!("{}:",
+                                    fmt_path(entry.path(), self.ls_colors, &self.color_when)
+                                );
                                 if let Err(e) = clear_tags(entry.path()) {
                                     err!('\t', e, entry);
                                 } else {
@@ -512,7 +552,9 @@ impl App {
                     match entry.has_tags() {
                         Ok(has_tags) => {
                             if has_tags {
-                                println!("{}:", fmt_path(entry.path(), self.ls_colors));
+                                println!("{}:",
+                                    fmt_path(entry.path(), self.ls_colors, &self.color_when)
+                                );
                                 if let Err(e) = entry.clear_tags() {
                                     err!('\t', e, entry);
                                 } else {
@@ -549,7 +591,11 @@ impl App {
                             })
                         })
                         .unwrap_or_default();
-                    println!("{}: {}", fmt_path(entry.path(), self.ls_colors), tags)
+                    println!(
+                        "{}: {}",
+                        fmt_path(entry.path(), self.ls_colors, &self.color_when),
+                        tags
+                    )
                 }
             }
         } else {
@@ -578,7 +624,11 @@ impl App {
                             })
                         })
                         .unwrap_or_default();
-                    println!("{}: {}", fmt_path(path, self.ls_colors), tags)
+                    println!(
+                        "{}: {}",
+                        fmt_path(path, self.ls_colors, &self.color_when),
+                        tags
+                    )
                 }
             }
         }
@@ -594,7 +644,9 @@ impl App {
                     self.max_depth,
                     self.case_insensitive,
                     |entry: &DirEntry| {
-                        println!("{}:", fmt_path(entry.path(), self.ls_colors));
+                        println!("{}:",
+                            fmt_path(entry.path(), self.ls_colors, &self.color_when)
+                        );
                         for tag in &tags {
                             if let Err(e) = entry.tag(tag) {
                                 err!('\t', e, entry)

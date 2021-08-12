@@ -16,38 +16,58 @@ pub fn fmt_ok<S: AsRef<str>>(msg: S) -> String {
     format!("{} {}", "OK".green().bold(), msg.as_ref().white())
 }
 
-pub fn fmt_path<P: AsRef<Path>>(path: P, config: bool) -> String {
-    // Maybe only use ansi_term?
-    if config {
+pub fn fmt_path<P: AsRef<Path>>(
+    path: P,
+    ls_colors: bool,
+    color_when: &str,
+) -> String {
+    // ansi_term always prints colors
+    // colored will removed colors when piping automatically
+    // Therefore, ls_colors implies forced coloring
+    if ls_colors {
         let lscolors = LsColors::from_env().unwrap_or_default();
 
         let style = lscolors.style_for_path(path.as_ref());
         let style = style
             .map(Style::to_ansi_term_style)
-            .unwrap_or(ansi_term::Color::Blue.bold());
+            .unwrap_or_else(|| ansi_term::Color::Blue.bold());
 
         format!("{}", style.paint(path.as_ref().display().to_string()))
+    } else if color_when == "always" {
+            format!(
+                "{}",
+                ansi_term::Color::Blue.bold()
+                    .paint(path.as_ref().display().to_string())
+            )
     } else {
-        format!("{}", path.as_ref().display().to_string().bold().blue())
+        format!(
+            "{}",
+            path.as_ref().display().to_string().bold().blue()
+        )
     }
 }
 
-pub fn fmt_tag(tag: &Tag) -> ColoredString {
-    tag.name().color(*tag.color()).bold()
-}
+/// Format a local path (i.e., remove path components before files local to directory)
+pub fn fmt_local_path<P: AsRef<Path>>(
+    path: P,
+    local_path: P,
+    ls_colors: bool,
+    color_when: &str
+) -> String {
+    // let painted = |to_paint
 
-pub fn fmt_local_path<P: AsRef<Path>>(path: P, local: P, config: bool) -> String {
-    let mut replaced = local.as_ref().display().to_string();
+    let mut replaced = local_path.as_ref().display().to_string();
     if !replaced.ends_with('/') {
         replaced.push('/');
     }
-    if config {
+
+    if ls_colors {
         let lscolors = LsColors::from_env().unwrap_or_default();
 
         let style = lscolors.style_for_path(path.as_ref());
         let style = style
             .map(Style::to_ansi_term_style)
-            .unwrap_or(ansi_term::Color::Blue.bold());
+            .unwrap_or_else(|| ansi_term::Color::Blue.bold());
 
         format!("{}",
             style.paint(
@@ -55,6 +75,14 @@ pub fn fmt_local_path<P: AsRef<Path>>(path: P, local: P, config: bool) -> String
                     .replace(replaced.as_str(), "")
             )
         )
+    } else if color_when == "always" {
+            format!(
+                "{}",
+                ansi_term::Color::Blue.bold().paint(
+                    path.as_ref().display().to_string()
+                        .replace(replaced.as_str(), "")
+                    )
+            )
     } else {
         format!("{}",
             path.as_ref().display().to_string()
@@ -62,6 +90,10 @@ pub fn fmt_local_path<P: AsRef<Path>>(path: P, local: P, config: bool) -> String
             .bold().blue()
         )
     }
+}
+
+pub fn fmt_tag(tag: &Tag) -> ColoredString {
+    tag.name().color(*tag.color()).bold()
 }
 
 pub fn raw_local_path<P: AsRef<Path>>(path: P, local: P) -> String {

@@ -53,7 +53,7 @@ A command line tool for tagging files
 #### New command similar to what `add` vs `set` would be
 * [x] Differentiate between `set` and `add` (added `wutag set --clear`)
     * May instead use `add` and `set` at some point
-    * For the time being, `set --clear` will `clear` the tags before setting it
+    * For the time being, `set --clear` will `clear` the tags before setting them
 
 #### Completions
 * [x] List tags and use them for completions
@@ -66,6 +66,8 @@ A command line tool for tagging files
 * [ ] Configuration option for base file color
 * [ ] Fix `any` vs the normal `all` (it doesn't work)
 * [ ] `raw` does not work with formatted (fix or find way to implement `conflicts_with`)
+* [ ] Add option for regex when setting, removing, etc
+* [ ] Remove extra line on output when listing locally (listing tags only)
 
 ![Example usage](https://github.com/vv9k/wutag/blob/master/static/usage.svg)
 

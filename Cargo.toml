@@ -1,7 +1,7 @@
 [package]
 name = "wutag"
 description = "Tag files and manage them with color"
-version = "0.4.3"
+version = "0.4.4"
 authors = ["wojciechkepka <wojtek.kepka@protonmail.com>", "Lucas Burns <lmb@lmburns.com>"]
 edition = "2018"
 repository = "https://github.com/lmburns/wutag"
@@ -29,12 +29,13 @@ globwalk = "0.8"
 rand = "0.8"
 base64 = "0.13.0"
 dirs = "3"
-tabular = "0.1.4"
 shellexpand = "2.1.0"
 globset = "0.4.8"
 globber = "0.1.3"
 lscolors = "0.7.1"
 ansi_term = "0.12.1"
+atty = "0.2.14"
+tabwriter = "1.2.1"
 
 [dev-dependencies]
 tempdir = "0.3"

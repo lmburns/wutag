@@ -62,9 +62,8 @@ view-man: man
 replace-i FROM TO:
   -fd -tf -e rs -e toml | sad '{{FROM}}' '{{TO}}'
 
-# FIXME
 update-version-i NEW:
-  just replace-i {{version}} {{NEW}}
+  -just replace-i {{version}} {{NEW}}
 
 update-version NEW *GO:
   just replace {{version}} {{NEW}} {{GO}}

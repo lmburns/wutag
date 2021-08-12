@@ -4,13 +4,13 @@ use std::{path::PathBuf, str::FromStr, env};
 use anyhow::Error;
 use clap::{AppSettings, Clap, crate_version, ValueHint};
 
-// pub const APP_VERSION: &str = "0.4.3";
+// pub const APP_VERSION: &str = "0.4.4";
 pub const APP_NAME: &str = "wutag";
 pub const APP_AUTHOR: &str = "\
-      \x1b[01;38;5;13mWojciech Kępka\x1b[0m <\x1b[01;38;5;10mWwojciech@wkepka.dev\x1b[0m> \
-    \n\x1b[01;38;5;13mLucas Burns\x1b[0m    <\x1b[01;38;5;10mlmb@lmburns.com\x1b[0m>";
+      \x1b[01;38;5;3mWojciech Kępka\x1b[0m <\x1b[01;38;5;10mWwojciech@wkepka.dev\x1b[0m> \
+    \n\x1b[01;38;5;3mLucas Burns\x1b[0m    <\x1b[01;38;5;10mlmb@lmburns.com\x1b[0m>";
 pub static APP_ABOUT: &str = "\
-    \x1b[0;33mDESCRIPTION: \x1b[0;31mTag files and manage them with color\x1b[0m";
+    \x1b[0;33mDESCRIPTION: \x1b[0;32mTag files and manage them with color\x1b[0m";
 
 #[derive(Clap, Default, Debug)]
 #[clap(
@@ -22,6 +22,8 @@ pub static APP_ABOUT: &str = "\
     global_setting = AppSettings::DisableHelpSubcommand,  // Disables help (use -h)
     global_setting = AppSettings::VersionlessSubcommands, // Shows no --version
     global_setting = AppSettings::InferSubcommands,       // l, li, lis == list
+    after_help = "See wutag --help for some longer explanations of options",
+    override_usage = "wutag [FLAGS] [OPTIONS] <SUBCOMMAND> xx",
 )]
 pub struct Opts {
     /// Specify starting path for filesystem traversal
@@ -33,8 +35,8 @@ pub struct Opts {
         take a pattern as a positional argument"
     )]
     pub dir: Option<PathBuf>,
-    /// Increase maximum recursion depth (default: 2)
-    #[clap(long, short, next_line_help = true,
+    /// Increase maximum recursion depth [default: 2]
+    #[clap(long, short, next_line_help = true, value_name = "depth",
         long_about = "\
         Increase maximum recursion depth of filesystem traversal to specified value (default: 2). \
         Only applies to subcommands that take a pattern as a positional argument."
@@ -60,14 +62,23 @@ pub struct Opts {
     )]
     pub global: bool,
     /// Respect 'LS_COLORS' environment variable when coloring the output
-    #[clap(long)]
+    #[clap(long, short = '/')]
     pub ls_colors: bool,
-    /// Do not colorize the output
-    #[clap(long, short, env = "NO_COLOR", takes_value = false)]
-    pub no_color: bool,
+    /// When to colorize output
+    #[clap(long = "color", short = 'c', value_name = "when",
+        next_line_help = true, possible_values = &["never", "auto", "always"],
+        long_about = "\
+        When to colorize output (usually meant for piping). Valid values are: always, \
+        auto, never. The always selection only applies to the path as of now."
+    )]
+    pub color_when: Option<String>,
     #[clap(subcommand)]
     pub cmd: Command,
 }
+
+    // /// Do not colorize the output
+    // #[clap(long, short, env = "NO_COLOR", takes_value = false)]
+    // pub no_color: bool,
 
 impl Opts {
     /// Default command to run if no arguments are passed
@@ -78,10 +89,6 @@ impl Opts {
             ..Default::default()
         }
     }
-
-    // pub fn len(&self) -> usize {
-    //     std::env::args_os().len()
-    // }
 }
 
 impl Default for Command {

@@ -1,8 +1,8 @@
-# set shell := ["zsh", "-euyG", "--shfileexpansion", "-c"]
-set shell := ["zsh", "-euyFc"]
+set shell := ["zsh", "-euyc"]
+# F
 
 CI := if env_var_or_default("CI", "1") == "0" { "--color=never" } else { "--color=always" }
-version := `rg --color=never --pcre2 -oI '^version = "\K(\d+\.?)+'`
+version := `rg --color=never --pcre2 -oIN '^version = "\K(\d+\.?)+'`
 
 bt := '0'
 export RUST_BACKTRACE := bt
@@ -19,7 +19,7 @@ edit:
 
 alias r := run
 run *ARGS:
-  cargo run {{CI}} -- {{ARGS}}
+  noglob cargo run {{CI}} -- {{ARGS}}
 
 fmt:
   cargo fmt -- --check --files-with-diff {{CI}}
@@ -72,8 +72,8 @@ view-man: man
 replace FROM TO:
   -fd -tf -e rs -e toml | sad '{{FROM}}' '{{TO}}'
 
-update-version NEW:
-  -just replace-i {{version}} {{NEW}}
+@update-version NEW:
+  -just replace {{version}} {{NEW}}
 
 @lint:
   print -Pr "%F{2}%BChecking for FIXME/TODO...%b%f"

@@ -1,6 +1,7 @@
 mod app;
 mod comp_helper;
 mod config;
+mod exec;
 mod opt;
 mod registry;
 mod util;

@@ -1,3 +1,4 @@
+// #![deny(clippy::all)]
 use anyhow::{anyhow, Context, Result};
 use atty::Stream;
 use clap::IntoApp;
@@ -11,11 +12,13 @@ use std::{
     env, fs,
     io::{self, Write},
     path::PathBuf,
+    sync::Arc,
 };
 
 use crate::{
     comp_helper,
     config::Config,
+    exec::{input, CommandTemplate, ExitCode},
     opt::{
         ClearOpts, Command, CompletionsOpts, CpOpts, EditOpts, ListObject, ListOpts, Opts, RmOpts,
         SearchOpts, SetOpts, Shell, APP_NAME,
@@ -41,6 +44,9 @@ pub(crate) struct App {
     pub(crate) case_insensitive: bool,
     pub(crate) ls_colors:        bool,
     pub(crate) color_when:       String,
+    pub(crate) command:          Option<Arc<CommandTemplate>>,
+    pub(crate) path_separator:   String,
+    pub(crate) threads:          usize,
 }
 
 /// Format errors
@@ -169,6 +175,35 @@ impl App {
             TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
         };
 
+        let path_sep = opts
+            .path_separator
+            .as_ref()
+            .map_or_else(input::default_path_separator, |s| Some(s.to_owned()));
+
+        let command = if let Some(args) = &opts.execute {
+            Some(CommandTemplate::new(args, path_sep.clone()))
+        } else if let Some(args) = &opts.execute_batch {
+            Some(CommandTemplate::new_batch(args, path_sep.clone()).expect("Command is invalid"))
+        } else {
+            None
+        };
+
+        let threads = std::cmp::max(
+            opts
+                .threads
+                .map(|n| {
+                    if n > 0 {
+                        Ok(n)
+                    } else {
+                        Err(anyhow!("Number of threads must be positive."))
+                    }
+                })
+                .transpose()
+                .expect("Failed to parse number of threads")
+                .unwrap_or_else(num_cpus::get),
+            1
+        );
+
         Ok(App {
             base_dir,
             max_depth: if opts.max_depth.is_some() {
@@ -182,6 +217,9 @@ impl App {
             case_insensitive: opts.case_insensitive,
             ls_colors: opts.ls_colors,
             color_when: color_when.to_string(),
+            command: command.map(Arc::new),
+            path_separator: path_sep.unwrap(),
+            threads
         })
     }
 
@@ -646,6 +684,7 @@ impl App {
                         },
                     None => continue,
                 };
+
                 if opts.raw {
                     println!("{}", path.display());
                 } else {

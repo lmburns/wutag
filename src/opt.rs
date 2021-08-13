@@ -5,12 +5,12 @@ use anyhow::Error;
 use clap::{crate_version, AppSettings, Clap, ValueHint};
 
 pub(crate) const APP_NAME: &str = "wutag";
+#[rustfmt::skip]
 pub(crate) const APP_AUTHOR: &str = "\
-      \x1b[01;38;5;3mWojciech Kępka\x1b[0m <\x1b[01;38;5;10mWwojciech@wkepka.dev\x1b[0m> \
-                                     \n\x1b[01;38;5;3mLucas Burns\x1b[0m    \
-                                     <\x1b[01;38;5;10mlmb@lmburns.com\x1b[0m>";
+  \x1b[38;5;1mWojciech Kępka\x1b[0m   <\x1b[38;5;5mWwojciech@wkepka.dev\x1b[0m> \n\
+  \x1b[38;5;1mLucas Burns\x1b[0m      <\x1b[38;5;5mlmb@lmburns.com\x1b[0m>";
 pub(crate) static APP_ABOUT: &str = "\
-    \x1b[0;33mDESCRIPTION: \x1b[0;32mTag files and manage them with color\x1b[0m";
+  \n\x1b[0;33mDESCRIPTION: \x1b[0;32mTag files and manage them with color\x1b[0m";
 
 #[derive(Clap, Default, Debug)]
 #[clap(
@@ -22,8 +22,8 @@ pub(crate) static APP_ABOUT: &str = "\
     global_setting = AppSettings::DisableHelpSubcommand,  // Disables help (use -h)
     global_setting = AppSettings::VersionlessSubcommands, // Shows no --version
     global_setting = AppSettings::InferSubcommands,       // l, li, lis == list
-    after_help = "See wutag --help for some longer explanations of options",
-    override_usage = "wutag [FLAGS] [OPTIONS] <SUBCOMMAND> xx",
+    after_help = "See wutag --help for longer explanations of some options",
+    override_usage = "\x1b[01;38;5;1mwutag\x1b[0m [FLAGS/OPTIONS] [<SUBCOMMAND>] [FLAGS/<tags>]",
 )]
 pub(crate) struct Opts {
     /// Specify starting path for filesystem traversal
@@ -81,6 +81,43 @@ pub(crate) struct Opts {
         auto, never. The always selection only applies to the path as of now."
     )]
     pub(crate) color_when:       Option<String>,
+    /// Execute a command for each search result
+    #[clap(
+        long = "exec",
+        short = 'x',
+        value_name = "cmd",
+        takes_value = true,
+        conflicts_with = "exec-batch"
+    )]
+    pub(crate) execute:          Option<Vec<String>>,
+    /// Execute a command for the batch of search results
+    #[clap(
+        long = "exec-batch",
+        short = 'X',
+        value_name = "cmd",
+        takes_value = true,
+        conflicts_with = "exec"
+    )]
+    pub(crate) execute_batch:    Option<Vec<String>>,
+    /// Specify the path separator
+    #[clap(
+        long = "path-sep",
+        short = 'p',
+        value_name = "sep",
+        takes_value = true,
+        hidden_short_help = true
+    )]
+    pub(crate) path_separator:   Option<String>,
+    /// Number of threads to run in parallel when executing a command on files
+    #[clap(
+        long = "threads",
+        short = 't',
+        value_name = "num",
+        takes_value = true,
+        hidden_short_help = true,
+    )]
+    pub(crate) threads: Option<usize>,
+    /// Subcommand to run
     #[clap(subcommand)]
     pub(crate) cmd:              Command,
 }
@@ -174,6 +211,7 @@ pub(crate) struct RmOpts {
     pub(crate) extended_glob: bool,
     /// A glob pattern like "*.png".
     pub(crate) pattern:       String,
+    /// Tags to remove
     pub(crate) tags:          Vec<String>,
 }
 

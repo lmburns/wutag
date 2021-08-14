@@ -1,13 +1,6 @@
 pub const ZSH_COMPLETION_REP: &[(&str, &str)] = &[
     (
-        "(( $+functions[_wutag__add_commands] )) ||
-_wutag__add_commands() {
-    local commands; commands=(
-\x20\x20\x20\x20\x20\x20\x20\x20
-    )
-    _describe -t commands 'wutag add commands' commands \"$@\"
-}
-(( $+functions[_wutag__clean-cache_commands] )) ||
+        "(( $+functions[_wutag__clean-cache_commands] )) ||
 _wutag__clean-cache_commands() {
     local commands; commands=(
 \x20\x20\x20\x20\x20\x20\x20\x20
@@ -84,7 +77,7 @@ _wutag__list__tags_commands() {
 \x20\x20\x20\x20\x20\x20\x20\x20
     )
     _describe -t commands 'wutag list tags commands' commands \"$@\"
-",
+}",
         r#"(( $+functions[_wutag__list_commands] )) ||
 _wutag__list_commands() {
     local commands; commands=(

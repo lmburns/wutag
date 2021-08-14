@@ -47,7 +47,7 @@ pub(crate) struct Opts {
     )]
     pub(crate) max_depth:        Option<usize>,
     /// Specify a different registry to use
-    #[clap(long = "registry", short, next_line_help = true,
+    #[clap(long = "registry", short = 'R', next_line_help = true,
         value_hint = ValueHint::FilePath, env = "WUTAG_REGISTRY"
     )]
     pub(crate) reg:              Option<PathBuf>,
@@ -60,6 +60,15 @@ pub(crate) struct Opts {
                       subcommands that take a pattern as a positional argument."
     )]
     pub(crate) case_insensitive: bool,
+    /// Case insensitively search
+    #[clap(
+        long,
+        short = 'r',
+        long_about = "\
+        Search for files using a regular expressions instead of a glob. Only applies to \
+                      subcommands that take a pattern as a positional argument."
+    )]
+    pub(crate) regex:            bool,
     /// Apply operation to all tags and files instead of locally
     #[clap(
         long,
@@ -71,7 +80,7 @@ pub(crate) struct Opts {
     )]
     pub(crate) global:           bool,
     /// Respect 'LS_COLORS' environment variable when coloring the output
-    #[clap(long, short = '/')]
+    #[clap(long, short = 'l')]
     pub(crate) ls_colors:        bool,
     /// When to colorize output
     #[clap(long = "color", short = 'c', value_name = "when",
@@ -169,7 +178,7 @@ pub(crate) struct SetOpts {
 
 #[derive(Clap, Debug)]
 pub(crate) struct RmOpts {
-    /// Use extended glob features
+    /// Use extended glob features (not implemented yet)
     #[clap(long = "extended", short = 'x')]
     pub(crate) extended_glob: bool,
     /// A glob pattern like "*.png".

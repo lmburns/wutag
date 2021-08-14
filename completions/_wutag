@@ -17,16 +17,20 @@ _wutag() {
     _arguments "${_arguments_options[@]}" \
 '-d+[Specify starting path for filesystem traversal]: :_files -/' \
 '--dir=[Specify starting path for filesystem traversal]: :_files -/' \
-'-m+[Increase maximum recursion depth (default: 2)]' \
-'--max-depth=[Increase maximum recursion depth (default: 2)]' \
-'-r+[Specify a different registry to use]: :_files' \
+'-m+[Increase maximum recursion depth \[default: 2\]]' \
+'--max-depth=[Increase maximum recursion depth \[default: 2\]]' \
+'-R+[Specify a different registry to use]: :_files' \
 '--registry=[Specify a different registry to use]: :_files' \
+'-c+[When to colorize output]: :(never auto always)' \
+'--color=[When to colorize output]: :(never auto always)' \
 '-i[Case insensitively search]' \
 '--case-insensitive[Case insensitively search]' \
+'-r[Case insensitively search]' \
+'--regex[Case insensitively search]' \
 '-g[Apply operation to all tags and files instead of locally]' \
 '--global[Apply operation to all tags and files instead of locally]' \
-'-n[Do not colorize the output]' \
-'--no-color[Do not colorize the output]' \
+'-l[Respect '\''LS_COLORS'\'' environment variable when coloring the output]' \
+'--ls-colors[Respect '\''LS_COLORS'\'' environment variable when coloring the output]' \
 '-h[Prints help information]' \
 '--help[Prints help information]' \
 '-V[Prints version information]' \
@@ -81,22 +85,18 @@ esac
 ;;
 (set)
 _arguments "${_arguments_options[@]}" \
+'-c[Clear all tags before setting them]' \
+'--clear[Clear all tags before setting them]' \
 '-h[Prints help information]' \
 '--help[Prints help information]' \
 ':pattern -- A glob pattern like "*.png":' \
 '*::_wutag_tags:' \
 && ret=0
 ;;
-(add)
-_arguments "${_arguments_options[@]}" \
-'-h[Prints help information]' \
-'--help[Prints help information]' \
-':pattern -- A glob pattern like "*.png":' \
-'*::tags:_wutag_tags' \
-&& ret=0
-;;
 (rm)
 _arguments "${_arguments_options[@]}" \
+'-x[Use extended glob features (not implemented yet)]' \
+'--extended[Use extended glob features (not implemented yet)]' \
 '-h[Prints help information]' \
 '--help[Prints help information]' \
 ':pattern -- A glob pattern like "*.png":' \
@@ -118,7 +118,7 @@ _arguments "${_arguments_options[@]}" \
 '--any[If set to '\''true'\'' all entries containing any of provided tags will be returned]' \
 '-h[Prints help information]' \
 '--help[Prints help information]' \
-'*::tags:' \
+'*::tags:_wutag_tags' \
 && ret=0
 ;;
 (cp)
@@ -161,7 +161,6 @@ _wutag_commands() {
     local commands; commands=(
         "list:Lists all available tags or files" \
 "set:Set tag(s) on files that match the given pattern" \
-"add:Add tag(s) to files that match the given pattern" \
 "rm:Remove tag(s) from the files that match the provided pattern" \
 "clear:Clears all tags of the files that match the provided pattern" \
 "search:Searches for files that have all of the provided 'tags'" \
@@ -190,6 +189,6 @@ _wutag_tags() {
 
     _describe -t wtags 'tags' wtags && ret=0
     return ret
-}}
+}
 
 _wutag "$@"

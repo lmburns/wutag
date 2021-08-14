@@ -30,17 +30,19 @@ A command line tool for tagging files
 * [ ] Am looking for a crate with good extended globbing
     * [`globber`](https://docs.rs/globber/0.1.3/globber/index.html#syntax) has more features, but doesn't support case-insensitivity
 
+#### Regular expressions
+* [x] `--global` also has the `-r|--regex` option to use a regular expression when `clear`ing or `rm`ing files
+    * Code was modified from [`fd`](https://github.com/sharkdp/fd)
+* [ ] Add option to local commands, as well as `set`
+
 #### Multiple registries
 * [x] Multiple registries are available with the `-r|--registry` option
-* [ ] FIXME: Error if setting a tag to name `registry` if unquoted
     * (Maybe) Add registry to `ERROR` message (would be difficult to implement, have to use registry in the metadata)
     * Registries can also be used through the `WUTAG_REGISTRY` environment variable
     * Tildes (`~`), and other environment variables can be used when declaring the registry:
 ```sh
 `WUTAG_REGISTRY="$XDG_CONFIG_HOME/wutag/my.registry wutag set '*.rs' rust"`
 ```
-
-* [x] `wutag` respects the `NO_COLOR` environment variable when displaying output (that is `export NO_COLOR=1`)
 
 #### Default command
 * [x] Use `wutag list files -t` as a default command if there are none listed (i.e., using only `wutag`)
@@ -61,13 +63,15 @@ A command line tool for tagging files
     * When using any command that requires an existing tag, pressing `<tab>` will autocomplete
     * `clap::ValueHints` is also used to complete paths and files
 
-#### Todo
-* [ ] Find way to force colored output on pipe
+#### Color
+* [x] Option to force colored output on pipe with `--color=(always|auto|never)`
+* [x] `wutag` respects the `NO_COLOR` environment variable when displaying output (that is `export NO_COLOR=1`)
+* [x] `-l|--ls-colors` will colorize files only with the colors specified in `LS_COLORS|LSCOLORS`
 * [ ] Configuration option for base file color
+
+#### Todo
 * [ ] Fix `any` vs the normal `all` (it doesn't work)
-* [ ] `raw` does not work with formatted (fix or find way to implement `conflicts_with`)
-* [ ] Add option for regex when setting, removing, etc
-* [ ] Remove extra line on output when listing locally (listing tags only)
+* [ ] Add more tests
 
 ![Example usage](https://github.com/vv9k/wutag/blob/master/static/usage.svg)
 

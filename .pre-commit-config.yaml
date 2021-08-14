@@ -1,0 +1,59 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.0.1
+  hooks:
+  - id: end-of-file-fixer
+  - id: check-yaml
+  - id: check-added-large-files
+  - id: mixed-line-ending
+  - id: check-toml
+- repo: local
+  hooks:
+  - id: cargo-fmt
+    name: cargo fmt
+    pass_filenames: false
+    always_run: true
+    language: system
+    entry: cargo fmt
+  - id: cargo-check
+    name: cargo check
+    pass_filenames: false
+    always_run: true
+    language: system
+    entry: cargo check
+  - id: cargo-clippy
+    name: cargo clippy
+    pass_filenames: false
+    language: system
+    always_run: true
+    entry: cargo clippy
+    args: ["--", "-D", "warnings"]
+  - id: update-completions
+    name: update shell completions
+    pass_filenames: false
+    language: system
+    always_run: true
+    entry: >
+      sh -c '
+      cd completions &&
+      cargo run -- print-completions --shell zsh > _wutag &&
+      cargo run -- print-completions --shell bash > wutag.bash &&
+      git add _wutag
+      '
+  - id: update-manpage
+    name: update man page
+    pass_filenames: false
+    language: system
+    always_run: true
+    entry: >
+      sh -c '
+      help2man \
+        --name "tag files colorfully" \
+        --manual "Wutag Manual" \
+        --no-info \
+        target/debug/wutag \
+        > man/wutag.1 &&
+        sed -i "s,\x1B\[[0-9;]*[a-zA-Z],,g" man/wutag.1
+      '

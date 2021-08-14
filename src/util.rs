@@ -1,7 +1,11 @@
+use anyhow::anyhow;
 use colored::{ColoredString, Colorize};
 use globwalk::{DirEntry, GlobWalker, GlobWalkerBuilder};
 use lscolors::{LsColors, Style};
+use regex::bytes::{Regex, RegexBuilder};
 use std::{
+    borrow::Cow,
+    ffi::OsStr,
     fmt::Display,
     path::{Path, PathBuf},
 };
@@ -119,6 +123,37 @@ pub(crate) fn contained_path<P: AsRef<Path>>(file: P, path: P) -> bool {
         .display()
         .to_string()
         .contains(path.as_ref().to_str().unwrap())
+}
+
+/// Convert an OsStr to bytes for RegexBuilder
+pub(crate) fn osstr_to_bytes(input: &OsStr) -> Cow<[u8]> {
+    use std::os::unix::ffi::OsStrExt;
+    Cow::Borrowed(input.as_bytes())
+}
+
+/// Build a glob from GlobBuilder and return a regex
+pub(crate) fn glob_builder(pattern: &str) -> String {
+    let builder = globset::GlobBuilder::new(pattern);
+    builder
+        .build()
+        .expect("Invalid glob sequence")
+        .regex()
+        .to_owned()
+}
+
+/// Build a regular expression with RegexBuilder (bytes)
+pub(crate) fn regex_builder(pattern: &str, case_insensitive: bool) -> Regex {
+    RegexBuilder::new(pattern)
+        .case_insensitive(case_insensitive)
+        .build()
+        .map_err(|e| {
+            anyhow!(
+                "{}\n\nInvalid pattern. You can use --regex to use a regular expression instead \
+                 of a glob.",
+                e.to_string()
+            )
+        })
+        .expect("Invalid pattern")
 }
 
 /// Returns a GlobWalker instance with base path set to `base_path` and pattern

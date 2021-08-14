@@ -8,7 +8,9 @@ use shellexpand::LookupError;
 use std::{
     borrow::Cow,
     collections::HashMap,
-    env, fs,
+    env,
+    ffi::OsStr,
+    fs,
     io::{self, Write},
     path::PathBuf,
 };
@@ -22,8 +24,8 @@ use crate::{
     },
     registry::{EntryData, TagRegistry},
     util::{
-        contained_path, fmt_err, fmt_local_path, fmt_ok, fmt_path, fmt_tag, glob_ok, macos_dirs,
-        raw_local_path,
+        contained_path, fmt_err, fmt_local_path, fmt_ok, fmt_path, fmt_tag, glob_builder, glob_ok,
+        macos_dirs, osstr_to_bytes, raw_local_path, regex_builder,
     },
     DEFAULT_COLORS,
 };
@@ -39,6 +41,7 @@ pub(crate) struct App {
     pub(crate) global:           bool,
     pub(crate) registry:         TagRegistry,
     pub(crate) case_insensitive: bool,
+    pub(crate) pat_regex:        bool,
     pub(crate) ls_colors:        bool,
     pub(crate) color_when:       String,
 }
@@ -180,6 +183,7 @@ impl App {
             global: opts.global,
             registry,
             case_insensitive: opts.case_insensitive,
+            pat_regex: opts.regex,
             ls_colors: opts.ls_colors,
             color_when: color_when.to_string(),
         })
@@ -441,27 +445,21 @@ impl App {
     }
 
     fn rm(&mut self, opts: &RmOpts) {
-        // Global will match a glob against only files that are tagged
-        // There may be a better way to do this. Lot's of similar code here
+        // Global will match a glob only against files that are tagged
+        // Could add a fixed string option
         if self.global {
-            let mut builder = globset::GlobBuilder::new(&opts.pattern);
-            let builder = if self.case_insensitive {
-                builder.case_insensitive(true)
+            let pat = if self.pat_regex {
+                String::from(&opts.pattern)
             } else {
-                builder.case_insensitive(false)
+                glob_builder(&opts.pattern)
             };
 
-            let pat = builder
-                .build()
-                .expect("Invalid glob sequence")
-                .compile_matcher();
-
-            // How to implement if statement with two different return types?
-            // Talking about extended glob
+            let re = regex_builder(&pat, self.case_insensitive);
 
             let ctags = opts.tags.iter().collect::<Vec<_>>();
             for (&id, entry) in self.registry.clone().list_entries_and_ids() {
-                if pat.is_match(entry.path().to_str().unwrap()) {
+                let search_str: Cow<OsStr> = Cow::Owned(entry.path().as_os_str().to_os_string());
+                if re.is_match(&osstr_to_bytes(search_str.as_ref())) {
                     list_tags(entry.path())
                         .map(|tags| {
                             tags.iter().fold(Vec::new(), |mut acc, tag| {
@@ -544,19 +542,17 @@ impl App {
 
     fn clear(&mut self, opts: &ClearOpts) {
         if self.global {
-            let mut builder = globset::GlobBuilder::new(&opts.pattern);
-            let builder = if self.case_insensitive {
-                builder.case_insensitive(true)
+            let pat = if self.pat_regex {
+                String::from(&opts.pattern)
             } else {
-                builder.case_insensitive(false)
+                glob_builder(&opts.pattern)
             };
-            let pat = builder
-                .build()
-                .expect("Invalid glob sequence")
-                .compile_matcher();
+
+            let re = regex_builder(&pat, self.case_insensitive);
 
             for (&id, entry) in self.registry.clone().list_entries_and_ids() {
-                if pat.is_match(entry.path().to_str().unwrap()) {
+                let search_str: Cow<OsStr> = Cow::Owned(entry.path().as_os_str().to_os_string());
+                if re.is_match(&osstr_to_bytes(search_str.as_ref())) {
                     self.registry.clear_entry(id);
                     match has_tags(entry.path()) {
                         Ok(has_tags) =>

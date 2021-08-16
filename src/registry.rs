@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use super::util::contained_path;
 use wutag_core::tag::Tag;
 
 use anyhow::{Context, Result};
@@ -219,6 +220,45 @@ impl TagRegistry {
         entries.dedup();
 
         entries
+    }
+
+    pub(crate) fn list_entries_paths<T, S>(
+        &self,
+        tags: T,
+        global: bool,
+        base_dir: &Path,
+    ) -> Vec<PathBuf>
+    where
+        T: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        let mut entries = tags.into_iter().fold(Vec::new(), |mut acc, tag| {
+            if let Some(entries) = self
+                .tags
+                .iter()
+                .find(|(t, _)| t.name() == tag.as_ref())
+                .map(|(_, e)| e)
+            {
+                acc.extend_from_slice(&entries[..]);
+            }
+            acc
+        });
+
+        entries.dedup();
+
+        let mut paths = vec![];
+        for id in entries.iter() {
+            match self.get_entry(*id) {
+                Some(entry) =>
+                    if !global && !contained_path(entry.path(), base_dir) {
+                        continue;
+                    } else {
+                        paths.push(PathBuf::from(entry.path()));
+                    },
+                None => continue,
+            }
+        }
+        paths
     }
 
     /// Lists ids of all entries present in the registry.

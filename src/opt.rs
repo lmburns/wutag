@@ -22,8 +22,8 @@ pub(crate) static APP_ABOUT: &str = "\
     global_setting = AppSettings::DisableHelpSubcommand,  // Disables help (use -h)
     global_setting = AppSettings::VersionlessSubcommands, // Shows no --version
     global_setting = AppSettings::InferSubcommands,       // l, li, lis == list
-    after_help = "See wutag --help for some longer explanations of options",
-    override_usage = "wutag [FLAGS] [OPTIONS] <SUBCOMMAND> xx",
+    after_help = "See wutag --help for longer explanations of some options",
+    override_usage = "wutag [FLAGS/OPTIONS] <SUBCOMMAND> [TAGS/FLAGS]",
 )]
 pub(crate) struct Opts {
     /// Specify starting path for filesystem traversal
@@ -93,10 +93,6 @@ pub(crate) struct Opts {
     #[clap(subcommand)]
     pub(crate) cmd:              Command,
 }
-
-// /// Do not colorize the output
-// #[clap(long, short, env = "NO_COLOR", takes_value = false)]
-// pub(crate) no_color: bool,
 
 impl Opts {
     /// Default command to run if no arguments are passed
@@ -178,12 +174,12 @@ pub(crate) struct SetOpts {
 
 #[derive(Clap, Debug)]
 pub(crate) struct RmOpts {
-    /// Use extended glob features (not implemented yet)
-    #[clap(long = "extended", short = 'x')]
-    pub(crate) extended_glob: bool,
     /// A glob pattern like "*.png".
-    pub(crate) pattern:       String,
-    pub(crate) tags:          Vec<String>,
+    pub(crate) pattern: String,
+    pub(crate) tags:    Vec<String>,
+    /* /// Use extended glob features (not implemented yet)
+     * #[clap(long = "extended", short = 'x')]
+     * pub(crate) extended_glob: bool, */
 }
 
 #[derive(Clap, Debug)]
@@ -195,15 +191,21 @@ pub(crate) struct ClearOpts {
 #[derive(Clap, Debug)]
 pub(crate) struct SearchOpts {
     #[clap(required = true)]
-    pub(crate) tags: Vec<String>,
+    pub(crate) tags:          Vec<String>,
     /// If provided output will be raw so that it can be easily piped to other
     /// commands
     #[clap(long, short)]
-    pub(crate) raw:  bool,
+    pub(crate) raw:           bool,
     /// If set to 'true' all entries containing any of provided tags will be
     /// returned
     #[clap(long, short)]
-    pub(crate) any:  bool,
+    pub(crate) any:           bool,
+    /// Execute a command on each individual file
+    #[clap(long = "exec", short = 'x', takes_value = true)]
+    pub(crate) execute:       Option<Vec<String>>,
+    /// Execute a command on the batch of matching files
+    #[clap(long = "exec-batch", short = 'X', takes_value = true)]
+    pub(crate) execute_batch: Option<Vec<String>>,
 }
 
 #[derive(Clap, Debug)]

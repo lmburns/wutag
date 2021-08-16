@@ -95,8 +95,6 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (rm)
 _arguments "${_arguments_options[@]}" \
-'-x[Use extended glob features (not implemented yet)]' \
-'--extended[Use extended glob features (not implemented yet)]' \
 '-h[Prints help information]' \
 '--help[Prints help information]' \
 ':pattern -- A glob pattern like "*.png":' \
@@ -112,6 +110,10 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (search)
 _arguments "${_arguments_options[@]}" \
+'*-x+[Execute a command on each individual file]' \
+'*--exec=[Execute a command on each individual file]' \
+'*-X+[Execute a command on the batch of matching files]' \
+'*--exec-batch=[Execute a command on the batch of matching files]' \
 '-r[If provided output will be raw so that it can be easily piped to other commands]' \
 '--raw[If provided output will be raw so that it can be easily piped to other commands]' \
 '-a[If set to '\''true'\'' all entries containing any of provided tags will be returned]' \

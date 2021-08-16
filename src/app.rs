@@ -13,11 +13,13 @@ use std::{
     fs,
     io::{self, Write},
     path::PathBuf,
+    sync::{Arc, Mutex},
 };
 
 use crate::{
     comp_helper,
     config::Config,
+    exe::{generalize_exitcodes, CommandTemplate, ExitCode},
     opt::{
         ClearOpts, Command, CompletionsOpts, CpOpts, EditOpts, ListObject, ListOpts, Opts, RmOpts,
         SearchOpts, SetOpts, Shell, APP_NAME,
@@ -29,6 +31,7 @@ use crate::{
     },
     DEFAULT_COLORS,
 };
+
 use wutag_core::{
     color::parse_color,
     tag::{clear_tags, has_tags, list_tags, DirEntryExt, Tag},
@@ -44,6 +47,7 @@ pub(crate) struct App {
     pub(crate) pat_regex:        bool,
     pub(crate) ls_colors:        bool,
     pub(crate) color_when:       String,
+    // pub(crate) execute:          Option<CommandTemplate>,
 }
 
 /// Format errors
@@ -186,6 +190,7 @@ impl App {
             pat_regex: opts.regex,
             ls_colors: opts.ls_colors,
             color_when: color_when.to_string(),
+            // execute: command,
         })
     }
 
@@ -608,7 +613,8 @@ impl App {
 
     fn search(&self, opts: &SearchOpts) {
         // FIX: Returns all files regardless of tags
-        // The else in this statement does 'any' automatically
+        // ADD: option to search by file name
+
         if opts.any {
             for (&id, entry) in self.registry.list_entries_and_ids() {
                 if opts.raw {
@@ -630,6 +636,36 @@ impl App {
                         tags
                     )
                 }
+            }
+        } else if opts.execute.is_some() || opts.execute_batch.is_some() {
+            let path_separator = Some("/".to_string());
+            let command = if let Some(cmd) = &opts.execute {
+                Some(CommandTemplate::new(cmd, path_separator))
+            } else {
+                opts.execute_batch.as_ref().map(|cmd| {
+                    CommandTemplate::new_batch(cmd, path_separator.clone())
+                        .expect("Invalid batch command")
+                })
+            };
+
+            let paths = self
+                .registry
+                .list_entries_paths(&opts.tags, self.global, &self.base_dir)
+                .into_iter();
+            println!("Paths: {:?}", paths);
+
+            // Unwrap should be safe since main else if checks
+            let cmd = command.unwrap();
+            let mut results: Vec<ExitCode> = Vec::new();
+
+            if cmd.in_batch_mode() {
+                cmd.generate_and_execute_batch(paths);
+            } else {
+                for p in paths {
+                    let out_perm = Arc::new(Mutex::new(()));
+                    results.push(cmd.generate_and_execute(&p, out_perm))
+                }
+                generalize_exitcodes(&results);
             }
         } else {
             for id in self.registry.list_entries_with_tags(&opts.tags) {

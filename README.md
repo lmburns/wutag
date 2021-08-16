@@ -68,10 +68,12 @@ A command line tool for tagging files
 * [x] `wutag` respects the `NO_COLOR` environment variable when displaying output (that is `export NO_COLOR=1`)
 * [x] `-l|--ls-colors` will colorize files only with the colors specified in `LS_COLORS|LSCOLORS`
 * [ ] Configuration option for base file color
+* [ ] `--color=always` for tags
 
 #### Todo
 * [ ] Fix `any` vs the normal `all` (it doesn't work)
 * [ ] Add more tests
+* [ ] Add usage examples and images
 
 ![Example usage](https://github.com/vv9k/wutag/blob/master/static/usage.svg)
 

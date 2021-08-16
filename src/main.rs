@@ -1,6 +1,9 @@
+#![allow(dead_code)]
+
 mod app;
 mod comp_helper;
 mod config;
+mod exe;
 mod opt;
 mod registry;
 mod util;

@@ -234,7 +234,7 @@ _wutag() {
             return 0
             ;;
         wutag__rm)
-            opts=" -x -h  --extended --help  <pattern> <tags>... "
+            opts=" -h  --help  <pattern> <tags>... "
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -249,13 +249,29 @@ _wutag() {
             return 0
             ;;
         wutag__search)
-            opts=" -r -a -h  --raw --any --help  <tags>... "
+            opts=" -r -a -x -X -h  --raw --any --exec --exec-batch --help  <tags>... "
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
                 
+                --exec)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                    -x)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --exec-batch)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                    -X)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
                 *)
                     COMPREPLY=()
                     ;;

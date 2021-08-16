@@ -4,6 +4,9 @@ set shell := ["zsh", "-euyc"]
 CI := if env_var_or_default("CI", "1") == "0" { "--color=never" } else { "--color=always" }
 version := `rg --color=never --pcre2 -oIN '^version = "\K(\d+\.?)+'`
 
+# rf := if env_var_or_default("rfd", "0") == "1" { join(env_var_or_default("RUSTFLAGS", ""), " -A dead_code") } else { env_var_or_default("RUSTFLAGS", "") }
+# export RUSTFLAGS := rf
+
 bt := '0'
 export RUST_BACKTRACE := bt
 

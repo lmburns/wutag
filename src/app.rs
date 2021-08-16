@@ -637,6 +637,9 @@ impl App {
                     )
                 }
             }
+            // It seems that -x/-X has to be on each individual command
+            // If it is on the main Opts and a vector, it is unable to tell the
+            // subcommand apart from the vector
         } else if opts.execute.is_some() || opts.execute_batch.is_some() {
             let path_separator = Some("/".to_string());
             let command = if let Some(cmd) = &opts.execute {
@@ -652,7 +655,6 @@ impl App {
                 .registry
                 .list_entries_paths(&opts.tags, self.global, &self.base_dir)
                 .into_iter();
-            println!("Paths: {:?}", paths);
 
             // Unwrap should be safe since main else if checks
             let cmd = command.unwrap();

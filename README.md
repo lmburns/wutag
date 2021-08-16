@@ -70,6 +70,11 @@ A command line tool for tagging files
 * [ ] Configuration option for base file color
 * [ ] `--color=always` for tags
 
+#### File execution
+* [ ] Add colored output somehow on command execution
+* [ ] Try and implement only once
+* [ ] Implement on things other than `search`
+
 #### Todo
 * [ ] Fix `any` vs the normal `all` (it doesn't work)
 * [ ] Add more tests

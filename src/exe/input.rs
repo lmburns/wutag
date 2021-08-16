@@ -3,23 +3,17 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// Default value for the path_separator, mainly for MSYS/MSYS2, which set the
-/// MSYSTEM environment variable, and we set fd's path separator to '/' rather
-/// than Rust's default of '\'.
-///
-/// Returns Some to use a nonstandard path separator, or None to use rust's
-/// default on the target platform.
-pub fn default_path_separator() -> Option<String> {
-    if cfg!(windows) {
-        let msystem = std::env::var("MSYSTEM").ok()?;
-        match msystem.as_str() {
-            "MINGW64" | "MINGW32" | "MSYS" => Some("/".to_owned()),
-            _ => None,
-        }
-    } else {
-        None
-    }
-}
+// pub fn default_path_separator() -> Option<String> {
+//     if cfg!(windows) {
+//         let msystem = std::env::var("MSYSTEM").ok()?;
+//         match msystem.as_str() {
+//             "MINGW64" | "MINGW32" | "MSYS" => Some("/".to_owned()),
+//             _ => None,
+//         }
+//     } else {
+//         None
+//     }
+// }
 
 /// Remove the `./` prefix from a path.
 pub fn strip_current_dir(path: &Path) -> &Path {

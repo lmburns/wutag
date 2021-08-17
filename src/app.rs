@@ -27,7 +27,7 @@ use crate::{
     registry::{EntryData, TagRegistry},
     util::{
         contained_path, fmt_err, fmt_local_path, fmt_ok, fmt_path, fmt_tag, glob_builder, glob_ok,
-        macos_dirs, osstr_to_bytes, raw_local_path, regex_builder,
+        osstr_to_bytes, raw_local_path, regex_builder,
     },
     DEFAULT_COLORS,
 };
@@ -66,7 +66,7 @@ macro_rules! err {
     }};
 }
 
-/// Makeshift ternary 2 == 2 ? "yes" : "no"
+/// Makeshift ternary 2 == 2 ? "yes" : "no", mainly used for printing
 macro_rules! ternary {
     ($c:expr, $v:expr, $v1:expr) => {
         if $c {
@@ -106,20 +106,21 @@ impl App {
             DEFAULT_COLORS.to_vec()
         };
 
-        // || (no_color_val.is_some() && no_color_val.unwrap() == OsString::from("0")))
-
-        let no_color_val = env::var_os("NO_COLOR");
         let color_when = match opts.color_when {
             Some(ref s) if s == "always" => "always",
             Some(ref s) if s == "never" => "never",
-            _ => ternary!(
-                no_color_val.is_none() && atty::is(Stream::Stdout),
-                "auto",
-                "never"
-            ),
+            _ =>
+                if env::var_os("NO_COLOR").is_none() && atty::is(Stream::Stdout) {
+                    "auto"
+                } else {
+                    "never"
+                },
         };
 
-        let cache_dir = macos_dirs(dirs::cache_dir(), ".cache");
+        let cache_dir = std::env::var_os("XDG_CACHE_HOME")
+            .map(PathBuf::from)
+            .filter(|p| p.is_absolute())
+            .or_else(|| dirs::home_dir().map(|d| d.join(".cache")));
         let state_file = cache_dir.unwrap().join("wutag.registry");
 
         let registry = if let Some(registry) = &opts.reg {
@@ -641,14 +642,13 @@ impl App {
             // If it is on the main Opts and a vector, it is unable to tell the
             // subcommand apart from the vector
         } else if opts.execute.is_some() || opts.execute_batch.is_some() {
-            let path_separator = Some("/".to_string());
+            // let path_separator = Some("/".to_string());
             let command = if let Some(cmd) = &opts.execute {
-                Some(CommandTemplate::new(cmd, path_separator))
+                Some(CommandTemplate::new(cmd))
             } else {
-                opts.execute_batch.as_ref().map(|cmd| {
-                    CommandTemplate::new_batch(cmd, path_separator.clone())
-                        .expect("Invalid batch command")
-                })
+                opts.execute_batch
+                    .as_ref()
+                    .map(|cmd| CommandTemplate::new_batch(cmd).expect("Invalid batch command"))
             };
 
             let paths = self

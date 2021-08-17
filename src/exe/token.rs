@@ -12,6 +12,7 @@ pub enum Token {
     Parent,
     NoExt,
     BasenameNoExt,
+    Wutag,
     Text(String),
 }
 
@@ -23,6 +24,7 @@ impl Display for Token {
             Token::Parent => f.write_str("{//}")?,
             Token::NoExt => f.write_str("{.}")?,
             Token::BasenameNoExt => f.write_str("{/.}")?,
+            Token::Wutag => f.write_str("{..}")?,
             Token::Text(ref string) => f.write_str(string)?,
         }
         Ok(())

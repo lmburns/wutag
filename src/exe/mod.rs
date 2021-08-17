@@ -1,16 +1,12 @@
 mod command;
 pub mod exits;
 pub mod input;
+// pub mod job;
 mod token;
 
-// mod job;
-// pub mod walk;
-// pub use job::{batch, job};
-
 use std::{
-    borrow::Cow,
-    ffi::{OsStr, OsString},
-    path::{Component, Path, PathBuf, Prefix},
+    ffi::OsString,
+    path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::{Arc, Mutex},
 };
@@ -22,13 +18,9 @@ use regex::Regex;
 pub use self::{
     command::execute_command,
     exits::{generalize_exitcodes, ExitCode},
-    input::{basename, dirname, remove_extension},
+    input::{basename, dirname, remove_extension, strip_current_dir, wutag_dir},
     token::Token,
 };
-
-pub fn strip_current_dir(path: &Path) -> &Path {
-    path.strip_prefix(".").unwrap_or(path)
-}
 
 /// Execution mode of the command
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -46,26 +38,25 @@ pub enum ExecutionMode {
 /// command and execute it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CommandTemplate {
-    args:           Vec<ArgumentTemplate>,
-    mode:           ExecutionMode,
-    path_separator: Option<String>,
+    args: Vec<ArgumentTemplate>,
+    mode: ExecutionMode,
 }
 
 impl CommandTemplate {
-    pub fn new<I, S>(input: I, path_separator: Option<String>) -> CommandTemplate
+    pub fn new<I, S>(input: I) -> CommandTemplate
     where
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
-        Self::build(input, ExecutionMode::OneByOne, path_separator)
+        Self::build(input, ExecutionMode::OneByOne)
     }
 
-    pub fn new_batch<I, S>(input: I, path_separator: Option<String>) -> Result<CommandTemplate>
+    pub fn new_batch<I, S>(input: I) -> Result<CommandTemplate>
     where
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
-        let cmd = Self::build(input, ExecutionMode::Batch, path_separator);
+        let cmd = Self::build(input, ExecutionMode::Batch);
         if cmd.number_of_tokens() > 1 {
             return Err(anyhow!("Only one placeholder allowed for batch commands"));
         }
@@ -77,13 +68,13 @@ impl CommandTemplate {
         Ok(cmd)
     }
 
-    fn build<I, S>(input: I, mode: ExecutionMode, path_separator: Option<String>) -> CommandTemplate
+    fn build<I, S>(input: I, mode: ExecutionMode) -> CommandTemplate
     where
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
         lazy_static! {
-            static ref PLACEHOLDER_PATTERN: Regex = Regex::new(r"\{(/?\.?|//)\}").unwrap();
+            static ref PLACEHOLDER_PATTERN: Regex = Regex::new(r"\{(/?\.?.?|//)\}").unwrap();
         }
 
         let mut args = Vec::new();
@@ -109,6 +100,7 @@ impl CommandTemplate {
                     "{/}" => tokens.push(Token::Basename),
                     "{//}" => tokens.push(Token::Parent),
                     "{/.}" => tokens.push(Token::BasenameNoExt),
+                    "{..}" => tokens.push(Token::Wutag),
                     _ => unreachable!("Unhandled placeholder"),
                 }
 
@@ -135,15 +127,30 @@ impl CommandTemplate {
             args.push(ArgumentTemplate::Tokens(vec![Token::Placeholder]));
         }
 
-        CommandTemplate {
-            args,
-            mode,
-            path_separator,
-        }
+        CommandTemplate { args, mode }
     }
 
     fn number_of_tokens(&self) -> usize {
         self.args.iter().filter(|arg| arg.has_tokens()).count()
+    }
+
+    fn split_first_arg(&self, input: impl AsRef<Path>) -> Vec<ArgumentTemplate> {
+        let input = input.as_ref();
+        let mut cloned_args = self.args.clone();
+        cloned_args.remove(0);
+
+        let mut new_args = self.args[0]
+            .clone()
+            .generate(input)
+            .to_str()
+            .unwrap()
+            .split(' ')
+            .map(String::from)
+            .map(ArgumentTemplate::Text)
+            .collect::<Vec<ArgumentTemplate>>();
+
+        new_args.append(&mut cloned_args);
+        new_args
     }
 
     /// Generates and executes a command.
@@ -154,9 +161,15 @@ impl CommandTemplate {
     pub fn generate_and_execute(&self, input: &Path, out_perm: Arc<Mutex<()>>) -> ExitCode {
         let input = strip_current_dir(input);
 
-        let mut cmd = Command::new(self.args[0].generate(&input, self.path_separator.as_deref()));
-        for arg in &self.args[1..] {
-            cmd.arg(arg.generate(&input, self.path_separator.as_deref()));
+        let args = if self.args[0].contains_wutag() {
+            self.split_first_arg(&input)
+        } else {
+            self.args.clone()
+        };
+
+        let mut cmd = Command::new(args[0].generate(&input));
+        for arg in &args[1..] {
+            cmd.arg(arg.generate(&input));
         }
 
         execute_command(cmd, &out_perm)
@@ -170,7 +183,14 @@ impl CommandTemplate {
     where
         I: Iterator<Item = PathBuf>,
     {
-        let mut cmd = Command::new(self.args[0].generate("", None));
+        // FIX: Have to change batch limit of 1 token
+        // let args = if self.args[0].contains_wutag() {
+        //     self.split_first_arg("")
+        // } else {
+        //     self.args.clone()
+        // };
+
+        let mut cmd = Command::new(self.args[0].generate(""));
         cmd.stdin(Stdio::inherit());
         cmd.stdout(Stdio::inherit());
         cmd.stderr(Stdio::inherit());
@@ -185,11 +205,11 @@ impl CommandTemplate {
                 // A single `Tokens` is expected
                 // So we can directly consume the iterator once and for all
                 for path in &mut paths {
-                    cmd.arg(arg.generate(strip_current_dir(path), self.path_separator.as_deref()));
+                    cmd.arg(arg.generate(strip_current_dir(path)));
                     has_path = true;
                 }
             } else {
-                cmd.arg(arg.generate("", None));
+                cmd.arg(arg.generate(""));
             }
         }
 
@@ -216,11 +236,19 @@ impl ArgumentTemplate {
         matches!(self, ArgumentTemplate::Tokens(_))
     }
 
+    pub fn contains_wutag(&self) -> bool {
+        if let ArgumentTemplate::Tokens(ref tokens) = *self {
+            tokens[0] == Token::Wutag
+        } else {
+            false
+        }
+    }
+
     /// Generate an argument from this template. If path_separator is Some, then
     /// it will replace the path separator in all placeholder tokens. Text
     /// arguments and tokens are not affected by path separator
     /// substitution.
-    pub fn generate(&self, path: impl AsRef<Path>, path_separator: Option<&str>) -> OsString {
+    pub fn generate(&self, path: impl AsRef<Path>) -> OsString {
         use self::Token::*;
         let path = path.as_ref();
 
@@ -229,18 +257,12 @@ impl ArgumentTemplate {
                 let mut s = OsString::new();
                 for token in tokens {
                     match *token {
-                        Basename => s.push(Self::replace_separator(basename(path), path_separator)),
-                        BasenameNoExt => s.push(Self::replace_separator(
-                            &remove_extension(basename(path).as_ref()),
-                            path_separator,
-                        )),
-                        NoExt => s.push(Self::replace_separator(
-                            &remove_extension(path),
-                            path_separator,
-                        )),
-                        Parent => s.push(Self::replace_separator(&dirname(path), path_separator)),
-                        Placeholder =>
-                            s.push(Self::replace_separator(path.as_ref(), path_separator)),
+                        Basename => s.push(basename(path)),
+                        BasenameNoExt => s.push(&remove_extension(basename(path).as_ref())),
+                        NoExt => s.push(&remove_extension(path)),
+                        Parent => s.push(&dirname(path)),
+                        Placeholder => s.push(path),
+                        Wutag => s.push(&wutag_dir(path)),
                         Text(ref string) => s.push(string),
                     }
                 }
@@ -248,62 +270,5 @@ impl ArgumentTemplate {
             },
             ArgumentTemplate::Text(ref text) => OsString::from(text),
         }
-    }
-
-    /// Replace the path separator in the input with the custom separator
-    /// string. If path_separator is None, simply return a borrowed
-    /// Cow<OsStr> of the input. Otherwise, the input is interpreted as a
-    /// Path and its components are iterated through and re-joined into a new
-    /// OsString.
-    fn replace_separator<'a>(path: &'a OsStr, path_separator: Option<&str>) -> Cow<'a, OsStr> {
-        // fast-path - no replacement necessary
-        if path_separator.is_none() {
-            return Cow::Borrowed(path);
-        }
-
-        let path_separator = path_separator.unwrap();
-        let mut out = OsString::with_capacity(path.len());
-        let mut components = Path::new(path).components().peekable();
-
-        while let Some(comp) = components.next() {
-            match comp {
-                // Absolute paths on Windows are tricky.  A Prefix component is usually a drive
-                // letter or UNC path, and is usually followed by RootDir. There are also
-                // "verbatim" prefixes beginning with "\\?\" that skip normalization. We choose to
-                // ignore verbatim path prefixes here because they're very rare, might be
-                // impossible to reach here, and there's no good way to deal with them. If users
-                // are doing something advanced involving verbatim windows paths, they can do their
-                // own output filtering with a tool like sed.
-                Component::Prefix(prefix) => {
-                    if let Prefix::UNC(server, share) = prefix.kind() {
-                        // Prefix::UNC is a parsed version of '\\server\share'
-                        out.push(path_separator);
-                        out.push(path_separator);
-                        out.push(server);
-                        out.push(path_separator);
-                        out.push(share);
-                    } else {
-                        // All other Windows prefix types are rendered as-is. This results in e.g.
-                        // "C:" for drive letters. DeviceNS and Verbatim*
-                        // prefixes won't have backslashes converted,
-                        // but they're not returned by directories fd can search anyway so we don't
-                        // worry about them.
-                        out.push(comp.as_os_str());
-                    }
-                },
-
-                // Root directory is always replaced with the custom separator.
-                Component::RootDir => out.push(path_separator),
-
-                // Everything else is joined normally, with a trailing separator if we're not last
-                _ => {
-                    out.push(comp.as_os_str());
-                    if components.peek().is_some() {
-                        out.push(path_separator);
-                    }
-                },
-            }
-        }
-        Cow::Owned(out)
     }
 }

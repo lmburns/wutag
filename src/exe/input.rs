@@ -3,18 +3,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-// pub fn default_path_separator() -> Option<String> {
-//     if cfg!(windows) {
-//         let msystem = std::env::var("MSYSTEM").ok()?;
-//         match msystem.as_str() {
-//             "MINGW64" | "MINGW32" | "MSYS" => Some("/".to_owned()),
-//             _ => None,
-//         }
-//     } else {
-//         None
-//     }
-// }
-
 /// Remove the `./` prefix from a path.
 pub fn strip_current_dir(path: &Path) -> &Path {
     path.strip_prefix(".").unwrap_or(path)
@@ -23,6 +11,14 @@ pub fn strip_current_dir(path: &Path) -> &Path {
 /// Removes the parent component of the path
 pub fn basename(path: &Path) -> &OsStr {
     path.file_name().unwrap_or_else(|| path.as_os_str())
+}
+
+pub fn wutag_dir(path: &Path) -> OsString {
+    let dir = dirname(path);
+    let mut wutag = OsString::new();
+    wutag.push("wutag -d ");
+    wutag.push(dir);
+    wutag
 }
 
 /// Removes the extension from the path

@@ -1,7 +1,10 @@
-use crate::util::macos_dirs;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::{fs, io::Write, path::Path};
+use std::{
+    fs,
+    io::Write,
+    path::{Path, PathBuf},
+};
 
 const CONFIG_FILE: &str = "wutag.yml";
 
@@ -44,8 +47,11 @@ impl Config {
     /// Loads config file from home directory of user executing the program
     pub(crate) fn load_default_location() -> Result<Self> {
         Self::load(
-            macos_dirs(dirs::config_dir(), ".config")
-                .context("configuration directory not found")?
+            std::env::var_os("XDG_CONFIG_HOME")
+                .map(PathBuf::from)
+                .filter(|p| p.is_absolute())
+                .or_else(|| dirs::home_dir().map(|d| d.join(".config")))
+                .context("Invalid configuration directory")?
                 .join("wutag"),
         )
     }

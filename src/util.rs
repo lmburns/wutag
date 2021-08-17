@@ -3,12 +3,7 @@ use colored::{ColoredString, Colorize};
 use globwalk::{DirEntry, GlobWalker, GlobWalkerBuilder};
 use lscolors::{LsColors, Style};
 use regex::bytes::{Regex, RegexBuilder};
-use std::{
-    borrow::Cow,
-    ffi::OsStr,
-    fmt::Display,
-    path::{Path, PathBuf},
-};
+use std::{borrow::Cow, ffi::OsStr, fmt::Display, path::Path};
 
 use crate::DEFAULT_MAX_DEPTH;
 use anyhow::{Context, Result};
@@ -205,17 +200,4 @@ where
     }
 
     Ok(())
-}
-
-/// Helper function to get different directories for `macOS` specifically
-/// Example: `dirs::cache_dir()` returns `$HOME/Library/Caches`, when this will
-/// return `$HOME/.cache` This can and is used to respect `XDG` defaults for
-/// `macOS`
-pub(crate) fn macos_dirs(dir_func: Option<PathBuf>, joined: &str) -> Result<PathBuf> {
-    #[cfg(target_os = "macos")]
-    if std::env::consts::OS == "macos" {
-        Ok(PathBuf::from(env!("HOME")).join(joined))
-    } else {
-        Ok(dir_func.context(format!("Invalid {} directory", joined))?)
-    }
 }

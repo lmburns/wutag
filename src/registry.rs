@@ -232,33 +232,31 @@ impl TagRegistry {
         T: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
-        let mut entries = tags.into_iter().fold(Vec::new(), |mut acc, tag| {
-            if let Some(entries) = self
-                .tags
-                .iter()
-                .find(|(t, _)| t.name() == tag.as_ref())
-                .map(|(_, e)| e)
-            {
-                acc.extend_from_slice(&entries[..]);
-            }
-            acc
-        });
-
-        entries.dedup();
-
-        let mut paths = vec![];
-        for id in entries.iter() {
-            match self.get_entry(*id) {
-                Some(entry) =>
+        let mut entries = tags
+            .into_iter()
+            .fold(Vec::new(), |mut acc, tag| {
+                if let Some(entries) = self
+                    .tags
+                    .iter()
+                    .find(|(t, _)| t.name() == tag.as_ref())
+                    .map(|(_, e)| e)
+                {
+                    acc.extend_from_slice(&entries[..]);
+                }
+                acc
+            })
+            .iter()
+            .fold(Vec::new(), |mut acc, id| {
+                if let Some(entry) = self.get_entry(*id) {
                     if !global && !contained_path(entry.path(), base_dir) {
-                        continue;
                     } else {
-                        paths.push(PathBuf::from(entry.path()));
-                    },
-                None => continue,
-            }
-        }
-        paths
+                        acc.push(PathBuf::from(entry.path()));
+                    }
+                }
+                acc
+            });
+        entries.dedup();
+        entries
     }
 
     /// Lists ids of all entries present in the registry.

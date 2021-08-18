@@ -1,9 +1,21 @@
 use anyhow::anyhow;
 use colored::{ColoredString, Colorize};
 use globwalk::{DirEntry, GlobWalker, GlobWalkerBuilder};
+use ignore::WalkBuilder;
+use lazy_static::lazy_static;
 use lscolors::{LsColors, Style};
 use regex::bytes::{Regex, RegexBuilder};
-use std::{borrow::Cow, ffi::OsStr, fmt::Display, path::Path};
+use std::{
+    borrow::Cow,
+    ffi::{OsStr, OsString},
+    fmt::Display,
+    path::Path,
+    sync::{Arc, Mutex},
+    thread,
+};
+
+use crossbeam_channel as channel;
+// use crossbeam_utils::thread;
 
 use crate::DEFAULT_MAX_DEPTH;
 use anyhow::{Context, Result};
@@ -138,8 +150,15 @@ pub(crate) fn glob_builder(pattern: &str) -> String {
 
 /// Build a regular expression with RegexBuilder (bytes)
 pub(crate) fn regex_builder(pattern: &str, case_insensitive: bool) -> Regex {
+    lazy_static! {
+        static ref UPPER_REG: Regex = Regex::new(r"[[:upper:]]").unwrap();
+    };
+
+    let cow_pat: Cow<OsStr> = Cow::Owned(OsString::from(pattern));
+    let upper_char = !UPPER_REG.is_match(&osstr_to_bytes(cow_pat.as_ref()));
+
     RegexBuilder::new(pattern)
-        .case_insensitive(case_insensitive)
+        .case_insensitive(case_insensitive || upper_char)
         .build()
         .map_err(|e| {
             anyhow!(
@@ -149,6 +168,21 @@ pub(crate) fn regex_builder(pattern: &str, case_insensitive: bool) -> Regex {
             )
         })
         .expect("Invalid pattern")
+}
+
+pub(crate) fn reg_walker<P>(dir: P) -> ignore::WalkParallel
+where
+    P: AsRef<Path>,
+{
+    WalkBuilder::new(&dir.as_ref())
+        .threads(num_cpus::get())
+        .follow_links(false)
+        .ignore(false)
+        .git_global(false)
+        .git_ignore(false)
+        .git_exclude(false)
+        .parents(false)
+        .build_parallel()
 }
 
 /// Returns a GlobWalker instance with base path set to `base_path` and pattern
@@ -172,12 +206,97 @@ where
         builder = builder.max_depth(DEFAULT_MAX_DEPTH);
     }
 
-    if case_insensitive {
-        builder = builder.case_insensitive(true);
-    } else {
-        builder = builder.case_insensitive(false);
-    }
-    builder.build().context("invalid path")
+    builder
+        .case_insensitive(case_insensitive)
+        .build()
+        .context("invalid path")
+}
+
+type FnThread = Box<dyn FnMut(&ignore::DirEntry) + Send>;
+lazy_static::lazy_static! {
+    static ref FNIN: Mutex<Option<FnThread>> = Mutex::new(None);
+}
+
+pub(crate) fn reg_ok<P, F>(
+    pattern: Regex,
+    base_path: P,
+    max_depth: Option<usize>,
+    f: F,
+) -> Result<()>
+where
+    P: AsRef<Path>,
+    F: FnMut(&ignore::DirEntry) + Send + Sync + 'static,
+{
+    // set_closure(f);
+    *FNIN.lock().expect("broken lock in closure") = Some(Box::new(f));
+
+    let pattern = Arc::new(pattern);
+    let base_path = base_path.as_ref().to_string_lossy().to_string();
+    let max_depth = Arc::new(max_depth);
+
+    let (tx, rx) = channel::unbounded();
+
+    let execution_thread = thread::spawn(move || {
+        rx.iter().for_each(|e| {
+            if let Some(ref mut handler) = *FNIN.lock().expect("poisoned lock") {
+                handler(&e)
+            }
+        })
+    });
+
+    // rayon::scope(|scope| {
+    //     let (ttx, rrx) = channel::unbounded();
+    //     scope.spawn(move |_| {
+    //         rrx.iter().for_each(|e| {
+    //             f(&e)
+    //         })
+    //     });
+    // });
+
+    // let execution_thread = thread::scope(|e| {
+    //     e.spawn(|_| {
+    //         rx.iter().for_each(|entry| f(&entry));
+    //
+    //     });
+    // }).unwrap();
+
+    reg_walker(base_path.as_str()).run(|| {
+        let tx = tx.clone();
+        let pattern = Arc::clone(&pattern);
+        let max_depth = Arc::clone(&max_depth);
+        log::debug!("Using regex with max_depth of: {}", max_depth.unwrap());
+
+        Box::new(move |res| {
+            let entry = match res {
+                Ok(_entry) => _entry,
+                Err(err) => {
+                    eprintln!("failed to access entry ({})", err);
+                    return ignore::WalkState::Continue;
+                },
+            };
+
+            if let Some(max_d) = *max_depth {
+                if entry.depth() > max_d {
+                    log::trace!("max_depth reached");
+                    return ignore::WalkState::Continue;
+                }
+            }
+
+            let search: Cow<OsStr> = Cow::Owned(OsString::from(entry.path()));
+            if !pattern.is_match(&osstr_to_bytes(search.as_ref())) {
+                log::trace!("no match, skipping");
+                return ignore::WalkState::Continue;
+            }
+
+            match tx.send(entry) {
+                Ok(_) => ignore::WalkState::Continue,
+                Err(_) => ignore::WalkState::Quit,
+            }
+        })
+    });
+    drop(tx);
+    execution_thread.join().unwrap();
+    Ok(())
 }
 
 /// Utility function that executes the function `f` on all directory entries

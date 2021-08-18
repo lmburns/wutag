@@ -31,6 +31,8 @@ _wutag() {
 '--global[Apply operation to all tags and files instead of locally]' \
 '-l[Respect '\''LS_COLORS'\'' environment variable when coloring the output]' \
 '--ls-colors[Respect '\''LS_COLORS'\'' environment variable when coloring the output]' \
+'*-v[]' \
+'*--verbose[]' \
 '-h[Prints help information]' \
 '--help[Prints help information]' \
 '-V[Prints version information]' \
@@ -48,6 +50,8 @@ _wutag() {
 _arguments "${_arguments_options[@]}" \
 '-r[If provided output will be raw so that it can be easily piped to other commands]' \
 '--raw[If provided output will be raw so that it can be easily piped to other commands]' \
+'*-v[]' \
+'*--verbose[]' \
 '-h[Prints help information]' \
 '--help[Prints help information]' \
 ":: :_wutag__list_commands" \
@@ -63,6 +67,8 @@ case $state in
 _arguments "${_arguments_options[@]}" \
 '-c[]' \
 '--completions[]' \
+'*-v[]' \
+'*--verbose[]' \
 '-h[Prints help information]' \
 '--help[Prints help information]' \
 && ret=0
@@ -75,6 +81,8 @@ _arguments "${_arguments_options[@]}" \
 '(-G --garrulous)--format[Format the tags and files output into columns]' \
 '(-f --format)-G[Display tags and files on separate lines]' \
 '(-f --format)--garrulous[Display tags and files on separate lines]' \
+'*-v[]' \
+'*--verbose[]' \
 '-h[Prints help information]' \
 '--help[Prints help information]' \
 && ret=0
@@ -87,6 +95,8 @@ esac
 _arguments "${_arguments_options[@]}" \
 '-c[Clear all tags before setting them]' \
 '--clear[Clear all tags before setting them]' \
+'*-v[]' \
+'*--verbose[]' \
 '-h[Prints help information]' \
 '--help[Prints help information]' \
 ':pattern -- A glob pattern like "*.png":' \
@@ -95,6 +105,8 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (rm)
 _arguments "${_arguments_options[@]}" \
+'*-v[]' \
+'*--verbose[]' \
 '-h[Prints help information]' \
 '--help[Prints help information]' \
 ':pattern -- A glob pattern like "*.png":' \
@@ -103,6 +115,8 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (clear)
 _arguments "${_arguments_options[@]}" \
+'*-v[]' \
+'*--verbose[]' \
 '-h[Prints help information]' \
 '--help[Prints help information]' \
 ':pattern -- A glob pattern like "*.png":' \
@@ -118,6 +132,8 @@ _arguments "${_arguments_options[@]}" \
 '--raw[If provided output will be raw so that it can be easily piped to other commands]' \
 '-a[If set to '\''true'\'' all entries containing any of provided tags will be returned]' \
 '--any[If set to '\''true'\'' all entries containing any of provided tags will be returned]' \
+'*-v[]' \
+'*--verbose[]' \
 '-h[Prints help information]' \
 '--help[Prints help information]' \
 '*::tags:_wutag_tags' \
@@ -125,6 +141,8 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (cp)
 _arguments "${_arguments_options[@]}" \
+'*-v[]' \
+'*--verbose[]' \
 '-h[Prints help information]' \
 '--help[Prints help information]' \
 ':input-path -- Path to the file from which to copy tags from:_files' \
@@ -135,6 +153,8 @@ _arguments "${_arguments_options[@]}" \
 _arguments "${_arguments_options[@]}" \
 '-c+[Set the color of the tag to the specified color. Accepted values are hex colors like '\''0x000000'\'' or '\''#1F1F1F'\'' or just plain '\''ff000a'\''. The colors are case insensitive meaning '\''1f1f1f'\'' is equivalent to '\''1F1F1F'\'']' \
 '--color=[Set the color of the tag to the specified color. Accepted values are hex colors like '\''0x000000'\'' or '\''#1F1F1F'\'' or just plain '\''ff000a'\''. The colors are case insensitive meaning '\''1f1f1f'\'' is equivalent to '\''1F1F1F'\'']' \
+'*-v[]' \
+'*--verbose[]' \
 '-h[Prints help information]' \
 '--help[Prints help information]' \
 ':tag -- The tag to edit:_wutag_tags' \
@@ -143,12 +163,16 @@ _arguments "${_arguments_options[@]}" \
 (print-completions)
 _arguments "${_arguments_options[@]}" \
 '--shell=[Shell to print completions. Available shells are: bash, elvish, fish, powershell, zsh]: :(bash elvish fish powershell zsh)' \
+'*-v[]' \
+'*--verbose[]' \
 '-h[Prints help information]' \
 '--help[Prints help information]' \
 && ret=0
 ;;
 (clean-cache)
 _arguments "${_arguments_options[@]}" \
+'*-v[]' \
+'*--verbose[]' \
 '-h[Prints help information]' \
 '--help[Prints help information]' \
 && ret=0

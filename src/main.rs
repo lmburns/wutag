@@ -6,11 +6,12 @@ mod opt;
 mod registry;
 mod util;
 
-use clap::Clap;
 use colored::Color::{self, *};
+// use std::io::Write;
 
 use app::App;
 use config::Config;
+use log::LevelFilter;
 use opt::Opts;
 
 /// Default max depth passed to [GlobWalker](globwalker::GlobWalker)
@@ -34,19 +35,19 @@ pub(crate) const DEFAULT_COLORS: &[Color] = &[
 
 fn main() {
     let config = Config::load_default_location().unwrap_or_default();
+    let args = Opts::get_args();
 
-    // if let Err(e) = App::run(
-    //     Opts::try_parse().unwrap_or_default(),
-    //     config
-    // ) {
-    //     eprintln!("{}", e);
-    // }
+    env_logger::Builder::new()
+        .filter(None, match &args.verbose {
+            1 => LevelFilter::Info,
+            2 => LevelFilter::Warn,
+            3 => LevelFilter::Debug,
+            4 => LevelFilter::Trace,
+            _ => LevelFilter::Off,
+        })
+        .init();
 
-    if std::env::args().len() > 1 {
-        if let Err(e) = App::run(Opts::parse(), config) {
-            eprintln!("{}", e);
-        }
-    } else if let Err(e) = App::run(Opts::base(), config) {
+    if let Err(e) = App::run(args, config) {
         eprintln!("{}", e);
     }
 }

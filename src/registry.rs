@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use super::util::contained_path;
+use rayon::prelude::*;
 use wutag_core::tag::Tag;
 
 use anyhow::{Context, Result};
@@ -94,7 +95,7 @@ impl TagRegistry {
     }
 
     fn mut_tag_entries(&mut self, tag: &Tag) -> &mut Vec<EntryId> {
-        let exists = self.tags.iter().find(|(t, _)| t == &tag);
+        let exists = self.tags.par_iter().find_any(|(t, _)| t == &tag);
 
         if exists.is_none() {
             self.tags.insert(tag.clone(), Vec::new());
@@ -108,7 +109,7 @@ impl TagRegistry {
     pub(crate) fn tag_entry(&mut self, tag: &Tag, entry: EntryId) -> Option<EntryId> {
         let entries = self.mut_tag_entries(tag);
 
-        if let Some(entry) = entries.iter().find(|&e| *e == entry) {
+        if let Some(entry) = entries.par_iter().find_any(|&e| *e == entry) {
             return Some(*entry);
         }
         entries.push(entry);
@@ -133,7 +134,7 @@ impl TagRegistry {
     pub(crate) fn untag_entry(&mut self, tag: &Tag, entry: EntryId) -> Option<EntryData> {
         let entries = self.mut_tag_entries(tag);
 
-        if let Some(pos) = entries.iter().position(|e| *e == entry) {
+        if let Some(pos) = entries.par_iter().position_first(|e| *e == entry) {
             let entry = entries.remove(pos);
 
             self.clean_tag_if_no_entries(tag);

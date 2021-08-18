@@ -71,8 +71,14 @@ A command line tool for tagging files
 * [ ] `--color=always` for tags
 
 #### File execution
+* [x] Can execute external commands on matching files
+    * Normal `fd` placeholders can be used
+    * A new placeholder `{..}` will execute `wutag` commands on the file
+    * For example: `wutag -g search markdown -x {..} set {/} new_tag`
+    * If file path is `/Users/user/testing/home/main.rs`
+        * `{..}` expands to `wutag -d /Users/user/testing/home`
+        * `{/}` expands to `main.rs`
 * [ ] Add colored output somehow on command execution
-* [ ] Try and implement only once
 * [ ] Implement on things other than `search`
 
 #### Todo

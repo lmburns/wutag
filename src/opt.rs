@@ -90,17 +90,26 @@ pub(crate) struct Opts {
         auto, never. The always selection only applies to the path as of now."
     )]
     pub(crate) color_when:       Option<String>,
+    #[clap(long, short, global = true, parse(from_occurrences))]
+    pub(crate) verbose:          u8,
     #[clap(subcommand)]
     pub(crate) cmd:              Command,
 }
 
+// setting = ArgSettings::MultipleOccurrences,
+
 impl Opts {
-    /// Default command to run if no arguments are passed
-    pub(crate) fn base() -> Self {
-        Self {
-            global: false,
-            cmd: Command::default(),
-            ..Default::default()
+    /// Allows a default command to run if no arguments are passed
+    pub(crate) fn get_args() -> Self {
+        if env::args_os().len() > 1 {
+            Self::parse()
+        } else {
+            Self {
+                // May switch to local
+                global: true,
+                cmd: Command::default(),
+                ..Default::default()
+            }
         }
     }
 }

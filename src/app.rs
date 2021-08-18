@@ -27,7 +27,7 @@ use crate::{
     registry::{EntryData, TagRegistry},
     util::{
         contained_path, fmt_err, fmt_local_path, fmt_ok, fmt_path, fmt_tag, glob_builder, glob_ok,
-        osstr_to_bytes, raw_local_path, regex_builder,
+        osstr_to_bytes, raw_local_path, reg_ok, regex_builder,
     },
     DEFAULT_COLORS,
 };
@@ -37,6 +37,7 @@ use wutag_core::{
     tag::{clear_tags, has_tags, list_tags, DirEntryExt, Tag},
 };
 
+#[derive(Clone)]
 pub(crate) struct App {
     pub(crate) base_dir:         PathBuf,
     pub(crate) max_depth:        Option<usize>,
@@ -47,7 +48,6 @@ pub(crate) struct App {
     pub(crate) pat_regex:        bool,
     pub(crate) ls_colors:        bool,
     pub(crate) color_when:       String,
-    // pub(crate) execute:          Option<CommandTemplate>,
 }
 
 /// Format errors
@@ -191,7 +191,6 @@ impl App {
             pat_regex: opts.regex,
             ls_colors: opts.ls_colors,
             color_when: color_when.to_string(),
-            // execute: command,
         })
     }
 
@@ -404,7 +403,38 @@ impl App {
             })
             .collect::<Vec<_>>();
 
-        if let Err(e) = glob_ok(
+        let pat = if self.pat_regex {
+            log::debug!("Using regex: {}", &opts.pattern);
+            String::from(&opts.pattern)
+        } else {
+            // TODO: Do something with this
+            // If can't be used with glob_builder, remove it
+            log::debug!("Using glob: {}", &opts.pattern);
+            glob_builder(&opts.pattern)
+        };
+        let re = regex_builder(&pat, self.case_insensitive);
+
+        let selfc = Arc::new(Mutex::new(self.clone()));
+
+        // FIX: Find way to reduce duplicate code
+        // No tagging is done yet
+        if self.pat_regex {
+            if let Err(e) = reg_ok(
+                re,
+                &self.base_dir.clone(),
+                self.max_depth,
+                move |entry: &ignore::DirEntry| {
+                    let selfc = Arc::clone(&selfc);
+                    let selfu = selfc.lock().unwrap();
+                    println!(
+                        "{}:",
+                        fmt_path(entry.path(), selfu.ls_colors, &selfu.color_when)
+                    );
+                },
+            ) {
+                eprintln!("{}", fmt_err(e));
+            }
+        } else if let Err(e) = glob_ok(
             &opts.pattern,
             &self.base_dir.clone(),
             self.max_depth,
@@ -446,7 +476,6 @@ impl App {
         ) {
             eprintln!("{}", fmt_err(e));
         }
-
         self.save_registry();
     }
 
@@ -638,11 +667,10 @@ impl App {
                     )
                 }
             }
-            // It seems that -x/-X has to be on each individual command
-            // If it is on the main Opts and a vector, it is unable to tell the
-            // subcommand apart from the vector
+            // It seems that -x/-X has to be on each subcommand
+            // If it is on the main Opts and the type is a vector, it is unable
+            // to distinguish the as mentioned vector from the subcommand
         } else if opts.execute.is_some() || opts.execute_batch.is_some() {
-            // let path_separator = Some("/".to_string());
             let command = if let Some(cmd) = &opts.execute {
                 Some(CommandTemplate::new(cmd))
             } else {

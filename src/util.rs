@@ -1,6 +1,5 @@
 use anyhow::anyhow;
 use colored::{ColoredString, Colorize};
-use globwalk::{DirEntry, GlobWalker, GlobWalkerBuilder};
 use ignore::WalkBuilder;
 use lazy_static::lazy_static;
 use lscolors::{LsColors, Style};
@@ -15,10 +14,9 @@ use std::{
 };
 
 use crossbeam_channel as channel;
-// use crossbeam_utils::thread;
 
 use crate::DEFAULT_MAX_DEPTH;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use wutag_core::tag::Tag;
 
 pub fn fmt_err<E: Display>(err: E) -> String {
@@ -170,8 +168,11 @@ pub(crate) fn regex_builder(pattern: &str, case_insensitive: bool) -> Regex {
         .expect("Invalid pattern")
 }
 
-/// Returns an ignore::WalkParallel instance that uses `base_path`, does not
-/// follow symlinks, respects hidden files, and uses max CPU's
+/// Returns an ignore::WalkParallel instance that uses `base_path`, and a
+/// pattern (both glob and regex) does not follow symlinks, respects hidden
+/// files, and uses max CPU's. If a `max_depth` is specified, the parallel
+/// walker will not traverse deeper than that, else if no `max_depth` is
+/// specified, it will use [DEFAULT_MAX_DEPTH](DEFAULT_MAX_DEPTH).
 pub(crate) fn reg_walker<P>(dir: P) -> ignore::WalkParallel
 where
     P: AsRef<Path>,
@@ -186,33 +187,6 @@ where
         .git_exclude(false)
         .parents(false)
         .build_parallel()
-}
-
-/// Returns a GlobWalker instance with base path set to `base_path` and pattern
-/// to `pattern`. If max_depth is specified the GlobWalker will have it's max
-/// depth set to its value, otherwise max depth will be
-/// [DEFAULT_MAX_DEPTH](DEFAULT_MAX_DEPTH).
-pub(crate) fn glob_walker<S>(
-    dir: S,
-    pattern: S,
-    max_depth: Option<usize>,
-    case_insensitive: bool,
-) -> Result<GlobWalker>
-where
-    S: AsRef<str>,
-{
-    let mut builder = GlobWalkerBuilder::new(dir.as_ref(), pattern.as_ref());
-
-    if let Some(max_depth) = max_depth {
-        builder = builder.max_depth(max_depth);
-    } else {
-        builder = builder.max_depth(DEFAULT_MAX_DEPTH);
-    }
-
-    builder
-        .case_insensitive(case_insensitive)
-        .build()
-        .context("invalid path")
 }
 
 /// Type to execute a closure across multiple threads when wrapped in `Mutex`
@@ -266,11 +240,15 @@ where
                 },
             };
 
-            if let Some(max_d) = *max_depth {
-                if entry.depth() > max_d {
-                    log::trace!("max_depth reached");
-                    return ignore::WalkState::Continue;
-                }
+            let max_d = if let Some(max) = *max_depth {
+                max
+            } else {
+                DEFAULT_MAX_DEPTH
+            };
+
+            if entry.depth() > max_d {
+                log::trace!("max_depth reached");
+                return ignore::WalkState::Continue;
             }
 
             let search: Cow<OsStr> = Cow::Owned(OsString::from(entry.file_name()));
@@ -292,27 +270,5 @@ where
     });
     drop(tx);
     execution_thread.join().unwrap();
-    Ok(())
-}
-
-/// Utility function that executes the function `f` on all directory entries
-/// that are Ok, by default ignores all errors.
-pub(crate) fn glob_ok<P, F>(
-    pattern: &str,
-    base_path: P,
-    max_depth: Option<usize>,
-    case_insensitive: bool,
-    mut f: F,
-) -> Result<()>
-where
-    P: AsRef<Path>,
-    F: FnMut(&DirEntry),
-{
-    let base_path = base_path.as_ref().to_string_lossy().to_string();
-
-    for entry in glob_walker(base_path.as_str(), pattern, max_depth, case_insensitive)?.flatten() {
-        f(&entry);
-    }
-
     Ok(())
 }

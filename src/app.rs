@@ -1,9 +1,7 @@
-#![allow(unused)]
 use anyhow::{anyhow, Context, Result};
 use atty::Stream;
 use clap::IntoApp;
 use colored::{Color, Colorize};
-use globwalk::DirEntry;
 use shellexpand::LookupError;
 
 use std::{
@@ -20,14 +18,14 @@ use std::{
 use crate::{
     comp_helper,
     config::Config,
-    exe::{generalize_exitcodes, job::run_command, CommandTemplate, ExitCode},
+    exe::{job::run_command, CommandTemplate},
     opt::{
         ClearOpts, Command, CompletionsOpts, CpOpts, EditOpts, ListObject, ListOpts, Opts, RmOpts,
         SearchOpts, SetOpts, Shell, APP_NAME,
     },
     registry::{EntryData, TagRegistry},
     util::{
-        contained_path, fmt_err, fmt_local_path, fmt_ok, fmt_path, fmt_tag, glob_builder, glob_ok,
+        contained_path, fmt_err, fmt_local_path, fmt_ok, fmt_path, fmt_tag, glob_builder,
         osstr_to_bytes, raw_local_path, reg_ok, regex_builder,
     },
     DEFAULT_COLORS,
@@ -399,82 +397,49 @@ impl App {
                 if let Some(t) = self.registry.get_tag(t) {
                     t.clone()
                 } else if let Some(color) = &opts.color {
-                    Tag::new(t, parse_color(color).unwrap_or(DEFAULT_COLOR))
+                    Tag::new(
+                        t,
+                        parse_color(color).unwrap_or_else(|e| {
+                            eprintln!("{}", fmt_err(e));
+                            DEFAULT_COLOR
+                        }),
+                    )
                 } else {
                     Tag::random(t, &self.colors)
                 }
             })
             .collect::<Vec<_>>();
 
-        // FIX: Find way to reduce duplicate code
-        // Maybe have builders return results and execute code on them?
-        if self.pat_regex {
-            let re = regex_builder(&String::from(&opts.pattern), self.case_insensitive);
-            log::debug!("Compiled regex: {}", re);
+        let pat = if self.pat_regex {
+            String::from(&opts.pattern)
+        } else {
+            glob_builder(&opts.pattern)
+        };
 
-            let optsc = Arc::new(Mutex::new(opts.clone()));
-            let selfc = Arc::new(Mutex::new(self.clone()));
+        let re = regex_builder(&pat, self.case_insensitive);
+        log::debug!("Compiled pattern: {}", re);
 
-            if let Err(e) = reg_ok(
-                re,
-                &self.base_dir.clone(),
-                self.max_depth,
-                move |entry: &ignore::DirEntry| {
-                    let optsc = Arc::clone(&optsc);
-                    let opts = optsc.lock().unwrap();
+        let optsc = Arc::new(Mutex::new(opts.clone()));
+        let selfc = Arc::new(Mutex::new(self.clone()));
 
-                    let selfc = Arc::clone(&selfc);
-                    let mut selfu = selfc.lock().unwrap();
-                    println!(
-                        "{}:",
-                        fmt_path(entry.path(), selfu.ls_colors, &selfu.color_when)
-                    );
-                    tags.iter().for_each(|tag| {
-                        if opts.clear {
-                            if let Some(id) = selfu.registry.find_entry(entry.path()) {
-                                selfu.registry.clear_entry(id);
-                            }
-                            match entry.has_tags() {
-                                Ok(has_tags) =>
-                                    if has_tags {
-                                        if let Err(e) = entry.clear_tags() {
-                                            err!('\t', e, entry);
-                                        }
-                                    },
-                                Err(e) => {
-                                    err!(e, entry);
-                                },
-                            }
-                        }
-
-                        if let Err(e) = entry.tag(tag) {
-                            err!('\t', e, entry);
-                        } else {
-                            let entry = EntryData::new(entry.path());
-                            let id = selfu.registry.add_or_update_entry(entry);
-                            selfu.registry.tag_entry(tag, id);
-                            print!("\t{} {}", "+".bold().green(), fmt_tag(tag));
-                        }
-                    });
-                    println!();
-                },
-            ) {
-                eprintln!("{}", fmt_err(e));
-            }
-        } else if let Err(e) = glob_ok(
-            &opts.pattern,
+        if let Err(e) = reg_ok(
+            re,
             &self.base_dir.clone(),
             self.max_depth,
-            self.case_insensitive,
-            |entry: &DirEntry| {
+            move |entry: &ignore::DirEntry| {
+                let optsc = Arc::clone(&optsc);
+                let opts = optsc.lock().unwrap();
+
+                let selfc = Arc::clone(&selfc);
+                let mut selfu = selfc.lock().unwrap();
                 println!(
                     "{}:",
-                    fmt_path(entry.path(), self.ls_colors, &self.color_when)
+                    fmt_path(entry.path(), selfu.ls_colors, &selfu.color_when)
                 );
                 tags.iter().for_each(|tag| {
                     if opts.clear {
-                        if let Some(id) = self.registry.find_entry(entry.path()) {
-                            self.registry.clear_entry(id);
+                        if let Some(id) = selfu.registry.find_entry(entry.path()) {
+                            selfu.registry.clear_entry(id);
                         }
                         match entry.has_tags() {
                             Ok(has_tags) =>
@@ -493,8 +458,8 @@ impl App {
                         err!('\t', e, entry);
                     } else {
                         let entry = EntryData::new(entry.path());
-                        let id = self.registry.add_or_update_entry(entry);
-                        self.registry.tag_entry(tag, id);
+                        let id = selfu.registry.add_or_update_entry(entry);
+                        selfu.registry.tag_entry(tag, id);
                         print!("\t{} {}", "+".bold().green(), fmt_tag(tag));
                     }
                 });
@@ -503,21 +468,23 @@ impl App {
         ) {
             eprintln!("{}", fmt_err(e));
         }
+
         self.save_registry();
     }
 
     fn rm(&mut self, opts: &RmOpts) {
         // Global will match a glob only against files that are tagged
         // Could add a fixed string option
+        let pat = if self.pat_regex {
+            String::from(&opts.pattern)
+        } else {
+            glob_builder(&opts.pattern)
+        };
+
+        let re = regex_builder(&pat, self.case_insensitive);
+        log::debug!("Compiled pattern: {}", re);
+
         if self.global {
-            let pat = if self.pat_regex {
-                String::from(&opts.pattern)
-            } else {
-                glob_builder(&opts.pattern)
-            };
-
-            let re = regex_builder(&pat, self.case_insensitive);
-
             let ctags = opts.tags.iter().collect::<Vec<_>>();
             for (&id, entry) in self.registry.clone().list_entries_and_ids() {
                 let search_str: Cow<OsStr> = Cow::Owned(entry.path().as_os_str().to_os_string());
@@ -554,64 +521,73 @@ impl App {
                         });
                 }
             }
-        } else if let Err(e) = glob_ok(
-            &opts.pattern,
-            &self.base_dir.clone(),
-            self.max_depth,
-            self.case_insensitive,
-            |entry: &DirEntry| {
-                let id = self.registry.find_entry(entry.path());
-                let tags = opts
-                    .tags
-                    .iter()
-                    .map(|tag| {
-                        if let Some(id) = id {
-                            self.registry.untag_by_name(tag, id);
-                        }
-                        entry.get_tag(tag)
-                    })
-                    .collect::<Vec<_>>();
+        } else {
+            let optsc = Arc::new(Mutex::new(opts.clone()));
+            let selfc = Arc::new(Mutex::new(self.clone()));
 
-                if tags.is_empty() {
-                    return;
-                }
+            if let Err(e) = reg_ok(
+                re,
+                &self.base_dir.clone(),
+                self.max_depth,
+                move |entry: &ignore::DirEntry| {
+                    let optsc = Arc::clone(&optsc);
+                    let opts = optsc.lock().unwrap();
+                    let selfc = Arc::clone(&selfc);
+                    let mut selfu = selfc.lock().unwrap();
 
-                println!(
-                    "{}:",
-                    fmt_path(entry.path(), self.ls_colors, &self.color_when)
-                );
-                tags.iter().for_each(|tag| {
-                    let tag = match tag {
-                        Ok(tag) => tag,
-                        Err(e) => {
-                            err!('\t', e, entry);
-                            return;
-                        },
-                    };
-                    if let Err(e) = entry.untag(tag) {
-                        err!('\t', e, entry);
-                    } else {
-                        print!("\t{} {}", "X".bold().red(), fmt_tag(tag));
+                    let id = selfu.registry.find_entry(entry.path());
+                    let tags = opts
+                        .tags
+                        .iter()
+                        .map(|tag| {
+                            if let Some(id) = id {
+                                selfu.registry.untag_by_name(tag, id);
+                            }
+                            entry.get_tag(tag)
+                        })
+                        .collect::<Vec<_>>();
+
+                    if tags.is_empty() {
+                        return;
                     }
-                });
-                println!();
-            },
-        ) {
-            eprintln!("{}", fmt_err(e));
+
+                    println!(
+                        "{}:",
+                        fmt_path(entry.path(), selfu.ls_colors, &selfu.color_when)
+                    );
+                    tags.iter().for_each(|tag| {
+                        let tag = match tag {
+                            Ok(tag) => tag,
+                            Err(e) => {
+                                err!('\t', e, entry);
+                                return;
+                            },
+                        };
+                        if let Err(e) = entry.untag(tag) {
+                            err!('\t', e, entry);
+                        } else {
+                            print!("\t{} {}", "X".bold().red(), fmt_tag(tag));
+                        }
+                    });
+                    println!();
+                },
+            ) {
+                eprintln!("{}", fmt_err(e));
+            }
         }
         self.save_registry();
     }
 
     fn clear(&mut self, opts: &ClearOpts) {
+        let pat = if self.pat_regex {
+            String::from(&opts.pattern)
+        } else {
+            glob_builder(&opts.pattern)
+        };
+
+        let re = regex_builder(&pat, self.case_insensitive);
+
         if self.global {
-            let pat = if self.pat_regex {
-                String::from(&opts.pattern)
-            } else {
-                glob_builder(&opts.pattern)
-            };
-
-            let re = regex_builder(&pat, self.case_insensitive);
-
             for (&id, entry) in self.registry.clone().list_entries_and_ids() {
                 let search_str: Cow<OsStr> = Cow::Owned(entry.path().as_os_str().to_os_string());
                 if re.is_match(&osstr_to_bytes(search_str.as_ref())) {
@@ -635,35 +611,41 @@ impl App {
                     }
                 }
             }
-        } else if let Err(e) = glob_ok(
-            &opts.pattern,
-            &self.base_dir.clone(),
-            self.max_depth,
-            self.case_insensitive,
-            |entry: &DirEntry| {
-                if let Some(id) = self.registry.find_entry(entry.path()) {
-                    self.registry.clear_entry(id);
-                }
-                match entry.has_tags() {
-                    Ok(has_tags) =>
-                        if has_tags {
-                            println!(
-                                "{}:",
-                                fmt_path(entry.path(), self.ls_colors, &self.color_when)
-                            );
-                            if let Err(e) = entry.clear_tags() {
-                                err!('\t', e, entry);
-                            } else {
-                                println!("\t{}", fmt_ok("cleared"));
-                            }
+        } else {
+            let selfc = Arc::new(Mutex::new(self.clone()));
+
+            if let Err(e) = reg_ok(
+                re,
+                &self.base_dir.clone(),
+                self.max_depth,
+                move |entry: &ignore::DirEntry| {
+                    let selfc = Arc::clone(&selfc);
+                    let mut selfu = selfc.lock().unwrap();
+
+                    if let Some(id) = selfu.registry.find_entry(entry.path()) {
+                        selfu.registry.clear_entry(id);
+                    }
+                    match entry.has_tags() {
+                        Ok(has_tags) =>
+                            if has_tags {
+                                println!(
+                                    "{}:",
+                                    fmt_path(entry.path(), selfu.ls_colors, &selfu.color_when)
+                                );
+                                if let Err(e) = entry.clear_tags() {
+                                    err!('\t', e, entry);
+                                } else {
+                                    println!("\t{}", fmt_ok("cleared"));
+                                }
+                            },
+                        Err(e) => {
+                            err!(e, entry);
                         },
-                    Err(e) => {
-                        err!(e, entry);
-                    },
-                }
-            },
-        ) {
-            eprintln!("{}", fmt_err(e));
+                    }
+                },
+            ) {
+                eprintln!("{}", fmt_err(e));
+            }
         }
         self.save_registry();
     }
@@ -749,26 +731,36 @@ impl App {
     }
 
     fn cp(&mut self, opts: &CpOpts) {
+        let pat = if self.pat_regex {
+            String::from(&opts.pattern)
+        } else {
+            glob_builder(&opts.pattern)
+        };
+
+        let re = regex_builder(&pat, self.case_insensitive);
         let path = opts.input_path.as_path();
+
         match list_tags(path) {
             Ok(tags) => {
-                if let Err(e) = glob_ok(
-                    &opts.pattern,
+                let selfc = Arc::new(Mutex::new(self.clone()));
+                if let Err(e) = reg_ok(
+                    re,
                     &self.base_dir.clone(),
                     self.max_depth,
-                    self.case_insensitive,
-                    |entry: &DirEntry| {
+                    move |entry: &ignore::DirEntry| {
+                        let selfc = Arc::clone(&selfc);
+                        let mut selfu = selfc.lock().unwrap();
                         println!(
                             "{}:",
-                            fmt_path(entry.path(), self.ls_colors, &self.color_when)
+                            fmt_path(entry.path(), selfu.ls_colors, &selfu.color_when)
                         );
                         for tag in &tags {
                             if let Err(e) = entry.tag(tag) {
                                 err!('\t', e, entry)
                             } else {
                                 let entry = EntryData::new(entry.path());
-                                let id = self.registry.add_or_update_entry(entry);
-                                self.registry.tag_entry(tag, id);
+                                let id = selfu.registry.add_or_update_entry(entry);
+                                selfu.registry.tag_entry(tag, id);
                                 println!("\t{} {}", "+".bold().green(), fmt_tag(tag));
                             }
                         }

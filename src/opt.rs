@@ -226,7 +226,7 @@ pub(crate) struct SetOpts {
     pub(crate) tags:    Vec<String>,
 }
 
-#[derive(Clap, Debug)]
+#[derive(Clap, Clone, Debug)]
 pub(crate) struct RmOpts {
     /// A glob pattern like "*.png".
     pub(crate) pattern: String,
@@ -239,7 +239,7 @@ pub(crate) struct ClearOpts {
     pub(crate) pattern: String,
 }
 
-#[derive(Clap, Debug)]
+#[derive(Clap, Clone, Debug)]
 pub(crate) struct SearchOpts {
     #[clap(required = true)]
     pub(crate) tags:    Vec<String>,

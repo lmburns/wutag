@@ -1,6 +1,5 @@
 //! Functions for manipulating tags on files.
 use colored::Color;
-use globwalk::DirEntry;
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -44,36 +43,6 @@ pub trait DirEntryExt {
 
 // Is there a way to implement for both of these without repeating?
 impl DirEntryExt for ignore::DirEntry {
-    fn tag(&self, tag: &Tag) -> Result<()> {
-        tag.save_to(self.path())
-    }
-
-    fn untag(&self, tag: &Tag) -> Result<()> {
-        tag.remove_from(self.path())
-    }
-
-    fn get_tag<T: AsRef<str>>(&self, tag: T) -> Result<Tag> {
-        get_tag(self.path(), tag)
-    }
-
-    fn list_tags(&self) -> Result<Vec<Tag>> {
-        list_tags(self.path())
-    }
-
-    fn list_tags_btree(&self) -> Result<BTreeSet<Tag>> {
-        list_tags_btree(self.path())
-    }
-
-    fn clear_tags(&self) -> Result<()> {
-        clear_tags(self.path())
-    }
-
-    fn has_tags(&self) -> Result<bool> {
-        has_tags(self.path())
-    }
-}
-
-impl DirEntryExt for DirEntry {
     fn tag(&self, tag: &Tag) -> Result<()> {
         tag.save_to(self.path())
     }

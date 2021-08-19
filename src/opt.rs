@@ -2,28 +2,69 @@
 use std::{env, path::PathBuf, str::FromStr};
 
 use anyhow::Error;
-use clap::{crate_version, AppSettings, Clap, ValueHint};
+use clap::{crate_description, crate_version, AppSettings, Clap, ValueHint};
+use lazy_static::lazy_static;
+
+pub(crate) const YELLOW: &str = "\x1b[0;33m";
+pub(crate) const GREEN: &str = "\x1b[0;32m";
+pub(crate) const BRCYAN: &str = "\x1b[38;5;14m";
+pub(crate) const BRGREEN: &str = "\x1b[38;5;10m";
+pub(crate) const BRRED: &str = "\x1b[38;5;9m";
+pub(crate) const BRED: &str = "\x1b[01;38;5;1m";
+pub(crate) const RES: &str = "\x1b[0m";
 
 pub(crate) const APP_NAME: &str = "wutag";
-pub(crate) const APP_AUTHOR: &str = "\
-      \x1b[01;38;5;3mWojciech Kępka\x1b[0m <\x1b[01;38;5;10mWwojciech@wkepka.dev\x1b[0m> \
-                                     \n\x1b[01;38;5;3mLucas Burns\x1b[0m    \
-                                     <\x1b[01;38;5;10mlmb@lmburns.com\x1b[0m>";
-pub(crate) static APP_ABOUT: &str = "\
-    \x1b[0;33mDESCRIPTION: \x1b[0;32mTag files and manage them with color\x1b[0m";
+
+lazy_static! {
+    static ref APP_ABOUT: String = format!(
+        "{}DESCRIPTION: {}{}{}", YELLOW, GREEN, crate_description!(), RES
+    );
+    #[rustfmt::skip]
+    static ref EXEC_BATCH_EXPL: String = format!(
+        "Execute a command on each search result.\n  \
+       '{}{{}}{}':   path (of the current search result)\n  \
+       '{}{{/}}{}':  basename\n  \
+       '{}{{//}}{}': parent directory\n  \
+       '{}{{.}}{}':  path without file extension\n  \
+       '{}{{/.}}{}': basename without file extension\n  \
+       '{}{{..}}{}': expands to wutag -d <parent_of_match> (only applies to -x/--exec)\n",
+       GREEN, RES, GREEN, RES, GREEN, RES, GREEN, RES, GREEN, RES, GREEN, RES
+    );
+    static ref EXEC_EXPL: String = format!(
+        "{}\n \
+       \t An example of using this is:\n  \
+       \t {}wutag -g search <tag> -x {{..}} set {{/}} <tag2>{}",
+       EXEC_BATCH_EXPL.to_string(), BRCYAN, RES
+    );
+    static ref OVERRIDE_HELP: String = format!(
+        "{}wutag{} [{}FLAGS{}/{}OPTIONS{}] <{}SUBCOMMAND{}> [{}TAGS{}/{}FLAGS{}]",
+        BRED, RES, GREEN, RES, GREEN, RES, YELLOW, RES, GREEN, RES, GREEN, RES
+    );
+    static ref AFTER_HELP: String = format!(
+        "See {}wutag{} {}--help{} for longer explanations of some base options.\n\
+        Use {}--help{} after a subcommand for explanations of more options.",
+        BRED, RES, GREEN, RES, GREEN, RES
+    );
+    #[rustfmt::skip]
+    static ref APP_AUTHORS: String = format!(
+        "{}Wojciech Kępka{} <{}Wwojciech@wkepka.dev{}>\n\
+        {}Lucas Burns{}   <{}lmb@lmburns.com{}>",
+        BRRED, RES, BRGREEN, RES, BRRED, RES, BRGREEN, RES,
+    );
+}
 
 #[derive(Clap, Default, Debug)]
 #[clap(
     version = crate_version!(),
-    author = APP_AUTHOR,
-    about = APP_ABOUT,
+    author = APP_AUTHORS.as_ref(),
+    about = APP_ABOUT.as_ref(),
     global_setting = AppSettings::ColoredHelp,
-    global_setting = AppSettings::ColorAlways,
+    global_setting = AppSettings::ColorAuto,
     global_setting = AppSettings::DisableHelpSubcommand,  // Disables help (use -h)
     global_setting = AppSettings::VersionlessSubcommands, // Shows no --version
     global_setting = AppSettings::InferSubcommands,       // l, li, lis == list
-    after_help = "See wutag --help for longer explanations of some options",
-    override_usage = "wutag [FLAGS/OPTIONS] <SUBCOMMAND> [TAGS/FLAGS]",
+    after_help = AFTER_HELP.as_ref(),
+    override_usage = OVERRIDE_HELP.as_ref()
 )]
 pub(crate) struct Opts {
     /// Specify starting path for filesystem traversal
@@ -91,6 +132,7 @@ pub(crate) struct Opts {
     )]
     pub(crate) color_when:       Option<String>,
     #[clap(long, short, global = true, parse(from_occurrences))]
+    /// Display debugging messages on 4 levels (i.e., -vv..)
     pub(crate) verbose:          u8,
     #[clap(subcommand)]
     pub(crate) cmd:              Command,
@@ -171,12 +213,15 @@ pub(crate) struct ListOpts {
     pub(crate) raw:    bool,
 }
 
-#[derive(Clap, Debug)]
+#[derive(Clap, Clone, Debug)]
 pub(crate) struct SetOpts {
     /// Clear all tags before setting them
     #[clap(long, short)]
     pub(crate) clear:   bool,
     /// A glob pattern like "*.png".
+    /// Explicitly select color for tag
+    #[clap(long, short = 'C', takes_value = true)]
+    pub(crate) color:   Option<String>,
     pub(crate) pattern: String,
     pub(crate) tags:    Vec<String>,
 }
@@ -186,9 +231,6 @@ pub(crate) struct RmOpts {
     /// A glob pattern like "*.png".
     pub(crate) pattern: String,
     pub(crate) tags:    Vec<String>,
-    /* /// Use extended glob features (not implemented yet)
-     * #[clap(long = "extended", short = 'x')]
-     * pub(crate) extended_glob: bool, */
 }
 
 #[derive(Clap, Debug)]
@@ -200,20 +242,32 @@ pub(crate) struct ClearOpts {
 #[derive(Clap, Debug)]
 pub(crate) struct SearchOpts {
     #[clap(required = true)]
-    pub(crate) tags:          Vec<String>,
+    pub(crate) tags:    Vec<String>,
     /// If provided output will be raw so that it can be easily piped to other
     /// commands
     #[clap(long, short)]
-    pub(crate) raw:           bool,
+    pub(crate) raw:     bool,
     /// If set to 'true' all entries containing any of provided tags will be
     /// returned
     #[clap(long, short)]
-    pub(crate) any:           bool,
+    pub(crate) any:     bool,
     /// Execute a command on each individual file
-    #[clap(long = "exec", short = 'x', takes_value = true)]
+    #[rustfmt::skip]
+    #[clap(
+        name = "exec", long = "exec", short = 'x',
+        takes_value = true, min_values = 1, value_name = "cmd",
+        value_terminator = ";", allow_hyphen_values = true,
+        long_about = EXEC_EXPL.as_ref()
+    )]
     pub(crate) execute:       Option<Vec<String>>,
     /// Execute a command on the batch of matching files
-    #[clap(long = "exec-batch", short = 'X', takes_value = true)]
+    #[clap(
+        long = "exec-batch", short = 'X', takes_value = true,
+        min_values = 1, allow_hyphen_values = true,
+        value_terminator = ";", value_name = "cmd",
+        conflicts_with = "exec",
+        long_about = EXEC_BATCH_EXPL.as_ref()
+    )]
     pub(crate) execute_batch: Option<Vec<String>>,
 }
 

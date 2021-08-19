@@ -21,7 +21,7 @@ use crate::DEFAULT_MAX_DEPTH;
 use anyhow::{Context, Result};
 use wutag_core::tag::Tag;
 
-pub(crate) fn fmt_err<E: Display>(err: E) -> String {
+pub fn fmt_err<E: Display>(err: E) -> String {
     format!("{} {}", "ERROR".red().bold(), format!("{}", err).white())
 }
 
@@ -125,7 +125,7 @@ pub(crate) fn raw_local_path<P: AsRef<Path>>(path: P, local: P) -> String {
 }
 
 /// Determine whether file (path) contains path and if so, return true
-pub(crate) fn contained_path<P: AsRef<Path>>(file: P, path: P) -> bool {
+pub fn contained_path<P: AsRef<Path>>(file: P, path: P) -> bool {
     file.as_ref()
         .display()
         .to_string()
@@ -170,6 +170,8 @@ pub(crate) fn regex_builder(pattern: &str, case_insensitive: bool) -> Regex {
         .expect("Invalid pattern")
 }
 
+/// Returns an ignore::WalkParallel instance that uses `base_path`, does not
+/// follow symlinks, respects hidden files, and uses max CPU's
 pub(crate) fn reg_walker<P>(dir: P) -> ignore::WalkParallel
 where
     P: AsRef<Path>,
@@ -177,6 +179,7 @@ where
     WalkBuilder::new(&dir.as_ref())
         .threads(num_cpus::get())
         .follow_links(false)
+        .hidden(true)
         .ignore(false)
         .git_global(false)
         .git_ignore(false)
@@ -212,11 +215,15 @@ where
         .context("invalid path")
 }
 
+/// Type to execute a closure across multiple threads when wrapped in `Mutex`
 type FnThread = Box<dyn FnMut(&ignore::DirEntry) + Send>;
 lazy_static::lazy_static! {
     static ref FNIN: Mutex<Option<FnThread>> = Mutex::new(None);
 }
 
+/// Traverses directories using `ignore::WalkParallel`, sending matches across
+/// channels to make the process faster. Executes closure `f` on each matching
+/// entry
 pub(crate) fn reg_ok<P, F>(
     pattern: Regex,
     base_path: P,
@@ -227,14 +234,13 @@ where
     P: AsRef<Path>,
     F: FnMut(&ignore::DirEntry) + Send + Sync + 'static,
 {
-    // set_closure(f);
     *FNIN.lock().expect("broken lock in closure") = Some(Box::new(f));
 
     let pattern = Arc::new(pattern);
     let base_path = base_path.as_ref().to_string_lossy().to_string();
     let max_depth = Arc::new(max_depth);
 
-    let (tx, rx) = channel::unbounded();
+    let (tx, rx) = channel::unbounded::<ignore::DirEntry>();
 
     let execution_thread = thread::spawn(move || {
         rx.iter().for_each(|e| {
@@ -244,27 +250,12 @@ where
         })
     });
 
-    // rayon::scope(|scope| {
-    //     let (ttx, rrx) = channel::unbounded();
-    //     scope.spawn(move |_| {
-    //         rrx.iter().for_each(|e| {
-    //             f(&e)
-    //         })
-    //     });
-    // });
-
-    // let execution_thread = thread::scope(|e| {
-    //     e.spawn(|_| {
-    //         rx.iter().for_each(|entry| f(&entry));
-    //
-    //     });
-    // }).unwrap();
-
+    log::debug!("Using regex with max_depth of: {}", max_depth.unwrap());
+    log::debug!("Using regex with base_dir of: {}", base_path.as_str());
     reg_walker(base_path.as_str()).run(|| {
         let tx = tx.clone();
         let pattern = Arc::clone(&pattern);
         let max_depth = Arc::clone(&max_depth);
-        log::debug!("Using regex with max_depth of: {}", max_depth.unwrap());
 
         Box::new(move |res| {
             let entry = match res {
@@ -282,16 +273,21 @@ where
                 }
             }
 
-            let search: Cow<OsStr> = Cow::Owned(OsString::from(entry.path()));
+            let search: Cow<OsStr> = Cow::Owned(OsString::from(entry.file_name()));
             if !pattern.is_match(&osstr_to_bytes(search.as_ref())) {
                 log::trace!("no match, skipping");
                 return ignore::WalkState::Continue;
             }
 
-            match tx.send(entry) {
-                Ok(_) => ignore::WalkState::Continue,
-                Err(_) => ignore::WalkState::Quit,
+            // Using a match statement does not preserve order for some reason
+            let send = tx.send(entry);
+            if send.is_err() {
+                log::debug!("Sent quit");
+                return ignore::WalkState::Quit;
             }
+
+            log::debug!("Sent continue");
+            ignore::WalkState::Continue
         })
     });
     drop(tx);

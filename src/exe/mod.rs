@@ -1,7 +1,7 @@
 mod command;
 pub mod exits;
 pub mod input;
-// pub mod job;
+pub mod job;
 mod token;
 
 use std::{
@@ -184,12 +184,6 @@ impl CommandTemplate {
         I: Iterator<Item = PathBuf>,
     {
         // FIX: Have to change batch limit of 1 token
-        // let args = if self.args[0].contains_wutag() {
-        //     self.split_first_arg("")
-        // } else {
-        //     self.args.clone()
-        // };
-
         let mut cmd = Command::new(self.args[0].generate(""));
         cmd.stdin(Stdio::inherit());
         cmd.stdout(Stdio::inherit());

@@ -1,3 +1,4 @@
+#![allow(unused)]
 use anyhow::{anyhow, Context, Result};
 use atty::Stream;
 use clap::IntoApp;
@@ -19,7 +20,7 @@ use std::{
 use crate::{
     comp_helper,
     config::Config,
-    exe::{generalize_exitcodes, CommandTemplate, ExitCode},
+    exe::{generalize_exitcodes, job::run_command, CommandTemplate, ExitCode},
     opt::{
         ClearOpts, Command, CompletionsOpts, CpOpts, EditOpts, ListObject, ListOpts, Opts, RmOpts,
         SearchOpts, SetOpts, Shell, APP_NAME,
@@ -34,20 +35,20 @@ use crate::{
 
 use wutag_core::{
     color::parse_color,
-    tag::{clear_tags, has_tags, list_tags, DirEntryExt, Tag},
+    tag::{clear_tags, has_tags, list_tags, DirEntryExt, Tag, DEFAULT_COLOR},
 };
 
 #[derive(Clone)]
-pub(crate) struct App {
-    pub(crate) base_dir:         PathBuf,
-    pub(crate) max_depth:        Option<usize>,
-    pub(crate) colors:           Vec<Color>,
-    pub(crate) global:           bool,
-    pub(crate) registry:         TagRegistry,
-    pub(crate) case_insensitive: bool,
-    pub(crate) pat_regex:        bool,
-    pub(crate) ls_colors:        bool,
-    pub(crate) color_when:       String,
+pub struct App {
+    pub base_dir:         PathBuf,
+    pub max_depth:        Option<usize>,
+    pub colors:           Vec<Color>,
+    pub global:           bool,
+    pub registry:         TagRegistry,
+    pub case_insensitive: bool,
+    pub pat_regex:        bool,
+    pub ls_colors:        bool,
+    pub color_when:       String,
 }
 
 /// Format errors
@@ -380,7 +381,7 @@ impl App {
                         )
                         .expect("Unable to write to tab handler");
                     });
-                // Can't get this to work if cells are reversed
+
                 if for_completions {
                     utags.iter().for_each(|tag| println!("{}", tag));
                 } else {
@@ -397,39 +398,65 @@ impl App {
             .map(|t| {
                 if let Some(t) = self.registry.get_tag(t) {
                     t.clone()
+                } else if let Some(color) = &opts.color {
+                    Tag::new(t, parse_color(color).unwrap_or(DEFAULT_COLOR))
                 } else {
                     Tag::random(t, &self.colors)
                 }
             })
             .collect::<Vec<_>>();
 
-        let pat = if self.pat_regex {
-            log::debug!("Using regex: {}", &opts.pattern);
-            String::from(&opts.pattern)
-        } else {
-            // TODO: Do something with this
-            // If can't be used with glob_builder, remove it
-            log::debug!("Using glob: {}", &opts.pattern);
-            glob_builder(&opts.pattern)
-        };
-        let re = regex_builder(&pat, self.case_insensitive);
-
-        let selfc = Arc::new(Mutex::new(self.clone()));
-
         // FIX: Find way to reduce duplicate code
-        // No tagging is done yet
+        // Maybe have builders return results and execute code on them?
         if self.pat_regex {
+            let re = regex_builder(&String::from(&opts.pattern), self.case_insensitive);
+            log::debug!("Compiled regex: {}", re);
+
+            let optsc = Arc::new(Mutex::new(opts.clone()));
+            let selfc = Arc::new(Mutex::new(self.clone()));
+
             if let Err(e) = reg_ok(
                 re,
                 &self.base_dir.clone(),
                 self.max_depth,
                 move |entry: &ignore::DirEntry| {
+                    let optsc = Arc::clone(&optsc);
+                    let opts = optsc.lock().unwrap();
+
                     let selfc = Arc::clone(&selfc);
-                    let selfu = selfc.lock().unwrap();
+                    let mut selfu = selfc.lock().unwrap();
                     println!(
                         "{}:",
                         fmt_path(entry.path(), selfu.ls_colors, &selfu.color_when)
                     );
+                    tags.iter().for_each(|tag| {
+                        if opts.clear {
+                            if let Some(id) = selfu.registry.find_entry(entry.path()) {
+                                selfu.registry.clear_entry(id);
+                            }
+                            match entry.has_tags() {
+                                Ok(has_tags) =>
+                                    if has_tags {
+                                        if let Err(e) = entry.clear_tags() {
+                                            err!('\t', e, entry);
+                                        }
+                                    },
+                                Err(e) => {
+                                    err!(e, entry);
+                                },
+                            }
+                        }
+
+                        if let Err(e) = entry.tag(tag) {
+                            err!('\t', e, entry);
+                        } else {
+                            let entry = EntryData::new(entry.path());
+                            let id = selfu.registry.add_or_update_entry(entry);
+                            selfu.registry.tag_entry(tag, id);
+                            print!("\t{} {}", "+".bold().green(), fmt_tag(tag));
+                        }
+                    });
+                    println!();
                 },
             ) {
                 eprintln!("{}", fmt_err(e));
@@ -667,9 +694,6 @@ impl App {
                     )
                 }
             }
-            // It seems that -x/-X has to be on each subcommand
-            // If it is on the main Opts and the type is a vector, it is unable
-            // to distinguish the as mentioned vector from the subcommand
         } else if opts.execute.is_some() || opts.execute_batch.is_some() {
             let command = if let Some(cmd) = &opts.execute {
                 Some(CommandTemplate::new(cmd))
@@ -679,24 +703,12 @@ impl App {
                     .map(|cmd| CommandTemplate::new_batch(cmd).expect("Invalid batch command"))
             };
 
-            let paths = self
-                .registry
-                .list_entries_paths(&opts.tags, self.global, &self.base_dir)
-                .into_iter();
-
-            // Unwrap should be safe since main else if checks
             let cmd = command.unwrap();
-            let mut results: Vec<ExitCode> = Vec::new();
-
-            if cmd.in_batch_mode() {
-                cmd.generate_and_execute_batch(paths);
-            } else {
-                for p in paths {
-                    let out_perm = Arc::new(Mutex::new(()));
-                    results.push(cmd.generate_and_execute(&p, out_perm))
-                }
-                generalize_exitcodes(&results);
-            }
+            run_command(
+                &(self.clone()),
+                &Arc::new(cmd),
+                &Arc::new(opts.tags.clone()),
+            );
         } else {
             for id in self.registry.list_entries_with_tags(&opts.tags) {
                 let path = match self.registry.get_entry(id) {

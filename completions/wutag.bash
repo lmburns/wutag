@@ -280,13 +280,21 @@ _wutag() {
             return 0
             ;;
         wutag__set)
-            opts=" -c -v -h  --clear --verbose --help  <pattern> <tags>... "
+            opts=" -c -C -v -h  --clear --color --verbose --help  <pattern> <tags>... "
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
                 
+                --color)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                    -C)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
                 *)
                     COMPREPLY=()
                     ;;

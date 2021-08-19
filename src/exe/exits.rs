@@ -21,7 +21,7 @@ impl ExitCode {
     }
 }
 
-pub fn generalize_exitcodes(results: &[ExitCode]) -> ExitCode {
+pub fn generalize_exitcodes(results: Vec<ExitCode>) -> ExitCode {
     if results.iter().any(|&c| ExitCode::is_error(c)) {
         return ExitCode::GeneralError;
     }

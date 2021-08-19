@@ -34,9 +34,10 @@ A command line tool for tagging files
 * [x] `--global` also has the `-r|--regex` option to use a regular expression when `clear`ing or `rm`ing files
     * Code was modified from [`fd`](https://github.com/sharkdp/fd)
 * [ ] Add option to local commands, as well as `set`
+* [ ] Can asynchronously `set` tags on files with regular expressions using `-r|--regex`
 
 #### Multiple registries
-* [x] Multiple registries are available with the `-r|--registry` option
+* [x] Multiple registries are available with the `-R|--registry` option
     * (Maybe) Add registry to `ERROR` message (would be difficult to implement, have to use registry in the metadata)
     * Registries can also be used through the `WUTAG_REGISTRY` environment variable
     * Tildes (`~`), and other environment variables can be used when declaring the registry:
@@ -67,6 +68,7 @@ A command line tool for tagging files
 * [x] Option to force colored output on pipe with `--color=(always|auto|never)`
 * [x] `wutag` respects the `NO_COLOR` environment variable when displaying output (that is `export NO_COLOR=1`)
 * [x] `-l|--ls-colors` will colorize files only with the colors specified in `LS_COLORS|LSCOLORS`
+* [x] `set` allows user to override configuration by specifying a color with `-C/--color`
 * [ ] Configuration option for base file color
 * [ ] `--color=always` for tags
 
@@ -159,28 +161,32 @@ Available shells are:
 ### Usage
 ```
 USAGE:
-    wutag [FLAGS] [OPTIONS] <SUBCOMMAND>
+    wutag [FLAGS/OPTIONS] <SUBCOMMAND> [TAGS/FLAGS]
 
 FLAGS:
     -i, --case-insensitive    Case insensitively search
     -g, --global              Apply operation to all tags and files instead of locally
     -h, --help                Prints help information
-    -n, --no-color            Do not colorize the output [env: NO_COLOR=]
+    -l, --ls-colors           Respect 'LS_COLORS' environment variable when coloring the output
+    -r, --regex               Case insensitively search
+    -v, --verbose             Display debugging messages on 4 levels (i.e., -vv..)
     -V, --version             Prints version information
 
 OPTIONS:
+    -c, --color <when>
+            When to colorize output [possible values: never, auto, always]
+
     -d, --dir <dir>
             Specify starting path for filesystem traversal
 
-    -m, --max-depth <max-depth>
-            Increase maximum recursion depth (default: 2)
+    -m, --max-depth <depth>
+            Increase maximum recursion depth [default: 2]
 
-    -r, --registry <reg>
-            Specify a different registry to use
+    -R, --registry <reg>
+            Specify a different registry to use [env: WUTAG_REGISTRY=]
 
 
 SUBCOMMANDS:
-    add                  Add tag(s) to files that match the given pattern
     clean-cache          Clean the cached tag registry
     clear                Clears all tags of the files that match the provided pattern
     cp                   Copies tags from the specified file to files that match a pattern
@@ -190,6 +196,9 @@ SUBCOMMANDS:
     search               Searches for files that have all of the provided 'tags'
     set                  Set tag(s) on files that match the given pattern
     print-completions    Prints completions for the specified shell to stdout
+
+See wutag --help for longer explanations of some base options.
+Use --help after a subcommand for explanations of more options.
 ```
 
 ### More help

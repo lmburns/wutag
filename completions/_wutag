@@ -17,20 +17,24 @@ _wutag() {
     _arguments "${_arguments_options[@]}" \
 '-d+[Specify starting path for filesystem traversal]: :_files -/' \
 '--dir=[Specify starting path for filesystem traversal]: :_files -/' \
-'-m+[Increase maximum recursion depth \[default: 2\]]' \
-'--max-depth=[Increase maximum recursion depth \[default: 2\]]' \
+'-m+[Increase maximum recursion depth from 2]' \
+'--max-depth=[Increase maximum recursion depth from 2]' \
 '-R+[Specify a different registry to use]: :_files' \
 '--registry=[Specify a different registry to use]: :_files' \
 '-c+[When to colorize output]: :(never auto always)' \
 '--color=[When to colorize output]: :(never auto always)' \
+'*-e+[Filter results by file extension]' \
+'*--ext=[Filter results by file extension]' \
+'*-E+[Exclude results that match pattern]: :_files -/' \
+'*--exclude=[Exclude results that match pattern]: :_files -/' \
 '-i[Case insensitively search]' \
 '--case-insensitive[Case insensitively search]' \
 '-r[Case insensitively search]' \
 '--regex[Case insensitively search]' \
 '-g[Apply operation to all tags and files instead of locally]' \
 '--global[Apply operation to all tags and files instead of locally]' \
-'-l[Respect '\''LS_COLORS'\'' environment variable when coloring the output]' \
-'--ls-colors[Respect '\''LS_COLORS'\'' environment variable when coloring the output]' \
+'(-c --color)-l[Respect '\''LS_COLORS'\'' environment variable when coloring the output]' \
+'(-c --color)--ls-colors[Respect '\''LS_COLORS'\'' environment variable when coloring the output]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '-h[Prints help information]' \
@@ -48,6 +52,8 @@ _wutag() {
         case $line[1] in
             (list)
 _arguments "${_arguments_options[@]}" \
+'*-e+[Filter results by file extension]' \
+'*--ext=[Filter results by file extension]' \
 '-r[If provided output will be raw so that it can be easily piped to other commands]' \
 '--raw[If provided output will be raw so that it can be easily piped to other commands]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
@@ -65,6 +71,8 @@ case $state in
         case $line[1] in
             (tags)
 _arguments "${_arguments_options[@]}" \
+'*-e+[Filter results by file extension]' \
+'*--ext=[Filter results by file extension]' \
 '-c[]' \
 '--completions[]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
@@ -75,6 +83,8 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (files)
 _arguments "${_arguments_options[@]}" \
+'*-e+[Filter results by file extension]' \
+'*--ext=[Filter results by file extension]' \
 '-t[Display tags along with the files]' \
 '--with-tags[Display tags along with the files]' \
 '(-G --garrulous)-f[Format the tags and files output into columns]' \
@@ -95,6 +105,8 @@ esac
 _arguments "${_arguments_options[@]}" \
 '-C+[A glob pattern like "*.png". Explicitly select color for tag]' \
 '--color=[A glob pattern like "*.png". Explicitly select color for tag]' \
+'*-e+[Filter results by file extension]' \
+'*--ext=[Filter results by file extension]' \
 '-c[Clear all tags before setting them]' \
 '--clear[Clear all tags before setting them]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
@@ -107,6 +119,8 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (rm)
 _arguments "${_arguments_options[@]}" \
+'*-e+[Filter results by file extension]' \
+'*--ext=[Filter results by file extension]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '-h[Prints help information]' \
@@ -117,6 +131,8 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (clear)
 _arguments "${_arguments_options[@]}" \
+'*-e+[Filter results by file extension]' \
+'*--ext=[Filter results by file extension]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '-h[Prints help information]' \
@@ -126,10 +142,12 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (search)
 _arguments "${_arguments_options[@]}" \
-'*-x+[Execute a command on each individual file]' \
-'*--exec=[Execute a command on each individual file]' \
+'(-X --exec-batch)*-x+[Execute a command on each individual file]' \
+'(-X --exec-batch)*--exec=[Execute a command on each individual file]' \
 '(-x --exec)*-X+[Execute a command on the batch of matching files]' \
 '(-x --exec)*--exec-batch=[Execute a command on the batch of matching files]' \
+'*-e+[Filter results by file extension]' \
+'*--ext=[Filter results by file extension]' \
 '-r[If provided output will be raw so that it can be easily piped to other commands]' \
 '--raw[If provided output will be raw so that it can be easily piped to other commands]' \
 '-a[If set to '\''true'\'' all entries containing any of provided tags will be returned]' \
@@ -143,6 +161,8 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (cp)
 _arguments "${_arguments_options[@]}" \
+'*-e+[Filter results by file extension]' \
+'*--ext=[Filter results by file extension]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '-h[Prints help information]' \
@@ -155,6 +175,8 @@ _arguments "${_arguments_options[@]}" \
 _arguments "${_arguments_options[@]}" \
 '-c+[Set the color of the tag to the specified color. Accepted values are hex colors like '\''0x000000'\'' or '\''#1F1F1F'\'' or just plain '\''ff000a'\''. The colors are case insensitive meaning '\''1f1f1f'\'' is equivalent to '\''1F1F1F'\'']' \
 '--color=[Set the color of the tag to the specified color. Accepted values are hex colors like '\''0x000000'\'' or '\''#1F1F1F'\'' or just plain '\''ff000a'\''. The colors are case insensitive meaning '\''1f1f1f'\'' is equivalent to '\''1F1F1F'\'']' \
+'*-e+[Filter results by file extension]' \
+'*--ext=[Filter results by file extension]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '-h[Prints help information]' \
@@ -165,6 +187,8 @@ _arguments "${_arguments_options[@]}" \
 (print-completions)
 _arguments "${_arguments_options[@]}" \
 '--shell=[Shell to print completions. Available shells are: bash, elvish, fish, powershell, zsh]: :(bash elvish fish powershell zsh)' \
+'*-e+[Filter results by file extension]' \
+'*--ext=[Filter results by file extension]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '-h[Prints help information]' \
@@ -173,6 +197,8 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (clean-cache)
 _arguments "${_arguments_options[@]}" \
+'*-e+[Filter results by file extension]' \
+'*--ext=[Filter results by file extension]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '-h[Prints help information]' \

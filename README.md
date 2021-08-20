@@ -20,21 +20,25 @@ A command line tool for tagging files
 * [x] `list files -tf` displays `tags` and `files` in a column `-f`ormat (requires `-t|--with-tags`)
 * [x] Display a success message of which registry is cleaned when clearing cache with `clean-cache`
 
-#### Improved globbing
+#### Searching
 * [x] Case insensitive globbing applies to any pattern, as well as the `-g|--global` option
-* [x] Both `--global` and non-`global` options have extended features
-    * [`globwalk`](https://github.com/Gilnaa/globwalk) for non-`global`
-    * [`globset`](https://docs.rs/globset/0.4.8/globset/#syntax) for `--global`
-        * This has more features than the above
-        * Only applies to `rm` and `clear` commands when using `--global`
-* [ ] Am looking for a crate with good extended globbing
-    * [`globber`](https://docs.rs/globber/0.1.3/globber/index.html#syntax) has more features, but doesn't support case-insensitivity
-
-#### Regular expressions
-* [x] `--global` also has the `-r|--regex` option to use a regular expression when `clear`ing or `rm`ing files
+* [x] Can asynchronously use a regular expression instead of a glob with `-r|--regex`
+* [x] Can search using file extensions using `-e|--ext`
+    * Works both globally and locally
+    * This is instead of the glob `*.{rs,md}` or the regex `.*.(rs|md)`
+        * Must use `*` pattern at least for now
+    * Global example: `wutag -ge 'rs' -e 'md' rm '*' txt` (only with `rm`, `clear`)
+    * Local example: `wutag -e 'rs' rm '*' txt`
     * Code was modified from [`fd`](https://github.com/sharkdp/fd)
-* [ ] Add option to local commands, as well as `set`
-* [ ] Can asynchronously `set` tags on files with regular expressions using `-r|--regex`
+* [x] Can exclude files with the `-E|--exclude` option (works on any subcommand requiring a path besides `search`)
+    * Works both globally and locally
+    * Global example: `wutag -gE '*exclude_path*' rm '*.txt' txt` (only with `rm`, `clear`)
+    * Local example: `wutag -E 'path/to/exclude/' rm '*.txt' txt`
+    * [ ] FIX: Conflicts with `search` and `-x/--exec`
+    * [ ] FIX: Add feature to search by file name
+* [ ] TODO: Add type to search by
+* [ ] TODO: Allow `-e ext` without glob pattern
+* [ ] TODO: Add ignore options to config
 
 #### Multiple registries
 * [x] Multiple registries are available with the `-R|--registry` option
@@ -69,8 +73,7 @@ A command line tool for tagging files
 * [x] `wutag` respects the `NO_COLOR` environment variable when displaying output (that is `export NO_COLOR=1`)
 * [x] `-l|--ls-colors` will colorize files only with the colors specified in `LS_COLORS|LSCOLORS`
 * [x] `set` allows user to override configuration by specifying a color with `-C/--color`
-* [ ] Configuration option for base file color
-* [ ] `--color=always` for tags
+* [ ] TODO: Configuration option for base file color
 
 #### File execution
 * [x] Can execute external commands on matching files
@@ -84,7 +87,8 @@ A command line tool for tagging files
 * [ ] Implement on things other than `search`
 
 #### Todo
-* [ ] Fix `any` vs the normal `all` (it doesn't work)
+* [ ] Fix `any` vs the normal `all` with search (it doesn't work)
+* [ ] Add global option to `cp`
 * [ ] Add more tests
 * [ ] Add usage examples and images
 

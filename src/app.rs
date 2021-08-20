@@ -2,6 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use atty::Stream;
 use clap::IntoApp;
 use colored::{Color, Colorize};
+use regex::bytes::{RegexSet, RegexSetBuilder};
 use shellexpand::LookupError;
 
 use std::{
@@ -26,7 +27,7 @@ use crate::{
     registry::{EntryData, TagRegistry},
     util::{
         contained_path, fmt_err, fmt_local_path, fmt_ok, fmt_path, fmt_tag, glob_builder,
-        osstr_to_bytes, raw_local_path, reg_ok, regex_builder,
+        osstr_to_bytes, print_err, raw_local_path, reg_ok, regex_builder,
     },
     DEFAULT_COLORS,
 };
@@ -47,6 +48,8 @@ pub struct App {
     pub pat_regex:        bool,
     pub ls_colors:        bool,
     pub color_when:       String,
+    pub extension:        Option<RegexSet>,
+    pub exclude:          Vec<String>,
 }
 
 /// Format errors
@@ -141,19 +144,17 @@ impl App {
             if registry.is_file() && registry.file_name().is_some() {
                 TagRegistry::load(&registry).unwrap_or_else(|_| TagRegistry::new(&registry))
             } else if registry.is_dir() && registry.file_name().is_some() {
-                eprintln!(
-                    "{}",
-                    fmt_err(format!(
-                        "{} is not a file. Using default",
-                        registry.display().to_string()
-                    ))
-                );
+                print_err(format!(
+                    "{} is not a file. Using default registry: {}",
+                    registry.display().to_string().green(),
+                    state_file.display().to_string().green(),
+                ));
                 TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
             } else if !registry.display().to_string().ends_with('/') {
                 fs::create_dir_all(
                     &registry
                         .parent()
-                        .expect("Could not get parent of nonexisting path"),
+                        .context("Could not get parent of nonexisting path")?,
                 )
                 .with_context(|| {
                     format!(
@@ -163,18 +164,36 @@ impl App {
                 })?;
                 TagRegistry::load(&registry).unwrap_or_else(|_| TagRegistry::new(&registry))
             } else {
-                eprintln!(
-                    "{}",
-                    fmt_err(format!(
-                        "{} is a directory path. Using default",
-                        registry.display().to_string()
-                    ))
-                );
+                print_err(format!(
+                    "{} last error is a directory path. Using default registry: {}",
+                    registry.display().to_string().green(),
+                    state_file.display().to_string().green(),
+                ));
                 TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
             }
         } else {
             TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
         };
+
+        let extensions = opts
+            .extension
+            .clone()
+            .map(|ext| {
+                RegexSetBuilder::new(
+                    ext.into_iter()
+                        .map(|e| e.trim_start_matches('.').to_owned())
+                        .map(|e| format!(r".\.{}$", regex::escape(e.as_str()))),
+                )
+                .case_insensitive(true)
+                .build()
+            })
+            .transpose()?;
+
+        let excludes = opts
+            .exclude
+            .clone()
+            .map(|v| v.iter().map(|p| String::from("!") + p.as_str()).collect())
+            .unwrap_or_else(Vec::new);
 
         Ok(App {
             base_dir,
@@ -190,10 +209,12 @@ impl App {
             pat_regex: opts.regex,
             ls_colors: opts.ls_colors,
             color_when: color_when.to_string(),
+            extension: extensions,
+            exclude: excludes,
         })
     }
 
-    fn save_registry(&mut self) {
+    pub fn save_registry(&mut self) {
         if let Err(e) = self.registry.save() {
             eprintln!("failed to save registry - {}", e);
         }
@@ -202,6 +223,8 @@ impl App {
     pub(crate) fn run_command(&mut self, cmd: Command) {
         if self.color_when == "never" {
             colored::control::SHOULD_COLORIZE.set_override(false);
+        } else if self.color_when == "always" {
+            colored::control::SHOULD_COLORIZE.set_override(true);
         }
 
         match cmd {
@@ -238,6 +261,7 @@ impl App {
     }
 
     fn list(&self, opts: &ListOpts) {
+        log::debug!("Using registry: {}", self.registry.path.display());
         let stdout = io::stdout();
         let std_lock = stdout.lock();
         let handle = io::BufWriter::new(std_lock);
@@ -274,13 +298,8 @@ impl App {
                         );
                     } else if !formatted {
                         global_opts(
-                            fmt_local_path(
-                                file.path(),
-                                &self.base_dir,
-                                self.ls_colors,
-                                &self.color_when,
-                            ),
-                            fmt_path(file.path(), self.ls_colors, &self.color_when),
+                            fmt_local_path(file.path(), &self.base_dir, self.ls_colors),
+                            fmt_path(file.path(), self.ls_colors),
                         );
                     }
 
@@ -306,13 +325,8 @@ impl App {
                                 "{}\t{}",
                                 ternary!(
                                     self.global,
-                                    fmt_path(file.path(), self.ls_colors, &self.color_when),
-                                    fmt_local_path(
-                                        file.path(),
-                                        &self.base_dir,
-                                        self.ls_colors,
-                                        &self.color_when
-                                    )
+                                    fmt_path(file.path(), self.ls_colors),
+                                    fmt_local_path(file.path(), &self.base_dir, self.ls_colors,)
                                 ),
                                 tags
                             )
@@ -390,6 +404,7 @@ impl App {
     }
 
     fn set(&mut self, opts: &SetOpts) {
+        log::debug!("Using registry: {}", self.registry.path.display());
         let tags = opts
             .tags
             .iter()
@@ -400,7 +415,7 @@ impl App {
                     Tag::new(
                         t,
                         parse_color(color).unwrap_or_else(|e| {
-                            eprintln!("{}", fmt_err(e));
+                            print_err(format!("{}", e));
                             DEFAULT_COLOR
                         }),
                     )
@@ -423,21 +438,21 @@ impl App {
         let selfc = Arc::new(Mutex::new(self.clone()));
 
         if let Err(e) = reg_ok(
-            re,
-            &self.base_dir.clone(),
-            self.max_depth,
+            Arc::new(re),
+            &Arc::new(self.clone()),
             move |entry: &ignore::DirEntry| {
                 let optsc = Arc::clone(&optsc);
                 let opts = optsc.lock().unwrap();
 
                 let selfc = Arc::clone(&selfc);
                 let mut selfu = selfc.lock().unwrap();
-                println!(
-                    "{}:",
-                    fmt_path(entry.path(), selfu.ls_colors, &selfu.color_when)
-                );
+                println!("{}:", fmt_path(entry.path(), selfu.ls_colors));
                 tags.iter().for_each(|tag| {
                     if opts.clear {
+                        log::debug!(
+                            "Using registry in threads: {}",
+                            selfu.registry.path.display()
+                        );
                         if let Some(id) = selfu.registry.find_entry(entry.path()) {
                             selfu.registry.clear_entry(id);
                         }
@@ -464,17 +479,18 @@ impl App {
                     }
                 });
                 println!();
+                log::debug!("Saving registry...");
+                selfu.save_registry();
             },
         ) {
-            eprintln!("{}", fmt_err(e));
+            print_err(format!("{}", e));
         }
-
-        self.save_registry();
     }
 
     fn rm(&mut self, opts: &RmOpts) {
         // Global will match a glob only against files that are tagged
         // Could add a fixed string option
+        log::debug!("Using registry: {}", self.registry.path.display());
         let pat = if self.pat_regex {
             String::from(&opts.pattern)
         } else {
@@ -486,9 +502,22 @@ impl App {
 
         if self.global {
             let ctags = opts.tags.iter().collect::<Vec<_>>();
+            let exclude_pattern =
+                regex_builder(self.exclude.join("|").as_str(), self.case_insensitive);
             for (&id, entry) in self.registry.clone().list_entries_and_ids() {
                 let search_str: Cow<OsStr> = Cow::Owned(entry.path().as_os_str().to_os_string());
-                if re.is_match(&osstr_to_bytes(search_str.as_ref())) {
+                let search_bytes = osstr_to_bytes(search_str.as_ref());
+                if !self.exclude.is_empty() && exclude_pattern.is_match(&search_bytes) {
+                    continue;
+                }
+
+                if let Some(ref ext) = self.extension {
+                    if !ext.is_match(&search_bytes) {
+                        continue;
+                    }
+                }
+
+                if re.is_match(&search_bytes) {
                     list_tags(entry.path())
                         .map(|tags| {
                             tags.iter().fold(Vec::new(), |mut acc, tag| {
@@ -505,10 +534,7 @@ impl App {
                             if search.is_some() {
                                 // println!("SEARCH: {:?} REAL: {:?}", search, realtag);
                                 self.registry.untag_by_name(search.unwrap(), id);
-                                println!(
-                                    "{}:",
-                                    fmt_path(entry.path(), self.ls_colors, &self.color_when)
-                                );
+                                println!("{}:", fmt_path(entry.path(), self.ls_colors));
 
                                 if let Err(e) = realtag.remove_from(entry.path()) {
                                     err!('\t', e, entry);
@@ -520,15 +546,16 @@ impl App {
                             }
                         });
                 }
+                log::debug!("Saving registry...");
+                self.save_registry();
             }
         } else {
             let optsc = Arc::new(Mutex::new(opts.clone()));
             let selfc = Arc::new(Mutex::new(self.clone()));
 
             if let Err(e) = reg_ok(
-                re,
-                &self.base_dir.clone(),
-                self.max_depth,
+                Arc::new(re),
+                &Arc::new(self.clone()),
                 move |entry: &ignore::DirEntry| {
                     let optsc = Arc::clone(&optsc);
                     let opts = optsc.lock().unwrap();
@@ -551,10 +578,7 @@ impl App {
                         return;
                     }
 
-                    println!(
-                        "{}:",
-                        fmt_path(entry.path(), selfu.ls_colors, &selfu.color_when)
-                    );
+                    println!("{}:", fmt_path(entry.path(), selfu.ls_colors));
                     tags.iter().for_each(|tag| {
                         let tag = match tag {
                             Ok(tag) => tag,
@@ -570,12 +594,13 @@ impl App {
                         }
                     });
                     println!();
+                    log::debug!("Saving registry...");
+                    selfu.save_registry();
                 },
             ) {
-                eprintln!("{}", fmt_err(e));
+                print_err(format!("{}", e));
             }
         }
-        self.save_registry();
     }
 
     fn clear(&mut self, opts: &ClearOpts) {
@@ -588,17 +613,27 @@ impl App {
         let re = regex_builder(&pat, self.case_insensitive);
 
         if self.global {
+            let exclude_pattern =
+                regex_builder(self.exclude.join("|").as_str(), self.case_insensitive);
             for (&id, entry) in self.registry.clone().list_entries_and_ids() {
                 let search_str: Cow<OsStr> = Cow::Owned(entry.path().as_os_str().to_os_string());
-                if re.is_match(&osstr_to_bytes(search_str.as_ref())) {
+                let search_bytes = &osstr_to_bytes(search_str.as_ref());
+                if !self.exclude.is_empty() && exclude_pattern.is_match(search_bytes) {
+                    continue;
+                }
+
+                if let Some(ref ext) = self.extension {
+                    if !ext.is_match(search_bytes) {
+                        continue;
+                    }
+                }
+
+                if re.is_match(search_bytes) {
                     self.registry.clear_entry(id);
                     match has_tags(entry.path()) {
                         Ok(has_tags) =>
                             if has_tags {
-                                println!(
-                                    "{}:",
-                                    fmt_path(entry.path(), self.ls_colors, &self.color_when)
-                                );
+                                println!("{}:", fmt_path(entry.path(), self.ls_colors));
                                 if let Err(e) = clear_tags(entry.path()) {
                                     err!('\t', e, entry);
                                 } else {
@@ -611,13 +646,14 @@ impl App {
                     }
                 }
             }
+            log::debug!("Saving registry...");
+            self.save_registry();
         } else {
             let selfc = Arc::new(Mutex::new(self.clone()));
 
             if let Err(e) = reg_ok(
-                re,
-                &self.base_dir.clone(),
-                self.max_depth,
+                Arc::new(re),
+                &Arc::new(self.clone()),
                 move |entry: &ignore::DirEntry| {
                     let selfc = Arc::clone(&selfc);
                     let mut selfu = selfc.lock().unwrap();
@@ -628,10 +664,7 @@ impl App {
                     match entry.has_tags() {
                         Ok(has_tags) =>
                             if has_tags {
-                                println!(
-                                    "{}:",
-                                    fmt_path(entry.path(), selfu.ls_colors, &selfu.color_when)
-                                );
+                                println!("{}:", fmt_path(entry.path(), selfu.ls_colors));
                                 if let Err(e) = entry.clear_tags() {
                                     err!('\t', e, entry);
                                 } else {
@@ -642,15 +675,17 @@ impl App {
                             err!(e, entry);
                         },
                     }
+                    log::debug!("Saving registry...");
+                    selfu.save_registry();
                 },
             ) {
-                eprintln!("{}", fmt_err(e));
+                print_err(format!("{}", e));
             }
         }
-        self.save_registry();
     }
 
     fn search(&self, opts: &SearchOpts) {
+        // FIX: Cannot exclude file paths
         // FIX: Returns all files regardless of tags
         // ADD: option to search by file name
 
@@ -669,11 +704,7 @@ impl App {
                             })
                         })
                         .unwrap_or_default();
-                    println!(
-                        "{}: {}",
-                        fmt_path(entry.path(), self.ls_colors, &self.color_when),
-                        tags
-                    )
+                    println!("{}: {}", fmt_path(entry.path(), self.ls_colors), tags)
                 }
             }
         } else if opts.execute.is_some() || opts.execute_batch.is_some() {
@@ -720,8 +751,8 @@ impl App {
                         "{}: {}",
                         ternary!(
                             self.global,
-                            fmt_path(path, self.ls_colors, &self.color_when),
-                            fmt_local_path(path, &self.base_dir, self.ls_colors, &self.color_when)
+                            fmt_path(path, self.ls_colors),
+                            fmt_local_path(path, &self.base_dir, self.ls_colors)
                         ),
                         tags
                     )
@@ -731,6 +762,7 @@ impl App {
     }
 
     fn cp(&mut self, opts: &CpOpts) {
+        // TODO: Add global option
         let pat = if self.pat_regex {
             String::from(&opts.pattern)
         } else {
@@ -744,16 +776,12 @@ impl App {
             Ok(tags) => {
                 let selfc = Arc::new(Mutex::new(self.clone()));
                 if let Err(e) = reg_ok(
-                    re,
-                    &self.base_dir.clone(),
-                    self.max_depth,
+                    Arc::new(re),
+                    &Arc::new(self.clone()),
                     move |entry: &ignore::DirEntry| {
                         let selfc = Arc::clone(&selfc);
                         let mut selfu = selfc.lock().unwrap();
-                        println!(
-                            "{}:",
-                            fmt_path(entry.path(), selfu.ls_colors, &selfu.color_when)
-                        );
+                        println!("{}:", fmt_path(entry.path(), selfu.ls_colors));
                         for tag in &tags {
                             if let Err(e) = entry.tag(tag) {
                                 err!('\t', e, entry)
@@ -766,9 +794,9 @@ impl App {
                         }
                     },
                 ) {
-                    eprintln!("{}", fmt_err(e));
+                    print_err(format!("{}", e));
                 }
-
+                log::debug!("Saving registry...");
                 self.save_registry();
             },
             Err(e) => eprintln!(
@@ -783,7 +811,7 @@ impl App {
         let color = match parse_color(&opts.color) {
             Ok(color) => color,
             Err(e) => {
-                eprintln!("{}", fmt_err(e));
+                print_err(format!("{}", e));
                 return;
             },
         };
@@ -794,7 +822,7 @@ impl App {
                 println!("{} ==> {}", fmt_tag(&old_tag), fmt_tag(new_tag.unwrap()))
             }
         }
-
+        log::debug!("Saving registry...");
         self.save_registry();
     }
 

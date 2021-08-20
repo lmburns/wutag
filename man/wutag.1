@@ -10,46 +10,7 @@ DESCRIPTION: Tag files and manage them with color
 .SS "USAGE:"
 .IP
 wutag [FLAGS/OPTIONS] <SUBCOMMAND> [TAGS/FLAGS]
-.SS "FLAGS:"
-.HP
-\fB\-i\fR, \fB\-\-case\-insensitive\fR
-.IP
-Turn the glob into a case insensitive one (default: case sensitive). Only applies to
-subcommands that take a pattern as a positional argument.
-.HP
-\fB\-g\fR, \fB\-\-global\fR
-.IP
-Apply operation to files that are already tagged instead of traversing into local
-directories or directories specified with '\-d|\-\-dir'. Only applies to 'search', 'list',
-\&'rm', and 'clear'.
-.HP
-\fB\-h\fR, \fB\-\-help\fR
-.IP
-Prints help information
-.HP
-\fB\-l\fR, \fB\-\-ls\-colors\fR
-.IP
-Respect 'LS_COLORS' environment variable when coloring the output
-.HP
-\fB\-r\fR, \fB\-\-regex\fR
-.IP
-Search for files using a regular expressions instead of a glob. Only applies to
-subcommands that take a pattern as a positional argument.
-.HP
-\fB\-v\fR, \fB\-\-verbose\fR
-.IP
-Display debugging messages on 4 levels (i.e., \fB\-vv\fR..)
-.HP
-\fB\-V\fR, \fB\-\-version\fR
-.IP
-Prints version information
 .SS "OPTIONS:"
-.HP
-\fB\-c\fR, \fB\-\-color\fR <when>
-.IP
-When to colorize output (usually meant for piping). Valid values are: always, auto,
-never. The always selection only applies to the path as of now. [possible values: never,
-auto, always]
 .HP
 \fB\-d\fR, \fB\-\-dir\fR <dir>
 .IP
@@ -64,16 +25,76 @@ Increase maximum recursion depth of filesystem traversal to specified value (def
 .HP
 \fB\-R\fR, \fB\-\-registry\fR <reg>
 .IP
-Specify a different registry to use [env: WUTAG_REGISTRY=]
+Specify a different registry to use [env: WUTAG_REGISTRY]
+.HP
+\fB\-i\fR, \fB\-\-case\-insensitive\fR
+.IP
+Turn the glob into a case insensitive one (default: case sensitive). Only applies to
+subcommands that take a pattern as a positional argument.
+.HP
+\fB\-r\fR, \fB\-\-regex\fR
+.IP
+Search for files using a regular expressions instead of a glob. Only applies to
+subcommands that take a pattern as a positional argument.
+.HP
+\fB\-g\fR, \fB\-\-global\fR
+.IP
+Apply operation to files that are already tagged instead of traversing into local
+directories or directories specified with '\-d|\-\-dir'. Only applies to 'search', 'list',
+\&'rm', and 'clear'.
+.HP
+\fB\-l\fR, \fB\-\-ls\-colors\fR
+.IP
+Respect 'LS_COLORS' environment variable when coloring the output
+.HP
+\fB\-c\fR, \fB\-\-color\fR <when>
+.IP
+When to colorize output (usually meant for piping). Valid values are: always, auto,
+never. The always selection only applies to the path as of now.
+.HP
+\fB\-e\fR, \fB\-\-ext\fR <extension>...
+.IP
+Specify file extensions to match against (can be used multiple times) instead of using
+the glob '*.{rs,go}' or the regex '.*.(rs|go)'. Used like: 'wutag \fB\-e\fR rs set '*' <tag>'.
+Can be used multiple times: e.g., \fB\-e\fR rs \fB\-e\fR go.
+.HP
+\fB\-E\fR, \fB\-\-exclude\fR <pattern>...
+.IP
+Specify a pattern to exclude from the results. Can be used multiple times: e.g., \fB\-E\fR
+path/here \fB\-E\fR path/there.
+.HP
+\fB\-v\fR, \fB\-\-verbose\fR
+.IP
+Display debugging messages on 4 levels (i.e., \fB\-vv\fR..)
+.HP
+\fB\-h\fR, \fB\-\-help\fR
+.IP
+Prints help information
+.HP
+\fB\-V\fR, \fB\-\-version\fR
+.IP
+Prints version information
 .SS "SUBCOMMANDS:"
 .IP
-clean\-cache
+list
 .IP
-Clean the cached tag registry
+Lists all available tags or files
+.IP
+set
+.IP
+Set tag(s) on files that match the given pattern
+.IP
+rm
+.IP
+Remove tag(s) from the files that match the provided pattern
 .IP
 clear
 .IP
 Clears all tags of the files that match the provided pattern
+.IP
+search
+.IP
+Searches for files that have all of the provided 'tags'
 .IP
 cp
 .IP
@@ -83,21 +104,9 @@ edit
 .IP
 Edits a tag
 .IP
-list
+clean\-cache
 .IP
-Lists all available tags or files
-.IP
-rm
-.IP
-Remove tag(s) from the files that match the provided pattern
-.IP
-search
-.IP
-Searches for files that have all of the provided 'tags'
-.IP
-set
-.IP
-Set tag(s) on files that match the given pattern
+Clean the cached tag registry
 .IP
 print\-completions
 .IP

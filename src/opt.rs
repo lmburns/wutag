@@ -1,9 +1,11 @@
 //! Options used by the main executable
-use std::{env, path::PathBuf, str::FromStr};
+use std::{env, fs, path::PathBuf, str::FromStr};
 
 use anyhow::Error;
 use clap::{crate_description, crate_version, AppSettings, Clap, ValueHint};
 use lazy_static::lazy_static;
+
+use wutag_core::color::parse_color;
 
 pub(crate) const YELLOW: &str = "\x1b[0;33m";
 pub(crate) const GREEN: &str = "\x1b[0;32m";
@@ -53,7 +55,7 @@ lazy_static! {
     );
 }
 
-#[derive(Clap, Default, Debug)]
+#[derive(Clap, Default, Clone, Debug)]
 #[clap(
     version = crate_version!(),
     author = APP_AUTHORS.as_ref(),
@@ -63,33 +65,47 @@ lazy_static! {
     global_setting = AppSettings::DisableHelpSubcommand,  // Disables help (use -h)
     global_setting = AppSettings::VersionlessSubcommands, // Shows no --version
     global_setting = AppSettings::InferSubcommands,       // l, li, lis == list
+    global_setting = AppSettings::UnifiedHelpMessage,     // Options/Flags together
+    global_setting = AppSettings::DeriveDisplayOrder,     // Display in order listed here
+    global_setting = AppSettings::HidePossibleValuesInHelp,
+    max_term_width = 100,
     after_help = AFTER_HELP.as_ref(),
     override_usage = OVERRIDE_HELP.as_ref()
 )]
 pub(crate) struct Opts {
     /// Specify starting path for filesystem traversal
-    #[clap(short, long, next_line_help = true,
+    #[clap(
+        long, short,
         value_hint = ValueHint::DirPath,
+        validator = |t| fs::metadata(t)
+                            .map_err(|_| "must be a valid path")
+                            .map(|_| ())
+                            .map_err(|e| e.to_string()),
         long_about = "\
         When specified, the program will look for files starting from the provided \
         path, otherwise default to current working directory. Only applies to subcommands that \
         take a pattern as a positional argument"
     )]
     pub(crate) dir:              Option<PathBuf>,
-    /// Increase maximum recursion depth [default: 2]
+    /// Increase maximum recursion depth from 2
     #[clap(
-        long,
-        short,
-        next_line_help = true,
+        long, short,
         value_name = "depth",
+        validator = |t| t.parse::<usize>()
+                            .map_err(|_| "must be a number")
+                            .map(|_| ())
+                            .map_err(|e| e.to_string()),
         long_about = "\
         Increase maximum recursion depth of filesystem traversal to specified value (default: 2). \
                       Only applies to subcommands that take a pattern as a positional argument."
     )]
     pub(crate) max_depth:        Option<usize>,
     /// Specify a different registry to use
-    #[clap(long = "registry", short = 'R', next_line_help = true,
-        value_hint = ValueHint::FilePath, env = "WUTAG_REGISTRY"
+    #[clap(
+        long = "registry", short = 'R',
+        value_hint = ValueHint::FilePath,
+        env = "WUTAG_REGISTRY",
+        hide_env_values = true // Part of clap's todo
     )]
     pub(crate) reg:              Option<PathBuf>,
     /// Case insensitively search
@@ -112,6 +128,7 @@ pub(crate) struct Opts {
     pub(crate) regex:            bool,
     /// Apply operation to all tags and files instead of locally
     #[clap(
+        name = "global",
         long,
         short,
         long_about = "\
@@ -121,16 +138,49 @@ pub(crate) struct Opts {
     )]
     pub(crate) global:           bool,
     /// Respect 'LS_COLORS' environment variable when coloring the output
-    #[clap(long, short = 'l')]
+    #[clap(long, short = 'l', conflicts_with = "color")]
     pub(crate) ls_colors:        bool,
     /// When to colorize output
-    #[clap(long = "color", short = 'c', value_name = "when",
-        next_line_help = true, possible_values = &["never", "auto", "always"],
+    #[clap(
+        name = "color", long = "color", short = 'c',
+        value_name = "when",
+        possible_values = &["never", "auto", "always"],
         long_about = "\
         When to colorize output (usually meant for piping). Valid values are: always, \
         auto, never. The always selection only applies to the path as of now."
     )]
     pub(crate) color_when:       Option<String>,
+    #[clap(
+        long = "ext",
+        short = 'e',
+        global = true,
+        number_of_values = 1,
+        multiple = true,
+        takes_value = true,
+        value_name = "extension",
+        long_about = "\
+        Specify file extensions to match against (can be used multiple times) instead of using the \
+                      glob '*.{rs,go}' or the regex '.*.(rs|go)'. Used like: 'wutag -e rs set '*' \
+                      <tag>'. Can be used multiple times: e.g., -e rs -e go.
+        "
+    )]
+    /// Filter results by file extension
+    pub(crate) extension:        Option<Vec<String>>,
+    #[clap(
+        long = "exclude", short = 'E',
+        number_of_values = 1,
+        multiple = true,
+        takes_value = true,
+        value_name = "pattern",
+        value_hint = ValueHint::DirPath,
+        // conflicts_with = "global",
+        long_about = "\
+        Specify a pattern to exclude from the results. Can be used multiple times: e.g., \
+        -E path/here -E path/there.
+        "
+    )]
+    /// Exclude results that match pattern
+    pub(crate) exclude:          Option<Vec<String>>,
     #[clap(long, short, global = true, parse(from_occurrences))]
     /// Display debugging messages on 4 levels (i.e., -vv..)
     pub(crate) verbose:          u8,
@@ -170,7 +220,7 @@ impl Default for Command {
 }
 
 // It seems that 'name' has to be defined to use 'requires' or 'conflicts_with'
-#[derive(Clap, Debug)]
+#[derive(Clap, Debug, Clone)]
 pub(crate) enum ListObject {
     Tags {
         #[clap(long = "completions", short = 'c', hidden = true)]
@@ -183,9 +233,9 @@ pub(crate) enum ListObject {
         /// Format the tags and files output into columns
         #[clap(
             name = "formatted",
-            conflicts_with = "garrulous",
             long = "format",
             short,
+            conflicts_with = "garrulous",
             requires = "with_tags",
             long_about = "Format the tags and files output into columns. Requires '--with-tags'"
         )]
@@ -193,16 +243,16 @@ pub(crate) enum ListObject {
         /// Display tags and files on separate lines
         #[clap(
             name = "garrulous",
-            conflicts_with = "formatted",
             long,
             short = 'G',
+            conflicts_with = "formatted",
             requires = "with_tags"
         )]
         garrulous: bool,
     },
 }
 
-#[derive(Clap, Debug)]
+#[derive(Clap, Debug, Clone)]
 pub(crate) struct ListOpts {
     /// The object to list. Valid values are: 'tags', 'files'.
     #[clap(subcommand)]
@@ -220,7 +270,12 @@ pub(crate) struct SetOpts {
     pub(crate) clear:   bool,
     /// A glob pattern like "*.png".
     /// Explicitly select color for tag
-    #[clap(long, short = 'C', takes_value = true)]
+    #[clap(long, short = 'C', takes_value = true,
+        validator = |t| parse_color(t)
+                            .map_err(|_| "must be a valid hex color")
+                            .map(|_| ())
+                            .map_err(|e| e.to_string())
+    )]
     pub(crate) color:   Option<String>,
     pub(crate) pattern: String,
     pub(crate) tags:    Vec<String>,
@@ -233,7 +288,7 @@ pub(crate) struct RmOpts {
     pub(crate) tags:    Vec<String>,
 }
 
-#[derive(Clap, Debug)]
+#[derive(Clap, Debug, Clone)]
 pub(crate) struct ClearOpts {
     /// A glob pattern like "*.png".
     pub(crate) pattern: String,
@@ -254,37 +309,56 @@ pub(crate) struct SearchOpts {
     /// Execute a command on each individual file
     #[rustfmt::skip]
     #[clap(
-        name = "exec", long = "exec", short = 'x',
-        takes_value = true, min_values = 1, value_name = "cmd",
-        value_terminator = ";", allow_hyphen_values = true,
+        name = "exec",
+        long = "exec", short = 'x',
+        takes_value = true,
+        min_values = 1,
+        value_name = "cmd",
+        value_terminator = ";",
+        allow_hyphen_values = true,
+        conflicts_with = "exec-batch",
         long_about = EXEC_EXPL.as_ref()
     )]
     pub(crate) execute:       Option<Vec<String>>,
     /// Execute a command on the batch of matching files
     #[clap(
-        long = "exec-batch", short = 'X', takes_value = true,
-        min_values = 1, allow_hyphen_values = true,
-        value_terminator = ";", value_name = "cmd",
+        name = "exec-batch",
+        long = "exec-batch", short = 'X',
+        takes_value = true,
+        min_values = 1,
+        value_name = "cmd",
+        value_terminator = ";",
+        allow_hyphen_values = true,
         conflicts_with = "exec",
         long_about = EXEC_BATCH_EXPL.as_ref()
     )]
     pub(crate) execute_batch: Option<Vec<String>>,
 }
 
-#[derive(Clap, Debug)]
+#[derive(Clap, Debug, Clone)]
 pub(crate) struct CpOpts {
     /// Path to the file from which to copy tags from
-    #[clap(value_hint = ValueHint::FilePath)]
+    #[clap(value_hint = ValueHint::FilePath,
+        validator = |t| fs::metadata(t)
+                            .map_err(|_| "must be a valid path")
+                            .map(|_| ())
+                            .map_err(|e| e.to_string()),
+    )]
     pub(crate) input_path: PathBuf,
     /// A glob pattern like "*.png".
     pub(crate) pattern:    String,
 }
 
-#[derive(Clap, Debug)]
+#[derive(Clap, Debug, Clone)]
 pub(crate) struct EditOpts {
     /// The tag to edit
     pub(crate) tag:   String,
-    #[clap(long, short)]
+    #[clap(long, short,
+        validator = |t| parse_color(t)
+                            .map_err(|_| "must be a valid hex color")
+                            .map(|_| ())
+                            .map_err(|e| e.to_string())
+    )]
     /// Set the color of the tag to the specified color. Accepted values are hex
     /// colors like '0x000000' or '#1F1F1F' or just plain 'ff000a'. The
     /// colors are case insensitive meaning '1f1f1f' is equivalent to
@@ -292,7 +366,7 @@ pub(crate) struct EditOpts {
     pub(crate) color: String,
 }
 
-#[derive(Clap, Debug)]
+#[derive(Clap, Debug, Clone)]
 #[allow(clippy::enum_variant_names)]
 pub(crate) enum Shell {
     Bash,
@@ -323,7 +397,7 @@ impl Shell {
     }
 }
 
-#[derive(Clap, Debug)]
+#[derive(Clap, Debug, Clone)]
 pub(crate) struct CompletionsOpts {
     /// Shell to print completions. Available shells are: bash, elvish, fish,
     /// powershell, zsh
@@ -331,7 +405,7 @@ pub(crate) struct CompletionsOpts {
     pub(crate) shell: Shell,
 }
 
-#[derive(Clap, Debug)]
+#[derive(Clap, Debug, Clone)]
 pub(crate) enum Command {
     /// Lists all available tags or files.
     #[clap(aliases = &["ls", "l", "li", "lis"])]

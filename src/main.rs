@@ -14,7 +14,9 @@ use config::Config;
 use log::LevelFilter;
 use opt::Opts;
 
-/// Default max depth passed to [GlobWalker](globwalker::GlobWalker)
+/// Default base color for printing files
+pub(crate) const DEFAULT_BASE_COLOR: Color = Color::Blue;
+/// Default max depth passed to [WalkParallel](ignore::WalkParallel)
 pub(crate) const DEFAULT_MAX_DEPTH: usize = 2;
 /// Default colors used for tags
 pub(crate) const DEFAULT_COLORS: &[Color] = &[

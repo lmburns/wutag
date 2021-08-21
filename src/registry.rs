@@ -32,7 +32,7 @@ impl EntryData {
 
 pub(crate) type EntryId = usize;
 
-#[derive(Default, Deserialize, Serialize, Clone)]
+#[derive(Default, Deserialize, Serialize, Clone, Debug)]
 pub struct TagRegistry {
     pub tags: HashMap<Tag, Vec<EntryId>>,
     entries:  HashMap<EntryId, EntryData>,

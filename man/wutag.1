@@ -10,22 +10,7 @@ DESCRIPTION: Tag files and manage them with color
 .SS "USAGE:"
 .IP
 wutag [FLAGS/OPTIONS] <SUBCOMMAND> [TAGS/FLAGS]
-.SS "OPTIONS:"
-.HP
-\fB\-d\fR, \fB\-\-dir\fR <dir>
-.IP
-When specified, the program will look for files starting from the provided path,
-otherwise default to current working directory. Only applies to subcommands that take a
-pattern as a positional argument
-.HP
-\fB\-m\fR, \fB\-\-max\-depth\fR <depth>
-.IP
-Increase maximum recursion depth of filesystem traversal to specified value (default:
-2). Only applies to subcommands that take a pattern as a positional argument.
-.HP
-\fB\-R\fR, \fB\-\-registry\fR <reg>
-.IP
-Specify a different registry to use [env: WUTAG_REGISTRY]
+.SS "FLAGS:"
 .HP
 \fB\-i\fR, \fB\-\-case\-insensitive\fR
 .IP
@@ -47,6 +32,34 @@ directories or directories specified with '\-d|\-\-dir'. Only applies to 'search
 .IP
 Respect 'LS_COLORS' environment variable when coloring the output
 .HP
+\fB\-v\fR, \fB\-\-verbose\fR
+.IP
+Display debugging messages on 4 levels (i.e., \fB\-vv\fR..)
+.HP
+\fB\-h\fR, \fB\-\-help\fR
+.IP
+Prints help information
+.HP
+\fB\-V\fR, \fB\-\-version\fR
+.IP
+Prints version information
+.SS "OPTIONS:"
+.HP
+\fB\-d\fR, \fB\-\-dir\fR <dir>
+.IP
+When specified, the program will look for files starting from the provided path,
+otherwise default to current working directory. Only applies to subcommands that take a
+pattern as a positional argument
+.HP
+\fB\-m\fR, \fB\-\-max\-depth\fR <depth>
+.IP
+Increase maximum recursion depth of filesystem traversal to specified value (default:
+2). Only applies to subcommands that take a pattern as a positional argument.
+.HP
+\fB\-R\fR, \fB\-\-registry\fR <reg>
+.IP
+Specify a different registry to use [env: WUTAG_REGISTRY]
+.HP
 \fB\-c\fR, \fB\-\-color\fR <when>
 .IP
 When to colorize output (usually meant for piping). Valid values are: always, auto,
@@ -62,18 +75,6 @@ Can be used multiple times: e.g., \fB\-e\fR rs \fB\-e\fR go.
 .IP
 Specify a pattern to exclude from the results. Can be used multiple times: e.g., \fB\-E\fR
 path/here \fB\-E\fR path/there.
-.HP
-\fB\-v\fR, \fB\-\-verbose\fR
-.IP
-Display debugging messages on 4 levels (i.e., \fB\-vv\fR..)
-.HP
-\fB\-h\fR, \fB\-\-help\fR
-.IP
-Prints help information
-.HP
-\fB\-V\fR, \fB\-\-version\fR
-.IP
-Prints version information
 .SS "SUBCOMMANDS:"
 .IP
 list

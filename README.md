@@ -36,9 +36,9 @@ A command line tool for tagging files
     * Local example: `wutag -E 'path/to/exclude/' rm '*.txt' txt`
     * [ ] FIX: Conflicts with `search` and `-x/--exec`
     * [ ] FIX: Add feature to search by file name
+* [x] Can ignore certain paths permanently by using `ignores` in your configuration (example below)
 * [ ] TODO: Add type to search by
 * [ ] TODO: Allow `-e ext` without glob pattern
-* [ ] TODO: Add ignore options to config
 
 #### Multiple registries
 * [x] Multiple registries are available with the `-R|--registry` option
@@ -73,7 +73,7 @@ A command line tool for tagging files
 * [x] `wutag` respects the `NO_COLOR` environment variable when displaying output (that is `export NO_COLOR=1`)
 * [x] `-l|--ls-colors` will colorize files only with the colors specified in `LS_COLORS|LSCOLORS`
 * [x] `set` allows user to override configuration by specifying a color with `-C/--color`
-* [ ] TODO: Configuration option for base file color
+* [x] Configure the base file path color (example below)
 
 #### File execution
 * [x] Can execute external commands on matching files
@@ -91,6 +91,7 @@ A command line tool for tagging files
 * [ ] Add global option to `cp`
 * [ ] Add more tests
 * [ ] Add usage examples and images
+* [ ] Use `fsio` throughout crate
 
 ![Example usage](https://github.com/vv9k/wutag/blob/master/static/usage.svg)
 
@@ -139,11 +140,16 @@ There will be a `wutag.yml` file located in `$XDG_CONFIG_HOME/wutag` or `$HOME/.
 Example configuration:
 ```yaml
 ---
+base_color: "#FF5813"
 max_depth: 100
 colors:
-- '0xabba0f'
-- '#121212'
-- '0x111111'
+    - '0xabba0f'
+    - '#121212'
+    - '0x111111'
+ignores:
+    - "src/"
+    - "Library/"
+    - "**/foo/bar"
 ```
 
 ## Tab completion

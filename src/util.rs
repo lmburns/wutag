@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use colored::{ColoredString, Colorize};
+use colored::{Color, ColoredString, Colorize};
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
 use lazy_static::lazy_static;
 use lscolors::{LsColors, Style};
@@ -8,6 +8,8 @@ use std::{
     borrow::Cow,
     ffi::{OsStr, OsString},
     fmt::Display,
+    fs,
+    io::{self, Write},
     path::Path,
     sync::{Arc, Mutex},
     thread,
@@ -18,6 +20,42 @@ use crossbeam_channel as channel;
 use crate::{app::App, DEFAULT_MAX_DEPTH};
 use anyhow::Result;
 use wutag_core::tag::Tag;
+
+fn create_tmp_ignore(
+    write_content: &dyn Fn(&mut fs::File) -> io::Result<()>,
+    append: bool,
+) -> String {
+    let tmp = fsio::path::get_temporary_file_path("wutag_ignore");
+    match fsio::file::modify_file(&tmp, write_content, append) {
+        Ok(_) => tmp,
+        Err(e) => {
+            print_err(format!("Unable to create wutag ignore file: {:?}", &e));
+            std::process::exit(1);
+        },
+    }
+}
+
+fn write_ignore(ignores: &[String], file: &fs::File) -> io::Result<()> {
+    let mut writer = io::BufWriter::new(file);
+
+    ignores.iter().for_each(|i| {
+        writeln!(&mut writer, "{}", i).expect("Unable to write to ignore file");
+    });
+
+    // for i in ignores.iter() {
+    //     file.write_all((*i).as_bytes()).expect("Unable to write to ignore file");
+    // }
+
+    Ok(())
+}
+
+#[allow(unused)]
+fn delete_file(file: String) {
+    match fsio::file::delete(&file) {
+        Ok(_) => log::debug!("Ignore file deleted: {}", &file),
+        Err(err) => log::debug!("Unable to delete ignore file: {} {:#?}", &file, err),
+    }
+}
 
 pub fn fmt_err<E: Display>(err: E) -> String {
     format!("{} {}", "ERROR".red().bold(), format!("{}", err).white())
@@ -31,7 +69,7 @@ pub(crate) fn fmt_ok<S: AsRef<str>>(msg: S) -> String {
     format!("{} {}", "OK".green().bold(), msg.as_ref().white())
 }
 
-pub(crate) fn fmt_path<P: AsRef<Path>>(path: P, ls_colors: bool) -> String {
+pub(crate) fn fmt_path<P: AsRef<Path>>(path: P, base_color: Color, ls_colors: bool) -> String {
     // ls_colors implies forced coloring
     if ls_colors {
         let lscolors = LsColors::from_env().unwrap_or_default();
@@ -43,13 +81,22 @@ pub(crate) fn fmt_path<P: AsRef<Path>>(path: P, ls_colors: bool) -> String {
 
         format!("{}", style.paint(path.as_ref().display().to_string()))
     } else {
-        format!("{}", path.as_ref().display().to_string().bold().blue())
+        format!(
+            "{}",
+            path.as_ref().display().to_string().color(base_color).bold()
+        )
+        // format!("{}", path.as_ref().display().to_string().bold().blue())
     }
 }
 
 /// Format a local path (i.e., remove path components before files local to
 /// directory)
-pub(crate) fn fmt_local_path<P: AsRef<Path>>(path: P, local_path: P, ls_colors: bool) -> String {
+pub(crate) fn fmt_local_path<P: AsRef<Path>>(
+    path: P,
+    local_path: P,
+    base_color: Color,
+    ls_colors: bool,
+) -> String {
     // let painted = |to_paint
 
     let mut replaced = local_path.as_ref().display().to_string();
@@ -81,8 +128,8 @@ pub(crate) fn fmt_local_path<P: AsRef<Path>>(path: P, local_path: P, ls_colors: 
                 .display()
                 .to_string()
                 .replace(replaced.as_str(), "")
+                .color(base_color)
                 .bold()
-                .blue()
         )
     }
 }
@@ -165,7 +212,11 @@ pub(crate) fn reg_walker(app: &Arc<App>) -> Result<ignore::WalkParallel> {
         .build()
         .map_err(|_| anyhow!("Mismatch in exclude patterns"))?;
 
-    Ok(WalkBuilder::new(&app.base_dir)
+    // if app.ignores.is_some() &&
+    // app.ignores.clone().unwrap_or_else(Vec::new).len() > 0 { }
+
+    let mut walker = WalkBuilder::new(&app.base_dir);
+    walker
         .threads(num_cpus::get())
         .follow_links(false)
         .hidden(true)
@@ -175,8 +226,28 @@ pub(crate) fn reg_walker(app: &Arc<App>) -> Result<ignore::WalkParallel> {
         .git_ignore(false)
         .git_exclude(false)
         .parents(false)
-        .max_depth(app.max_depth)
-        .build_parallel())
+        .max_depth(app.max_depth);
+
+    if let Some(ignore) = &app.ignores {
+        let tmp = create_tmp_ignore(
+            &move |file: &mut fs::File| write_ignore(ignore, file),
+            false,
+        );
+        let res = walker.add_ignore(&tmp);
+        match res {
+            Some(ignore::Error::Partial(_)) => (),
+            Some(err) => {
+                print_err(format!(
+                    "Problem with ignore pattern in wutag.yml: {}",
+                    err.to_string()
+                ));
+            },
+            None => (),
+        }
+        // fsio::file::ensure_exists(&tmp);
+        delete_file(tmp);
+    }
+    Ok(walker.build_parallel())
 }
 
 /// Type to execute a closure across multiple threads when wrapped in `Mutex`

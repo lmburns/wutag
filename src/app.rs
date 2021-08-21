@@ -29,7 +29,7 @@ use crate::{
         contained_path, fmt_err, fmt_local_path, fmt_ok, fmt_path, fmt_tag, glob_builder,
         osstr_to_bytes, print_err, raw_local_path, reg_ok, regex_builder,
     },
-    DEFAULT_COLORS,
+    DEFAULT_BASE_COLOR, DEFAULT_COLORS,
 };
 
 use wutag_core::{
@@ -37,11 +37,13 @@ use wutag_core::{
     tag::{clear_tags, has_tags, list_tags, DirEntryExt, Tag, DEFAULT_COLOR},
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct App {
     pub base_dir:         PathBuf,
     pub max_depth:        Option<usize>,
+    pub base_color:       Color,
     pub colors:           Vec<Color>,
+    pub ignores:          Option<Vec<String>>,
     pub global:           bool,
     pub registry:         TagRegistry,
     pub case_insensitive: bool,
@@ -82,6 +84,7 @@ macro_rules! ternary {
 impl App {
     pub(crate) fn run(opts: Opts, config: Config) -> Result<()> {
         let mut app = Self::new(&opts, config)?;
+        log::debug!("CONFIGURATION: {:#?}", app);
         app.run_command(opts.cmd);
 
         Ok(())
@@ -98,6 +101,11 @@ impl App {
             std::env::current_dir().context("failed to determine current working directory")?
         };
 
+        // let ignores = config
+        //     .ignores
+        //     .clone()
+        //     .unwrap_or_else(Vec::new);
+
         let colors = if let Some(_colors) = config.colors {
             let mut colors = Vec::new();
             for color in _colors.iter().map(parse_color) {
@@ -107,6 +115,12 @@ impl App {
         } else {
             DEFAULT_COLORS.to_vec()
         };
+
+        let base_color = config
+            .base_color
+            .map(parse_color)
+            .transpose()?
+            .unwrap_or(DEFAULT_BASE_COLOR);
 
         let color_when = match opts.color_when {
             Some(ref s) if s == "always" => "always",
@@ -202,7 +216,9 @@ impl App {
             } else {
                 config.max_depth
             },
+            base_color,
             colors,
+            ignores: config.ignores,
             global: opts.global,
             registry,
             case_insensitive: opts.case_insensitive,
@@ -298,8 +314,13 @@ impl App {
                         );
                     } else if !formatted {
                         global_opts(
-                            fmt_local_path(file.path(), &self.base_dir, self.ls_colors),
-                            fmt_path(file.path(), self.ls_colors),
+                            fmt_local_path(
+                                file.path(),
+                                &self.base_dir,
+                                self.base_color,
+                                self.ls_colors,
+                            ),
+                            fmt_path(file.path(), self.base_color, self.ls_colors),
                         );
                     }
 
@@ -325,8 +346,13 @@ impl App {
                                 "{}\t{}",
                                 ternary!(
                                     self.global,
-                                    fmt_path(file.path(), self.ls_colors),
-                                    fmt_local_path(file.path(), &self.base_dir, self.ls_colors,)
+                                    fmt_path(file.path(), self.base_color, self.ls_colors),
+                                    fmt_local_path(
+                                        file.path(),
+                                        &self.base_dir,
+                                        self.base_color,
+                                        self.ls_colors,
+                                    )
                                 ),
                                 tags
                             )
@@ -446,7 +472,10 @@ impl App {
 
                 let selfc = Arc::clone(&selfc);
                 let mut selfu = selfc.lock().unwrap();
-                println!("{}:", fmt_path(entry.path(), selfu.ls_colors));
+                println!(
+                    "{}:",
+                    fmt_path(entry.path(), selfu.base_color, selfu.ls_colors)
+                );
                 tags.iter().for_each(|tag| {
                     if opts.clear {
                         log::debug!(
@@ -534,7 +563,10 @@ impl App {
                             if search.is_some() {
                                 // println!("SEARCH: {:?} REAL: {:?}", search, realtag);
                                 self.registry.untag_by_name(search.unwrap(), id);
-                                println!("{}:", fmt_path(entry.path(), self.ls_colors));
+                                println!(
+                                    "{}:",
+                                    fmt_path(entry.path(), self.base_color, self.ls_colors)
+                                );
 
                                 if let Err(e) = realtag.remove_from(entry.path()) {
                                     err!('\t', e, entry);
@@ -578,7 +610,10 @@ impl App {
                         return;
                     }
 
-                    println!("{}:", fmt_path(entry.path(), selfu.ls_colors));
+                    println!(
+                        "{}:",
+                        fmt_path(entry.path(), selfu.base_color, selfu.ls_colors)
+                    );
                     tags.iter().for_each(|tag| {
                         let tag = match tag {
                             Ok(tag) => tag,
@@ -633,7 +668,10 @@ impl App {
                     match has_tags(entry.path()) {
                         Ok(has_tags) =>
                             if has_tags {
-                                println!("{}:", fmt_path(entry.path(), self.ls_colors));
+                                println!(
+                                    "{}:",
+                                    fmt_path(entry.path(), self.base_color, self.ls_colors)
+                                );
                                 if let Err(e) = clear_tags(entry.path()) {
                                     err!('\t', e, entry);
                                 } else {
@@ -664,7 +702,10 @@ impl App {
                     match entry.has_tags() {
                         Ok(has_tags) =>
                             if has_tags {
-                                println!("{}:", fmt_path(entry.path(), selfu.ls_colors));
+                                println!(
+                                    "{}:",
+                                    fmt_path(entry.path(), selfu.base_color, selfu.ls_colors)
+                                );
                                 if let Err(e) = entry.clear_tags() {
                                     err!('\t', e, entry);
                                 } else {
@@ -704,7 +745,11 @@ impl App {
                             })
                         })
                         .unwrap_or_default();
-                    println!("{}: {}", fmt_path(entry.path(), self.ls_colors), tags)
+                    println!(
+                        "{}: {}",
+                        fmt_path(entry.path(), self.base_color, self.ls_colors),
+                        tags
+                    )
                 }
             }
         } else if opts.execute.is_some() || opts.execute_batch.is_some() {
@@ -751,8 +796,8 @@ impl App {
                         "{}: {}",
                         ternary!(
                             self.global,
-                            fmt_path(path, self.ls_colors),
-                            fmt_local_path(path, &self.base_dir, self.ls_colors)
+                            fmt_path(path, self.base_color, self.ls_colors),
+                            fmt_local_path(path, &self.base_dir, self.base_color, self.ls_colors)
                         ),
                         tags
                     )
@@ -781,7 +826,10 @@ impl App {
                     move |entry: &ignore::DirEntry| {
                         let selfc = Arc::clone(&selfc);
                         let mut selfu = selfc.lock().unwrap();
-                        println!("{}:", fmt_path(entry.path(), selfu.ls_colors));
+                        println!(
+                            "{}:",
+                            fmt_path(entry.path(), selfu.base_color, selfu.ls_colors)
+                        );
                         for tag in &tags {
                             if let Err(e) = entry.tag(tag) {
                                 err!('\t', e, entry)

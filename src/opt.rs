@@ -60,17 +60,17 @@ lazy_static! {
     version = crate_version!(),
     author = APP_AUTHORS.as_ref(),
     about = APP_ABOUT.as_ref(),
+    after_help = AFTER_HELP.as_ref(),
+    override_usage = OVERRIDE_HELP.as_ref(),
+    max_term_width = 100,
     global_setting = AppSettings::ColoredHelp,
     global_setting = AppSettings::ColorAuto,
     global_setting = AppSettings::DisableHelpSubcommand,  // Disables help (use -h)
     global_setting = AppSettings::VersionlessSubcommands, // Shows no --version
     global_setting = AppSettings::InferSubcommands,       // l, li, lis == list
-    global_setting = AppSettings::UnifiedHelpMessage,     // Options/Flags together
     global_setting = AppSettings::DeriveDisplayOrder,     // Display in order listed here
     global_setting = AppSettings::HidePossibleValuesInHelp,
-    max_term_width = 100,
-    after_help = AFTER_HELP.as_ref(),
-    override_usage = OVERRIDE_HELP.as_ref()
+    // global_setting = AppSettings::UnifiedHelpMessage,     // Options/Flags together
 )]
 pub(crate) struct Opts {
     /// Specify starting path for filesystem traversal

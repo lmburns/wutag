@@ -13,6 +13,10 @@ pub enum Token {
     NoExt,
     BasenameNoExt,
     Wutag,
+    WutagColored,
+    WutagSet,
+    WutagRemove,
+    WutagClear,
     Text(String),
 }
 
@@ -25,6 +29,10 @@ impl Display for Token {
             Token::NoExt => f.write_str("{.}")?,
             Token::BasenameNoExt => f.write_str("{/.}")?,
             Token::Wutag => f.write_str("{..}")?,
+            Token::WutagColored => f.write_str("{@}")?,
+            Token::WutagSet => f.write_str("{@s}")?,
+            Token::WutagRemove => f.write_str("{@r}")?,
+            Token::WutagClear => f.write_str("{@c}")?,
             Token::Text(ref string) => f.write_str(string)?,
         }
         Ok(())

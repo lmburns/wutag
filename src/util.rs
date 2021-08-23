@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, Result};
 use colored::{Color, ColoredString, Colorize};
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
 use lazy_static::lazy_static;
@@ -9,136 +9,100 @@ use std::{
     ffi::{OsStr, OsString},
     fmt::Display,
     fs,
-    io::{self, Write},
+    io::Cursor,
     path::Path,
     sync::{Arc, Mutex},
     thread,
 };
 
+use clap_generate::{generate, Generator};
 use crossbeam_channel as channel;
 
-use crate::{app::App, DEFAULT_MAX_DEPTH};
-use anyhow::Result;
+use crate::{
+    app::App,
+    filesystem::{create_tmp_ignore, delete_file, osstr_to_bytes, write_ignore},
+    opt::APP_NAME,
+    wutag_error, DEFAULT_MAX_DEPTH,
+};
 use wutag_core::tag::Tag;
 
-fn create_tmp_ignore(
-    write_content: &dyn Fn(&mut fs::File) -> io::Result<()>,
-    append: bool,
-) -> String {
-    let tmp = fsio::path::get_temporary_file_path("wutag_ignore");
-    match fsio::file::modify_file(&tmp, write_content, append) {
-        Ok(_) => tmp,
-        Err(e) => {
-            print_err(format!("Unable to create wutag ignore file: {:?}", &e));
-            std::process::exit(1);
-        },
-    }
-}
-
-fn write_ignore(ignores: &[String], file: &fs::File) -> io::Result<()> {
-    let mut writer = io::BufWriter::new(file);
-
-    ignores.iter().for_each(|i| {
-        writeln!(&mut writer, "{}", i).expect("Unable to write to ignore file");
-    });
-
-    // for i in ignores.iter() {
-    //     file.write_all((*i).as_bytes()).expect("Unable to write to ignore file");
-    // }
-
-    Ok(())
-}
-
-#[allow(unused)]
-fn delete_file(file: String) {
-    match fsio::file::delete(&file) {
-        Ok(_) => log::debug!("Ignore file deleted: {}", &file),
-        Err(err) => log::debug!("Unable to delete ignore file: {} {:#?}", &file, err),
-    }
-}
-
 pub fn fmt_err<E: Display>(err: E) -> String {
-    format!("{} {}", "ERROR".red().bold(), format!("{}", err).white())
-}
-
-pub fn print_err(err: impl Into<String>) {
-    eprintln!("{} {}", "[wutag error]".red().bold(), err.into());
+    format!("{} {}", "ERROR:".red().bold(), format!("{}", err).white())
 }
 
 pub(crate) fn fmt_ok<S: AsRef<str>>(msg: S) -> String {
     format!("{} {}", "OK".green().bold(), msg.as_ref().white())
 }
 
-pub(crate) fn fmt_path<P: AsRef<Path>>(path: P, base_color: Color, ls_colors: bool) -> String {
+pub fn fmt_path<P: AsRef<Path>>(path: P, base_color: Color, ls_colors: bool) -> String {
     // ls_colors implies forced coloring
     if ls_colors {
         let lscolors = LsColors::from_env().unwrap_or_default();
 
-        let style = lscolors.style_for_path(path.as_ref());
-        let style = style
-            .map(Style::to_ansi_term_style)
-            .unwrap_or_else(|| ansi_term::Color::Blue.bold());
+        let colored_path = lscolors.style_for_path_components(path.as_ref()).fold(
+            Vec::new(),
+            |mut acc, (component, style)| {
+                let style = style
+                    .map(Style::to_ansi_term_style)
+                    .unwrap_or_else(|| ansi_term::Color::Blue.bold());
+                acc.push(style.paint(component.to_string_lossy()).to_string());
+                acc
+            },
+        );
 
-        format!("{}", style.paint(path.as_ref().display().to_string()))
+        colored_path.join("")
     } else {
         format!(
             "{}",
             path.as_ref().display().to_string().color(base_color).bold()
         )
-        // format!("{}", path.as_ref().display().to_string().bold().blue())
     }
 }
 
 /// Format a local path (i.e., remove path components before files local to
 /// directory)
-pub(crate) fn fmt_local_path<P: AsRef<Path>>(
+pub fn fmt_local_path<P: AsRef<Path>>(
     path: P,
     local_path: P,
     base_color: Color,
     ls_colors: bool,
 ) -> String {
-    // let painted = |to_paint
-
     let mut replaced = local_path.as_ref().display().to_string();
     if !replaced.ends_with('/') {
         replaced.push('/');
     }
 
+    let path = path
+        .as_ref()
+        .display()
+        .to_string()
+        .replace(replaced.as_str(), "");
+
     if ls_colors {
         let lscolors = LsColors::from_env().unwrap_or_default();
 
-        let style = lscolors.style_for_path(path.as_ref());
-        let style = style
-            .map(Style::to_ansi_term_style)
-            .unwrap_or_else(|| ansi_term::Color::Blue.bold());
+        let colored_path = lscolors.style_for_path_components(path.as_ref()).fold(
+            Vec::new(),
+            |mut acc, (component, style)| {
+                let style = style
+                    .map(Style::to_ansi_term_style)
+                    .unwrap_or_else(|| ansi_term::Color::Blue.bold());
+                acc.push(style.paint(component.to_string_lossy()).to_string());
+                acc
+            },
+        );
 
-        format!(
-            "{}",
-            style.paint(
-                path.as_ref()
-                    .display()
-                    .to_string()
-                    .replace(replaced.as_str(), "")
-            )
-        )
+        colored_path.join("")
     } else {
-        format!(
-            "{}",
-            path.as_ref()
-                .display()
-                .to_string()
-                .replace(replaced.as_str(), "")
-                .color(base_color)
-                .bold()
-        )
+        format!("{}", path.color(base_color).bold())
     }
 }
 
-pub(crate) fn fmt_tag(tag: &Tag) -> ColoredString {
+pub fn fmt_tag(tag: &Tag) -> ColoredString {
     tag.name().color(*tag.color()).bold()
 }
 
-pub(crate) fn raw_local_path<P: AsRef<Path>>(path: P, local: P) -> String {
+pub fn raw_local_path<P: AsRef<Path>>(path: P, local: P) -> String {
     let mut replaced = local.as_ref().display().to_string();
     if !replaced.ends_with('/') {
         replaced.push('/');
@@ -149,18 +113,23 @@ pub(crate) fn raw_local_path<P: AsRef<Path>>(path: P, local: P) -> String {
         .replace(replaced.as_str(), "")
 }
 
-/// Determine whether file (path) contains path and if so, return true
-pub fn contained_path<P: AsRef<Path>>(file: P, path: P) -> bool {
-    file.as_ref()
-        .display()
-        .to_string()
-        .contains(path.as_ref().to_str().unwrap())
+/// Modify completion output by using [comp_helper](crate::comp_helper)
+pub(crate) fn replace(haystack: &mut String, needle: &str, replacement: &str) -> Result<()> {
+    if let Some(index) = haystack.find(needle) {
+        haystack.replace_range(index..index + needle.len(), replacement);
+        Ok(())
+    } else {
+        Err(anyhow!(
+            "Failed to find text:\n{}\n…in completion script:\n{}",
+            needle,
+            haystack
+        ))
+    }
 }
 
-/// Convert an OsStr to bytes for RegexBuilder
-pub(crate) fn osstr_to_bytes(input: &OsStr) -> Cow<[u8]> {
-    use std::os::unix::ffi::OsStrExt;
-    Cow::Borrowed(input.as_bytes())
+/// Print completions
+pub(crate) fn gen_completions<G: Generator>(app: &mut clap::App, cursor: &mut Cursor<Vec<u8>>) {
+    generate::<G, _>(app, APP_NAME, cursor);
 }
 
 /// Build a glob from GlobBuilder and return a regex
@@ -174,7 +143,7 @@ pub(crate) fn glob_builder(pattern: &str) -> String {
 }
 
 /// Build a regular expression with RegexBuilder (bytes)
-pub(crate) fn regex_builder(pattern: &str, case_insensitive: bool) -> Regex {
+pub fn regex_builder(pattern: &str, case_insensitive: bool) -> Regex {
     lazy_static! {
         static ref UPPER_REG: Regex = Regex::new(r"[[:upper:]]").unwrap();
     };
@@ -237,14 +206,13 @@ pub(crate) fn reg_walker(app: &Arc<App>) -> Result<ignore::WalkParallel> {
         match res {
             Some(ignore::Error::Partial(_)) => (),
             Some(err) => {
-                print_err(format!(
+                wutag_error!(
                     "Problem with ignore pattern in wutag.yml: {}",
                     err.to_string()
-                ));
+                );
             },
             None => (),
         }
-        // fsio::file::ensure_exists(&tmp);
         delete_file(tmp);
     }
     Ok(walker.build_parallel())
@@ -290,7 +258,7 @@ where
             let entry = match res {
                 Ok(_entry) => _entry,
                 Err(err) => {
-                    print_err(format!("unable to access entry {}", err));
+                    wutag_error!("unable to access entry {}", err);
                     return ignore::WalkState::Continue;
                 },
             };
@@ -324,6 +292,14 @@ where
                         return ignore::WalkState::Continue;
                     }
                 } else {
+                    return ignore::WalkState::Continue;
+                }
+            }
+
+            // Filter out non-matching file types
+            if let Some(ref file_types) = app.file_type {
+                if file_types.should_ignore(&entry) {
+                    log::debug!("Ignoring: {}", entry_path.display());
                     return ignore::WalkState::Continue;
                 }
             }

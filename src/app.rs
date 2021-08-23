@@ -1,7 +1,9 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use atty::Stream;
 use clap::IntoApp;
+use cli_table::Style;
 use colored::{Color, Colorize};
+use crossbeam_channel as channel;
 use regex::bytes::{RegexSet, RegexSetBuilder};
 use shellexpand::LookupError;
 
@@ -10,8 +12,7 @@ use std::{
     collections::HashMap,
     env,
     ffi::OsStr,
-    fs,
-    io::{self, Write},
+    fs, io,
     path::PathBuf,
     sync::{Arc, Mutex},
 };
@@ -19,21 +20,27 @@ use std::{
 use crate::{
     comp_helper,
     config::Config,
-    exe::{job::run_command, CommandTemplate},
+    err,
+    exe::{
+        job::{receiver, sender, WorkerResult},
+        CommandTemplate,
+    },
+    filesystem::{contained_path, osstr_to_bytes, FileTypes},
     opt::{
         ClearOpts, Command, CompletionsOpts, CpOpts, EditOpts, ListObject, ListOpts, Opts, RmOpts,
-        SearchOpts, SetOpts, Shell, APP_NAME,
+        SearchOpts, SetOpts,
     },
     registry::{EntryData, TagRegistry},
+    ternary,
     util::{
-        contained_path, fmt_err, fmt_local_path, fmt_ok, fmt_path, fmt_tag, glob_builder,
-        osstr_to_bytes, print_err, raw_local_path, reg_ok, regex_builder,
+        fmt_err, fmt_local_path, fmt_ok, fmt_path, fmt_tag, gen_completions, glob_builder,
+        raw_local_path, reg_ok, regex_builder, replace,
     },
-    DEFAULT_BASE_COLOR, DEFAULT_COLORS,
+    wutag_error, DEFAULT_BASE_COLOR, DEFAULT_BORDER_COLOR, DEFAULT_COLORS,
 };
 
 use wutag_core::{
-    color::parse_color,
+    color::{parse_color, parse_color_cli_table},
     tag::{clear_tags, has_tags, list_tags, DirEntryExt, Tag, DEFAULT_COLOR},
 };
 
@@ -42,6 +49,7 @@ pub struct App {
     pub base_dir:         PathBuf,
     pub max_depth:        Option<usize>,
     pub base_color:       Color,
+    pub border_color:     cli_table::Color,
     pub colors:           Vec<Color>,
     pub ignores:          Option<Vec<String>>,
     pub global:           bool,
@@ -52,39 +60,13 @@ pub struct App {
     pub color_when:       String,
     pub extension:        Option<RegexSet>,
     pub exclude:          Vec<String>,
-}
-
-/// Format errors
-macro_rules! err {
-    ($err:ident, $entry:ident) => {
-        err!("", $err, $entry);
-    };
-    ($prefix:expr, $err:ident, $entry:ident) => {{
-        let err = fmt_err($err);
-        eprintln!(
-            "{}{} - {}",
-            $prefix,
-            err,
-            $entry.path().to_string_lossy().bold()
-        );
-    }};
-}
-
-/// Makeshift ternary 2 == 2 ? "yes" : "no", mainly used for printing
-macro_rules! ternary {
-    ($c:expr, $v:expr, $v1:expr) => {
-        if $c {
-            $v
-        } else {
-            $v1
-        }
-    };
+    pub file_type:        Option<FileTypes>,
 }
 
 impl App {
     pub(crate) fn run(opts: Opts, config: Config) -> Result<()> {
         let mut app = Self::new(&opts, config)?;
-        log::debug!("CONFIGURATION: {:#?}", app);
+        log::trace!("CONFIGURATION: {:#?}", app);
         app.run_command(opts.cmd);
 
         Ok(())
@@ -101,11 +83,6 @@ impl App {
             std::env::current_dir().context("failed to determine current working directory")?
         };
 
-        // let ignores = config
-        //     .ignores
-        //     .clone()
-        //     .unwrap_or_else(Vec::new);
-
         let colors = if let Some(_colors) = config.colors {
             let mut colors = Vec::new();
             for color in _colors.iter().map(parse_color) {
@@ -121,6 +98,12 @@ impl App {
             .map(parse_color)
             .transpose()?
             .unwrap_or(DEFAULT_BASE_COLOR);
+
+        let border_color = config
+            .border_color
+            .map(parse_color_cli_table)
+            .transpose()?
+            .unwrap_or(DEFAULT_BORDER_COLOR);
 
         let color_when = match opts.color_when {
             Some(ref s) if s == "always" => "always",
@@ -146,7 +129,7 @@ impl App {
                     .unwrap_or_else(|_| {
                         Cow::from(
                             LookupError {
-                                var_name: "UNKNOWN_ENVIRONMENT_VARIABLE".into(),
+                                var_name: "Unkown environment variable".into(),
                                 cause:    env::VarError::NotPresent,
                             }
                             .to_string(),
@@ -158,11 +141,11 @@ impl App {
             if registry.is_file() && registry.file_name().is_some() {
                 TagRegistry::load(&registry).unwrap_or_else(|_| TagRegistry::new(&registry))
             } else if registry.is_dir() && registry.file_name().is_some() {
-                print_err(format!(
+                wutag_error!(
                     "{} is not a file. Using default registry: {}",
                     registry.display().to_string().green(),
                     state_file.display().to_string().green(),
-                ));
+                );
                 TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
             } else if !registry.display().to_string().ends_with('/') {
                 fs::create_dir_all(
@@ -178,11 +161,11 @@ impl App {
                 })?;
                 TagRegistry::load(&registry).unwrap_or_else(|_| TagRegistry::new(&registry))
             } else {
-                print_err(format!(
+                wutag_error!(
                     "{} last error is a directory path. Using default registry: {}",
                     registry.display().to_string().green(),
                     state_file.display().to_string().green(),
-                ));
+                );
                 TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
             }
         } else {
@@ -209,6 +192,34 @@ impl App {
             .map(|v| v.iter().map(|p| String::from("!") + p.as_str()).collect())
             .unwrap_or_else(Vec::new);
 
+        let file_types = opts.file_type.clone().map(|vals| {
+            let mut ftypes = FileTypes::default();
+            for v in vals {
+                match v.as_str() {
+                    "f" | "file" => ftypes.files = true,
+                    "d" | "directory" => ftypes.directories = true,
+                    "l" | "symlink" => ftypes.symlinks = true,
+                    "b" | "block" => ftypes.block_devices = true,
+                    "c" | "char" => ftypes.char_devices = true,
+                    "x" | "executable" => {
+                        ftypes.executables_only = true;
+                        ftypes.files = true;
+                    },
+                    "e" | "empty" => ftypes.empty_only = true,
+                    "s" | "socket" => ftypes.sockets = true,
+                    "F" | "fifo" => ftypes.fifos = true,
+                    _ => unreachable!(),
+                }
+            }
+            if ftypes.empty_only && !(ftypes.files || ftypes.directories) {
+                ftypes.files = true;
+                ftypes.directories = true;
+            }
+
+            ftypes
+        });
+        log::debug!("FileTypes: {:#?}", file_types);
+
         Ok(App {
             base_dir,
             max_depth: if opts.max_depth.is_some() {
@@ -217,6 +228,7 @@ impl App {
                 config.max_depth
             },
             base_color,
+            border_color,
             colors,
             ignores: config.ignores,
             global: opts.global,
@@ -227,6 +239,7 @@ impl App {
             color_when: color_when.to_string(),
             extension: extensions,
             exclude: excludes,
+            file_type: file_types,
         })
     }
 
@@ -259,7 +272,7 @@ impl App {
     fn clean_cache(&mut self) {
         self.registry.clear();
         if let Err(e) = self.registry.save() {
-            println!("{:?}", e);
+            wutag_error!("{:?}", e);
         } else {
             println!(
                 "{} {}: {}",
@@ -277,16 +290,24 @@ impl App {
     }
 
     fn list(&self, opts: &ListOpts) {
+        use cli_table::{
+            format::{Border, Justify, Separator},
+            print_stdout, Cell, ColorChoice, Table,
+        };
         log::debug!("Using registry: {}", self.registry.path.display());
-        let stdout = io::stdout();
-        let std_lock = stdout.lock();
-        let handle = io::BufWriter::new(std_lock);
-        let mut tab_handle = tabwriter::TabWriter::new(handle);
+
+        let mut table = vec![];
+        let colorchoice = match self.color_when {
+            ref s if s == "always" => ColorChoice::Always,
+            ref s if s == "never" => ColorChoice::Never,
+            _ => ColorChoice::Auto,
+        };
 
         match opts.object {
             ListObject::Files {
                 with_tags,
                 formatted,
+                border,
                 garrulous,
             } => {
                 let global_opts = |local: String, global: String| {
@@ -341,9 +362,7 @@ impl App {
                             .join(" ");
 
                         if formatted {
-                            writeln!(
-                                tab_handle,
-                                "{}\t{}",
+                            table.push(vec![
                                 ternary!(
                                     self.global,
                                     fmt_path(file.path(), self.base_color, self.ls_colors),
@@ -353,10 +372,10 @@ impl App {
                                         self.base_color,
                                         self.ls_colors,
                                     )
-                                ),
-                                tags
-                            )
-                            .expect("Unable to write to tab handler");
+                                )
+                                .cell(),
+                                tags.cell().justify(Justify::Right),
+                            ]);
                         } else if garrulous {
                             println!("\t{}", tags);
                         } else {
@@ -367,12 +386,24 @@ impl App {
                     }
                 }
                 if formatted {
-                    tab_handle.flush().expect("Unable to flush tab handler");
+                    print_stdout(if border {
+                        table
+                            .table()
+                            .foreground_color(Some(self.border_color))
+                            .color_choice(colorchoice)
+                    } else {
+                        table
+                            .table()
+                            .border(Border::builder().build())
+                            .separator(Separator::builder().build())
+                    })
+                    .expect("Unable to print table");
                 }
             },
-            ListObject::Tags { for_completions } => {
-                // I think both id and entry has to be listed here to be able to respect current
-                // directory This is really dirty
+            ListObject::Tags {
+                for_completions,
+                border,
+            } => {
                 let mut utags = Vec::new();
                 for (&id, file) in self.registry.list_entries_and_ids() {
                     if !self.global && !contained_path(file.path(), &self.base_dir) {
@@ -407,23 +438,33 @@ impl App {
                     })
                     .iter()
                     .for_each(|(tag, count)| {
-                        writeln!(
-                            tab_handle,
-                            "{}\t{}",
+                        table.push(vec![
+                            tag.cell(),
                             ternary!(
                                 opts.raw,
                                 count.to_string().white(),
                                 count.to_string().green().bold()
-                            ),
-                            tag
-                        )
-                        .expect("Unable to write to tab handler");
+                            )
+                            .cell()
+                            .justify(Justify::Right),
+                        ])
                     });
 
                 if for_completions {
                     utags.iter().for_each(|tag| println!("{}", tag));
                 } else {
-                    tab_handle.flush().expect("Unable to flush tab handler");
+                    print_stdout(if border {
+                        table
+                            .table()
+                            .foreground_color(Some(self.border_color))
+                            .color_choice(colorchoice)
+                    } else {
+                        table
+                            .table()
+                            .border(Border::builder().build())
+                            .separator(Separator::builder().build())
+                    })
+                    .expect("Unable to print table");
                 }
             },
         }
@@ -441,7 +482,7 @@ impl App {
                     Tag::new(
                         t,
                         parse_color(color).unwrap_or_else(|e| {
-                            print_err(format!("{}", e));
+                            wutag_error!("{}", e);
                             DEFAULT_COLOR
                         }),
                     )
@@ -512,7 +553,7 @@ impl App {
                 selfu.save_registry();
             },
         ) {
-            print_err(format!("{}", e));
+            wutag_error!("{}", e);
         }
     }
 
@@ -633,7 +674,7 @@ impl App {
                     selfu.save_registry();
                 },
             ) {
-                print_err(format!("{}", e));
+                wutag_error!("{}", e);
             }
         }
     }
@@ -720,90 +761,41 @@ impl App {
                     selfu.save_registry();
                 },
             ) {
-                print_err(format!("{}", e));
+                wutag_error!("{}", e);
             }
         }
     }
 
     fn search(&self, opts: &SearchOpts) {
-        // FIX: Cannot exclude file paths
-        // FIX: Returns all files regardless of tags
-        // ADD: option to search by file name
-
-        if opts.any {
-            for (&id, entry) in self.registry.list_entries_and_ids() {
-                if opts.raw {
-                    println!("{}", entry.path().display());
-                } else {
-                    let tags = self
-                        .registry
-                        .list_entry_tags(id)
-                        .map(|tags| {
-                            tags.iter().fold(String::new(), |mut acc, t| {
-                                acc.push_str(&format!("{} ", fmt_tag(t)));
-                                acc
-                            })
-                        })
-                        .unwrap_or_default();
-                    println!(
-                        "{}: {}",
-                        fmt_path(entry.path(), self.base_color, self.ls_colors),
-                        tags
-                    )
-                }
-            }
-        } else if opts.execute.is_some() || opts.execute_batch.is_some() {
-            let command = if let Some(cmd) = &opts.execute {
-                Some(CommandTemplate::new(cmd))
-            } else {
-                opts.execute_batch
-                    .as_ref()
-                    .map(|cmd| CommandTemplate::new_batch(cmd).expect("Invalid batch command"))
-            };
-
-            let cmd = command.unwrap();
-            run_command(
-                &(self.clone()),
-                &Arc::new(cmd),
-                &Arc::new(opts.tags.clone()),
-            );
+        // TODO: Implement type search for this
+        let pat = if self.pat_regex {
+            String::from(&opts.pattern)
         } else {
-            for id in self.registry.list_entries_with_tags(&opts.tags) {
-                let path = match self.registry.get_entry(id) {
-                    Some(entry) =>
-                        if !self.global && !contained_path(entry.path(), &self.base_dir) {
-                            continue;
-                        } else {
-                            entry.path()
-                        },
-                    None => continue,
-                };
-                if opts.raw {
-                    println!("{}", path.display());
-                } else {
-                    let tags = self
-                        .registry
-                        .list_entry_tags(id)
-                        .map(|tags| {
-                            tags.iter().fold(String::new(), |mut acc, t| {
-                                acc.push_str(&format!("{} ", fmt_tag(t)));
-                                acc
-                            })
-                        })
-                        .unwrap_or_default();
+            glob_builder(&opts.pattern)
+        };
 
-                    println!(
-                        "{}: {}",
-                        ternary!(
-                            self.global,
-                            fmt_path(path, self.base_color, self.ls_colors),
-                            fmt_local_path(path, &self.base_dir, self.base_color, self.ls_colors)
-                        ),
-                        tags
-                    )
-                }
-            }
-        }
+        let re = regex_builder(&pat, self.case_insensitive);
+        log::debug!("Compiled pattern: {}", re);
+
+        #[allow(clippy::manual_map)]
+        let command = if let Some(cmd) = &opts.execute {
+            Some(CommandTemplate::new(cmd))
+        } else if let Some(cmd) = &opts.execute_batch {
+            Some(CommandTemplate::new_batch(cmd).expect("Invalid batch command"))
+        } else {
+            None
+        };
+
+        let app = Arc::new(self.clone());
+        let opts = Arc::new(opts.clone());
+        let re = Arc::new(re);
+        let command = command.map(Arc::new);
+
+        let (tx, rx) = channel::unbounded::<WorkerResult>();
+
+        let rec = receiver(&app, &opts, command, rx);
+        sender(&app, &opts, re, tx);
+        rec.join().unwrap();
     }
 
     fn cp(&mut self, opts: &CpOpts) {
@@ -842,12 +834,12 @@ impl App {
                         }
                     },
                 ) {
-                    print_err(format!("{}", e));
+                    wutag_error!("{}", e);
                 }
                 log::debug!("Saving registry...");
                 self.save_registry();
             },
-            Err(e) => eprintln!(
+            Err(e) => wutag_error!(
                 "failed to get source tags from `{}` - {}",
                 path.display(),
                 e
@@ -859,7 +851,7 @@ impl App {
         let color = match parse_color(&opts.color) {
             Ok(color) => color,
             Err(e) => {
-                print_err(format!("{}", e));
+                wutag_error!("{}", e);
                 return;
             },
         };
@@ -875,23 +867,7 @@ impl App {
     }
 
     fn print_completions(&self, opts: &CompletionsOpts) {
-        fn replace(haystack: &mut String, needle: &str, replacement: &str) -> Result<()> {
-            if let Some(index) = haystack.find(needle) {
-                haystack.replace_range(index..index + needle.len(), replacement);
-                Ok(())
-            } else {
-                Err(anyhow!(
-                    "Failed to find text:\n{}\n…in completion script:\n{}",
-                    needle,
-                    haystack
-                ))
-            }
-        }
-
-        use clap_generate::{
-            generate,
-            generators::{Bash, Elvish, Fish, PowerShell, Zsh},
-        };
+        use clap_generate::{generators::*, Shell};
 
         let mut app = Opts::into_app();
 
@@ -899,16 +875,20 @@ impl App {
         let mut cursor = io::Cursor::new(buffer);
 
         match opts.shell {
-            Shell::Bash => generate::<Bash, _>(&mut app, APP_NAME, &mut cursor),
-            Shell::Elvish => generate::<Elvish, _>(&mut app, APP_NAME, &mut cursor),
-            Shell::Fish => generate::<Fish, _>(&mut app, APP_NAME, &mut cursor),
-            Shell::PowerShell => generate::<PowerShell, _>(&mut app, APP_NAME, &mut cursor),
-            Shell::Zsh => generate::<Zsh, _>(&mut app, APP_NAME, &mut cursor),
+            Shell::Bash => gen_completions::<Bash>(&mut app, &mut cursor),
+            Shell::Elvish => gen_completions::<Elvish>(&mut app, &mut cursor),
+            Shell::Fish => gen_completions::<Fish>(&mut app, &mut cursor),
+            Shell::PowerShell => gen_completions::<PowerShell>(&mut app, &mut cursor),
+            Shell::Zsh => gen_completions::<Zsh>(&mut app, &mut cursor),
+            _ => (),
         }
 
         let buffer = cursor.into_inner();
         let mut script = String::from_utf8(buffer).expect("Clap completion not UTF-8");
 
+        // Replace Zsh completion output to make it better
+        // I may work on other shells, but am very familiar with Zsh, so that is why it
+        // is the only one so far
         match opts.shell {
             Shell::Zsh =>
                 for (needle, replacement) in comp_helper::ZSH_COMPLETION_REP {

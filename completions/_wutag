@@ -15,18 +15,24 @@ _wutag() {
 
     local context curcontext="$curcontext" state line
     _arguments "${_arguments_options[@]}" \
-'-d+[Specify starting path for filesystem traversal]: :_files -/' \
-'--dir=[Specify starting path for filesystem traversal]: :_files -/' \
+'*-d+[Specify starting path for filesystem traversal]: :_files -/' \
+'*--dir=[Specify starting path for filesystem traversal]: :_files -/' \
 '-m+[Increase maximum recursion depth from 2]' \
 '--max-depth=[Increase maximum recursion depth from 2]' \
 '-R+[Specify a different registry to use]: :_files' \
 '--registry=[Specify a different registry to use]: :_files' \
 '-c+[When to colorize output]: :(never auto always)' \
 '--color=[When to colorize output]: :(never auto always)' \
+'*-t+[File-type(s) to filter by: f|file, d|directory, l|symlink, e|empty]' \
+'*--type=[File-type(s) to filter by: f|file, d|directory, l|symlink, e|empty]' \
 '*-e+[Filter results by file extension]' \
 '*--ext=[Filter results by file extension]' \
 '*-E+[Exclude results that match pattern]: :_files -/' \
 '*--exclude=[Exclude results that match pattern]: :_files -/' \
+'-h[Print help information]' \
+'--help[Print help information]' \
+'-V[Print version information]' \
+'--version[Print version information]' \
 '-i[Case insensitively search]' \
 '--case-insensitive[Case insensitively search]' \
 '-r[Case insensitively search]' \
@@ -37,10 +43,6 @@ _wutag() {
 '(-c --color)--ls-colors[Respect '\''LS_COLORS'\'' environment variable when coloring the output]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
-'-h[Prints help information]' \
-'--help[Prints help information]' \
-'-V[Prints version information]' \
-'--version[Prints version information]' \
 ":: :_wutag_commands" \
 "*::: :->wutag" \
 && ret=0
@@ -52,14 +54,14 @@ _wutag() {
         case $line[1] in
             (list)
 _arguments "${_arguments_options[@]}" \
-'*-e+[Filter results by file extension]' \
-'*--ext=[Filter results by file extension]' \
 '-r[If provided output will be raw so that it can be easily piped to other commands]' \
 '--raw[If provided output will be raw so that it can be easily piped to other commands]' \
+'-h[Print help information]' \
+'--help[Print help information]' \
+'-V[Print version information]' \
+'--version[Print version information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
-'-h[Prints help information]' \
-'--help[Prints help information]' \
 ":: :_wutag__list_commands" \
 "*::: :->list" \
 && ret=0
@@ -71,30 +73,26 @@ case $state in
         case $line[1] in
             (tags)
 _arguments "${_arguments_options[@]}" \
-'*-e+[Filter results by file extension]' \
-'*--ext=[Filter results by file extension]' \
+'--help[Print help information]' \
+'--version[Print version information]' \
 '-c[]' \
 '--completions[]' \
-'*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
-'*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
-'-h[Prints help information]' \
-'--help[Prints help information]' \
+'-b[Use border separators when formatting output]' \
+'--border[Use border separators when formatting output]' \
 && ret=0
 ;;
 (files)
 _arguments "${_arguments_options[@]}" \
-'*-e+[Filter results by file extension]' \
-'*--ext=[Filter results by file extension]' \
+'--help[Print help information]' \
+'--version[Print version information]' \
 '-t[Display tags along with the files]' \
 '--with-tags[Display tags along with the files]' \
 '(-G --garrulous)-f[Format the tags and files output into columns]' \
 '(-G --garrulous)--format[Format the tags and files output into columns]' \
+'-b[Use border separators when formatting output]' \
+'--border[Use border separators when formatting output]' \
 '(-f --format)-G[Display tags and files on separate lines]' \
 '(-f --format)--garrulous[Display tags and files on separate lines]' \
-'*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
-'*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
-'-h[Prints help information]' \
-'--help[Prints help information]' \
 && ret=0
 ;;
         esac
@@ -105,68 +103,68 @@ esac
 _arguments "${_arguments_options[@]}" \
 '-C+[A glob pattern like "*.png". Explicitly select color for tag]' \
 '--color=[A glob pattern like "*.png". Explicitly select color for tag]' \
-'*-e+[Filter results by file extension]' \
-'*--ext=[Filter results by file extension]' \
 '-c[Clear all tags before setting them]' \
 '--clear[Clear all tags before setting them]' \
+'-h[Print help information]' \
+'--help[Print help information]' \
+'-V[Print version information]' \
+'--version[Print version information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
-'-h[Prints help information]' \
-'--help[Prints help information]' \
 ':pattern:' \
 '*::_wutag_tags:' \
 && ret=0
 ;;
 (rm)
 _arguments "${_arguments_options[@]}" \
-'*-e+[Filter results by file extension]' \
-'*--ext=[Filter results by file extension]' \
+'-h[Print help information]' \
+'--help[Print help information]' \
+'-V[Print version information]' \
+'--version[Print version information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
-'-h[Prints help information]' \
-'--help[Prints help information]' \
-':pattern -- A glob pattern like "*.png":' \
+':pattern -- A glob pattern like "*.png" (or regex):' \
 '*::tags:_wutag_tags' \
 && ret=0
 ;;
 (clear)
 _arguments "${_arguments_options[@]}" \
-'*-e+[Filter results by file extension]' \
-'*--ext=[Filter results by file extension]' \
+'-h[Print help information]' \
+'--help[Print help information]' \
+'-V[Print version information]' \
+'--version[Print version information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
-'-h[Prints help information]' \
-'--help[Prints help information]' \
 ':pattern -- A glob pattern like "*.png":' \
 && ret=0
 ;;
 (search)
 _arguments "${_arguments_options[@]}" \
-'(-X --exec-batch)*-x+[Execute a command on each individual file]' \
-'(-X --exec-batch)*--exec=[Execute a command on each individual file]' \
-'(-x --exec)*-X+[Execute a command on the batch of matching files]' \
-'(-x --exec)*--exec-batch=[Execute a command on the batch of matching files]' \
-'*-e+[Filter results by file extension]' \
-'*--ext=[Filter results by file extension]' \
+'(-X --exec-batch)*-x+[Execute a command on each individual file]: :_command_names -e' \
+'(-X --exec-batch)*--exec=[Execute a command on each individual file]: :_command_names -e' \
+'(-x --exec)*-X+[Execute a command on the batch of matching files]: :_command_names -e' \
+'(-x --exec)*--exec-batch=[Execute a command on the batch of matching files]: :_command_names -e' \
+'*-t+[Search just by tags or along with a tag(s)]' \
+'*--tags=[Search just by tags or along with a tag(s)]' \
 '-r[If provided output will be raw so that it can be easily piped to other commands]' \
 '--raw[If provided output will be raw so that it can be easily piped to other commands]' \
-'-a[If set to '\''true'\'' all entries containing any of provided tags will be returned]' \
-'--any[If set to '\''true'\'' all entries containing any of provided tags will be returned]' \
+'-h[Print help information]' \
+'--help[Print help information]' \
+'-V[Print version information]' \
+'--version[Print version information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
-'-h[Prints help information]' \
-'--help[Prints help information]' \
-'*::tags:_wutag_tags' \
+':pattern -- Pattern to search tagged files:' \
 && ret=0
 ;;
 (cp)
 _arguments "${_arguments_options[@]}" \
-'*-e+[Filter results by file extension]' \
-'*--ext=[Filter results by file extension]' \
+'-h[Print help information]' \
+'--help[Print help information]' \
+'-V[Print version information]' \
+'--version[Print version information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
-'-h[Prints help information]' \
-'--help[Prints help information]' \
 ':input-path -- Path to the file from which to copy tags from:_files' \
 ':pattern -- A glob pattern like "*.png":' \
 && ret=0
@@ -175,34 +173,34 @@ _arguments "${_arguments_options[@]}" \
 _arguments "${_arguments_options[@]}" \
 '-c+[Set the color of the tag to the specified color. Accepted values are hex colors like '\''0x000000'\'' or '\''#1F1F1F'\'' or just plain '\''ff000a'\''. The colors are case insensitive meaning '\''1f1f1f'\'' is equivalent to '\''1F1F1F'\'']' \
 '--color=[Set the color of the tag to the specified color. Accepted values are hex colors like '\''0x000000'\'' or '\''#1F1F1F'\'' or just plain '\''ff000a'\''. The colors are case insensitive meaning '\''1f1f1f'\'' is equivalent to '\''1F1F1F'\'']' \
-'*-e+[Filter results by file extension]' \
-'*--ext=[Filter results by file extension]' \
+'-h[Print help information]' \
+'--help[Print help information]' \
+'-V[Print version information]' \
+'--version[Print version information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
-'-h[Prints help information]' \
-'--help[Prints help information]' \
 ':tag -- The tag to edit:_wutag_tags' \
 && ret=0
 ;;
 (print-completions)
 _arguments "${_arguments_options[@]}" \
 '--shell=[Shell to print completions. Available shells are: bash, elvish, fish, powershell, zsh]: :(bash elvish fish powershell zsh)' \
-'*-e+[Filter results by file extension]' \
-'*--ext=[Filter results by file extension]' \
+'-h[Print help information]' \
+'--help[Print help information]' \
+'-V[Print version information]' \
+'--version[Print version information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
-'-h[Prints help information]' \
-'--help[Prints help information]' \
 && ret=0
 ;;
 (clean-cache)
 _arguments "${_arguments_options[@]}" \
-'*-e+[Filter results by file extension]' \
-'*--ext=[Filter results by file extension]' \
+'-h[Print help information]' \
+'--help[Print help information]' \
+'-V[Print version information]' \
+'--version[Print version information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
-'-h[Prints help information]' \
-'--help[Prints help information]' \
 && ret=0
 ;;
         esac
@@ -213,15 +211,15 @@ esac
 (( $+functions[_wutag_commands] )) ||
 _wutag_commands() {
     local commands; commands=(
-        "list:Lists all available tags or files" \
-"set:Set tag(s) on files that match the given pattern" \
-"rm:Remove tag(s) from the files that match the provided pattern" \
-"clear:Clears all tags of the files that match the provided pattern" \
-"search:Searches for files that have all of the provided 'tags'" \
-"cp:Copies tags from the specified file to files that match a pattern" \
-"edit:Edits a tag" \
-"print-completions:Prints completions for the specified shell to stdout" \
-"clean-cache:Clean the cached tag registry" \
+'list:Lists all available tags or files' \
+'set:Set tag(s) on files that match the given pattern' \
+'rm:Remove tag(s) from the files that match the provided pattern' \
+'clear:Clears all tags of the files that match the provided pattern' \
+'search:Searches for files that have all of the provided '\''tags'\''' \
+'cp:Copies tags from the specified file to files that match a pattern' \
+'edit:Edits a tag'\''s color' \
+'print-completions:Prints completions for the specified shell to stdout' \
+'clean-cache:Clean the cached tag registry' \
     )
     _describe -t commands 'wutag commands' commands "$@"
 }
@@ -244,5 +242,4 @@ _wutag_tags() {
     _describe -t wtags 'tags' wtags && ret=0
     return ret
 }
-
 _wutag "$@"

@@ -18,7 +18,10 @@ use regex::Regex;
 pub use self::{
     command::execute_command,
     exits::{generalize_exitcodes, ExitCode},
-    input::{basename, dirname, remove_extension, strip_current_dir, wutag_dir},
+    input::{
+        basename, dirname, remove_extension, strip_current_dir, wutag_clear_tag, wutag_colored_dir,
+        wutag_dir, wutag_remove_tag, wutag_set_tag,
+    },
     token::Token,
 };
 
@@ -74,7 +77,8 @@ impl CommandTemplate {
         S: AsRef<str>,
     {
         lazy_static! {
-            static ref PLACEHOLDER_PATTERN: Regex = Regex::new(r"\{(/?\.?.?|//)\}").unwrap();
+            static ref PLACEHOLDER_PATTERN: Regex =
+                Regex::new(r"\{(/?\.?.?|//|@?[src]?)\}").unwrap();
         }
 
         let mut args = Vec::new();
@@ -101,6 +105,10 @@ impl CommandTemplate {
                     "{//}" => tokens.push(Token::Parent),
                     "{/.}" => tokens.push(Token::BasenameNoExt),
                     "{..}" => tokens.push(Token::Wutag),
+                    "{@}" => tokens.push(Token::WutagColored),
+                    "{@s}" => tokens.push(Token::WutagSet),
+                    "{@r}" => tokens.push(Token::WutagRemove),
+                    "{@c}" => tokens.push(Token::WutagClear),
                     _ => unreachable!("Unhandled placeholder"),
                 }
 
@@ -137,7 +145,9 @@ impl CommandTemplate {
     fn split_first_arg(&self, input: impl AsRef<Path>) -> Vec<ArgumentTemplate> {
         let input = input.as_ref();
         let mut cloned_args = self.args.clone();
+        log::debug!("Cloned args: {:?}", cloned_args);
         cloned_args.remove(0);
+        log::debug!("Cloned args removed arg: {:?}", cloned_args);
 
         let mut new_args = self.args[0]
             .clone()
@@ -149,7 +159,9 @@ impl CommandTemplate {
             .map(ArgumentTemplate::Text)
             .collect::<Vec<ArgumentTemplate>>();
 
+        log::debug!("New args: {:?}", new_args);
         new_args.append(&mut cloned_args);
+        log::debug!("New args after append: {:?}", new_args);
         new_args
     }
 
@@ -161,11 +173,13 @@ impl CommandTemplate {
     pub fn generate_and_execute(&self, input: &Path, out_perm: Arc<Mutex<()>>) -> ExitCode {
         let input = strip_current_dir(input);
 
+        log::debug!("Args before: {:#?}", self.args);
         let args = if self.args[0].contains_wutag() {
             self.split_first_arg(&input)
         } else {
             self.args.clone()
         };
+        log::debug!("Args after: {:#?}", args);
 
         let mut cmd = Command::new(args[0].generate(&input));
         for arg in &args[1..] {
@@ -233,6 +247,10 @@ impl ArgumentTemplate {
     pub fn contains_wutag(&self) -> bool {
         if let ArgumentTemplate::Tokens(ref tokens) = *self {
             tokens[0] == Token::Wutag
+                || tokens[0] == Token::WutagColored
+                || tokens[0] == Token::WutagSet
+                || tokens[0] == Token::WutagRemove
+                || tokens[0] == Token::WutagClear
         } else {
             false
         }
@@ -257,6 +275,10 @@ impl ArgumentTemplate {
                         Parent => s.push(&dirname(path)),
                         Placeholder => s.push(path),
                         Wutag => s.push(&wutag_dir(path)),
+                        WutagColored => s.push(&wutag_colored_dir(path)),
+                        WutagSet => s.push(&wutag_set_tag(path)),
+                        WutagRemove => s.push(&wutag_remove_tag(path)),
+                        WutagClear => s.push(&wutag_clear_tag(path)),
                         Text(ref string) => s.push(string),
                     }
                 }

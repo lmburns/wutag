@@ -1,11 +1,18 @@
+//! Execute a search for tags asynchronously. Optionally execute a
+//! command on each result. Outline came from [fd](https://github.com/sharkdp/fd)
 use std::{
+    borrow::Cow,
+    ffi::OsStr,
     path::PathBuf,
     sync::{Arc, Mutex},
 };
 
 pub use crate::{
     app::App,
-    util::{contained_path, fmt_err},
+    filesystem::{contained_path, osstr_to_bytes},
+    opt::SearchOpts,
+    util::{fmt_local_path, fmt_path, fmt_tag, raw_local_path, regex_builder},
+    wutag_error,
 };
 
 use super::{
@@ -13,105 +20,195 @@ use super::{
     CommandTemplate,
 };
 
-use crossbeam_channel as channel;
+use crossbeam_channel::{Receiver, Sender};
 use crossbeam_utils::thread;
-use rayon::prelude::*;
+// use rayon::prelude::*;
+use colored::Colorize;
+use regex::bytes::Regex;
 
-// TODO: Get rid of this
 pub enum WorkerResult {
-    Entry(PathBuf),
+    Entry((PathBuf, usize)),
     #[allow(dead_code)] // Never constructed
     Error(std::io::Error),
 }
 
-pub fn run_command(app: &App, command: &Arc<CommandTemplate>, tags: &Arc<Vec<String>>) {
+/// Spawn a receiver channel that prints the result by default, but will execute
+/// a command on the result if `-x|--exec` or `-X|--exec-batch` if passed using
+/// `generate_and_execute` or `generate_and_execute_batch` from
+/// [CommandTemplate](crate::exe::CommandTemplate)
+pub fn receiver(
+    app: &Arc<App>,
+    opts: &Arc<SearchOpts>,
+    cmd: Option<Arc<CommandTemplate>>,
+    rx: Receiver<WorkerResult>,
+) -> std::thread::JoinHandle<ExitCode> {
+    let app = Arc::clone(app);
+    let opts = Arc::clone(opts);
+
     let threads = num_cpus::get();
-    let app = Arc::new(&app);
-    let (tx, rx) = channel::unbounded::<WorkerResult>();
 
-    let command = Arc::clone(command);
+    std::thread::spawn(move || {
+        if let Some(ref command) = cmd {
+            if command.in_batch_mode() {
+                let paths = rx.iter().filter_map(|value| match value {
+                    WorkerResult::Entry((entry, _id)) => Some(entry),
+                    WorkerResult::Error(err) => {
+                        wutag_error!("{}", err.to_string());
+                        None
+                    },
+                });
 
-    let receiver = std::thread::spawn(move || {
-        if command.in_batch_mode() {
-            // command.generate_and_execute_batch(rx.iter().collect());
+                command.generate_and_execute_batch(paths)
+            } else {
+                let shared_rx = Arc::new(Mutex::new(rx));
+                let out_perm = Arc::new(Mutex::new(()));
 
-            let paths = rx.iter().filter_map(|value| match value {
-                WorkerResult::Entry(val) => Some(val),
-                WorkerResult::Error(err) => {
-                    eprintln!("{}", fmt_err(err.to_string()));
-                    None
-                },
-            });
-            // let paths = rx.iter().filter_map(|v| matches!(v, Ok(v) if Some(v)));
+                let exits = thread::scope(|s| {
+                    let mut results = Vec::new();
+                    for _ in 0..threads {
+                        let command = Arc::clone(command);
+                        let out_perm = Arc::clone(&out_perm);
+                        let rx = Arc::clone(&shared_rx);
 
-            command.generate_and_execute_batch(paths)
+                        results.push(s.spawn(move |_| {
+                            let mut inner: Vec<ExitCode> = Vec::new();
+
+                            loop {
+                                let lock = rx.lock().unwrap();
+                                let value: PathBuf = match lock.recv() {
+                                    Ok(WorkerResult::Entry((entry, _id))) => entry,
+                                    Ok(WorkerResult::Error(err)) => {
+                                        wutag_error!("{}", err.to_string());
+                                        continue;
+                                    },
+                                    Err(_) => break,
+                                };
+
+                                inner.push(
+                                    command.generate_and_execute(&value, Arc::clone(&out_perm)),
+                                )
+                            }
+                            generalize_exitcodes(inner)
+                        }));
+                    }
+                    results
+                        .into_iter()
+                        .map(|h| h.join())
+                        .collect::<Result<_, _>>()
+                })
+                .unwrap()
+                .unwrap();
+
+                generalize_exitcodes(exits)
+            }
         } else {
-            let shared_rx = Arc::new(Mutex::new(rx));
-            let out_perm = Arc::new(Mutex::new(()));
-
-            let exits = thread::scope(|s| {
-                let mut results = Vec::new();
-                for _ in 0..threads {
-                    let command = Arc::clone(&command);
-                    let out_perm = Arc::clone(&out_perm);
-                    let rx = Arc::clone(&shared_rx);
-
-                    results.push(s.spawn(move |_| {
-                        let mut inner: Vec<ExitCode> = Vec::new();
-
-                        loop {
-                            let lock = rx.lock().unwrap();
-                            let value: PathBuf = match lock.recv() {
-                                Ok(WorkerResult::Entry(val)) => val,
-                                Ok(WorkerResult::Error(err)) => {
-                                    eprintln!("{}", fmt_err(err.to_string()));
-                                    continue;
-                                },
-                                Err(_) => break,
-                            };
-
-                            inner.push(command.generate_and_execute(&value, Arc::clone(&out_perm)))
-                        }
-                        generalize_exitcodes(inner)
-                    }));
+            let global_opts = |local: String, global: String| {
+                if app.global {
+                    print!("{}", global);
+                } else {
+                    print!("{}", local);
                 }
-                results
-                    .into_iter()
-                    .map(|h| h.join())
-                    .collect::<Result<_, _>>()
-            })
-            .unwrap()
-            .unwrap();
+            };
 
-            generalize_exitcodes(exits)
+            for result in rx {
+                match result {
+                    WorkerResult::Entry((entry, id)) => {
+                        if opts.raw {
+                            global_opts(
+                                raw_local_path(
+                                    entry.display().to_string(),
+                                    app.base_dir.display().to_string(),
+                                ),
+                                entry.display().to_string(),
+                            );
+                        } else {
+                            global_opts(
+                                fmt_local_path(
+                                    &entry,
+                                    &app.base_dir,
+                                    app.base_color,
+                                    app.ls_colors,
+                                ),
+                                fmt_path(&entry, app.base_color, app.ls_colors),
+                            );
+                        }
+
+                        let tags = app
+                            .registry
+                            .list_entry_tags(id)
+                            .unwrap_or_default()
+                            .iter()
+                            .map(|t| {
+                                if opts.raw {
+                                    t.name().to_owned()
+                                } else {
+                                    fmt_tag(t).to_string()
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join(" ");
+
+                        println!(": {}", tags);
+                    },
+                    WorkerResult::Error(err) => {
+                        wutag_error!("{}", err.to_string());
+                    },
+                }
+            }
+            ExitCode::Success
         }
-    });
+    })
+}
+
+/// Spawn a sender channel that filters results and `sends` them to
+/// [receiver](self::receiver)
+pub fn sender(app: &Arc<App>, opts: &Arc<SearchOpts>, re: Arc<Regex>, tx: Sender<WorkerResult>) {
+    let app = Arc::clone(app);
+    let opts = Arc::clone(opts);
+    let re = Arc::clone(&re);
+
+    let exclude_pattern = regex_builder(app.exclude.join("|").as_str(), app.case_insensitive);
 
     thread::scope(move |s| {
         let tx_thread = tx.clone();
         s.spawn(move |_| {
-            app.registry
-                .list_entries_with_tags(tags.iter())
-                .par_iter()
-                .filter_map(|id| {
-                    if let Some(entry) = app.registry.get_entry(*id) {
-                        if !app.global && !contained_path(entry.path(), &app.base_dir) {
-                            None
-                        } else {
-                            Some(entry)
-                        }
-                    } else {
-                        None
+            // Repeated code from calling function to run on multiple threads
+            for (&id, entry) in app.registry.list_entries_and_ids() {
+                if !app.global && !contained_path(entry.path(), &app.base_dir) {
+                    continue;
+                }
+
+                let search_str: Cow<OsStr> = Cow::Owned(entry.path().as_os_str().to_os_string());
+                let search_bytes = osstr_to_bytes(search_str.as_ref());
+
+                if !app.exclude.is_empty() && exclude_pattern.is_match(&search_bytes) {
+                    continue;
+                }
+
+                if let Some(ref ext) = app.extension {
+                    if !ext.is_match(&search_bytes) {
+                        continue;
                     }
-                })
-                .for_each(|entry| {
+                }
+
+                // if let Some(ref file_types) = app.file_type {
+                //     if file_types.should_ignore(entry.path()) {
+                //         continue;
+                //     }
+                // }
+
+                if re.is_match(&search_bytes) {
+                    // Additional tag search
+                    if !opts.tags.is_empty() && !app.registry.entry_has_tags(id, &opts.tags) {
+                        continue;
+                    }
+
                     tx_thread
-                        .send(WorkerResult::Entry(entry.path().to_owned()))
+                        .send(WorkerResult::Entry((entry.path().to_owned(), id)))
                         .unwrap();
-                });
+                }
+            }
         });
     })
     .unwrap();
-
-    receiver.join().unwrap();
 }

@@ -2,6 +2,8 @@ mod app;
 mod comp_helper;
 mod config;
 mod exe;
+mod filesystem;
+mod macros;
 mod opt;
 mod registry;
 mod util;
@@ -16,6 +18,8 @@ use opt::Opts;
 
 /// Default base color for printing files
 pub(crate) const DEFAULT_BASE_COLOR: Color = Color::Blue;
+/// Default border color for printing formatted tags
+pub(crate) const DEFAULT_BORDER_COLOR: cli_table::Color = cli_table::Color::White;
 /// Default max depth passed to [WalkParallel](ignore::WalkParallel)
 pub(crate) const DEFAULT_MAX_DEPTH: usize = 2;
 /// Default colors used for tags

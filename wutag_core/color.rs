@@ -98,6 +98,39 @@ pub fn parse_color<S: AsRef<str>>(color: S) -> Result<Color> {
     Err(Error::InvalidColor(color.to_string()))
 }
 
+/// Parses a [Color](cli_table::Color) from a String. If the provided string
+/// starts with `0x` or `#` or without any prefix the color will be treated as
+/// hex color notation so any colors like `0x1f1f1f` or `#ABBA12` or `121212`
+/// are valid.
+pub fn parse_color_cli_table<S: AsRef<str>>(color: S) -> Result<cli_table::Color> {
+    let color = color.as_ref();
+    macro_rules! if_6 {
+        ($c:ident) => {
+            if $c.len() == 6 {
+                Some($c)
+            } else {
+                None
+            }
+        };
+    }
+
+    let result = if let Some(c) = color.strip_prefix("0x") {
+        if_6!(c)
+    } else if let Some(c) = color.strip_prefix('#') {
+        if_6!(c)
+    } else {
+        if_6!(color)
+    };
+
+    if let Some(color) = result {
+        // hex
+        if let Some((r, g, b)) = parse_hex(color) {
+            return Ok(cli_table::Color::Rgb(r, g, b));
+        }
+    }
+    Err(Error::InvalidColor(color.to_string()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::parse_color;

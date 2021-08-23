@@ -1,5 +1,5 @@
 //! Functions for manipulating tags on files.
-use colored::Color;
+use colored::{Color, Colorize};
 use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -120,7 +120,7 @@ impl Tag {
     {
         for tag in list_tags(path.as_ref())? {
             if &tag == self {
-                return Err(Error::TagExists);
+                return Err(Error::TagExists(tag.name.green().bold()));
             }
         }
         set_xattr(path, self.hash()?.as_str(), "")

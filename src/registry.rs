@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use super::util::contained_path;
+use crate::filesystem::contained_path;
 use rayon::prelude::*;
 use wutag_core::tag::Tag;
 
@@ -198,6 +198,16 @@ impl TagRegistry {
         } else {
             Some(tags)
         }
+    }
+
+    pub(crate) fn entry_has_tags(&self, id: EntryId, tags: &[String]) -> bool {
+        let entry_tags = self.list_entry_tags(id).unwrap_or_else(Vec::new);
+
+        let has_tags = entry_tags
+            .iter()
+            .find(|t| tags.iter().any(|inp| inp == t.name()));
+
+        has_tags.is_some()
     }
 
     /// Returns entries that have all of the `tags`.

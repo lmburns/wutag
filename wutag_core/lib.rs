@@ -2,6 +2,7 @@ pub mod color;
 pub mod tag;
 pub mod xattr;
 
+use colored::{ColoredString, Colorize};
 use std::{ffi, io, string};
 use thiserror::Error;
 
@@ -11,8 +12,8 @@ pub const WUTAG_NAMESPACE: &str = "user.wutag";
 #[derive(Debug, Error)]
 /// Default error used throughout this crate
 pub enum Error {
-    #[error("tag already exists")]
-    TagExists,
+    #[error("tag {0} already exists")]
+    TagExists(ColoredString),
     #[error("tag `{0}` doesn't exist")]
     TagNotFound(String),
     #[error("tag key was invalid - {0}")]
@@ -40,7 +41,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
         match err.kind() {
-            io::ErrorKind::AlreadyExists => Error::TagExists,
+            io::ErrorKind::AlreadyExists => Error::TagExists(err.to_string().green().bold()),
             _ => match err.raw_os_error() {
                 Some(61) => Error::TagNotFound("".to_string()),
                 _ => Error::Other(err.to_string()),

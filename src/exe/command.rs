@@ -1,7 +1,8 @@
 use std::{io, io::Write, process::Command, sync::Mutex};
 
 use super::exits::ExitCode;
-use crate::util::fmt_err;
+use crate::wutag_error;
+use colored::Colorize;
 
 pub fn execute_command(mut cmd: Command, out_perm: &Mutex<()>) -> ExitCode {
     // Spawn the supplied command.
@@ -27,14 +28,11 @@ pub fn execute_command(mut cmd: Command, out_perm: &Mutex<()>) -> ExitCode {
             }
         },
         Err(ref why) if why.kind() == io::ErrorKind::NotFound => {
-            eprintln!("{}", fmt_err(format!("Command not found: {:?}", cmd)));
+            wutag_error!("Command not found: {:?}", cmd);
             ExitCode::GeneralError
         },
         Err(why) => {
-            eprintln!(
-                "{}",
-                fmt_err(format!("Problem while executing command: {}", why))
-            );
+            wutag_error!("Problem while executing command: {}", why);
             ExitCode::GeneralError
         },
     }

@@ -10,10 +10,11 @@ const CONFIG_FILE: &str = "wutag.yml";
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
 pub(crate) struct Config {
-    pub(crate) max_depth:  Option<usize>,
-    pub(crate) base_color: Option<String>,
-    pub(crate) colors:     Option<Vec<String>>,
-    pub(crate) ignores:    Option<Vec<String>>,
+    pub(crate) max_depth:    Option<usize>,
+    pub(crate) base_color:   Option<String>,
+    pub(crate) border_color: Option<String>,
+    pub(crate) colors:       Option<Vec<String>>,
+    pub(crate) ignores:      Option<Vec<String>>,
 }
 
 impl Config {

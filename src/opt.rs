@@ -1,9 +1,8 @@
 //! Options used by the main executable
-use std::{env, fs, path::PathBuf, str::FromStr};
-
-use anyhow::Error;
-use clap::{crate_description, crate_version, AppSettings, Clap, ValueHint};
+use clap::{crate_description, crate_version, AppSettings, ArgSettings, Clap, ValueHint};
+use clap_generate::Shell;
 use lazy_static::lazy_static;
+use std::{env, fs, path::PathBuf};
 
 use wutag_core::color::parse_color;
 
@@ -17,10 +16,24 @@ pub(crate) const RES: &str = "\x1b[0m";
 
 pub(crate) const APP_NAME: &str = "wutag";
 
+// Colored options used in the output of `--help`
 lazy_static! {
     static ref APP_ABOUT: String = format!(
         "{}DESCRIPTION: {}{}{}", YELLOW, GREEN, crate_description!(), RES
     );
+        // Specify the file-type(s) to filter by. Can be repeated
+    static ref FILE_TYPE: String =
+        "Filter results based on file-type. Does not work with '-g|--global'.\n  \
+            'f' or 'file':       regular file\n  \
+            'd' or 'dir':        direcotry\n  \
+            'l' or 'symlink':    symlink\n  \
+            'b' or 'block':      block device\n  \
+            'c' or 'char':       character device\n  \
+            's' or 'socket':     socket\n  \
+            'F' or 'fifo':       fifo\n  \
+            'x' or 'executable': executable\n \
+            'e' or 'empty':      file or directory with 0 size
+        ".to_string();
     #[rustfmt::skip]
     static ref EXEC_BATCH_EXPL: String = format!(
         "Execute a command on each search result.\n  \
@@ -29,12 +42,23 @@ lazy_static! {
        '{}{{//}}{}': parent directory\n  \
        '{}{{.}}{}':  path without file extension\n  \
        '{}{{/.}}{}': basename without file extension\n  \
-       '{}{{..}}{}': expands to wutag -d <parent_of_match> (only applies to -x/--exec)\n",
-       GREEN, RES, GREEN, RES, GREEN, RES, GREEN, RES, GREEN, RES, GREEN, RES
+       '{}{{..}}{}': expands to wutag -d <parent_of_match> (only applies to -x/--exec)\n  \
+       '{}{{@}}{}': same as above but with color (only applies to -x/--exec)\n  \
+       '{}{{@s}}{}': shorthand to set tag\n  \
+        \t  e.g., {}wutag search '*.rs' -x {{@s}} new_tag{} (only applies to -x/--exec)\n  \
+       '{}{{@r}}{}': shorthand to remove tag (only applies to -x/--exec)\n  \
+       '{}{{@c}}{}': shorthand to clear tag, no other arg required (only applies to -x/--exec)\n  \
+        \t  e.g., {}wutag search '*.rs' -x {{@c}}{}",
+       GREEN, RES, GREEN, RES,
+       GREEN, RES, GREEN, RES,
+       GREEN, RES, GREEN, RES,
+       GREEN, RES, GREEN, RES,
+       BRCYAN, RES, GREEN, RES,
+       GREEN, RES, BRCYAN, RES
     );
     static ref EXEC_EXPL: String = format!(
-        "{}\n \
-       \t An example of using this is:\n  \
+        "{}\n  \
+       An example of using this is:\n  \
        \t {}wutag -g search <tag> -x {{..}} set {{/}} <tag2>{}",
        EXEC_BATCH_EXPL.to_string(), BRCYAN, RES
     );
@@ -65,17 +89,19 @@ lazy_static! {
     max_term_width = 100,
     global_setting = AppSettings::ColoredHelp,
     global_setting = AppSettings::ColorAuto,
-    global_setting = AppSettings::DisableHelpSubcommand,  // Disables help (use -h)
-    global_setting = AppSettings::VersionlessSubcommands, // Shows no --version
-    global_setting = AppSettings::InferSubcommands,       // l, li, lis == list
-    global_setting = AppSettings::DeriveDisplayOrder,     // Display in order listed here
+    global_setting = AppSettings::DisableHelpSubcommand,        // Disables help (use -h)
+    global_setting = AppSettings::DisableVersionForSubcommands, // Shows no --version
+    global_setting = AppSettings::DeriveDisplayOrder,           // Display in order listed here
     global_setting = AppSettings::HidePossibleValuesInHelp,
+    global_setting = AppSettings::InferSubcommands,             // l, li, lis == list
+    // global_setting = AppSettings::InferLongArgs,             // Same as above but for args
     // global_setting = AppSettings::UnifiedHelpMessage,     // Options/Flags together
 )]
 pub(crate) struct Opts {
     /// Specify starting path for filesystem traversal
     #[clap(
         long, short,
+        number_of_values = 1,
         value_hint = ValueHint::DirPath,
         validator = |t| fs::metadata(t)
                             .map_err(|_| "must be a valid path")
@@ -90,7 +116,7 @@ pub(crate) struct Opts {
     /// Increase maximum recursion depth from 2
     #[clap(
         long, short,
-        value_name = "depth",
+        value_name = "num",
         validator = |t| t.parse::<usize>()
                             .map_err(|_| "must be a number")
                             .map(|_| ())
@@ -105,7 +131,7 @@ pub(crate) struct Opts {
         long = "registry", short = 'R',
         value_hint = ValueHint::FilePath,
         env = "WUTAG_REGISTRY",
-        hide_env_values = true // Part of clap's todo
+        setting = ArgSettings::HideEnv,
     )]
     pub(crate) reg:              Option<PathBuf>,
     /// Case insensitively search
@@ -150,12 +176,23 @@ pub(crate) struct Opts {
         auto, never. The always selection only applies to the path as of now."
     )]
     pub(crate) color_when:       Option<String>,
+    /// File-type(s) to filter by: f|file, d|directory, l|symlink, e|empty
+    #[clap(
+        long = "type",
+        short = 't',
+        number_of_values = 1,
+        multiple_occurrences = true,
+        takes_value = true,
+        value_name = "filetype",
+        long_about = FILE_TYPE.as_ref(),
+    )]
+    pub(crate) file_type:        Option<Vec<String>>,
     #[clap(
         long = "ext",
         short = 'e',
-        global = true,
+        // global = true,
         number_of_values = 1,
-        multiple = true,
+        multiple_occurrences = true,
         takes_value = true,
         value_name = "extension",
         long_about = "\
@@ -169,7 +206,7 @@ pub(crate) struct Opts {
     #[clap(
         long = "exclude", short = 'E',
         number_of_values = 1,
-        multiple = true,
+        multiple_occurrences = true,
         takes_value = true,
         value_name = "pattern",
         value_hint = ValueHint::DirPath,
@@ -187,8 +224,6 @@ pub(crate) struct Opts {
     #[clap(subcommand)]
     pub(crate) cmd:              Command,
 }
-
-// setting = ArgSettings::MultipleOccurrences,
 
 impl Opts {
     /// Allows a default command to run if no arguments are passed
@@ -212,6 +247,7 @@ impl Default for Command {
             object: ListObject::Files {
                 with_tags: true,
                 formatted: true,
+                border:    false,
                 garrulous: false,
             },
             raw:    false,
@@ -225,6 +261,15 @@ pub(crate) enum ListObject {
     Tags {
         #[clap(long = "completions", short = 'c', hidden = true)]
         for_completions: bool,
+        /// Use border separators when formatting output
+        #[clap(
+            long,
+            short,
+            long_about = "\
+            Use a border around the perimeter of the formatted tags, as well as in-between the \
+                          lines."
+        )]
+        border:          bool,
     },
     Files {
         /// Display tags along with the files
@@ -240,6 +285,16 @@ pub(crate) enum ListObject {
             long_about = "Format the tags and files output into columns. Requires '--with-tags'"
         )]
         formatted: bool,
+        /// Use border separators when formatting output
+        #[clap(
+            long,
+            short,
+            requires = "formatted",
+            long_about = "\
+            Use a border around the perimeter of the formatted tags, as well as in-between the \
+                          lines."
+        )]
+        border:    bool,
         /// Display tags and files on separate lines
         #[clap(
             name = "garrulous",
@@ -283,7 +338,7 @@ pub(crate) struct SetOpts {
 
 #[derive(Clap, Clone, Debug)]
 pub(crate) struct RmOpts {
-    /// A glob pattern like "*.png".
+    /// A glob pattern like "*.png" (or regex).
     pub(crate) pattern: String,
     pub(crate) tags:    Vec<String>,
 }
@@ -295,17 +350,16 @@ pub(crate) struct ClearOpts {
 }
 
 #[derive(Clap, Clone, Debug)]
-pub(crate) struct SearchOpts {
-    #[clap(required = true)]
-    pub(crate) tags:    Vec<String>,
+pub struct SearchOpts {
     /// If provided output will be raw so that it can be easily piped to other
     /// commands
     #[clap(long, short)]
-    pub(crate) raw:     bool,
-    /// If set to 'true' all entries containing any of provided tags will be
-    /// returned
-    #[clap(long, short)]
-    pub(crate) any:     bool,
+    pub(crate) raw: bool,
+
+    // /// If set to 'true' all entries containing any of provided tags will be
+    // /// returned
+    // #[clap(long, short)]
+    // pub(crate) any:     bool,
     /// Execute a command on each individual file
     #[rustfmt::skip]
     #[clap(
@@ -317,7 +371,8 @@ pub(crate) struct SearchOpts {
         value_terminator = ";",
         allow_hyphen_values = true,
         conflicts_with = "exec-batch",
-        long_about = EXEC_EXPL.as_ref()
+        long_about = EXEC_EXPL.as_ref(),
+        value_hint = ValueHint::CommandName,
     )]
     pub(crate) execute:       Option<Vec<String>>,
     /// Execute a command on the batch of matching files
@@ -330,15 +385,42 @@ pub(crate) struct SearchOpts {
         value_terminator = ";",
         allow_hyphen_values = true,
         conflicts_with = "exec",
-        long_about = EXEC_BATCH_EXPL.as_ref()
+        long_about = EXEC_BATCH_EXPL.as_ref(),
+        value_hint = ValueHint::CommandName,
     )]
     pub(crate) execute_batch: Option<Vec<String>>,
+    /// Search just by tags or along with a tag(s)
+    #[clap(
+        name = "tags",
+        long,
+        short,
+        long_about = "\
+        Limit search results even further by using a tag. To search just by tags use 'wutag search \
+                      '*' --tag <tag>'
+        "
+    )]
+    pub(crate) tags:          Vec<String>,
+    /// Pattern to search tagged files
+    #[clap(name = "pattern")]
+    pub(crate) pattern:       String,
 }
+
+// macro_rules! colorize_help {
+//     ($cmd:tt, $($patt:tt)*) => ({
+//         format!("{} [FLAGS/OPTIONS] {} [FLAGS/OPTIONS] {}",
+//             "wutag".to_string().green(),
+//             $cmd.red().bold(),
+//             format!($($patt)*)
+//         ).as_str()
+//     })
+// }
 
 #[derive(Clap, Debug, Clone)]
 pub(crate) struct CpOpts {
     /// Path to the file from which to copy tags from
-    #[clap(value_hint = ValueHint::FilePath,
+    #[clap(
+        value_name = "input_path",
+        value_hint = ValueHint::FilePath,
         validator = |t| fs::metadata(t)
                             .map_err(|_| "must be a valid path")
                             .map(|_| ())
@@ -346,6 +428,7 @@ pub(crate) struct CpOpts {
     )]
     pub(crate) input_path: PathBuf,
     /// A glob pattern like "*.png".
+    #[clap(value_name = "pattern")]
     pub(crate) pattern:    String,
 }
 
@@ -367,37 +450,6 @@ pub(crate) struct EditOpts {
 }
 
 #[derive(Clap, Debug, Clone)]
-#[allow(clippy::enum_variant_names)]
-pub(crate) enum Shell {
-    Bash,
-    Elvish,
-    Fish,
-    PowerShell,
-    Zsh,
-}
-
-impl FromStr for Shell {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match &s.to_lowercase()[..] {
-            "bash" => Ok(Shell::Bash),
-            "elvish" => Ok(Shell::Elvish),
-            "fish" => Ok(Shell::Fish),
-            "powershell" => Ok(Shell::PowerShell),
-            "zsh" => Ok(Shell::Zsh),
-            _ => Err(Error::msg(format!("invalid shell `{}`", s))),
-        }
-    }
-}
-
-impl Shell {
-    pub(crate) fn variants() -> [&'static str; 5] {
-        ["bash", "elvish", "fish", "powershell", "zsh"]
-    }
-}
-
-#[derive(Clap, Debug, Clone)]
 pub(crate) struct CompletionsOpts {
     /// Shell to print completions. Available shells are: bash, elvish, fish,
     /// powershell, zsh
@@ -408,25 +460,39 @@ pub(crate) struct CompletionsOpts {
 #[derive(Clap, Debug, Clone)]
 pub(crate) enum Command {
     /// Lists all available tags or files.
-    #[clap(aliases = &["ls", "l", "li", "lis"])]
-    // Have to do this to be compatible with InferSubcommands
+    #[clap(
+        aliases = &["ls", "l", "li", "lis"],
+        override_usage = "wutag [FLAG/OPTIONS] list [FLAG/OPTIONS] <SUBCOMMAND> [FLAG/OPTIONS]"
+    )]
     List(ListOpts),
     /// Set tag(s) on files that match the given pattern
+    #[clap(override_usage = "wutag [FLAG/OPTIONS] set [FLAG/OPTIONS] <pattern> <tag>")]
     Set(SetOpts),
     /// Remove tag(s) from the files that match the provided pattern
-    #[clap(aliases = &["remove", "r"])]
+    #[clap(
+        aliases = &["remove", "r"],
+        override_usage = "wutag [FLAG/OPTIONS] rm <pattern> <tag>"
+    )]
     Rm(RmOpts),
     /// Clears all tags of the files that match the provided pattern
+    #[clap(override_usage = "wutag [FLAG/OPTIONS] clear [FLAG/OPTIONS] <pattern>")]
     Clear(ClearOpts),
     /// Searches for files that have all of the provided 'tags'
+    #[clap(override_usage = "wutag [FLAG/OPTIONS] search [FLAG/OPTIONS] <pattern>")]
     Search(SearchOpts),
     /// Copies tags from the specified file to files that match a pattern
+    #[clap(override_usage = "wutag [FLAG/OPTIONS] cp [FLAG/OPTIONS] <input_path> <pattern>")]
     Cp(CpOpts),
-    /// Edits a tag
+    /// Edits a tag's color
+    #[clap(override_usage = "wutag edit [FLAGS/OPTIONS] --color <color> <tag>")]
     Edit(EditOpts),
     /// Prints completions for the specified shell to stdout
-    #[clap(display_order = 1000)]
+    #[clap(
+        display_order = 1000,
+        override_usage = "wutag print-completions --shell <shell>"
+    )]
     PrintCompletions(CompletionsOpts),
     /// Clean the cached tag registry
+    #[clap(override_usage = "wutag [FLAG/OPTIONS] clean-cache")]
     CleanCache,
 }

@@ -2,7 +2,7 @@ set shell := ["zsh", "-euyc"]
 # F
 
 CI := if env_var_or_default("CI", "1") == "0" { "--color=never" } else { "--color=always" }
-version := `rg --color=never --pcre2 -oIN '^version = "\K(\d+\.?)+'`
+version := `rg --color=never --pcre2 -oIN '^version = "\K(\d+\.?)+' Cargo.toml`
 
 # rf := if env_var_or_default("rfd", "0") == "1" { join(env_var_or_default("RUSTFLAGS", ""), " -A dead_code") } else { env_var_or_default("RUSTFLAGS", "") }
 # export RUSTFLAGS := rf
@@ -74,6 +74,9 @@ view-man: man
 # update-version NEW *GO:
 #   just replace {{version}} {{NEW}} {{GO}}
 #   just man
+
+@get-version:
+  echo {{version}}
 
 replace FROM TO:
   -fd -tf -e rs -e toml | sad '{{FROM}}' '{{TO}}'

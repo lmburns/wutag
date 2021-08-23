@@ -30,14 +30,18 @@ A command line tool for tagging files
     * Global example: `wutag -ge 'rs' -e 'md' rm '*' txt` (only with `rm`, `clear`)
     * Local example: `wutag -e 'rs' rm '*' txt`
     * Code was modified from [`fd`](https://github.com/sharkdp/fd)
-* [x] Can exclude files with the `-E|--exclude` option (works on any subcommand requiring a path besides `search`)
+* [x] Can exclude files with the `-E|--exclude` option (works on any subcommand requiring a path)
     * Works both globally and locally
     * Global example: `wutag -gE '*exclude_path*' rm '*.txt' txt` (only with `rm`, `clear`)
     * Local example: `wutag -E 'path/to/exclude/' rm '*.txt' txt`
-    * [ ] FIX: Conflicts with `search` and `-x/--exec`
-    * [ ] FIX: Add feature to search by file name
 * [x] Can ignore certain paths permanently by using `ignores` in your configuration (example below)
-* [ ] TODO: Add type to search by
+* [x] Default is to now search by a pattern and an optional tag
+* [x] Searching is also now local by default
+    * `wutag -g search <pattern> <optional_tag>`
+    * To search just by using a tag, use `*` as a pattern
+* [x] Can filter results by file type using `-t|--type`
+    * TODO: Implement type search for `search`
+
 * [ ] TODO: Allow `-e ext` without glob pattern
 
 #### Multiple registries
@@ -83,8 +87,11 @@ A command line tool for tagging files
     * If file path is `/Users/user/testing/home/main.rs`
         * `{..}` expands to `wutag -d /Users/user/testing/home`
         * `{/}` expands to `main.rs`
-* [ ] Add colored output somehow on command execution
-* [ ] Implement on things other than `search`
+        * [TIP]: Use `... -x {@} ...` for forced colored output
+        * Other tokens:
+            * `{@s}` sets a tag (e.g., `wutag search '*.rs' -x {@s} new`)
+            * `{@r}` removes a tag
+            * `{@c}` clears tags (no other argument is required)
 
 #### Todo
 * [ ] Fix `any` vs the normal `all` with search (it doesn't work)
@@ -140,13 +147,14 @@ There will be a `wutag.yml` file located in `$XDG_CONFIG_HOME/wutag` or `$HOME/.
 Example configuration:
 ```yaml
 ---
-base_color: "#FF5813"
-max_depth: 100
-colors:
-    - '0xabba0f'
+base_color: "#FF5813"       # default color of file path
+border_color: "#A06469"     # default color when using `list files -tfb`
+max_depth: 100              # maximum depth to recurse when applying function to files
+colors:                     # list of colors to choose from when setting tags
+    - '0xabba0f'            # can be in formats other than #RRGGBB
     - '#121212'
     - '0x111111'
-ignores:
+ignores:                    # list of paths to always ignore
     - "src/"
     - "Library/"
     - "**/foo/bar"
@@ -174,37 +182,31 @@ USAGE:
     wutag [FLAGS/OPTIONS] <SUBCOMMAND> [TAGS/FLAGS]
 
 FLAGS:
+    -h, --help                Print help information
+    -V, --version             Print version information
     -i, --case-insensitive    Case insensitively search
-    -g, --global              Apply operation to all tags and files instead of locally
-    -h, --help                Prints help information
-    -l, --ls-colors           Respect 'LS_COLORS' environment variable when coloring the output
     -r, --regex               Case insensitively search
+    -g, --global              Apply operation to all tags and files instead of locally
+    -l, --ls-colors           Respect 'LS_COLORS' environment variable when coloring the output
     -v, --verbose             Display debugging messages on 4 levels (i.e., -vv..)
-    -V, --version             Prints version information
 
 OPTIONS:
-    -c, --color <when>
-            When to colorize output [possible values: never, auto, always]
-
-    -d, --dir <dir>
-            Specify starting path for filesystem traversal
-
-    -m, --max-depth <depth>
-            Increase maximum recursion depth [default: 2]
-
-    -R, --registry <reg>
-            Specify a different registry to use [env: WUTAG_REGISTRY=]
-
+    -d, --dir <DIR>...            Specify starting path for filesystem traversal
+    -m, --max-depth <num>         Increase maximum recursion depth from 2
+    -R, --registry <REG>          Specify a different registry to use
+    -c, --color <when>            When to colorize output
+    -e, --ext <extension>...      Filter results by file extension
+    -E, --exclude <pattern>...    Exclude results that match pattern
 
 SUBCOMMANDS:
-    clean-cache          Clean the cached tag registry
+    list                 Lists all available tags or files
+    set                  Set tag(s) on files that match the given pattern
+    rm                   Remove tag(s) from the files that match the provided pattern
     clear                Clears all tags of the files that match the provided pattern
+    search               Searches for files that have all of the provided 'tags'
     cp                   Copies tags from the specified file to files that match a pattern
     edit                 Edits a tag
-    list                 Lists all available tags or files
-    rm                   Remove tag(s) from the files that match the provided pattern
-    search               Searches for files that have all of the provided 'tags'
-    set                  Set tag(s) on files that match the given pattern
+    clean-cache          Clean the cached tag registry
     print-completions    Prints completions for the specified shell to stdout
 
 See wutag --help for longer explanations of some base options.

@@ -77,6 +77,8 @@ lazy_static! {
         {}Lucas Burns{}   <{}lmb@lmburns.com{}>",
         BRRED, RES, BRGREEN, RES, BRRED, RES, BRGREEN, RES,
     );
+    static ref DEFAULT_EDITOR: String = std::env::var("EDITOR")
+        .unwrap_or_else(|_| "vim".to_string());
 }
 
 #[derive(Clap, Default, Clone, Debug)]
@@ -345,8 +347,12 @@ pub(crate) struct RmOpts {
 
 #[derive(Clap, Debug, Clone)]
 pub(crate) struct ClearOpts {
+    // Opts::into_app().get_matches_from(env::args_os()).is_present("global")
+    /// Clear all files from registry that no longer exist (requires --global)
+    #[clap(long, short)]
+    pub(crate) non_existent: bool,
     /// A glob pattern like "*.png".
-    pub(crate) pattern: String,
+    pub(crate) pattern:      String,
 }
 
 #[derive(Clap, Clone, Debug)]
@@ -434,9 +440,11 @@ pub(crate) struct CpOpts {
 
 #[derive(Clap, Debug, Clone)]
 pub(crate) struct EditOpts {
-    /// The tag to edit
-    pub(crate) tag:   String,
-    #[clap(long, short,
+    #[clap(
+        name = "color",
+        long, short,
+        requires = "tag",
+        conflicts_with_all = &["view", "pattern"],
         validator = |t| parse_color(t)
                             .map_err(|_| "must be a valid hex color")
                             .map(|_| ())
@@ -446,7 +454,35 @@ pub(crate) struct EditOpts {
     /// colors like '0x000000' or '#1F1F1F' or just plain 'ff000a'. The
     /// colors are case insensitive meaning '1f1f1f' is equivalent to
     /// '1F1F1F'.
-    pub(crate) color: String,
+    pub(crate) color: Option<String>,
+    /// The tag to edit
+    #[clap(
+        name = "tag",
+        long, short = 't',
+        // conflicts_with= "view",
+    )]
+    pub(crate) tag:   Option<String>,
+
+    /// Open tags in selected edtor
+    #[clap(
+        long, short,
+        env = "EDITOR",
+        default_value = DEFAULT_EDITOR.as_ref(),
+        setting = ArgSettings::HideEnv,
+    )]
+    pub(crate) editor: String,
+
+    #[clap(name = "view", long, short = 'V')]
+    pub(crate) view: bool,
+
+    /// Pattern to search for and open in editor
+    #[clap(
+        name = "pattern",
+        long, short = 'p',
+        conflicts_with = "color",
+        // required_unless = "tag",
+    )]
+    pub(crate) pattern: Option<String>,
 }
 
 #[derive(Clap, Debug, Clone)]

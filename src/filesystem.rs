@@ -1,7 +1,7 @@
 use std::{
     borrow::Cow,
     ffi::OsStr,
-    fs,
+    fs::{self, Metadata},
     io::{self, Write},
     path::Path,
 };
@@ -11,6 +11,7 @@ use crate::wutag_error;
 use colored::Colorize;
 
 use std::os::unix::fs::{FileTypeExt, PermissionsExt};
+use thiserror::Error;
 
 /// FileTypes to filter against when searching (taken from `fd`)
 #[derive(Debug, Clone)]
@@ -42,34 +43,70 @@ impl Default for FileTypes {
     }
 }
 
-// pub trait FileInfo {
-//     fn path(&self) -> &Path;
-//     fn file_type(&self) -> Option<fs::FileType>;
-// }
-//
-// impl FileInfo for ignore::DirEntry {
-//     fn path(&self) -> &Path {
-//         self.path()
-//     }
-//
-//     fn file_type(&self) -> Option<fs::FileType> {
-//         self.file_type()
-//     }
-// }
-//
-// impl FileInfo for EntryData {
-//     fn path(&self) -> &Path {
-//         self.path()
-//     }
-//
-//     fn file_type(&self) -> Option<fs::FileType> {
-//         let metadata = fs::metadata(self.path()).unwrap();
-//         Some(metadata.file_type()
-//     }
-// }
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("No metadata exists for {0}")]
+    Metadata(String),
+}
+
+pub type FileInfoResult<T> = std::result::Result<T, Error>;
+
+pub trait FileInfo {
+    fn path(&self) -> &Path;
+    fn file_type(&self) -> Option<fs::FileType>;
+    fn meta(&self) -> FileInfoResult<Metadata>;
+    fn is_executable(&self) -> bool;
+}
+
+impl FileInfo for ignore::DirEntry {
+    fn path(&self) -> &Path {
+        self.path()
+    }
+
+    fn file_type(&self) -> Option<fs::FileType> {
+        self.file_type()
+    }
+
+    fn meta(&self) -> FileInfoResult<Metadata> {
+        match self.metadata() {
+            Ok(meta) => Ok(meta),
+            Err(e) => Err(Error::Metadata(e.to_string())),
+        }
+    }
+
+    fn is_executable(&self) -> bool {
+        self.metadata()
+            .map(|m| &m.permissions().mode() & 0o111 != 0)
+            .unwrap_or(false)
+    }
+}
+
+impl FileInfo for &Path {
+    fn path(&self) -> &Path {
+        self
+    }
+
+    fn file_type(&self) -> Option<fs::FileType> {
+        let metadata = fs::metadata(self.path()).unwrap();
+        Some(metadata.file_type())
+    }
+
+    fn meta(&self) -> FileInfoResult<Metadata> {
+        match self.metadata() {
+            Ok(meta) => Ok(meta),
+            Err(e) => Err(Error::Metadata(e.to_string())),
+        }
+    }
+
+    fn is_executable(&self) -> bool {
+        self.metadata()
+            .map(|m| &m.permissions().mode() & 0o111 != 0)
+            .unwrap_or(false)
+    }
+}
 
 impl FileTypes {
-    pub fn should_ignore(&self, entry: &ignore::DirEntry) -> bool {
+    pub fn should_ignore(&self, entry: &impl FileInfo) -> bool {
         if let Some(ref entry_type) = entry.file_type() {
             (!self.files && entry_type.is_file())
                 || (!self.directories && entry_type.is_dir())
@@ -78,12 +115,8 @@ impl FileTypes {
                 || (!self.char_devices && entry_type.is_char_device())
                 || (!self.sockets && entry_type.is_socket())
                 || (!self.fifos && entry_type.is_fifo())
-                || (self.executables_only
-                    && !entry
-                        .metadata()
-                        .map(|m| &m.permissions().mode() & 0o111 != 0)
-                        .unwrap_or(false))
-                || (self.empty_only && is_empty(entry))
+                || (self.executables_only && !entry.is_executable())
+                || (self.empty_only && !is_empty(entry))
                 || !(entry_type.is_file()
                     || entry_type.is_dir()
                     || entry_type.is_symlink()
@@ -97,33 +130,7 @@ impl FileTypes {
     }
 }
 
-// impl From<fs::FileType> for FileTypes {
-//     fn from(ftype: fs::FileType) -> Self {
-//         let res = {
-//             if ftype.is_file() {
-//                 Self { files: true, ..Default::default() }
-//             } else if ftype.is_dir() {
-//                 Self { directories: true, ..Default::default() }
-//             } else if ftype.is_symlink() {
-//                 Self { symlinks: true, ..Default::default() }
-//             } else if ftype.is_block_device() {
-//                 Self { block_device: true, ..Default::default() }
-//             } else if ftype.is_char_device() {
-//                 Self { char_device: true, ..Default::default() }
-//             } else if ftype.is_socket() {
-//                 Self { sockets: true, ..Default::default() }
-//             } else if ftype.is_fifo() {
-//                 Self { fifos: true, ..Default::default() }
-//             } else if fs::metadata(ftype).unwrap().permissions().mode() &
-// 0o111 != 0 {                 Self { executables_only: true,
-// ..Default::default() }             } else {
-//                 unreachable!("Unexpected file type: {}", ftype)
-//             }
-//         };
-//     }
-// }
-
-pub fn is_empty(entry: &ignore::DirEntry) -> bool {
+pub fn is_empty(entry: &impl FileInfo) -> bool {
     if let Some(file_type) = entry.file_type() {
         if file_type.is_dir() {
             if let Ok(mut entries) = fs::read_dir(entry.path()) {
@@ -132,7 +139,7 @@ pub fn is_empty(entry: &ignore::DirEntry) -> bool {
                 false
             }
         } else if file_type.is_file() {
-            entry.metadata().map(|m| m.len() == 0).unwrap_or(false)
+            entry.meta().map(|m| m.len() == 0).unwrap_or(false)
         } else {
             false
         }
@@ -142,11 +149,11 @@ pub fn is_empty(entry: &ignore::DirEntry) -> bool {
 }
 
 pub fn create_tmp_ignore(
-    write_content: &dyn Fn(&mut fs::File) -> io::Result<()>,
+    content: &dyn Fn(&mut fs::File) -> io::Result<()>,
     append: bool,
 ) -> String {
     let tmp = fsio::path::get_temporary_file_path("wutag_ignore");
-    match fsio::file::modify_file(&tmp, write_content, append) {
+    match fsio::file::modify_file(&tmp, content, append) {
         Ok(_) => tmp,
         Err(e) => {
             wutag_error!("Unable to create wutag ignore file: {:?}", &e);

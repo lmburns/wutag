@@ -39,18 +39,19 @@ pub fn fmt_path<P: AsRef<Path>>(path: P, base_color: Color, ls_colors: bool) -> 
     if ls_colors {
         let lscolors = LsColors::from_env().unwrap_or_default();
 
-        let colored_path = lscolors.style_for_path_components(path.as_ref()).fold(
-            Vec::new(),
-            |mut acc, (component, style)| {
-                let style = style
-                    .map(Style::to_ansi_term_style)
-                    .unwrap_or_else(|| ansi_term::Color::Blue.bold());
-                acc.push(style.paint(component.to_string_lossy()).to_string());
+        lscolors
+            .style_for_path_components(path.as_ref())
+            .fold(Vec::new(), |mut acc, (component, style)| {
+                acc.push(
+                    style
+                        .map(Style::to_ansi_term_style)
+                        .unwrap_or_else(|| ansi_term::Color::Blue.bold())
+                        .paint(component.to_string_lossy())
+                        .to_string(),
+                );
                 acc
-            },
-        );
-
-        colored_path.join("")
+            })
+            .join("")
     } else {
         format!(
             "{}",
@@ -81,18 +82,19 @@ pub fn fmt_local_path<P: AsRef<Path>>(
     if ls_colors {
         let lscolors = LsColors::from_env().unwrap_or_default();
 
-        let colored_path = lscolors.style_for_path_components(path.as_ref()).fold(
-            Vec::new(),
-            |mut acc, (component, style)| {
-                let style = style
-                    .map(Style::to_ansi_term_style)
-                    .unwrap_or_else(|| ansi_term::Color::Blue.bold());
-                acc.push(style.paint(component.to_string_lossy()).to_string());
+        lscolors
+            .style_for_path_components(path.as_ref())
+            .fold(Vec::new(), |mut acc, (component, style)| {
+                acc.push(
+                    style
+                        .map(Style::to_ansi_term_style)
+                        .unwrap_or_else(|| ansi_term::Color::Blue.bold())
+                        .paint(component.to_string_lossy())
+                        .to_string(),
+                );
                 acc
-            },
-        );
-
-        colored_path.join("")
+            })
+            .join("")
     } else {
         format!("{}", path.color(base_color).bold())
     }

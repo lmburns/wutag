@@ -39,8 +39,7 @@ A command line tool for tagging files
 * [x] Searching is also now local by default
     * `wutag -g search <pattern> <optional_tag>`
     * To search just by using a tag, use `*` as a pattern
-* [x] Can filter results by file type using `-t|--type`
-    * TODO: Implement type search for `search`
+* [x] Can filter results by file type using `-t|--type` with any subcommand requiring a pattern
 
 * [ ] TODO: Allow `-e ext` without glob pattern
 
@@ -52,6 +51,11 @@ A command line tool for tagging files
 ```sh
 `WUTAG_REGISTRY="$XDG_CONFIG_HOME/wutag/my.registry wutag set '*.rs' rust"`
 ```
+
+#### Deleted files
+* Used to only show an error if `clear`ing a file that doesn't exist. Now, it won't
+* To remove files/directories from the registry which no longer exist, use the `-n|--non-existent` flag (must be used with `-g|--global`)
+    * `wutag --global clear --non-existent '*'`
 
 #### Default command
 * [x] Use `wutag list files -t` as a default command if there are none listed (i.e., using only `wutag`)
@@ -92,6 +96,9 @@ A command line tool for tagging files
             * `{@s}` sets a tag (e.g., `wutag search '*.rs' -x {@s} new`)
             * `{@r}` removes a tag
             * `{@c}` clears tags (no other argument is required)
+
+#### Edit tags in `$EDITOR`
+* Can use `wutag edit -V <pattern>` to open tags in editor to edit them
 
 #### Todo
 * [ ] Fix `any` vs the normal `all` with search (it doesn't work)

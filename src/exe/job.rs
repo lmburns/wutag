@@ -191,11 +191,12 @@ pub fn sender(app: &Arc<App>, opts: &Arc<SearchOpts>, re: Arc<Regex>, tx: Sender
                     }
                 }
 
-                // if let Some(ref file_types) = app.file_type {
-                //     if file_types.should_ignore(entry.path()) {
-                //         continue;
-                //     }
-                // }
+                if let Some(ref file_types) = app.file_type {
+                    if file_types.should_ignore(&entry.path()) {
+                        log::debug!("Ignoring: {}", entry.path().display());
+                        continue;
+                    }
+                }
 
                 if re.is_match(&search_bytes) {
                     // Additional tag search

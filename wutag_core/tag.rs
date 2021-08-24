@@ -41,7 +41,36 @@ pub trait DirEntryExt {
     fn has_tags(&self) -> Result<bool>;
 }
 
-// Is there a way to implement for both of these without repeating?
+impl DirEntryExt for &std::path::PathBuf {
+    fn tag(&self, tag: &Tag) -> Result<()> {
+        tag.save_to(self)
+    }
+
+    fn untag(&self, tag: &Tag) -> Result<()> {
+        tag.remove_from(self)
+    }
+
+    fn get_tag<T: AsRef<str>>(&self, tag: T) -> Result<Tag> {
+        get_tag(self, tag)
+    }
+
+    fn list_tags(&self) -> Result<Vec<Tag>> {
+        list_tags(self)
+    }
+
+    fn list_tags_btree(&self) -> Result<BTreeSet<Tag>> {
+        list_tags_btree(self)
+    }
+
+    fn clear_tags(&self) -> Result<()> {
+        clear_tags(self)
+    }
+
+    fn has_tags(&self) -> Result<bool> {
+        has_tags(self)
+    }
+}
+
 impl DirEntryExt for ignore::DirEntry {
     fn tag(&self, tag: &Tag) -> Result<()> {
         tag.save_to(self.path())

@@ -1,19 +1,26 @@
 use anyhow::{Context, Result};
 use atty::Stream;
 use clap::IntoApp;
-use cli_table::Style;
+use cli_table::{
+    format::{Border, Justify, Separator},
+    print_stdout, Cell, ColorChoice, Style, Table,
+};
 use colored::{Color, Colorize};
 use crossbeam_channel as channel;
+use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use regex::bytes::{RegexSet, RegexSetBuilder};
 use shellexpand::LookupError;
 
 use std::{
     borrow::Cow,
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     env,
     ffi::OsStr,
     fs, io,
+    io::prelude::*,
+    iter,
     path::PathBuf,
+    process,
     sync::{Arc, Mutex},
 };
 
@@ -290,10 +297,6 @@ impl App {
     }
 
     fn list(&self, opts: &ListOpts) {
-        use cli_table::{
-            format::{Border, Justify, Separator},
-            print_stdout, Cell, ColorChoice, Table,
-        };
         log::debug!("Using registry: {}", self.registry.path.display());
 
         let mut table = vec![];
@@ -706,28 +709,48 @@ impl App {
 
                 if re.is_match(search_bytes) {
                     self.registry.clear_entry(id);
-                    match has_tags(entry.path()) {
-                        Ok(has_tags) =>
-                            if has_tags {
-                                println!(
-                                    "{}:",
-                                    fmt_path(entry.path(), self.base_color, self.ls_colors)
-                                );
-                                if let Err(e) = clear_tags(entry.path()) {
-                                    err!('\t', e, entry);
-                                } else {
-                                    println!("\t{}", fmt_ok("cleared"));
-                                }
+                    if opts.non_existent && fs::metadata(entry.path()).is_err() {
+                        println!(
+                            "{}\n\t{} {}",
+                            fmt_path(entry.path(), self.base_color, self.ls_colors),
+                            fmt_ok("cleared"),
+                            "old entry".magenta().bold()
+                        );
+                    } else {
+                        match has_tags(entry.path()) {
+                            Ok(has_tags) =>
+                                if has_tags {
+                                    println!(
+                                        "{}:",
+                                        fmt_path(entry.path(), self.base_color, self.ls_colors)
+                                    );
+                                    if let Err(e) = clear_tags(entry.path()) {
+                                        err!('\t', e, entry);
+                                    } else {
+                                        println!("\t{}", fmt_ok("cleared"));
+                                    }
+                                },
+                            Err(e) => {
+                                err!(e, entry);
                             },
-                        Err(e) => {
-                            err!(e, entry);
-                        },
+                        }
                     }
                 }
             }
             log::debug!("Saving registry...");
             self.save_registry();
         } else {
+            // The parser for clap is great, though I've not figured out a way to get
+            // options of a subcommand to communicate with options of the main
+            // binary
+            if opts.non_existent && !self.global {
+                wutag_error!(
+                    "{} requires {}",
+                    "--non-existent".green(),
+                    "--global".green()
+                );
+                std::process::exit(1);
+            }
             let selfc = Arc::new(Mutex::new(self.clone()));
 
             if let Err(e) = reg_ok(
@@ -740,6 +763,7 @@ impl App {
                     if let Some(id) = selfu.registry.find_entry(entry.path()) {
                         selfu.registry.clear_entry(id);
                     }
+
                     match entry.has_tags() {
                         Ok(has_tags) =>
                             if has_tags {
@@ -767,7 +791,6 @@ impl App {
     }
 
     fn search(&self, opts: &SearchOpts) {
-        // TODO: Implement type search for this
         let pat = if self.pat_regex {
             String::from(&opts.pattern)
         } else {
@@ -848,21 +871,184 @@ impl App {
     }
 
     fn edit(&mut self, opts: &EditOpts) {
-        let color = match parse_color(&opts.color) {
-            Ok(color) => color,
-            Err(e) => {
-                wutag_error!("{}", e);
-                return;
-            },
-        };
-        let old_tag = self.registry.get_tag(&opts.tag).cloned();
-        if self.registry.update_tag_color(&opts.tag, color) {
-            if let Some(old_tag) = old_tag {
-                let new_tag = self.registry.get_tag(&opts.tag);
-                println!("{} ==> {}", fmt_tag(&old_tag), fmt_tag(new_tag.unwrap()))
+        // TODO: Move this to search and add as a feature
+        // TODO: Add tag search
+        if opts.view {
+            let pat = if let Some(pattern) = &opts.pattern {
+                if self.pat_regex {
+                    String::from(pattern)
+                } else {
+                    glob_builder(pattern)
+                }
+            } else {
+                glob_builder("*")
+            };
+
+            let re = regex_builder(&pat, self.case_insensitive);
+            let exclude_pattern =
+                regex_builder(self.exclude.join("|").as_str(), self.case_insensitive);
+
+            let mut map = BTreeMap::new();
+            for (id, entry) in self.registry.list_entries_and_ids() {
+                if !self.global && !contained_path(entry.path(), &self.base_dir) {
+                    continue;
+                }
+
+                let search_str: Cow<OsStr> = Cow::Owned(entry.path().as_os_str().to_os_string());
+                let search_bytes = osstr_to_bytes(search_str.as_ref());
+
+                if !self.exclude.is_empty() && exclude_pattern.is_match(&search_bytes) {
+                    continue;
+                }
+
+                if let Some(ref ext) = self.extension {
+                    if !ext.is_match(&search_bytes) {
+                        continue;
+                    }
+                }
+
+                if let Some(ref file_types) = self.file_type {
+                    if file_types.should_ignore(&entry.path()) {
+                        log::debug!("Ignoring: {}", entry.path().display());
+                        continue;
+                    }
+                }
+
+                if re.is_match(&search_bytes) {
+                    // if !opts.tags.is_empty() && !app.registry.entry_has_tags(id, &opts.tags) {
+                    //     continue;
+                    // }
+
+                    map.insert(
+                        ternary!(
+                            self.global,
+                            entry.path().display().to_string(),
+                            raw_local_path(entry.path(), &self.base_dir)
+                        ),
+                        self.registry
+                            .list_entry_tags(*id)
+                            .unwrap_or_default()
+                            .iter()
+                            .map(|t| t.name().to_owned())
+                            .collect::<Vec<_>>(),
+                    );
+                }
             }
+            let tag_yaml = serde_yaml::to_string(&map).expect("err");
+            let mut rng = thread_rng();
+            let mut tmp_path = env::temp_dir();
+            let fname = iter::repeat(())
+                .map(|()| rng.sample(Alphanumeric))
+                .map(char::from)
+                .take(12)
+                .collect::<String>();
+
+            tmp_path.push(format!("{}-{}", env!("CARGO_PKG_NAME"), fname));
+            tmp_path.set_extension("yml");
+
+            let mut tmp_file: fs::File = fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .open(&tmp_path)
+                .unwrap_or_else(|_| panic!("could not create tmp file: '{}'", tmp_path.display()));
+
+            tmp_file
+                .write_all(tag_yaml.as_bytes())
+                .unwrap_or_else(|_| panic!("could not create tmp file: '{}'", tmp_path.display()));
+
+            tmp_file
+                .flush()
+                .unwrap_or_else(|_| panic!("could not create tmp file: '{}'", tmp_path.display()));
+
+            process::Command::new(opts.editor.to_string())
+                .arg(&tmp_path)
+                .status()
+                .expect("could not spawn editor");
+
+            let emap: BTreeMap<String, Vec<String>> =
+                serde_yaml::from_slice(&fs::read(&tmp_path).expect("failed to read tagged file"))
+                    .expect("failed to deserialize config file");
+
+            let diff = emap
+                .iter()
+                .find(|(key, val)| map.iter().any(|(k, v)| k == *key && v != *val));
+
+            if let Some(_diff) = diff {
+                log::debug!("Diffs: {:#?}", diff);
+                let (entry, tags) = _diff;
+                let entry = &PathBuf::from(entry);
+                let entry = &fs::canonicalize(&entry).unwrap();
+
+                if let Some(id) = self.registry.find_entry(entry) {
+                    self.registry.clear_entry(id);
+                }
+
+                macro_rules! bold_entry {
+                    ($entry:ident) => {
+                        $entry.display().to_string().bold()
+                    };
+                }
+
+                println!("{}:", fmt_path(entry, self.base_color, self.ls_colors));
+
+                match entry.has_tags() {
+                    Ok(has_tags) =>
+                        if has_tags {
+                            log::debug!("Entry: {} has tags", entry.display());
+                            if let Err(e) = clear_tags(entry) {
+                                wutag_error!("\t{} {}", e, bold_entry!(entry));
+                            }
+                        },
+                    Err(e) => {
+                        wutag_error!("{} {}", e, bold_entry!(entry));
+                    },
+                }
+
+                let tags = tags
+                    .iter()
+                    .map(|t| {
+                        if let Some(t) = self.registry.get_tag(t) {
+                            log::debug!("Got tag: {:?}", t);
+                            t.clone()
+                        } else {
+                            log::debug!("Setting random tag: {:?}", t);
+                            Tag::random(t, &self.colors)
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                for tag in tags.iter() {
+                    if let Err(e) = entry.tag(tag) {
+                        wutag_error!("{} {}", e, bold_entry!(entry))
+                    } else {
+                        let entry = EntryData::new(entry);
+                        let id = self.registry.add_or_update_entry(entry);
+                        self.registry.tag_entry(tag, id);
+                        print!("\t{} {}", "+".bold().green(), fmt_tag(tag));
+                    }
+                }
+            }
+            self.save_registry();
+        } else if let Some(_color) = &opts.color {
+            let color = match parse_color(_color) {
+                Ok(color) => color,
+                Err(e) => {
+                    wutag_error!("{}", e);
+                    return;
+                },
+            };
+
+            // Can unwrap here, as Clap will throw error if color is passed without tag
+            let tag = opts.tag.as_ref().unwrap();
+            let old_tag = self.registry.get_tag(tag).cloned();
+            if self.registry.update_tag_color(tag, color) {
+                if let Some(old_tag) = old_tag {
+                    let new_tag = self.registry.get_tag(tag);
+                    println!("{} ==> {}", fmt_tag(&old_tag), fmt_tag(new_tag.unwrap()))
+                }
+            }
+            log::debug!("Saving registry...");
         }
-        log::debug!("Saving registry...");
         self.save_registry();
     }
 

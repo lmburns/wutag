@@ -30,18 +30,18 @@ repos:
     always_run: true
     entry: cargo clippy
     args: ["--", "-D", "warnings"]
-  # - id: update-completions
-  #   name: update shell completions
-  #   pass_filenames: false
-  #   language: system
-  #   always_run: true
-  #   entry: >
-  #     sh -c '
-  #     cd completions &&
-  #     cargo run -- print-completions --shell zsh > _wutag &&
-  #     cargo run -- print-completions --shell bash > wutag.bash &&
-  #     git add _wutag
-  #     '
+  - id: update-completions
+    name: update shell completions
+    pass_filenames: false
+    language: system
+    always_run: true
+    entry: >
+      sh -c '
+      cd completions &&
+      cargo run -- print-completions --shell zsh > _wutag &&
+      cargo run -- print-completions --shell bash > wutag.bash &&
+      git add _wutag
+      '
   - id: update-manpage
     name: update man page
     pass_filenames: false

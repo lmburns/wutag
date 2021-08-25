@@ -34,3 +34,11 @@ macro_rules! wutag_error {
         eprintln!("{}: {}", "[wutag error]".red().bold(), format!($($err)*));
     })
 }
+
+/// Make a path display in bold letters
+#[macro_export]
+macro_rules! bold_entry {
+    ($entry:ident) => {
+        $entry.display().to_string().bold()
+    };
+}

@@ -58,6 +58,11 @@ _wutag__list__tags_commands() {
     local commands; commands=()
     _describe -t commands 'wutag list tags commands' commands \"$@\"
 }
+(( $+functions[_wutag__view_commands] )) ||
+_wutag__view_commands() {
+    local commands; commands=()
+    _describe -t commands 'wutag view commands' commands \"$@\"
+}
 ",
         r#"(( $+functions[_wutag__list_commands] )) ||
 _wutag__list_commands() {
@@ -83,7 +88,9 @@ _wutag_tags() {
     (r#"'*::tags:' \"#, r#"'*::_wutag_tags:' \"#),
     (r#"'*::tags:' \"#, r#"'*::tags:_wutag_tags' \"#),
     (
-        r#"':tag -- The tag to edit:' \"#,
-        r#"':tag -- The tag to edit:_wutag_tags' \"#,
+        "'-t+[The tag to edit]' \\
+'--tag=[The tag to edit]' \\",
+        "'-t+[The tag to edit]::_wutag_tags' \\
+'--tag=[The tag to edit]::_wutag_tags' \\",
     ),
 ];

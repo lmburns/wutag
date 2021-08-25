@@ -19,10 +19,10 @@ use clap_generate::{generate, Generator};
 use crossbeam_channel as channel;
 
 use crate::{
-    app::App,
-    filesystem::{create_tmp_ignore, delete_file, osstr_to_bytes, write_ignore},
-    opt::APP_NAME,
-    wutag_error, DEFAULT_MAX_DEPTH,
+    consts::{APP_NAME, DEFAULT_MAX_DEPTH},
+    filesystem::{create_temp_ignore, delete_file, osstr_to_bytes, write_temp_ignore},
+    subcommand::App,
+    wutag_error,
 };
 use wutag_core::tag::Tag;
 
@@ -200,10 +200,7 @@ pub(crate) fn reg_walker(app: &Arc<App>) -> Result<ignore::WalkParallel> {
         .max_depth(app.max_depth);
 
     if let Some(ignore) = &app.ignores {
-        let tmp = create_tmp_ignore(
-            &move |file: &mut fs::File| write_ignore(ignore, file),
-            false,
-        );
+        let tmp = create_temp_ignore(&move |file: &mut fs::File| write_temp_ignore(ignore, file));
         let res = walker.add_ignore(&tmp);
         match res {
             Some(ignore::Error::Partial(_)) => (),

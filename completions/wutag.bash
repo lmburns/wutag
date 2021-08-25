@@ -47,6 +47,9 @@ _wutag() {
             tags)
                 cmd+="__tags"
                 ;;
+            view)
+                cmd+="__view"
+                ;;
             *)
                 ;;
         esac
@@ -54,7 +57,7 @@ _wutag() {
 
     case "${cmd}" in
         wutag)
-            opts=" -h -V -d -m -R -i -r -g -l -c -t -e -E -v  --help --version --dir --max-depth --registry --case-insensitive --regex --global --ls-colors --color --type --ext --exclude --verbose  list set rm clear search cp edit print-completions clean-cache"
+            opts=" -h -V -d -m -R -i -r -g -l -c -t -e -E -v  --help --version --dir --max-depth --registry --case-insensitive --regex --global --ls-colors --color --type --ext --exclude --verbose  list set rm clear search cp view edit print-completions clean-cache"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -141,7 +144,7 @@ _wutag() {
             return 0
             ;;
         wutag__clear)
-            opts=" -h -V -v  --help --version --verbose  <PATTERN> "
+            opts=" -n -h -V -v  --non-existent --help --version --verbose  <PATTERN> "
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -171,7 +174,7 @@ _wutag() {
             return 0
             ;;
         wutag__edit)
-            opts=" -c -h -V -v  --color --help --version --verbose  <TAG> "
+            opts=" -c -t -h -V -v  --color --tag --help --version --verbose  "
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -183,6 +186,14 @@ _wutag() {
                     return 0
                     ;;
                 -c)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --tag)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -t)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
@@ -239,7 +250,7 @@ _wutag() {
             return 0
             ;;
         wutag__print__completions)
-            opts=" -h -V -v  --shell --help --version --verbose  "
+            opts=" -d -h -V -v  --shell --dir --help --version --verbose  "
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -248,6 +259,14 @@ _wutag() {
                 
                 --shell)
                     COMPREPLY=($(compgen -W "bash elvish fish powershell zsh" -- "${cur}"))
+                    return 0
+                    ;;
+                --dir)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -d)
+                    COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
                 *)
@@ -324,6 +343,53 @@ _wutag() {
                     return 0
                     ;;
                 -C)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        wutag__view)
+            opts=" -e -a -f -t -p -h -V -v  --editor --all --format --tags --pattern --help --version --verbose  "
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                
+                --editor)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -e)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --format)
+                    COMPREPLY=($(compgen -W "toml yaml yml json" -- "${cur}"))
+                    return 0
+                    ;;
+                -f)
+                    COMPREPLY=($(compgen -W "toml yaml yml json" -- "${cur}"))
+                    return 0
+                    ;;
+                --tags)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -t)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --pattern)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -p)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;

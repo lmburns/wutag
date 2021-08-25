@@ -1,17 +1,20 @@
 use std::{
     borrow::Cow,
+    env,
     ffi::OsStr,
-    fs::{self, Metadata},
+    fs::{self, File, Metadata},
     io::{self, Write},
-    path::Path,
+    iter,
+    path::{Path, PathBuf},
 };
 
-use crate::wutag_error;
-/// registry::EntryData;
-use colored::Colorize;
-
+use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use std::os::unix::fs::{FileTypeExt, PermissionsExt};
+
+use colored::Colorize;
 use thiserror::Error;
+
+use crate::wutag_error;
 
 /// FileTypes to filter against when searching (taken from `fd`)
 #[derive(Debug, Clone)]
@@ -47,6 +50,8 @@ impl Default for FileTypes {
 pub enum Error {
     #[error("No metadata exists for {0}")]
     Metadata(String),
+    #[error("IO Error: {0}")]
+    IOError(String),
 }
 
 pub type FileInfoResult<T> = std::result::Result<T, Error>;
@@ -148,21 +153,64 @@ pub fn is_empty(entry: &impl FileInfo) -> bool {
     }
 }
 
-pub fn create_tmp_ignore(
+pub fn create_temp_path() -> String {
+    let mut rng = thread_rng();
+    let mut tmp_path = env::temp_dir();
+    tmp_path.push(format!(
+        "{}-{}",
+        env!("CARGO_PKG_NAME"),
+        iter::repeat(())
+            .map(|()| rng.sample(Alphanumeric))
+            .map(char::from)
+            .take(12)
+            .collect::<String>()
+    ));
+    tmp_path.display().to_string()
+}
+
+pub fn modify_temp_ignore<P: AsRef<Path>>(
+    path: P,
     content: &dyn Fn(&mut fs::File) -> io::Result<()>,
-    append: bool,
-) -> String {
-    let tmp = fsio::path::get_temporary_file_path("wutag_ignore");
-    match fsio::file::modify_file(&tmp, content, append) {
-        Ok(_) => tmp,
+) -> Result<PathBuf, self::Error> {
+    let res = File::create(&path);
+    let path = path.as_ref().to_path_buf();
+
+    match res {
+        Ok(mut fd) => match content(&mut fd) {
+            Ok(_) => match fd.sync_all() {
+                Ok(_) => Ok(path),
+                Err(e) => Err(Error::IOError(format!(
+                    "problem when syncing {}: {}",
+                    path.display(),
+                    e
+                ))),
+            },
+            Err(e) => Err(Error::IOError(format!(
+                "problem when writing closure {}: {}",
+                path.display(),
+                e
+            ))),
+        },
+        Err(e) => Err(Error::IOError(format!(
+            "problem when creating {}: {}",
+            path.display(),
+            e
+        ))),
+    }
+}
+
+pub fn create_temp_ignore(content: &dyn Fn(&mut fs::File) -> io::Result<()>) -> String {
+    let tmp = create_temp_path();
+    match modify_temp_ignore(&tmp, content) {
+        Ok(tmp) => tmp.display().to_string(),
         Err(e) => {
-            wutag_error!("Unable to create wutag ignore file: {:?}", &e);
+            wutag_error!("unable to create temporary ignore file: {} {}", tmp, e);
             std::process::exit(1);
         },
     }
 }
 
-pub fn write_ignore(ignores: &[String], file: &fs::File) -> io::Result<()> {
+pub fn write_temp_ignore(ignores: &[String], file: &fs::File) -> io::Result<()> {
     let mut writer = io::BufWriter::new(file);
 
     ignores.iter().for_each(|i| {
@@ -172,10 +220,20 @@ pub fn write_ignore(ignores: &[String], file: &fs::File) -> io::Result<()> {
     Ok(())
 }
 
-pub fn delete_file(file: String) {
-    match fsio::file::delete(&file) {
-        Ok(_) => log::debug!("Ignore file deleted: {}", &file),
-        Err(err) => log::debug!("Unable to delete ignore file: {} {:#?}", &file, err),
+pub fn delete_file<P: AsRef<Path>>(file: P) {
+    let path = file.as_ref().to_path_buf();
+
+    if path.exists() && path.is_file() {
+        match fs::remove_file(&path) {
+            Ok(_) => log::debug!("Ignore file deleted: {}", &path.display()),
+            Err(err) => log::debug!(
+                "Unable to delete ignore file: {} {:#?}",
+                &path.display(),
+                err
+            ),
+        }
+    } else {
+        println!();
     }
 }
 

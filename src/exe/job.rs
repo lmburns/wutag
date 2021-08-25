@@ -8,9 +8,8 @@ use std::{
 };
 
 pub use crate::{
-    app::App,
     filesystem::{contained_path, osstr_to_bytes},
-    opt::SearchOpts,
+    subcommand::{search::SearchOpts, App},
     util::{fmt_local_path, fmt_path, fmt_tag, raw_local_path, regex_builder},
     wutag_error,
 };

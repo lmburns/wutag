@@ -1,6 +1,114 @@
 # wutag 🔱🏷️
 [![master](https://github.com/vv9k/wutag/actions/workflows/master.yml/badge.svg)](https://github.com/vv9k/wutag/actions/workflows/master.yml)
-A command line tool for tagging files
+A command line tool for colorfully tagging files
+
+## Flags
+These flags apply to mostly all all commands. If the command involves a pattern, then all flags will apply.
+Also, see `--help` for the main binary or any subcommand for longer explanations of most options.
+```sh
+FLAGS:
+    -h, --help                Print help information
+    -V, --version             Print version information
+    -i, --case-insensitive    Case insensitively search
+    -r, --regex               Case insensitively search
+    -g, --global              Apply operation to all tags and files instead of locally
+    -l, --ls-colors           Respect 'LS_COLORS' environment variable when coloring the output
+    -v, --verbose             Display debugging messages on 4 levels (i.e., -vv..)
+
+OPTIONS:
+    -d, --dir <DIR>...            Specify starting path for filesystem traversal
+    -m, --max-depth <num>         Increase maximum recursion depth from 2
+    -R, --registry <REG>          Specify a different registry to use
+    -c, --color <when>            When to colorize output
+    -t, --type <filetype>...      File-type(s) to filter by: f|file, d|directory, l|symlink, e|empty
+    -e, --ext <extension>...      Filter results by file extension
+    -E, --exclude <pattern>...    Exclude results that match pattern
+```
+
+## Subcommands
+`list`                 Lists all available tags or files
+`set`                  Set tag(s) on files that match the given pattern
+`rm`                   Remove tag(s) from the files that match the provided pattern
+`clear`                Clears all tags of the files that match the provided pattern
+`search`               Searches for files that have all of the provided 'tags'
+`cp`                   Copies tags from the specified file to files that match a pattern
+`view`                 View the results in an editor (optional pattern)
+`edit`                 Edits a tag's color
+`clean-cache`          Clean the cached tag registry
+`print-completions`    Prints completions for the specified shell to directory or stdout
+
+---
+### `list`
+```sh
+FLAGS:
+    -r, --raw        If provided output will be raw so that it can be easily piped to other commands
+    -h, --help       Print help information
+    -v, --verbose    Display debugging messages on 4 levels (i.e., -vv..)
+
+SUBCOMMANDS:
+    tags
+    files
+```
+
+#### `list files`
+Note: `list tags` only has notable option, which is `--border`.
+```sh
+FLAGS:
+    -h, --help         Print help information
+    -t, --with-tags    Display tags along with the files
+    -f, --format       Format the tags and files output into columns
+    -b, --border       Use border separators when formatting output
+    -v, --verbose      Display debugging messages on 4 levels (i.e., -vv..)
+    -G, --garrulous    Display tags and files on separate lines
+```
+
+#### Examples
+```sh
+wutag -g list files -t   # List all files with tags
+wutag list files -tfb    # List files in cwd with formatted tags + borders
+wutag list files -tfb    # List files in cwd with formatted tags + borders
+wutag -g list tags -b    # List all tags with borders
+```
+
+---
+### `set`
+```sh
+USAGE:
+    wutag [FLAG/OPTIONS] set [FLAG/OPTIONS] <pattern> <tag>
+
+ARGS:
+    <PATTERN>    A glob pattern like "*.png"
+    <TAGS>...
+
+FLAGS:
+    -q, --quiet      Do not show errors that tag already exists
+    -c, --clear      Clear all tags before setting them
+    -h, --help       Print help information
+    -v, --verbose    Display debugging messages on 4 levels (i.e., -vv..)
+
+OPTIONS:
+    -C, --color <COLOR>    Explicitly select color for tag
+```
+
+#### Examples
+```sh
+wutag -E src/ -e rs -e go set '*' <tag>       # Exclude src/ & set all files with 'rs' or 'go' extension to <tag>
+wutag -E src/ set '*{rs,go}' <tag>            # Same as above
+wutag -E src/ -r set '.*\.(rs|go)' <tag>      # Same as above
+wutag -i set '*glob' <tag> --color="#EF1D55"  # Ignore case and set specific color
+wutag -d ~/dir set '*glob' <tag>              # Set tag in another directory
+wutag -R ~/dir/new.reg -td set '*glob' <tag>  # Set tag in another registry on directories
+wutag set --clear '*glob' <tag>               # Clear the tags before setting the new ones
+```
+
+---
+### `rm`
+Has no special options. All main binary options apply.
+
+---
+### `clear`
+Clears all tags from files matching globs. This can also be used to clear tags from files that are still in the registry but are no longer on the file-system, but using the command `wutag clear --non-existent`
+
 
 ## Fork
 #### New directory locations
@@ -156,6 +264,7 @@ Example configuration:
 ---
 base_color: "#FF5813"       # default color of file path
 border_color: "#A06469"     # default color when using `list files -tfb`
+format: "yaml"              # default command when viewing tags in editor
 max_depth: 100              # maximum depth to recurse when applying function to files
 colors:                     # list of colors to choose from when setting tags
     - '0xabba0f'            # can be in formats other than #RRGGBB

@@ -80,17 +80,13 @@ impl App {
                 );
                 std::process::exit(1);
             }
-            let selfc = Arc::new(Mutex::new(self.clone()));
 
             if let Err(e) = reg_ok(
                 Arc::new(re),
                 &Arc::new(self.clone()),
-                move |entry: &ignore::DirEntry| {
-                    let selfc = Arc::clone(&selfc);
-                    let mut selfu = selfc.lock().unwrap();
-
-                    if let Some(id) = selfu.registry.find_entry(entry.path()) {
-                        selfu.registry.clear_entry(id);
+                |entry: &ignore::DirEntry| {
+                    if let Some(id) = self.registry.find_entry(entry.path()) {
+                        self.registry.clear_entry(id);
                     }
 
                     match entry.has_tags() {
@@ -98,7 +94,7 @@ impl App {
                             if has_tags {
                                 println!(
                                     "{}:",
-                                    fmt_path(entry.path(), selfu.base_color, selfu.ls_colors)
+                                    fmt_path(entry.path(), self.base_color, self.ls_colors)
                                 );
                                 if let Err(e) = entry.clear_tags() {
                                     err!('\t', e, entry);
@@ -111,7 +107,7 @@ impl App {
                         },
                     }
                     log::debug!("Saving registry...");
-                    selfu.save_registry();
+                    self.save_registry();
                 },
             ) {
                 wutag_error!("{}", e);

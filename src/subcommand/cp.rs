@@ -31,24 +31,21 @@ impl App {
 
         match list_tags(path) {
             Ok(tags) => {
-                let selfc = Arc::new(Mutex::new(self.clone()));
                 if let Err(e) = reg_ok(
                     Arc::new(re),
                     &Arc::new(self.clone()),
-                    move |entry: &ignore::DirEntry| {
-                        let selfc = Arc::clone(&selfc);
-                        let mut selfu = selfc.lock().unwrap();
+                    |entry: &ignore::DirEntry| {
                         println!(
                             "{}:",
-                            fmt_path(entry.path(), selfu.base_color, selfu.ls_colors)
+                            fmt_path(entry.path(), self.base_color, self.ls_colors)
                         );
                         for tag in &tags {
                             if let Err(e) = entry.tag(tag) {
                                 err!('\t', e, entry)
                             } else {
                                 let entry = EntryData::new(entry.path());
-                                let id = selfu.registry.add_or_update_entry(entry);
-                                selfu.registry.tag_entry(tag, id);
+                                let id = self.registry.add_or_update_entry(entry);
+                                self.registry.tag_entry(tag, id);
                                 println!("\t{} {}", "+".bold().green(), fmt_tag(tag));
                             }
                         }

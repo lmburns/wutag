@@ -22,6 +22,10 @@ Print help information
 .IP
 Print version information
 .HP
+\fB\-v\fR, \fB\-\-verbose\fR
+.IP
+Display debugging messages on 4 levels (i.e., \fB\-vv\fR..)
+.HP
 \fB\-i\fR, \fB\-\-case\-insensitive\fR
 .IP
 Turn the glob into a case insensitive one (default: case sensitive). Only applies to
@@ -41,10 +45,6 @@ directories or directories specified with '\-d|\-\-dir'. Only applies to 'search
 \fB\-l\fR, \fB\-\-ls\-colors\fR
 .IP
 Respect 'LS_COLORS' environment variable when coloring the output
-.HP
-\fB\-v\fR, \fB\-\-verbose\fR
-.IP
-Display debugging messages on 4 levels (i.e., \fB\-vv\fR..)
 .SS "OPTIONS:"
 .HP
 \fB\-d\fR, \fB\-\-dir\fR <DIR>...
@@ -75,7 +75,7 @@ Filter results based on file\-type. Does not work with '\-g|\-\-global'.
 regular file
 .TP
 \&'d' or 'dir':
-direcotry
+directory
 .TP
 \&'l' or 'symlink':
 symlink
@@ -147,7 +147,7 @@ Clean the cached tag registry
 .IP
 print\-completions
 .IP
-Prints completions for the specified shell to stdout
+Prints completions for the specified shell to dir or stdout
 .PP
 See wutag \-\-help for longer explanations of some base options.
 Use \-\-help after a subcommand for explanations of more options.

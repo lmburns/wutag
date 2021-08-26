@@ -1,4 +1,3 @@
-#![feature(map_first_last)]
 mod comp_helper;
 mod config;
 mod consts;

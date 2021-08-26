@@ -2,10 +2,12 @@ use super::{uses::*, App};
 
 #[derive(Clap, Clone, Debug)]
 pub struct SetOpts {
+    /// Do not show errors that tag already exists
+    #[clap(name = "quiet", long, short = 'q')]
+    quiet:       bool,
     /// Clear all tags before setting them
     #[clap(long, short)]
     pub clear:   bool,
-    /// A glob pattern like "*.png".
     /// Explicitly select color for tag
     #[clap(long, short = 'C', takes_value = true,
         validator = |t| parse_color(t)
@@ -14,6 +16,7 @@ pub struct SetOpts {
                             .map_err(|e| e.to_string())
     )]
     pub color:   Option<String>,
+    /// A glob pattern like "*.png".
     pub pattern: String,
     pub tags:    Vec<String>,
 }
@@ -50,30 +53,22 @@ impl App {
         let re = regex_builder(&pat, self.case_insensitive);
         log::debug!("Compiled pattern: {}", re);
 
-        let optsc = Arc::new(Mutex::new(opts.clone()));
-        let selfc = Arc::new(Mutex::new(self.clone()));
-
         if let Err(e) = reg_ok(
             Arc::new(re),
             &Arc::new(self.clone()),
-            move |entry: &ignore::DirEntry| {
-                let optsc = Arc::clone(&optsc);
-                let opts = optsc.lock().unwrap();
-
-                let selfc = Arc::clone(&selfc);
-                let mut selfu = selfc.lock().unwrap();
+            |entry: &ignore::DirEntry| {
                 println!(
                     "{}:",
-                    fmt_path(entry.path(), selfu.base_color, selfu.ls_colors)
+                    fmt_path(entry.path(), self.base_color, self.ls_colors)
                 );
                 tags.iter().for_each(|tag| {
                     if opts.clear {
                         log::debug!(
                             "Using registry in threads: {}",
-                            selfu.registry.path.display()
+                            self.registry.path.display()
                         );
-                        if let Some(id) = selfu.registry.find_entry(entry.path()) {
-                            selfu.registry.clear_entry(id);
+                        if let Some(id) = self.registry.find_entry(entry.path()) {
+                            self.registry.clear_entry(id);
                         }
                         match entry.has_tags() {
                             Ok(has_tags) =>
@@ -89,17 +84,20 @@ impl App {
                     }
 
                     if let Err(e) = entry.tag(tag) {
-                        err!('\t', e, entry);
+                        // TODO: Make this skip printing path too
+                        if !opts.quiet {
+                            err!('\t', e, entry);
+                        }
                     } else {
                         let entry = EntryData::new(entry.path());
-                        let id = selfu.registry.add_or_update_entry(entry);
-                        selfu.registry.tag_entry(tag, id);
+                        let id = self.registry.add_or_update_entry(entry);
+                        self.registry.tag_entry(tag, id);
                         print!("\t{} {}", "+".bold().green(), fmt_tag(tag));
                     }
                 });
                 println!();
                 log::debug!("Saving registry...");
-                selfu.save_registry();
+                self.save_registry();
             },
         ) {
             wutag_error!("{}", e);

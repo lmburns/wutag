@@ -8,6 +8,7 @@ pub(crate) use cli_table::{
 };
 pub(crate) use colored::{Color, Colorize};
 pub(crate) use crossbeam_channel as channel;
+pub(crate) use lexiclean::Lexiclean;
 pub(crate) use rayon::prelude::*;
 pub(crate) use regex::bytes::{RegexSet, RegexSetBuilder};
 pub(crate) use shellexpand::LookupError;
@@ -21,7 +22,7 @@ pub(crate) use std::{
     io::prelude::*,
     path::PathBuf,
     process,
-    sync::{Arc, Mutex},
+    sync::Arc,
 };
 
 pub(crate) use crate::{

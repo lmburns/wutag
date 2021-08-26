@@ -15,36 +15,36 @@ path = "wutag_core/lib.rs"
 
 [dependencies]
 ansi_term = "0.12.1"
-anyhow = "1"
+anyhow = "1.0.43"
 atty = "0.2.14"
 base64 = "0.13.0"
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { version = "0.4.19", features = ["serde"] }
 clap = "3.0.0-beta.4"
 clap_generate = "3.0.0-beta.4"
 cli-table = "0.4.6"
 colored = { git = "https://github.com/wojciechkepka/colored", branch = "master", features = ["serde"] }
 crossbeam-channel = "0.5.1"
 crossbeam-utils = "0.8.5"
-dirs = "3"
+dirs = "3.0.2"
 env_logger = "0.9.0"
 globset = "0.4.8"
 ignore = "0.4.18"
 lazy_static = "1.4.0"
 lexiclean = "0.0.1"
-libc = "0.2"
+libc = "0.2.100"
 log = "0.4.14"
 lscolors = "0.7.1"
 num_cpus = "1.13.0"
-rand = "0.8"
+rand = "0.8.4"
 rayon = "1.5.1"
 regex = "1.5.4"
-serde = { version = "1", features = ["derive"] }
-serde_cbor = "0.11"
+serde = { version = "1.0.129", features = ["derive"] }
+serde_cbor = "0.11.2"
 serde_json = "1.0.66"
-serde_yaml = "0.8"
+serde_yaml = "0.8.19"
 shellexpand = "2.1.0"
-thiserror = "1"
+thiserror = "1.0.26"
 toml = "0.5.8"
 
 [dev-dependencies]
-tempdir = "0.3"
+tempdir = "0.3.7"

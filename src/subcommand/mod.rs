@@ -18,21 +18,22 @@ use uses::*;
 
 #[derive(Clone, Debug)]
 pub struct App {
-    pub base_dir:         PathBuf,
-    pub max_depth:        Option<usize>,
     pub base_color:       Color,
+    pub base_dir:         PathBuf,
     pub border_color:     cli_table::Color,
-    pub colors:           Vec<Color>,
-    pub ignores:          Option<Vec<String>>,
-    pub global:           bool,
-    pub registry:         TagRegistry,
     pub case_insensitive: bool,
-    pub pat_regex:        bool,
-    pub ls_colors:        bool,
     pub color_when:       String,
-    pub extension:        Option<RegexSet>,
+    pub colors:           Vec<Color>,
     pub exclude:          Vec<String>,
+    pub extension:        Option<RegexSet>,
     pub file_type:        Option<FileTypes>,
+    pub format:           String,
+    pub global:           bool,
+    pub ignores:          Option<Vec<String>>,
+    pub ls_colors:        bool,
+    pub max_depth:        Option<usize>,
+    pub pat_regex:        bool,
+    pub registry:         TagRegistry,
 }
 
 impl App {
@@ -86,6 +87,21 @@ impl App {
                 } else {
                     "never"
                 },
+        };
+
+        let format = if let Some(_format) = config.format {
+            match _format.as_ref() {
+                f @ ("toml" | "yaml" | "yml" | "json") => f.to_string(),
+                _ => {
+                    wutag_error!(
+                        "invalid format found in your configuration. Valid values: toml, yaml, \
+                         yml, json. ...using 'toml'"
+                    );
+                    "toml".to_string()
+                },
+            }
+        } else {
+            "toml".to_string()
         };
 
         let cache_dir = std::env::var_os("XDG_CACHE_HOME")
@@ -193,25 +209,26 @@ impl App {
         log::debug!("FileTypes: {:#?}", file_types);
 
         Ok(App {
+            base_color,
             base_dir,
+            border_color,
+            case_insensitive: opts.case_insensitive,
+            color_when: color_when.to_string(),
+            colors,
+            exclude: excludes,
+            extension: extensions,
+            file_type: file_types,
+            format,
+            global: opts.global,
+            ignores: config.ignores,
+            ls_colors: opts.ls_colors,
             max_depth: if opts.max_depth.is_some() {
                 opts.max_depth
             } else {
                 config.max_depth
             },
-            base_color,
-            border_color,
-            colors,
-            ignores: config.ignores,
-            global: opts.global,
-            registry,
-            case_insensitive: opts.case_insensitive,
             pat_regex: opts.regex,
-            ls_colors: opts.ls_colors,
-            color_when: color_when.to_string(),
-            extension: extensions,
-            exclude: excludes,
-            file_type: file_types,
+            registry,
         })
     }
 

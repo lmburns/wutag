@@ -11,12 +11,15 @@ use std::{
     fs,
     io::Cursor,
     path::Path,
-    sync::{Arc, Mutex},
-    thread,
+    sync::Arc,
 };
 
 use clap_generate::{generate, Generator};
 use crossbeam_channel as channel;
+
+// use crossbeam_channel::{Receiver, Sender};
+// use crossbeam_utils::thread;
+// use rayon::prelude::*;
 
 use crate::{
     consts::{APP_NAME, DEFAULT_MAX_DEPTH},
@@ -217,105 +220,111 @@ pub(crate) fn reg_walker(app: &Arc<App>) -> Result<ignore::WalkParallel> {
     Ok(walker.build_parallel())
 }
 
-/// Type to execute a closure across multiple threads when wrapped in `Mutex`
-type FnThread = Box<dyn FnMut(&ignore::DirEntry) + Send>;
-lazy_static::lazy_static! {
-    static ref FNIN: Mutex<Option<FnThread>> = Mutex::new(None);
-}
-
 /// Traverses directories using `ignore::WalkParallel`, sending matches across
 /// channels to make the process faster. Executes closure `f` on each matching
 /// entry
-pub(crate) fn reg_ok<F>(pattern: Arc<Regex>, app: &Arc<App>, f: F) -> Result<()>
+pub(crate) fn reg_ok<F>(pattern: Arc<Regex>, app: &Arc<App>, mut f: F) -> Result<()>
 where
-    F: FnMut(&ignore::DirEntry) + Send + Sync + 'static,
+    F: FnMut(&ignore::DirEntry) + Send + Sync,
 {
-    let (tx, rx) = channel::unbounded::<ignore::DirEntry>();
-    *FNIN.lock().expect("broken lock in closure") = Some(Box::new(f));
+    let walker = reg_walker(app).unwrap();
 
-    let execution_thread = thread::spawn(move || {
-        rx.iter().for_each(|e| {
-            if let Some(ref mut handler) = *FNIN.lock().expect("poisoned lock") {
-                handler(&e)
-            }
-        })
-        // app.save_registry();
+    rayon::scope(|scope| {
+        let (tx, rx) = channel::unbounded::<ignore::DirEntry>();
+
+        scope.spawn(|_| {
+            let rx = rx;
+            rx.iter().for_each(|e| f(&e))
+        });
+
+        scope.spawn(|_| {
+            let tx = tx;
+            walker.run(|| {
+                let tx = tx.clone();
+                let pattern = Arc::clone(&pattern);
+                let app = Arc::clone(app);
+
+                Box::new(move |res| {
+                    //: Result<ignore::DirEntry,ignore::Error>
+                    let entry = match res {
+                        Ok(_entry) => _entry,
+                        Err(err) => {
+                            wutag_error!("unable to access entry {}", err);
+                            return ignore::WalkState::Continue;
+                        },
+                    };
+
+                    // Filter out depths that are greater than the configured or default
+                    // The max depth used when building unwraps to opts.depth and config.depth
+                    // not the DEFAULT_MAX_DEPTH
+                    if entry.depth() > app.max_depth.unwrap_or(DEFAULT_MAX_DEPTH) {
+                        log::trace!("max_depth reached");
+                        return ignore::WalkState::Continue;
+                    }
+
+                    let entry_path = entry.path();
+
+                    // Verify a file name is actually present
+                    let entry_fname: Cow<OsStr> = match entry_path.file_name() {
+                        Some(f) => Cow::Borrowed(f),
+                        _ => unreachable!("Invalid file reached"),
+                    };
+
+                    // Filter out patterns that don't match
+                    if !pattern.is_match(&osstr_to_bytes(entry_fname.as_ref())) {
+                        log::trace!("no match, skipping");
+                        return ignore::WalkState::Continue;
+                    }
+
+                    // Filter out extensions that don't match (if present)
+                    if let Some(ref ext) = app.extension {
+                        if let Some(fname) = entry_path.file_name() {
+                            if !ext.is_match(&osstr_to_bytes(fname)) {
+                                return ignore::WalkState::Continue;
+                            }
+                        } else {
+                            return ignore::WalkState::Continue;
+                        }
+                    }
+
+                    // Filter out non-matching file types
+                    if let Some(ref file_types) = app.file_type {
+                        if file_types.should_ignore(&entry) {
+                            log::debug!("Ignoring: {}", entry_path.display());
+                            return ignore::WalkState::Continue;
+                        }
+                    }
+
+                    // Using a match statement does not preserve output order for some reason
+                    if let Err(e) = tx.send(entry) {
+                        log::debug!("Sent quit: {:?}", e);
+                        return ignore::WalkState::Quit;
+                    }
+
+                    log::trace!("Sent continue");
+                    ignore::WalkState::Continue
+                })
+            });
+        });
     });
+
+    // let execution_thread = std::thread::spawn(move || {
+    //     rx.iter().for_each(|e| {
+    //         if let Some(ref mut handler) = *FNIN.lock().expect("poisoned lock") {
+    //             handler(&e)
+    //         }
+    //     })
+    // });
+
+    // drop(tx);
+    // execution_thread.join().unwrap();
+    // app.save_registry();
 
     log::debug!("Using regex with max_depth of: {}", app.max_depth.unwrap());
     log::debug!(
         "Using regex with base_dir of: {}",
         app.base_dir.to_string_lossy().to_string()
     );
-    reg_walker(app).unwrap().run(|| {
-        let tx = tx.clone();
-        let pattern = Arc::clone(&pattern);
-        let app = Arc::clone(app);
 
-        Box::new(move |res| {
-            //: Result<ignore::DirEntry,ignore::Error>
-            let entry = match res {
-                Ok(_entry) => _entry,
-                Err(err) => {
-                    wutag_error!("unable to access entry {}", err);
-                    return ignore::WalkState::Continue;
-                },
-            };
-
-            // Filter out depths that are greater than the configured or default
-            // The max depth used when building unwraps to opts.depth and config.depth
-            // not the DEFAULT_MAX_DEPTH
-            if entry.depth() > app.max_depth.unwrap_or(DEFAULT_MAX_DEPTH) {
-                log::trace!("max_depth reached");
-                return ignore::WalkState::Continue;
-            }
-
-            let entry_path = entry.path();
-
-            // Verify a file name is actually present
-            let entry_fname: Cow<OsStr> = match entry_path.file_name() {
-                Some(f) => Cow::Borrowed(f),
-                _ => unreachable!("Invalid file reached"),
-            };
-
-            // Filter out patterns that don't match
-            if !pattern.is_match(&osstr_to_bytes(entry_fname.as_ref())) {
-                log::trace!("no match, skipping");
-                return ignore::WalkState::Continue;
-            }
-
-            // Filter out extensions that don't match (if present)
-            if let Some(ref ext) = app.extension {
-                if let Some(fname) = entry_path.file_name() {
-                    if !ext.is_match(&osstr_to_bytes(fname)) {
-                        return ignore::WalkState::Continue;
-                    }
-                } else {
-                    return ignore::WalkState::Continue;
-                }
-            }
-
-            // Filter out non-matching file types
-            if let Some(ref file_types) = app.file_type {
-                if file_types.should_ignore(&entry) {
-                    log::debug!("Ignoring: {}", entry_path.display());
-                    return ignore::WalkState::Continue;
-                }
-            }
-
-            // Using a match statement does not preserve output order for some reason
-            let send = tx.send(entry);
-            if send.is_err() {
-                log::trace!("Sent quit");
-                return ignore::WalkState::Quit;
-            }
-
-            log::trace!("Sent continue");
-            ignore::WalkState::Continue
-        })
-    });
-    drop(tx);
-    execution_thread.join().unwrap();
-    // app.save_registry();
     Ok(())
 }

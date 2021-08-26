@@ -36,6 +36,9 @@ use crate::{
     // global_setting = AppSettings::UnifiedHelpMessage,     // Options/Flags together
 )]
 pub struct Opts {
+    #[clap(long, short, global = true, parse(from_occurrences))]
+    /// Display debugging messages on 4 levels (i.e., -vv..)
+    pub verbose:          u8,
     /// Specify starting path for filesystem traversal
     #[clap(
         long, short,
@@ -156,9 +159,6 @@ pub struct Opts {
     )]
     /// Exclude results that match pattern
     pub exclude:          Option<Vec<String>>,
-    #[clap(long, short, global = true, parse(from_occurrences))]
-    /// Display debugging messages on 4 levels (i.e., -vv..)
-    pub verbose:          u8,
     #[clap(subcommand)]
     pub cmd:              Command,
 }
@@ -235,7 +235,7 @@ pub enum Command {
     /// Edits a tag's color
     #[clap(override_usage = "wutag edit --color <color> <tag>")]
     Edit(EditOpts),
-    /// Prints completions for the specified shell to stdout
+    /// Prints completions for the specified shell to dir or stdout
     #[clap(
         display_order = 1000,
         override_usage = "wutag print-completions --shell <shell>"

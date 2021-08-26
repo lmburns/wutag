@@ -1,5 +1,3 @@
-use lexiclean::Lexiclean;
-
 use super::{uses::*, App};
 use crate::bold_entry;
 
@@ -21,15 +19,13 @@ pub struct ViewOpts {
     #[clap(
         name = "format",
         long, short = 'f',
-        default_value = "toml",
         possible_values = &["toml", "yaml", "yml", "json"],
-        setting = ArgSettings::HideDefaultValue,
         setting = ArgSettings::HidePossibleValues,
         long_about = "\
         Format of the file viewed in the editor with the matching search results.\
         The possible values are: 'toml', 'yaml|yml', 'json'."
     )]
-    pub format:  String,
+    pub format:  Option<String>,
     /// Search with a tag as a filter
     #[clap(
         name = "tags",
@@ -54,7 +50,6 @@ pub struct ViewOpts {
 
 impl App {
     pub(crate) fn view(&mut self, opts: &ViewOpts) {
-        // TODO: Move this to search and add as a feature to prevent duplicate code
         let pat = if let Some(pattern) = &opts.pattern {
             if self.pat_regex {
                 String::from(pattern)
@@ -70,116 +65,119 @@ impl App {
 
         let mut map: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
-        // if opts.all {
-        //     // let optsc = Arc::new(Mutex::new(opts.clone()));
-        //     let selfc = Arc::new(Mutex::new(self.clone()));
-        //
-        //     if let Err(e) = reg_ok(
-        //         Arc::new(re),
-        //         &Arc::new(self.clone()),
-        //         move |entry: &ignore::DirEntry| {
-        //             // let optsc = Arc::clone(&optsc);
-        //             // let opts = optsc.lock().unwrap();
-        //
-        //             let selfc = Arc::clone(&selfc);
-        //             let selfu = selfc.lock().unwrap();
-        //
-        //             map.insert(
-        //                 ternary!(
-        //                     selfu.global,
-        //                     entry.path().display().to_string(),
-        //                     raw_local_path(entry.path(), &selfu.base_dir)
-        //                 ),
-        //                 match entry.has_tags() {
-        //                     Ok(has_tags) => {
-        //                         if has_tags {
-        //                             if let Some(id) =
-        // selfu.registry.find_entry(entry.path()) {
-        // selfu.registry
-        // .list_entry_tags(id)
-        // .unwrap_or_default()                                     .iter()
-        //                                     .map(|t| t.name().to_owned())
-        //                                     .collect::<Vec<_>>()
-        //                             } else {
-        //                                 vec![]
-        //                             }
-        //                         } else {
-        //                             vec![]
-        //                         }
-        //                     },
-        //                     Err(_) => vec![],
-        //                 }
-        //             );
-        //         },
-        //     ) {
-        //         wutag_error!("{}", e);
-        //     }
-        // } else {
-        for (id, entry) in self.registry.list_entries_and_ids() {
-            if !self.global && !contained_path(entry.path(), &self.base_dir) {
-                continue;
+        if opts.all {
+            if let Err(e) = reg_ok(
+                Arc::new(re),
+                &Arc::new(self.clone()),
+                |entry: &ignore::DirEntry| {
+                    map.insert(
+                        ternary!(
+                            self.global,
+                            entry.path().display().to_string(),
+                            raw_local_path(entry.path(), &self.base_dir)
+                        ),
+                        match entry.has_tags() {
+                            Ok(has_tags) =>
+                                if has_tags {
+                                    if let Some(id) = self.registry.find_entry(entry.path()) {
+                                        self.registry
+                                            .list_entry_tags(id)
+                                            .unwrap_or_default()
+                                            .iter()
+                                            .map(|t| t.name().to_owned())
+                                            .collect::<Vec<_>>()
+                                    } else {
+                                        vec![]
+                                    }
+                                } else {
+                                    vec![]
+                                },
+                            Err(_) => vec![],
+                        },
+                    );
+                },
+            ) {
+                wutag_error!("{}", e);
             }
-
-            let search_str: Cow<OsStr> = Cow::Owned(entry.path().as_os_str().to_os_string());
-            let search_bytes = osstr_to_bytes(search_str.as_ref());
-
-            if !self.exclude.is_empty() && exclude_pattern.is_match(&search_bytes) {
-                continue;
-            }
-
-            if let Some(ref ext) = self.extension {
-                if !ext.is_match(&search_bytes) {
-                    continue;
-                }
-            }
-
-            if let Some(ref file_types) = self.file_type {
-                if file_types.should_ignore(&entry.path()) {
-                    log::debug!("Ignoring: {}", entry.path().display());
-                    continue;
-                }
-            }
-
-            if re.is_match(&search_bytes) {
-                if !opts.tags.is_empty() && !self.registry.entry_has_tags(*id, &opts.tags) {
+        } else {
+            for (id, entry) in self.registry.list_entries_and_ids() {
+                if !self.global && !contained_path(entry.path(), &self.base_dir) {
                     continue;
                 }
 
-                map.insert(
-                    ternary!(
-                        self.global,
-                        entry.path().display().to_string(),
-                        raw_local_path(entry.path(), &self.base_dir)
-                    ),
-                    self.registry
-                        .list_entry_tags(*id)
-                        .unwrap_or_default()
-                        .iter()
-                        .map(|t| t.name().to_owned())
-                        .collect::<Vec<_>>(),
-                );
+                let search_str: Cow<OsStr> = Cow::Owned(entry.path().as_os_str().to_os_string());
+                let search_bytes = osstr_to_bytes(search_str.as_ref());
+
+                if !self.exclude.is_empty() && exclude_pattern.is_match(&search_bytes) {
+                    continue;
+                }
+
+                if let Some(ref ext) = self.extension {
+                    if !ext.is_match(&search_bytes) {
+                        continue;
+                    }
+                }
+
+                if let Some(ref file_types) = self.file_type {
+                    if file_types.should_ignore(&entry.path()) {
+                        log::debug!("Ignoring: {}", entry.path().display());
+                        continue;
+                    }
+                }
+
+                if re.is_match(&search_bytes) {
+                    if !opts.tags.is_empty() && !self.registry.entry_has_tags(*id, &opts.tags) {
+                        continue;
+                    }
+
+                    map.insert(
+                        ternary!(
+                            self.global,
+                            entry.path().display().to_string(),
+                            raw_local_path(entry.path(), &self.base_dir)
+                        ),
+                        self.registry
+                            .list_entry_tags(*id)
+                            .unwrap_or_default()
+                            .iter()
+                            .map(|t| t.name().to_owned())
+                            .collect::<Vec<_>>(),
+                    );
+                }
             }
         }
-        // }
 
-        let tag_file = if opts.format == "toml" {
-            // to_string_pretty
-            toml::to_string(&map).expect("Unable to convert toml")
-        } else if opts.format == "json" {
-            serde_json::to_string_pretty(&map).expect("Unable to convert to yaml")
+        // Lot of code that's repeated once I added option to check default format in
+        // config
+        let tag_file = if let Some(format) = &opts.format {
+            match format.as_str() {
+                "toml" => toml::to_string(&map).expect("Unable to convert toml"),
+                "json" => serde_json::to_string_pretty(&map).expect("Unable to convert to json"),
+                "yaml" | "yml" => serde_yaml::to_string(&map).expect("Unable to convert to yaml"),
+                _ => unreachable!(),
+            }
         } else {
-            serde_yaml::to_string(&map).expect("Unable to convert to yaml")
+            match self.format.as_str() {
+                "toml" => toml::to_string(&map).expect("Unable to convert toml"),
+                "json" => serde_json::to_string_pretty(&map).expect("Unable to convert to json"),
+                "yaml" | "yml" => serde_yaml::to_string(&map).expect("Unable to convert to yaml"),
+                _ => unreachable!(),
+            }
         };
 
         let mut tmp_path = PathBuf::from(create_temp_path());
 
-        if opts.format == "toml" {
-            tmp_path.set_extension("toml");
-        } else if opts.format == "json" {
-            tmp_path.set_extension("json");
+        tmp_path.set_extension(if let Some(format) = &opts.format {
+            match format.as_str() {
+                f @ ("toml" | "yaml" | "yml" | "json") => f.to_string(),
+                _ => unreachable!(),
+            }
         } else {
-            tmp_path.set_extension("yml");
-        }
+            match self.format.as_str() {
+                f @ ("toml" | "yaml" | "yml" | "json") => f.to_string(),
+                _ => unreachable!(),
+            }
+        });
 
         let mut tmp_file: fs::File = fs::OpenOptions::new()
             .write(true)
@@ -200,15 +198,36 @@ impl App {
             .status()
             .expect("could not spawn editor");
 
-        let emap: BTreeMap<String, Vec<String>> = if opts.format == "toml" {
-            toml::from_slice(&fs::read(&tmp_path).expect("failed to read tagged file"))
-                .expect("failed to deserialize tag file")
-        } else if opts.format == "json" {
-            serde_json::from_slice(&fs::read(&tmp_path).expect("failed to read tagged file"))
-                .expect("failed to deserialize tag file")
+        let emap: BTreeMap<String, Vec<String>> = if let Some(format) = &opts.format {
+            match format.as_str() {
+                "toml" =>
+                    toml::from_slice(&fs::read(&tmp_path).expect("failed to read tagged file"))
+                        .expect("failed to deserialize tag file"),
+                "json" => serde_json::from_slice(
+                    &fs::read(&tmp_path).expect("failed to read tagged file"),
+                )
+                .expect("failed to deserialize tag file"),
+                "yaml" | "yml" => serde_yaml::from_slice(
+                    &fs::read(&tmp_path).expect("failed to read tagged file"),
+                )
+                .expect("failed to deserialize tag file"),
+                _ => unreachable!(),
+            }
         } else {
-            serde_yaml::from_slice(&fs::read(&tmp_path).expect("failed to read tagged file"))
-                .expect("failed to deserialize tag file")
+            match self.format.as_str() {
+                "toml" =>
+                    toml::from_slice(&fs::read(&tmp_path).expect("failed to read tagged file"))
+                        .expect("failed to deserialize tag file"),
+                "json" => serde_json::from_slice(
+                    &fs::read(&tmp_path).expect("failed to read tagged file"),
+                )
+                .expect("failed to deserialize tag file"),
+                "yaml" | "yml" => serde_yaml::from_slice(
+                    &fs::read(&tmp_path).expect("failed to read tagged file"),
+                )
+                .expect("failed to deserialize tag file"),
+                _ => unreachable!(),
+            }
         };
 
         let diff = emap.into_iter().fold(BTreeMap::new(), |mut acc, path| {

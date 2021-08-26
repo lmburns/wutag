@@ -44,7 +44,7 @@ lazy_static! {
     pub static ref FILE_TYPE: String =
         "Filter results based on file-type. Does not work with '-g|--global'.\n  \
             'f' or 'file':       regular file\n  \
-            'd' or 'dir':        direcotry\n  \
+            'd' or 'dir':        directory\n  \
             'l' or 'symlink':    symlink\n  \
             'b' or 'block':      block device\n  \
             'c' or 'char':       character device\n  \

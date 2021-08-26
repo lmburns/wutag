@@ -73,60 +73,50 @@ impl App {
                 log::debug!("Saving registry...");
                 self.save_registry();
             }
-        } else {
-            let optsc = Arc::new(Mutex::new(opts.clone()));
-            let selfc = Arc::new(Mutex::new(self.clone()));
-
-            if let Err(e) = reg_ok(
-                Arc::new(re),
-                &Arc::new(self.clone()),
-                move |entry: &ignore::DirEntry| {
-                    let optsc = Arc::clone(&optsc);
-                    let opts = optsc.lock().unwrap();
-                    let selfc = Arc::clone(&selfc);
-                    let mut selfu = selfc.lock().unwrap();
-
-                    let id = selfu.registry.find_entry(entry.path());
-                    let tags = opts
-                        .tags
-                        .iter()
-                        .map(|tag| {
-                            if let Some(id) = id {
-                                selfu.registry.untag_by_name(tag, id);
-                            }
-                            entry.get_tag(tag)
-                        })
-                        .collect::<Vec<_>>();
-
-                    if tags.is_empty() {
-                        return;
-                    }
-
-                    println!(
-                        "{}:",
-                        fmt_path(entry.path(), selfu.base_color, selfu.ls_colors)
-                    );
-                    tags.iter().for_each(|tag| {
-                        let tag = match tag {
-                            Ok(tag) => tag,
-                            Err(e) => {
-                                err!('\t', e, entry);
-                                return;
-                            },
-                        };
-                        if let Err(e) = entry.untag(tag) {
-                            err!('\t', e, entry);
-                        } else {
-                            print!("\t{} {}", "X".bold().red(), fmt_tag(tag));
+        } else if let Err(e) = reg_ok(
+            Arc::new(re),
+            &Arc::new(self.clone()),
+            |entry: &ignore::DirEntry| {
+                let id = self.registry.find_entry(entry.path());
+                let tags = opts
+                    .tags
+                    .iter()
+                    .map(|tag| {
+                        if let Some(id) = id {
+                            self.registry.untag_by_name(tag, id);
                         }
-                    });
-                    println!();
-                    log::debug!("Saving registry...");
-                    selfu.save_registry();
-                },
-            ) {
-                wutag_error!("{}", e);
-            }
+                        entry.get_tag(tag)
+                    })
+                    .collect::<Vec<_>>();
+
+                if tags.is_empty() {
+                    return;
+                }
+
+                println!(
+                    "{}:",
+                    fmt_path(entry.path(), self.base_color, self.ls_colors)
+                );
+                tags.iter().for_each(|tag| {
+                    let tag = match tag {
+                        Ok(tag) => tag,
+                        Err(e) => {
+                            err!('\t', e, entry);
+                            return;
+                        },
+                    };
+                    if let Err(e) = entry.untag(tag) {
+                        err!('\t', e, entry);
+                    } else {
+                        print!("\t{} {}", "X".bold().red(), fmt_tag(tag));
+                    }
+                });
+                println!();
+                log::debug!("Saving registry...");
+                self.save_registry();
+            },
+        ) {
+            wutag_error!("{}", e);
         }
     }
 }

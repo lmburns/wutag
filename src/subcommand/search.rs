@@ -1,6 +1,6 @@
 use super::{uses::*, App};
 
-#[derive(Clap, Clone, Debug)]
+#[derive(Clap, Clone, Debug, PartialEq)]
 pub struct SearchOpts {
     /// If provided output will be raw so that it can be easily piped to other
     /// commands
@@ -64,7 +64,7 @@ impl App {
             glob_builder(&opts.pattern)
         };
 
-        let re = regex_builder(&pat, self.case_insensitive);
+        let re = regex_builder(&pat, self.case_insensitive, self.case_sensitive);
         log::debug!("Compiled pattern: {}", re);
 
         #[allow(clippy::manual_map)]

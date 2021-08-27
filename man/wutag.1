@@ -26,10 +26,13 @@ Print version information
 .IP
 Display debugging messages on 4 levels (i.e., \fB\-vv\fR..)
 .HP
-\fB\-i\fR, \fB\-\-case\-insensitive\fR
+\fB\-i\fR, \fB\-\-case_insensitive\fR
 .IP
-Turn the glob into a case insensitive one (default: case sensitive). Only applies to
-subcommands that take a pattern as a positional argument.
+Turn the glob into a case insensitive one (default: case insensitive). Overrides \fB\-\-casesensitive\fR, and becomes case\-sensitive if a search is performed with an uppercasecharacter. Only applies to subcommands that take a pattern as a positional argument.
+.HP
+\fB\-s\fR, \fB\-\-case_sensitive\fR
+.IP
+Turn the glob into a case sensitive one (default: case sensitive). Overrides \fB\-\-caseinsensitive\fR. Only applies to subcommands that take a pattern as a positional argument.
 .HP
 \fB\-r\fR, \fB\-\-regex\fR
 .IP

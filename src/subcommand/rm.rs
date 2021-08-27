@@ -1,6 +1,6 @@
 use super::{uses::*, App};
 
-#[derive(Clap, Clone, Debug)]
+#[derive(Clap, Clone, Debug, PartialEq)]
 pub struct RmOpts {
     /// A glob pattern like "*.png" (or regex).
     pub pattern: String,
@@ -18,13 +18,16 @@ impl App {
             glob_builder(&opts.pattern)
         };
 
-        let re = regex_builder(&pat, self.case_insensitive);
+        let re = regex_builder(&pat, self.case_insensitive, self.case_sensitive);
         log::debug!("Compiled pattern: {}", re);
 
         if self.global {
             let ctags = opts.tags.iter().collect::<Vec<_>>();
-            let exclude_pattern =
-                regex_builder(self.exclude.join("|").as_str(), self.case_insensitive);
+            let exclude_pattern = regex_builder(
+                self.exclude.join("|").as_str(),
+                self.case_insensitive,
+                self.case_sensitive,
+            );
             for (&id, entry) in self.registry.clone().list_entries_and_ids() {
                 let search_str: Cow<OsStr> = Cow::Owned(entry.path().as_os_str().to_os_string());
                 let search_bytes = osstr_to_bytes(search_str.as_ref());

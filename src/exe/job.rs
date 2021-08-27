@@ -166,7 +166,11 @@ pub fn sender(app: &Arc<App>, opts: &Arc<SearchOpts>, re: Arc<Regex>, tx: Sender
     let opts = Arc::clone(opts);
     let re = Arc::clone(&re);
 
-    let exclude_pattern = regex_builder(app.exclude.join("|").as_str(), app.case_insensitive);
+    let exclude_pattern = regex_builder(
+        app.exclude.join("|").as_str(),
+        app.case_insensitive,
+        app.case_sensitive,
+    );
 
     thread::scope(move |s| {
         let tx_thread = tx.clone();

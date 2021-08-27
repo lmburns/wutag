@@ -5,7 +5,7 @@ use clap::IntoApp;
 use clap_generate::{generators::*, Shell};
 use lexiclean::Lexiclean;
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Clap, Debug, Clone, PartialEq)]
 pub struct CompletionsOpts {
     /// Shell to print completions. Available shells are: bash, elvish, fish,
     /// powershell, zsh
@@ -63,7 +63,7 @@ impl App {
                 Shell::Bash => "wutag.bash",
                 Shell::Elvish => "wutag.elvish",
                 Shell::Fish => "wutag.fish",
-                Shell::PowerShell => "wutag.ps1",
+                Shell::PowerShell => "_wutag.ps1",
                 Shell::Zsh => "_wutag",
                 _ => "", // ??
             };
@@ -75,7 +75,8 @@ impl App {
                 bold_entry!(outdir)
             );
         } else {
-            write!(io::stdout(), "{}", out).expect("unable to write completions to stdout");
+            write!(Box::new(io::stdout()), "{}", out)
+                .expect("unable to write completions to stdout");
         }
     }
 }

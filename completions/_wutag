@@ -36,9 +36,11 @@ _wutag() {
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '-i[Case insensitively search]' \
-'--case-insensitive[Case insensitively search]' \
-'-r[Case insensitively search]' \
-'--regex[Case insensitively search]' \
+'--case_insensitive[Case insensitively search]' \
+'-s[Case sensitively search]' \
+'--case_sensitive[Case sensitively search]' \
+'-r[Search with a regular expressions]' \
+'--regex[Search with a regular expressions]' \
 '-g[Apply operation to all tags and files instead of locally]' \
 '--global[Apply operation to all tags and files instead of locally]' \
 '(-c --color)-l[Respect '\''LS_COLORS'\'' environment variable when coloring the output]' \

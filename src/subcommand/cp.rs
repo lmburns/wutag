@@ -1,6 +1,6 @@
 use super::{uses::*, App};
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Clap, Debug, Clone, PartialEq)]
 pub struct CpOpts {
     /// Path to the file from which to copy tags from
     #[clap(
@@ -26,7 +26,7 @@ impl App {
             glob_builder(&opts.pattern)
         };
 
-        let re = regex_builder(&pat, self.case_insensitive);
+        let re = regex_builder(&pat, self.case_insensitive, self.case_sensitive);
         let path = opts.input_path.as_path();
 
         match list_tags(path) {

@@ -317,7 +317,7 @@ impl TagRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::DEFAULT_COLORS;
+    use crate::consts::DEFAULT_COLORS;
     use colored::Color::{Black, Red};
 
     #[test]
@@ -475,7 +475,7 @@ mod tests {
 
     #[test]
     fn saves_and_loads() {
-        let tmp_dir = tempdir::TempDir::new("registry-test").unwrap();
+        let tmp_dir = tempfile::tempdir().unwrap();
         let registry_path = tmp_dir.path().join("wutag.registry");
 
         let mut registry = TagRegistry::new(&registry_path);

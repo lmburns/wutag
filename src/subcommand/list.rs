@@ -1,7 +1,7 @@
 use super::{uses::*, App};
 
 // It seems that 'name' has to be defined to use 'requires' or 'conflicts_with'
-#[derive(Clap, Debug, Clone)]
+#[derive(Clap, Debug, Clone, PartialEq)]
 pub enum ListObject {
     Tags {
         #[clap(long = "completions", short = 'c', hidden = true)]
@@ -52,7 +52,7 @@ pub enum ListObject {
     },
 }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Clap, Debug, Clone, PartialEq)]
 pub struct ListOpts {
     /// The object to list. Valid values are: 'tags', 'files'.
     #[clap(subcommand)]

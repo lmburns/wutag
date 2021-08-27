@@ -22,6 +22,7 @@ pub struct App {
     pub base_dir:         PathBuf,
     pub border_color:     cli_table::Color,
     pub case_insensitive: bool,
+    pub case_sensitive:   bool,
     pub color_when:       String,
     pub colors:           Vec<Color>,
     pub exclude:          Vec<String>,
@@ -95,7 +96,7 @@ impl App {
                 _ => {
                     wutag_error!(
                         "invalid format found in your configuration. Valid values: toml, yaml, \
-                         yml, json. ...using 'toml'"
+                         yml, json. ...using toml"
                     );
                     "toml".to_string()
                 },
@@ -104,11 +105,12 @@ impl App {
             "toml".to_string()
         };
 
-        let cache_dir = std::env::var_os("XDG_CACHE_HOME")
+        let state_file = std::env::var_os("XDG_CACHE_HOME")
             .map(PathBuf::from)
             .filter(|p| p.is_absolute())
-            .or_else(|| dirs::home_dir().map(|d| d.join(".cache")));
-        let state_file = cache_dir.unwrap().join("wutag.registry");
+            .or_else(|| dirs::home_dir().map(|d| d.join(".cache")))
+            .map(|p| p.join("wutag.registry"))
+            .unwrap();
 
         let registry = if let Some(registry) = &opts.reg {
             // Expand both tlide '~' and environment variables in 'WUTAG_REGISTRY' env var
@@ -213,6 +215,7 @@ impl App {
             base_dir,
             border_color,
             case_insensitive: opts.case_insensitive,
+            case_sensitive: opts.case_sensitive,
             color_when: color_when.to_string(),
             colors,
             exclude: excludes,
@@ -246,16 +249,16 @@ impl App {
         }
 
         match cmd {
-            Command::List(ref opts) => self.list(opts),
-            Command::Set(opts) => self.set(&opts),
-            Command::Rm(ref opts) => self.rm(opts),
-            Command::Clear(ref opts) => self.clear(opts),
-            Command::Search(ref opts) => self.search(opts),
-            Command::Cp(ref opts) => self.cp(opts),
-            Command::View(ref opts) => self.view(opts),
-            Command::Edit(ref opts) => self.edit(opts),
-            Command::PrintCompletions(ref opts) => self.print_completions(opts),
             Command::CleanCache => self.clean_cache(),
+            Command::Clear(ref opts) => self.clear(opts),
+            Command::Cp(ref opts) => self.cp(opts),
+            Command::Edit(ref opts) => self.edit(opts),
+            Command::List(ref opts) => self.list(opts),
+            Command::PrintCompletions(ref opts) => self.print_completions(opts),
+            Command::Rm(ref opts) => self.rm(opts),
+            Command::Search(ref opts) => self.search(opts),
+            Command::Set(opts) => self.set(&opts),
+            Command::View(ref opts) => self.view(opts),
         }
     }
 }

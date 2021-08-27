@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Result};
 use colored::{Color, ColoredString, Colorize};
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
-use lazy_static::lazy_static;
 use lscolors::{LsColors, Style};
 use regex::bytes::{Regex, RegexBuilder};
 use std::{
@@ -147,17 +146,30 @@ pub(crate) fn glob_builder(pattern: &str) -> String {
         .to_owned()
 }
 
-/// Build a regular expression with RegexBuilder (bytes)
-pub fn regex_builder(pattern: &str, case_insensitive: bool) -> Regex {
-    lazy_static! {
+/// Match uppercase characters against Unicode characters as well. Tags can also
+/// be any valid Unicode character
+pub fn contains_upperchar(pattern: &str) -> bool {
+    lazy_static::lazy_static! {
         static ref UPPER_REG: Regex = Regex::new(r"[[:upper:]]").unwrap();
     };
 
     let cow_pat: Cow<OsStr> = Cow::Owned(OsString::from(pattern));
-    let upper_char = !UPPER_REG.is_match(&osstr_to_bytes(cow_pat.as_ref()));
+    UPPER_REG.is_match(&osstr_to_bytes(cow_pat.as_ref()))
+}
+
+/// Build a regular expression with RegexBuilder (bytes)
+pub fn regex_builder(pattern: &str, case_insensitive: bool, case_sensitive: bool) -> Regex {
+    let sensitive = !case_insensitive && (case_sensitive || contains_upperchar(pattern));
+
+    log::debug!(
+        "SENSITIVE: {}, INSENSITIVE: {}, SENSITIVE_ACCOUNT: {}",
+        case_sensitive,
+        case_insensitive,
+        sensitive
+    );
 
     RegexBuilder::new(pattern)
-        .case_insensitive(case_insensitive || upper_char)
+        .case_insensitive(!sensitive)
         .build()
         .map_err(|e| {
             anyhow!(
@@ -229,6 +241,9 @@ where
 {
     let walker = reg_walker(app).unwrap();
 
+    // TODO: Look into order of execution
+    // Scope here does not require ownership of all the variables, or the use of a
+    // static ref Mutex to execute the closure
     rayon::scope(|scope| {
         let (tx, rx) = channel::unbounded::<ignore::DirEntry>();
 
@@ -307,18 +322,6 @@ where
             });
         });
     });
-
-    // let execution_thread = std::thread::spawn(move || {
-    //     rx.iter().for_each(|e| {
-    //         if let Some(ref mut handler) = *FNIN.lock().expect("poisoned lock") {
-    //             handler(&e)
-    //         }
-    //     })
-    // });
-
-    // drop(tx);
-    // execution_thread.join().unwrap();
-    // app.save_registry();
 
     log::debug!("Using regex with max_depth of: {}", app.max_depth.unwrap());
     log::debug!(

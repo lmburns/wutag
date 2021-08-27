@@ -1,6 +1,6 @@
 use super::{uses::*, App};
 
-#[derive(Clap, Clone, Debug)]
+#[derive(Clap, Clone, Debug, PartialEq)]
 pub struct SetOpts {
     /// Do not show errors that tag already exists
     #[clap(name = "quiet", long, short = 'q')]
@@ -50,7 +50,7 @@ impl App {
             glob_builder(&opts.pattern)
         };
 
-        let re = regex_builder(&pat, self.case_insensitive);
+        let re = regex_builder(&pat, self.case_insensitive, self.case_sensitive);
         log::debug!("Compiled pattern: {}", re);
 
         if let Err(e) = reg_ok(

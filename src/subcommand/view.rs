@@ -1,7 +1,7 @@
 use super::{uses::*, App};
 use crate::bold_entry;
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Clap, Debug, Clone, PartialEq)]
 pub struct ViewOpts {
     /// Open tags in selected edtor (use only with vi, vim, neovim)
     #[clap(
@@ -60,8 +60,12 @@ impl App {
             glob_builder("*")
         };
 
-        let re = regex_builder(&pat, self.case_insensitive);
-        let exclude_pattern = regex_builder(self.exclude.join("|").as_str(), self.case_insensitive);
+        let re = regex_builder(&pat, self.case_insensitive, self.case_sensitive);
+        let exclude_pattern = regex_builder(
+            self.exclude.join("|").as_str(),
+            self.case_insensitive,
+            self.case_sensitive,
+        );
 
         let mut map: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
@@ -148,7 +152,8 @@ impl App {
         }
 
         // Lot of code that's repeated once I added option to check default format in
-        // config
+        // config as well. Opts needs to overwrite config, which is why it's matched
+        // first
         let tag_file = if let Some(format) = &opts.format {
             match format.as_str() {
                 "toml" => toml::to_string(&map).expect("Unable to convert toml"),

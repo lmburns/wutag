@@ -1,6 +1,6 @@
 use super::{uses::*, App};
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Clap, Debug, Clone, PartialEq)]
 pub struct EditOpts {
     #[clap(
         name = "color",

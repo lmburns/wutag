@@ -17,7 +17,7 @@ use crate::{
     },
 };
 
-#[derive(Clap, Default, Clone, Debug)]
+#[derive(Clap, Default, Clone, Debug, PartialEq)]
 #[clap(
     version = crate_version!(),
     author = APP_AUTHORS.as_ref(),
@@ -35,6 +35,7 @@ use crate::{
     // global_setting = AppSettings::InferLongArgs,             // Same as above but for args
     // global_setting = AppSettings::UnifiedHelpMessage,     // Options/Flags together
 )]
+
 pub struct Opts {
     #[clap(long, short, global = true, parse(from_occurrences))]
     /// Display debugging messages on 4 levels (i.e., -vv..)
@@ -77,14 +78,28 @@ pub struct Opts {
     pub reg:              Option<PathBuf>,
     /// Case insensitively search
     #[clap(
-        long,
-        short = 'i',
+        name = "case_insensitive",
+        long, short = 'i',
+        overrides_with_all = &["case_sensitive", "case_insensitive"],
         long_about = "\
-        Turn the glob into a case insensitive one (default: case sensitive). Only applies to \
-                      subcommands that take a pattern as a positional argument."
+        Turn the glob into a case insensitive one (default: case insensitive). Overrides \
+        --case-sensitive, and becomes case-sensitive if a search is performed with an \
+        uppercase-character. Only applies to subcommands that take a pattern as a positional \
+        argument."
     )]
     pub case_insensitive: bool,
-    /// Case insensitively search
+    /// Case sensitively search
+    #[clap(
+        name = "case_sensitive",
+        long, short = 's',
+        overrides_with_all = &["case_sensitive", "case_insensitive"],
+        long_about = "\
+        Turn the glob into a case sensitive one (default: case sensitive). Overrides \
+        --case-insensitive. Only applies to subcommands that take a pattern as a positional \
+        argument."
+    )]
+    pub case_sensitive:   bool,
+    /// Search with a regular expressions
     #[clap(
         long,
         short = 'r',
@@ -203,7 +218,7 @@ impl Default for Command {
 //     })
 // }
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Clap, Debug, Clone, PartialEq)]
 pub enum Command {
     /// Lists all available tags or files.
     #[clap(

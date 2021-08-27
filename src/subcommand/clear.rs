@@ -1,6 +1,6 @@
 use super::{uses::*, App};
 
-#[derive(Clap, Debug, Clone)]
+#[derive(Clap, Debug, Clone, PartialEq)]
 pub struct ClearOpts {
     // Opts::into_app().get_matches_from(env::args_os()).is_present("global")
     /// Clear all files from registry that no longer exist (requires --global)
@@ -18,11 +18,14 @@ impl App {
             glob_builder(&opts.pattern)
         };
 
-        let re = regex_builder(&pat, self.case_insensitive);
+        let re = regex_builder(&pat, self.case_insensitive, self.case_sensitive);
 
         if self.global {
-            let exclude_pattern =
-                regex_builder(self.exclude.join("|").as_str(), self.case_insensitive);
+            let exclude_pattern = regex_builder(
+                self.exclude.join("|").as_str(),
+                self.case_insensitive,
+                self.case_sensitive,
+            );
             for (&id, entry) in self.registry.clone().list_entries_and_ids() {
                 let search_str: Cow<OsStr> = Cow::Owned(entry.path().as_os_str().to_os_string());
                 let search_bytes = &osstr_to_bytes(search_str.as_ref());

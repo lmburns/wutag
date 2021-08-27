@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use colored::{Color, ColoredString, Colorize};
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
+use lexiclean::Lexiclean;
 use lscolors::{LsColors, Style};
 use regex::bytes::{Regex, RegexBuilder};
 use std::{
@@ -8,8 +9,8 @@ use std::{
     ffi::{OsStr, OsString},
     fmt::Display,
     fs,
-    io::Cursor,
-    path::Path,
+    io::{self, BufRead, BufReader, Cursor},
+    path::{Path, PathBuf},
     sync::Arc,
 };
 
@@ -129,6 +130,17 @@ pub(crate) fn replace(haystack: &mut String, needle: &str, replacement: &str) ->
             haystack
         ))
     }
+}
+
+pub(crate) fn collect_stdin_paths(base: &Path) -> Vec<PathBuf> {
+    BufReader::new(io::stdin())
+        .lines()
+        .map(|p| PathBuf::from(p.unwrap().as_str()).lexiclean())
+        .filter(|path| {
+            fs::symlink_metadata(path).is_ok() || fs::symlink_metadata(base.join(path)).is_ok()
+        })
+        .map(|p| base.join(p))
+        .collect::<Vec<_>>()
 }
 
 /// Print completions

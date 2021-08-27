@@ -26,7 +26,7 @@ pub(crate) use std::{
 };
 
 pub(crate) use crate::{
-    comp_helper,
+    bold_entry, comp_helper,
     config::Config,
     consts::*,
     err,
@@ -38,8 +38,8 @@ pub(crate) use crate::{
     registry::{EntryData, TagRegistry},
     ternary,
     util::{
-        fmt_err, fmt_local_path, fmt_ok, fmt_path, fmt_tag, gen_completions, glob_builder,
-        raw_local_path, reg_ok, regex_builder, replace,
+        collect_stdin_paths, fmt_err, fmt_local_path, fmt_ok, fmt_path, fmt_tag, gen_completions,
+        glob_builder, raw_local_path, reg_ok, regex_builder, replace,
     },
     wutag_error,
 };

@@ -9,11 +9,12 @@ Also, see `--help` for the main binary or any subcommand for longer explanations
 FLAGS:
     -h, --help                Print help information
     -V, --version             Print version information
-    -i, --case-insensitive    Case insensitively search
-    -r, --regex               Case insensitively search
+    -v, --verbose             Display debugging messages on 4 levels (i.e., -vv..)
+    -i, --case_insensitive    Case insensitively search
+    -s, --case_sensitive      Case sensitively search
+    -r, --regex               Search with a regular expressions
     -g, --global              Apply operation to all tags and files instead of locally
     -l, --ls-colors           Respect 'LS_COLORS' environment variable when coloring the output
-    -v, --verbose             Display debugging messages on 4 levels (i.e., -vv..)
 
 OPTIONS:
     -d, --dir <DIR>...            Specify starting path for filesystem traversal
@@ -208,22 +209,28 @@ Clears all tags from files matching globs. This can also be used to clear tags f
 #### Edit tags in `$EDITOR`
 * Can use `wutag edit -V <pattern>` to open tags in editor to edit them
 
+#### Set tags through `stdin`
+* Example:
+
+```sh
+fd -e rs '*cargo*' | wutag set -s tag1 tag2
+```
+
 #### Todo
 * [ ] Fix `any` vs the normal `all` with search (it doesn't work)
 * [ ] Add global option to `cp`
 * [ ] Add more tests
 * [ ] Add usage examples and images
-* [ ] Use `fsio` throughout crate
 
 ![Example usage](https://github.com/vv9k/wutag/blob/master/static/usage.svg)
 
 ## Install
 
-If you use arch Linux and have AUR repositories set up you can use your favourite AUR manager to download `wutag`. For example with `paru`:
+If you use arch Linux and have AUR repositories set up you can use your favorite AUR manager to download `wutag`. For example with `paru`:
  - `paru -S wutag`
  - or latest master branch with `paru -S wutag-git`
 
-If you're on another Linux distribution or MacOS you can download one of the prebuilt binaries from [here](https://github.com/vv9k/wutag/releases).
+If you're on another Linux distribution or macOS you can download one of the pre-built binaries from [here](https://github.com/vv9k/wutag/releases).
 
 To build manually you'll need latest `rust` and `cargo`. Build with:
  - `cargo build --release`

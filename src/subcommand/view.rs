@@ -1,5 +1,4 @@
 use super::{uses::*, App};
-use crate::bold_entry;
 
 #[derive(Clap, Debug, Clone, PartialEq)]
 pub struct ViewOpts {

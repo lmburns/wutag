@@ -331,7 +331,7 @@ _wutag() {
             return 0
             ;;
         wutag__set)
-            opts=" -q -c -C -h -V -v  --quiet --clear --color --help --version --verbose  <PATTERN> <TAGS>... "
+            opts=" -q -c -C -s -h -V -v  --quiet --clear --color --stdin --help --version --verbose  <PATTERN> <TAGS>... "
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

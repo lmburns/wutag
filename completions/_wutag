@@ -109,6 +109,8 @@ _arguments "${_arguments_options[@]}" \
 '--quiet[Do not show errors that tag already exists]' \
 '-c[Clear all tags before setting them]' \
 '--clear[Clear all tags before setting them]' \
+'-s[]' \
+'--stdin[]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '-V[Print version information]' \

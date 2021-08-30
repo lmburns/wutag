@@ -262,7 +262,10 @@ impl ArgumentTemplate {
     /// arguments and tokens are not affected by path separator
     /// substitution.
     pub(crate) fn generate(&self, path: impl AsRef<Path>) -> OsString {
-        use self::Token::{Basename, BasenameNoExt, NoExt, Parent, Placeholder, Text, Wutag, WutagClear, WutagColored, WutagCp, WutagRemove, WutagSet};
+        use self::Token::{
+            Basename, BasenameNoExt, NoExt, Parent, Placeholder, Text, Wutag, WutagClear,
+            WutagColored, WutagCp, WutagRemove, WutagSet,
+        };
         let path = path.as_ref();
 
         match *self {

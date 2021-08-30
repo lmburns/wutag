@@ -1,4 +1,10 @@
-use super::{uses::{Arc, Clap, CommandTemplate, EXEC_BATCH_EXPL, EXEC_EXPL, ValueHint, WorkerResult, channel, glob_builder, receiver, regex_builder, sender}, App};
+use super::{
+    uses::{
+        channel, glob_builder, receiver, regex_builder, sender, Arc, Clap, CommandTemplate,
+        ValueHint, WorkerResult, EXEC_BATCH_EXPL, EXEC_EXPL,
+    },
+    App,
+};
 
 #[derive(Clap, Clone, Debug, PartialEq)]
 pub(crate) struct SearchOpts {

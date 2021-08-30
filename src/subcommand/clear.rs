@@ -1,4 +1,10 @@
-use super::{uses::{Arc, Clap, Colorize, Cow, DirEntryExt, OsStr, clear_tags, err, fmt_err, fmt_ok, fmt_path, fs, glob_builder, has_tags, osstr_to_bytes, reg_ok, regex_builder, wutag_error}, App};
+use super::{
+    uses::{
+        clear_tags, err, fmt_err, fmt_ok, fmt_path, fs, glob_builder, has_tags, osstr_to_bytes,
+        reg_ok, regex_builder, wutag_error, Arc, Clap, Colorize, Cow, DirEntryExt, OsStr,
+    },
+    App,
+};
 
 #[derive(Clap, Debug, Clone, PartialEq)]
 pub(crate) struct ClearOpts {

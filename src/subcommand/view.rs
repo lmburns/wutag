@@ -58,7 +58,6 @@ pub(crate) struct ViewOpts {
 
 // TODO: Handles errors when saving file
 impl App {
-    #[allow(clippy::too_many_lines)]
     pub(crate) fn view(&mut self, opts: &ViewOpts) {
         log::debug!("ViewOpts: {:#?}", opts);
         log::debug!("Using registry: {}", self.registry.path.display());

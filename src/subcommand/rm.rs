@@ -1,4 +1,10 @@
-use super::{uses::{Arc, Clap, Colorize, Cow, DirEntryExt, OsStr, err, fmt_err, fmt_path, fmt_tag, glob_builder, list_tags, osstr_to_bytes, reg_ok, regex_builder, wutag_error}, App};
+use super::{
+    uses::{
+        err, fmt_err, fmt_path, fmt_tag, glob_builder, list_tags, osstr_to_bytes, reg_ok,
+        regex_builder, wutag_error, Arc, Clap, Colorize, Cow, DirEntryExt, OsStr,
+    },
+    App,
+};
 
 #[derive(Clap, Clone, Debug, PartialEq)]
 pub(crate) struct RmOpts {

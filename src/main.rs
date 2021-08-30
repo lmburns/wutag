@@ -3,7 +3,7 @@
 #![deny(clippy::style)]
 #![deny(clippy::complexity)]
 #![deny(clippy::perf)]
-#![deny(clippy::pedantic)]
+// #![deny(clippy::pedantic)]
 #![deny(
     absolute_paths_not_starting_with_crate,
     anonymous_parameters,
@@ -42,7 +42,14 @@
     variant_size_differences,
     while_true
 )]
-#![allow(clippy::similar_names, clippy::struct_excessive_bools)]
+#![allow(
+    clippy::similar_names,
+    clippy::struct_excessive_bools,
+    clippy::shadow_reuse,
+    clippy::struct_excessive_bools,
+    clippy::too_many_lines,
+    clippy::doc_markdown
+)]
 mod comp_helper;
 mod config;
 mod consts;

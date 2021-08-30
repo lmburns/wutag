@@ -1,4 +1,11 @@
-use super::{uses::{Arc, Clap, Colorize, DEFAULT_COLOR, DirEntryExt, EntryData, IntoParallelRefIterator, ParallelIterator, Tag, bold_entry, collect_stdin_paths, err, fmt_err, fmt_path, fmt_tag, glob_builder, parse_color, reg_ok, regex_builder, wutag_error}, App};
+use super::{
+    uses::{
+        bold_entry, collect_stdin_paths, err, fmt_err, fmt_path, fmt_tag, glob_builder,
+        parse_color, reg_ok, regex_builder, wutag_error, Arc, Clap, Colorize, DirEntryExt,
+        EntryData, IntoParallelRefIterator, ParallelIterator, Tag, DEFAULT_COLOR,
+    },
+    App,
+};
 
 #[derive(Clap, Clone, Debug, PartialEq)]
 pub(crate) struct SetOpts {
@@ -70,45 +77,45 @@ impl App {
         if (opts.stdin || atty::isnt(atty::Stream::Stdin)) && atty::is(atty::Stream::Stdout) {
             log::debug!("Using STDIN");
             for entry in &collect_stdin_paths(&self.base_dir) {
-                    println!("{}:", fmt_path(entry, self.base_color, self.ls_colors));
+                println!("{}:", fmt_path(entry, self.base_color, self.ls_colors));
 
-                    for tag in &tags {
-                        if opts.clear {
-                            log::debug!(
-                                "Using registry in threads: {}",
-                                self.registry.path.display()
-                            );
-                            if let Some(id) = self.registry.find_entry(entry) {
-                                self.registry.clear_entry(id);
-                            }
-                            match entry.has_tags() {
-                                Ok(has_tags) =>
-                                    if has_tags {
-                                        if let Err(e) = entry.clear_tags() {
-                                            wutag_error!("\t{} {}", e, bold_entry!(entry));
-                                        }
-                                    },
-                                Err(e) => {
-                                    wutag_error!("{} {}", e, bold_entry!(entry));
-                                },
-                            }
+                for tag in &tags {
+                    if opts.clear {
+                        log::debug!(
+                            "Using registry in threads: {}",
+                            self.registry.path.display()
+                        );
+                        if let Some(id) = self.registry.find_entry(entry) {
+                            self.registry.clear_entry(id);
                         }
-
-                        if let Err(e) = entry.tag(tag) {
-                            log::debug!("Error setting tag for: {}", entry.display());
-                            if !opts.quiet {
-                                wutag_error!("{} {}", e, bold_entry!(entry))
-                            }
-                        } else {
-                            log::debug!("Setting tag for: {}!", entry.display());
-                            let entry = EntryData::new(entry);
-                            let id = self.registry.add_or_update_entry(entry);
-                            self.registry.tag_entry(tag, id);
-                            print!("\t{} {}", "+".bold().green(), fmt_tag(tag));
+                        match entry.has_tags() {
+                            Ok(has_tags) =>
+                                if has_tags {
+                                    if let Err(e) = entry.clear_tags() {
+                                        wutag_error!("\t{} {}", e, bold_entry!(entry));
+                                    }
+                                },
+                            Err(e) => {
+                                wutag_error!("{} {}", e, bold_entry!(entry));
+                            },
                         }
                     }
-                    println!();
+
+                    if let Err(e) = entry.tag(tag) {
+                        log::debug!("Error setting tag for: {}", entry.display());
+                        if !opts.quiet {
+                            wutag_error!("{} {}", e, bold_entry!(entry))
+                        }
+                    } else {
+                        log::debug!("Setting tag for: {}!", entry.display());
+                        let entry = EntryData::new(entry);
+                        let id = self.registry.add_or_update_entry(entry);
+                        self.registry.tag_entry(tag, id);
+                        print!("\t{} {}", "+".bold().green(), fmt_tag(tag));
+                    }
                 }
+                println!();
+            }
         } else if let Err(e) = reg_ok(
             Arc::new(re),
             &Arc::new(self.clone()),

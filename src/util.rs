@@ -93,7 +93,8 @@ pub(crate) fn fmt_path<P: AsRef<Path>>(path: P, base_color: Color, ls_colors: bo
             .style_for_path_components(path.as_ref())
             .fold(Vec::new(), |mut acc, (component, style)| {
                 acc.push(
-                    style.map_or_else(|| ansi_term::Color::Blue.bold(), Style::to_ansi_term_style)
+                    style
+                        .map_or_else(|| ansi_term::Color::Blue.bold(), Style::to_ansi_term_style)
                         .paint(component.to_string_lossy())
                         .to_string(),
                 );
@@ -134,7 +135,8 @@ pub(crate) fn fmt_local_path<P: AsRef<Path>>(
             .style_for_path_components(path.as_ref())
             .fold(Vec::new(), |mut acc, (component, style)| {
                 acc.push(
-                    style.map_or_else(|| ansi_term::Color::Blue.bold(), Style::to_ansi_term_style)
+                    style
+                        .map_or_else(|| ansi_term::Color::Blue.bold(), Style::to_ansi_term_style)
                         .paint(component.to_string_lossy())
                         .to_string(),
                 );

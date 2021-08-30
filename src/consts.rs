@@ -1,5 +1,8 @@
 use clap::crate_description;
-use colored::Color::{self, Blue, BrightBlue, BrightCyan, BrightGreen, BrightMagenta, BrightRed, BrightYellow, Cyan, Green, Magenta, Red, White, Yellow};
+use colored::Color::{
+    self, Blue, BrightBlue, BrightCyan, BrightGreen, BrightMagenta, BrightRed, BrightYellow, Cyan,
+    Green, Magenta, Red, White, Yellow,
+};
 use once_cell::sync::Lazy;
 
 pub(crate) const YELLOW: &str = "\x1b[0;33m";

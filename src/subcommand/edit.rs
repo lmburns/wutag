@@ -1,4 +1,7 @@
-use super::{uses::*, App};
+use super::{
+    uses::{fmt_err, fmt_tag, parse_color, Clap},
+    App,
+};
 
 #[derive(Clap, Debug, Clone, PartialEq)]
 pub(crate) struct EditOpts {

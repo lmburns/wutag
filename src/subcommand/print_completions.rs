@@ -1,8 +1,16 @@
-use super::{uses::*, App};
+use super::{
+    uses::{
+        comp_helper, fs, gen_completions, io, replace, Clap, Colorize, PathBuf, ValueHint, Write,
+    },
+    App,
+};
 use crate::{bold_entry, Opts};
 
 use clap::IntoApp;
-use clap_generate::{generators::*, Shell};
+use clap_generate::{
+    generators::{Bash, Elvish, Fish, PowerShell, Zsh},
+    Shell,
+};
 use lexiclean::Lexiclean;
 
 #[derive(Clap, Debug, Clone, PartialEq)]

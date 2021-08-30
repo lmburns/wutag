@@ -153,7 +153,7 @@ impl TagRegistry {
     /// Removes the tag with the `tag_name` from the `entry` returning the entry
     /// if it has no tags left or `None` otherwise.
     pub(crate) fn untag_by_name(&mut self, tag_name: &str, entry: EntryId) -> Option<EntryData> {
-        let tag = self.get_tag(tag_name)?.to_owned();
+        let tag = self.get_tag(tag_name)?.clone();
         self.untag_entry(&tag, entry)
     }
 
@@ -165,7 +165,7 @@ impl TagRegistry {
                 entries.remove(idx);
             }
             if entries.is_empty() {
-                to_remove.push(tag.to_owned());
+                to_remove.push(tag.clone());
             }
         });
 

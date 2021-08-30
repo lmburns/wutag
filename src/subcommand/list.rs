@@ -1,4 +1,11 @@
-use super::{uses::*, App};
+use super::{
+    uses::{
+        contained_path, fmt_local_path, fmt_path, fmt_tag, print_stdout, raw_local_path, ternary,
+        Border, Cell, Clap, ColorChoice, Colorize, HashMap, Justify, Separator,
+        Style, Table,
+    },
+    App,
+};
 
 // It seems that 'name' has to be defined to use 'requires' or 'conflicts_with'
 #[derive(Clap, Debug, Clone, PartialEq)]

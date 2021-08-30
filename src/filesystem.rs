@@ -211,9 +211,9 @@ pub(crate) fn create_temp_ignore(content: &dyn Fn(&mut File) -> io::Result<()>) 
 pub(crate) fn write_temp_ignore(ignores: &[String], file: &File) -> io::Result<()> {
     let mut writer = io::BufWriter::new(file);
 
-    ignores.iter().for_each(|i| {
+    for i in ignores.iter() {
         writeln!(&mut writer, "{}", i).expect("Unable to write to ignore file");
-    });
+    }
 
     Ok(())
 }

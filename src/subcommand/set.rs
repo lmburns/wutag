@@ -1,4 +1,4 @@
-use super::{uses::*, App};
+use super::{uses::{Arc, Clap, Colorize, DEFAULT_COLOR, DirEntryExt, EntryData, IntoParallelRefIterator, ParallelIterator, Tag, bold_entry, collect_stdin_paths, err, fmt_err, fmt_path, fmt_tag, glob_builder, parse_color, reg_ok, regex_builder, wutag_error}, App};
 
 #[derive(Clap, Clone, Debug, PartialEq)]
 pub(crate) struct SetOpts {
@@ -69,12 +69,10 @@ impl App {
 
         if (opts.stdin || atty::isnt(atty::Stream::Stdin)) && atty::is(atty::Stream::Stdout) {
             log::debug!("Using STDIN");
-            collect_stdin_paths(&self.base_dir)
-                .iter()
-                .for_each(|entry| {
+            for entry in &collect_stdin_paths(&self.base_dir) {
                     println!("{}:", fmt_path(entry, self.base_color, self.ls_colors));
 
-                    tags.iter().for_each(|tag| {
+                    for tag in &tags {
                         if opts.clear {
                             log::debug!(
                                 "Using registry in threads: {}",
@@ -108,9 +106,9 @@ impl App {
                             self.registry.tag_entry(tag, id);
                             print!("\t{} {}", "+".bold().green(), fmt_tag(tag));
                         }
-                    });
+                    }
                     println!();
-                });
+                }
         } else if let Err(e) = reg_ok(
             Arc::new(re),
             &Arc::new(self.clone()),
@@ -119,7 +117,7 @@ impl App {
                     "{}:",
                     fmt_path(entry.path(), self.base_color, self.ls_colors)
                 );
-                tags.iter().for_each(|tag| {
+                for tag in &tags {
                     if opts.clear {
                         log::debug!(
                             "Using registry in threads: {}",
@@ -152,7 +150,7 @@ impl App {
                         self.registry.tag_entry(tag, id);
                         print!("\t{} {}", "+".bold().green(), fmt_tag(tag));
                     }
-                });
+                }
                 println!();
                 // log::debug!("Saving registry...");
                 // self.save_registry();

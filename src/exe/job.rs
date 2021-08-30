@@ -92,7 +92,7 @@ pub(crate) fn receiver(
                     }
                     results
                         .into_iter()
-                        .map(|h| h.join())
+                        .map(crossbeam_utils::thread::ScopedJoinHandle::join)
                         .collect::<Result<_, _>>()
                 })
                 .unwrap()

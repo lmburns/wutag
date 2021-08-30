@@ -73,7 +73,7 @@ pub(crate) fn parse_path<P: AsRef<Path>>(path: P) -> Result<(), String> {
     fs::metadata(path)
         .map_err(|_| "must be a valid path")
         .map(|_| ())
-        .map_err(|e| e.to_string())
+        .map_err(std::string::ToString::to_string)
 }
 
 pub(crate) fn fmt_err<E: Display>(err: E) -> String {
@@ -93,9 +93,7 @@ pub(crate) fn fmt_path<P: AsRef<Path>>(path: P, base_color: Color, ls_colors: bo
             .style_for_path_components(path.as_ref())
             .fold(Vec::new(), |mut acc, (component, style)| {
                 acc.push(
-                    style
-                        .map(Style::to_ansi_term_style)
-                        .unwrap_or_else(|| ansi_term::Color::Blue.bold())
+                    style.map_or_else(|| ansi_term::Color::Blue.bold(), Style::to_ansi_term_style)
                         .paint(component.to_string_lossy())
                         .to_string(),
                 );
@@ -136,9 +134,7 @@ pub(crate) fn fmt_local_path<P: AsRef<Path>>(
             .style_for_path_components(path.as_ref())
             .fold(Vec::new(), |mut acc, (component, style)| {
                 acc.push(
-                    style
-                        .map(Style::to_ansi_term_style)
-                        .unwrap_or_else(|| ansi_term::Color::Blue.bold())
+                    style.map_or_else(|| ansi_term::Color::Blue.bold(), Style::to_ansi_term_style)
                         .paint(component.to_string_lossy())
                         .to_string(),
                 );
@@ -172,7 +168,7 @@ pub(crate) fn replace(haystack: &mut String, needle: &str, replacement: &str) ->
         Ok(())
     } else {
         Err(anyhow!(
-            "Failed to find text:\n{}\n…in completion script:\n{}",
+            "Failed to find text:\n{}\n\u{2026}in completion script:\n{}",
             needle,
             haystack
         ))

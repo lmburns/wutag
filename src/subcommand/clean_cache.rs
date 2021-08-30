@@ -1,4 +1,7 @@
-use super::{uses::*, App};
+use super::{
+    uses::{wutag_error, Colorize},
+    App,
+};
 
 impl App {
     pub(crate) fn clean_cache(&mut self) {
@@ -8,11 +11,11 @@ impl App {
         } else {
             println!(
                 "{} {}: {}",
-                "✔".green().bold(),
+                "\u{2714}".green().bold(),
                 "CACHE CLEARED".red().bold(),
                 self.registry
                     .path
-                    .to_path_buf()
+                    .clone()
                     .display()
                     .to_string()
                     .green()

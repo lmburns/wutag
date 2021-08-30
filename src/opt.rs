@@ -3,7 +3,7 @@ use clap::{crate_version, AppSettings, ArgSettings, Clap, ValueHint};
 use std::{env, fs, path::PathBuf};
 
 use crate::{
-    consts::*,
+    consts::{AFTER_HELP, APP_ABOUT, APP_AUTHORS, FILE_TYPE, OVERRIDE_HELP},
     subcommand::{
         clear::ClearOpts,
         cp::CpOpts,

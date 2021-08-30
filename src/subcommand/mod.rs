@@ -11,7 +11,11 @@ pub(crate) mod uses;
 pub(crate) mod view;
 
 use crate::opt::{Command, Opts};
-use uses::*;
+use uses::{
+    env, fs, parse_color, parse_color_cli_table, wutag_error, Color, Colorize, Config, Context,
+    Cow, FileTypes, LookupError, PathBuf, RegexSet, RegexSetBuilder, Result, Stream, TagRegistry,
+    DEFAULT_BASE_COLOR, DEFAULT_BORDER_COLOR, DEFAULT_COLORS,
+};
 
 // TODO: Add --all option to view
 // TODO: Add list options for search
@@ -51,7 +55,7 @@ impl App {
             if base_dir.display().to_string() == "." {
                 std::env::current_dir().context("failed to determine current working directory")?
             } else {
-                base_dir.to_path_buf()
+                base_dir.clone()
             }
         } else {
             std::env::current_dir().context("failed to determine current working directory")?
@@ -142,20 +146,20 @@ impl App {
                     "{} last error is a directory path. Using default registry: {}",
                     registry.display().to_string().green(),
                     state_file.display().to_string().green(),
-                    );
+                );
                 TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
             } else {
                 fs::create_dir_all(
                     &registry
-                    .parent()
-                    .context("Could not get parent of nonexisting path")?,
+                        .parent()
+                        .context("Could not get parent of nonexisting path")?,
+                )
+                .with_context(|| {
+                    format!(
+                        "unable to create registry directory: '{}'",
+                        registry.display()
                     )
-                    .with_context(|| {
-                        format!(
-                            "unable to create registry directory: '{}'",
-                            registry.display()
-                        )
-                    })?;
+                })?;
                 TagRegistry::load(&registry).unwrap_or_else(|_| TagRegistry::new(&registry))
             }
         } else {
@@ -176,11 +180,9 @@ impl App {
             })
             .transpose()?;
 
-        let excludes = opts
-            .exclude
-            .clone()
-            .map(|v| v.iter().map(|p| String::from("!") + p.as_str()).collect())
-            .unwrap_or_else(Vec::new);
+        let excludes = opts.exclude.clone().map_or_else(Vec::new, |v| {
+            v.iter().map(|p| String::from("!") + p.as_str()).collect()
+        });
 
         let file_types = opts.file_type.clone().map(|vals| {
             let mut ftypes = FileTypes::default();

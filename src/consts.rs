@@ -1,5 +1,5 @@
 use clap::crate_description;
-use colored::Color::{self, *};
+use colored::Color::{self, Blue, BrightBlue, BrightCyan, BrightGreen, BrightMagenta, BrightRed, BrightYellow, Cyan, Green, Magenta, Red, White, Yellow};
 use once_cell::sync::Lazy;
 
 pub(crate) const YELLOW: &str = "\x1b[0;33m";
@@ -103,7 +103,7 @@ pub(crate) static AFTER_HELP: Lazy<String> = Lazy::new(|| {
 });
 #[rustfmt::skip]
 pub(crate) static APP_AUTHORS: Lazy<String> = Lazy::new(|| format!(
-    "{}Wojciech Kępka{} <{}Wwojciech@wkepka.dev{}>\n\
+    "{}Wojciech K\u{119}pka{} <{}Wwojciech@wkepka.dev{}>\n\
     {}Lucas Burns{}   <{}lmb@lmburns.com{}>",
     BRRED, RES, BRGREEN, RES, BRRED, RES, BRGREEN, RES,
 ));

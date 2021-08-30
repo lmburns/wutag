@@ -1,4 +1,11 @@
-use super::{uses::*, App};
+use super::{
+    uses::{
+        ValueHint, err, fmt_err, fmt_path, fmt_tag, glob_builder, list_tags, osstr_to_bytes,
+        parse_path, reg_ok, regex_builder, wutag_error, Arc, Clap, Colorize, Cow, DirEntryExt,
+        EntryData, OsStr, PathBuf,
+    },
+    App,
+};
 
 #[derive(Clap, Debug, Clone, PartialEq)]
 pub(crate) struct CpOpts {

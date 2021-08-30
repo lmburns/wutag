@@ -1,4 +1,4 @@
-use super::{uses::*, App};
+use super::{uses::{Arc, Clap, Colorize, Cow, DirEntryExt, OsStr, err, fmt_err, fmt_path, fmt_tag, glob_builder, list_tags, osstr_to_bytes, reg_ok, regex_builder, wutag_error}, App};
 
 #[derive(Clap, Clone, Debug, PartialEq)]
 pub(crate) struct RmOpts {
@@ -48,7 +48,7 @@ impl App {
                             tags.iter().fold(Vec::new(), |mut acc, tag| {
                                 acc.push((
                                     ctags.iter().find(|c| **c == &tag.to_string()),
-                                    tag.to_owned(),
+                                    tag.clone(),
                                 ));
                                 acc
                             })

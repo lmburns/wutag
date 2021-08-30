@@ -1,4 +1,13 @@
-use super::{uses::*, App};
+use super::{
+    uses::{
+        bold_entry, clear_tags, contained_path, create_temp_path, fmt_path, fmt_tag, fs,
+        glob_builder, osstr_to_bytes, process, raw_local_path, reg_ok, regex_builder, ternary,
+        wutag_error, Arc, ArgSettings, BTreeMap, Clap, Colorize, Cow, DirEntryExt, EntryData,
+        IntoParallelRefIterator, Lexiclean, OsStr, ParallelIterator, PathBuf, Tag, Write,
+        DEFAULT_EDITOR,
+    },
+    App,
+};
 
 #[derive(Clap, Debug, Clone, PartialEq)]
 pub(crate) struct ViewOpts {
@@ -261,25 +270,25 @@ impl App {
             //     }
             // };
 
-            for (local, tags) in diff.iter() {
+            for (local, tags) in &diff {
                 let entry = &if fs::symlink_metadata(local).is_ok()
                     || fs::symlink_metadata(base.join(local)).is_ok()
-                    {
-                        base.join(local).lexiclean()
-                    } else {
-                        // Should never be reached since the diff iterator would filter it
-                        wutag_error!(
-                            "{} {} does not exist",
-                            "X".red().bold(),
-                            self.base_dir
+                {
+                    base.join(local).lexiclean()
+                } else {
+                    // Should never be reached since the diff iterator would filter it
+                    wutag_error!(
+                        "{} {} does not exist",
+                        "X".red().bold(),
+                        self.base_dir
                             .join(local)
                             .display()
                             .to_string()
                             .magenta()
                             .bold()
-                        );
-                        continue;
-                    };
+                    );
+                    continue;
+                };
                 log::debug!("Using entry: {}", entry.display());
 
                 // Clear all tags before writing new ones so there wouldn't
@@ -314,7 +323,7 @@ impl App {
                             Tag::random(t, &self.colors)
                         }
                     })
-                .collect::<Vec<_>>()
+                    .collect::<Vec<_>>()
                     .iter()
                     .for_each(|tag| {
                         if let Err(e) = entry.tag(tag) {

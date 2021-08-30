@@ -1,17 +1,19 @@
 use super::{uses::*, App};
 
 #[derive(Clap, Debug, Clone, PartialEq)]
-pub struct ClearOpts {
+pub(crate) struct ClearOpts {
     // Opts::into_app().get_matches_from(env::args_os()).is_present("global")
     /// Clear all files from registry that no longer exist (requires --global)
     #[clap(long, short)]
-    pub non_existent: bool,
+    pub(crate) non_existent: bool,
     /// A glob pattern like "*.png".
-    pub pattern:      String,
+    pub(crate) pattern:      String,
 }
 
 impl App {
     pub(crate) fn clear(&mut self, opts: &ClearOpts) {
+        log::debug!("ClearOpts: {:#?}", opts);
+        log::debug!("Using registry: {}", self.registry.path.display());
         let pat = if self.pat_regex {
             String::from(&opts.pattern)
         } else {

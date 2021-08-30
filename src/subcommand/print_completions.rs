@@ -6,11 +6,11 @@ use clap_generate::{generators::*, Shell};
 use lexiclean::Lexiclean;
 
 #[derive(Clap, Debug, Clone, PartialEq)]
-pub struct CompletionsOpts {
+pub(crate) struct CompletionsOpts {
     /// Shell to print completions. Available shells are: bash, elvish, fish,
     /// powershell, zsh
     #[clap(long, possible_values = &Shell::variants())]
-    pub shell: Shell,
+    pub(crate) shell: Shell,
     /// Directory to output completions to
     #[clap(
         long, short = 'd',
@@ -21,11 +21,12 @@ pub struct CompletionsOpts {
                             .map(|_| ())
                             .map_err(|e| e.to_string()),
     )]
-    pub dir:   Option<PathBuf>,
+    pub(crate) dir:   Option<PathBuf>,
 }
 
 impl App {
     pub(crate) fn print_completions(&self, opts: &CompletionsOpts) {
+        log::debug!("CompletionOpts: {:#?}", opts);
         let mut app = Opts::into_app();
 
         let buffer = Vec::new();

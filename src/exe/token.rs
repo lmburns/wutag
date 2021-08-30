@@ -6,7 +6,7 @@ use std::fmt::{self, Display, Formatter};
 /// used to generate commands after all tokens for a given command template have
 /// been collected.
 #[derive(Clone, Debug, PartialEq)]
-pub enum Token {
+pub(crate) enum Token {
     Placeholder,
     Basename,
     Parent,
@@ -17,6 +17,7 @@ pub enum Token {
     WutagSet,
     WutagRemove,
     WutagClear,
+    WutagCp,
     Text(String),
 }
 
@@ -32,7 +33,8 @@ impl Display for Token {
             Token::WutagColored => f.write_str("{@}")?,
             Token::WutagSet => f.write_str("{@s}")?,
             Token::WutagRemove => f.write_str("{@r}")?,
-            Token::WutagClear => f.write_str("{@c}")?,
+            Token::WutagClear => f.write_str("{@x}")?,
+            Token::WutagCp => f.write_str("{@c}")?,
             Token::Text(ref string) => f.write_str(string)?,
         }
         Ok(())

@@ -1,16 +1,16 @@
 use super::{uses::*, App};
 
 #[derive(Clap, Clone, Debug, PartialEq)]
-pub struct SearchOpts {
+pub(crate) struct SearchOpts {
     /// If provided output will be raw so that it can be easily piped to other
     /// commands
     #[clap(long, short)]
-    pub raw: bool,
+    pub(crate) raw: bool,
 
     // /// If set to 'true' all entries containing any of provided tags will be
     // /// returned
     // #[clap(long, short)]
-    // pub any:     bool,
+    // pub(crate) any:     bool,
     /// Execute a command on each individual file
     #[rustfmt::skip]
     #[clap(
@@ -25,7 +25,7 @@ pub struct SearchOpts {
         long_about = EXEC_EXPL.as_ref(),
         value_hint = ValueHint::CommandName,
     )]
-    pub execute:       Option<Vec<String>>,
+    pub(crate) execute:       Option<Vec<String>>,
     /// Execute a command on the batch of matching files
     #[clap(
         name = "exec-batch",
@@ -39,7 +39,7 @@ pub struct SearchOpts {
         long_about = EXEC_BATCH_EXPL.as_ref(),
         value_hint = ValueHint::CommandName,
     )]
-    pub execute_batch: Option<Vec<String>>,
+    pub(crate) execute_batch: Option<Vec<String>>,
     /// Search just by tags or along with a tag(s)
     #[clap(
         name = "tags",
@@ -50,14 +50,16 @@ pub struct SearchOpts {
                       '*' --tag <tag>'
         "
     )]
-    pub tags:          Vec<String>,
+    pub(crate) tags:          Vec<String>,
     /// Pattern to search tagged files
     #[clap(name = "pattern")]
-    pub pattern:       String,
+    pub(crate) pattern:       String,
 }
 
 impl App {
     pub(crate) fn search(&self, opts: &SearchOpts) {
+        log::debug!("SearchOpts: {:#?}", opts);
+        log::debug!("Using registry: {}", self.registry.path.display());
         let pat = if self.pat_regex {
             String::from(&opts.pattern)
         } else {

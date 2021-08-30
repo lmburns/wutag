@@ -13,6 +13,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
+// use rayon::prelude::*;
+// use rayon::collections::hash_map;
+
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
 pub(crate) struct EntryData {
     path: PathBuf,
@@ -33,10 +36,10 @@ impl EntryData {
 pub(crate) type EntryId = usize;
 
 #[derive(Default, Deserialize, Serialize, Clone, Debug)]
-pub struct TagRegistry {
-    pub tags: HashMap<Tag, Vec<EntryId>>,
-    entries:  HashMap<EntryId, EntryData>,
-    pub path: PathBuf,
+pub(crate) struct TagRegistry {
+    pub(crate) tags: HashMap<Tag, Vec<EntryId>>,
+    entries:         HashMap<EntryId, EntryData>,
+    pub(crate) path: PathBuf,
 }
 
 impl TagRegistry {

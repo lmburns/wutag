@@ -1,8 +1,8 @@
 mod command;
-pub mod exits;
-pub mod input;
-pub mod job;
-mod token;
+pub(crate) mod exits;
+pub(crate) mod input;
+pub(crate) mod job;
+pub(crate) mod token;
 
 use std::{
     ffi::OsString,
@@ -12,22 +12,22 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use regex::Regex;
 
-pub use self::{
+pub(crate) use self::{
     command::execute_command,
-    exits::{generalize_exitcodes, ExitCode},
+    exits::ExitCode,
     input::{
         basename, dirname, remove_extension, strip_current_dir, wutag_clear_tag, wutag_colored_dir,
-        wutag_dir, wutag_remove_tag, wutag_set_tag,
+        wutag_cp_tag, wutag_dir, wutag_remove_tag, wutag_set_tag,
     },
     token::Token,
 };
 
 /// Execution mode of the command
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ExecutionMode {
+pub(crate) enum ExecutionMode {
     /// Command is executed for each search result
     OneByOne,
     /// Command is run for a batch of results at once
@@ -40,13 +40,13 @@ pub enum ExecutionMode {
 /// command. The `generate_and_execute()` method will be used to generate a
 /// command and execute it.
 #[derive(Debug, Clone, PartialEq)]
-pub struct CommandTemplate {
+pub(crate) struct CommandTemplate {
     args: Vec<ArgumentTemplate>,
     mode: ExecutionMode,
 }
 
 impl CommandTemplate {
-    pub fn new<I, S>(input: I) -> CommandTemplate
+    pub(crate) fn new<I, S>(input: I) -> CommandTemplate
     where
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
@@ -54,7 +54,7 @@ impl CommandTemplate {
         Self::build(input, ExecutionMode::OneByOne)
     }
 
-    pub fn new_batch<I, S>(input: I) -> Result<CommandTemplate>
+    pub(crate) fn new_batch<I, S>(input: I) -> Result<CommandTemplate>
     where
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
@@ -76,10 +76,8 @@ impl CommandTemplate {
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
-        lazy_static! {
-            static ref PLACEHOLDER_PATTERN: Regex =
-                Regex::new(r"\{(/?\.?.?|//|@?[src]?)\}").unwrap();
-        }
+        static PLACEHOLDER_PATTERN: Lazy<Regex> =
+            Lazy::new(|| Regex::new(r"\{(/?\.?.?|//|@?[srxc]?)\}").unwrap());
 
         let mut args = Vec::new();
         let mut has_placeholder = false;
@@ -108,7 +106,8 @@ impl CommandTemplate {
                     "{@}" => tokens.push(Token::WutagColored),
                     "{@s}" => tokens.push(Token::WutagSet),
                     "{@r}" => tokens.push(Token::WutagRemove),
-                    "{@c}" => tokens.push(Token::WutagClear),
+                    "{@x}" => tokens.push(Token::WutagClear),
+                    "{@c}" => tokens.push(Token::WutagCp),
                     _ => unreachable!("Unhandled placeholder"),
                 }
 
@@ -147,7 +146,7 @@ impl CommandTemplate {
         let mut cloned_args = self.args.clone();
         log::debug!("Cloned args: {:?}", cloned_args);
         cloned_args.remove(0);
-        log::debug!("Cloned args removed arg: {:?}", cloned_args);
+        log::debug!("Cloned args: removed arg: {:?}", cloned_args);
 
         let mut new_args = self.args[0]
             .clone()
@@ -170,30 +169,31 @@ impl CommandTemplate {
     /// Using the internal `args` field, and a supplied `input` variable, a
     /// `Command` will be build. Once all arguments have been processed, the
     /// command is executed.
-    pub fn generate_and_execute(&self, input: &Path, out_perm: Arc<Mutex<()>>) -> ExitCode {
+    pub(crate) fn generate_and_execute(&self, input: &Path, out_perm: Arc<Mutex<()>>) -> ExitCode {
         let input = strip_current_dir(input);
 
-        log::debug!("Args before: {:#?}", self.args);
+        log::debug!("=== Args before ===: {:#?}", self.args);
         let args = if self.args[0].contains_wutag() {
             self.split_first_arg(&input)
         } else {
             self.args.clone()
         };
-        log::debug!("Args after: {:#?}", args);
+        log::debug!("=== Args after ===: {:#?}", args);
 
         let mut cmd = Command::new(args[0].generate(&input));
         for arg in &args[1..] {
             cmd.arg(arg.generate(&input));
         }
 
+        log::debug!("=== Final command ===: {:#?}", cmd);
         execute_command(cmd, &out_perm)
     }
 
-    pub fn in_batch_mode(&self) -> bool {
+    pub(crate) fn in_batch_mode(&self) -> bool {
         self.mode == ExecutionMode::Batch
     }
 
-    pub fn generate_and_execute_batch<I>(&self, paths: I) -> ExitCode
+    pub(crate) fn generate_and_execute_batch<I>(&self, paths: I) -> ExitCode
     where
         I: Iterator<Item = PathBuf>,
     {
@@ -240,17 +240,18 @@ enum ArgumentTemplate {
 }
 
 impl ArgumentTemplate {
-    pub fn has_tokens(&self) -> bool {
+    pub(crate) fn has_tokens(&self) -> bool {
         matches!(self, ArgumentTemplate::Tokens(_))
     }
 
-    pub fn contains_wutag(&self) -> bool {
+    pub(crate) fn contains_wutag(&self) -> bool {
         if let ArgumentTemplate::Tokens(ref tokens) = *self {
             tokens[0] == Token::Wutag
                 || tokens[0] == Token::WutagColored
                 || tokens[0] == Token::WutagSet
                 || tokens[0] == Token::WutagRemove
                 || tokens[0] == Token::WutagClear
+                || tokens[0] == Token::WutagCp
         } else {
             false
         }
@@ -260,7 +261,7 @@ impl ArgumentTemplate {
     /// it will replace the path separator in all placeholder tokens. Text
     /// arguments and tokens are not affected by path separator
     /// substitution.
-    pub fn generate(&self, path: impl AsRef<Path>) -> OsString {
+    pub(crate) fn generate(&self, path: impl AsRef<Path>) -> OsString {
         use self::Token::*;
         let path = path.as_ref();
 
@@ -279,6 +280,7 @@ impl ArgumentTemplate {
                         WutagSet => s.push(&wutag_set_tag(path)),
                         WutagRemove => s.push(&wutag_remove_tag(path)),
                         WutagClear => s.push(&wutag_clear_tag(path)),
+                        WutagCp => s.push(&wutag_cp_tag(path)),
                         Text(ref string) => s.push(string),
                     }
                 }

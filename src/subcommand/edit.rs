@@ -1,7 +1,7 @@
 use super::{uses::*, App};
 
 #[derive(Clap, Debug, Clone, PartialEq)]
-pub struct EditOpts {
+pub(crate) struct EditOpts {
     #[clap(
         name = "color",
         long, short,
@@ -14,14 +14,16 @@ pub struct EditOpts {
     /// colors like '0x000000' or '#1F1F1F' or just plain 'ff000a'. The
     /// colors are case insensitive meaning '1f1f1f' is equivalent to
     /// '1F1F1F'.
-    pub color: String,
+    pub(crate) color: String,
     /// The tag to edit
     #[clap(name = "tag", long, short = 't')]
-    pub tag:   String,
+    pub(crate) tag:   String,
 }
 
 impl App {
     pub(crate) fn edit(&mut self, opts: &EditOpts) {
+        log::debug!("EditOpts: {:#?}", opts);
+        log::debug!("Using registry: {}", self.registry.path.display());
         let color = match parse_color(&opts.color) {
             Ok(color) => color,
             Err(e) => {

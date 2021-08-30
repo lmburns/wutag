@@ -7,7 +7,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-pub use crate::{
+pub(crate) use crate::{
     filesystem::{contained_path, osstr_to_bytes},
     subcommand::{search::SearchOpts, App},
     util::{fmt_local_path, fmt_path, fmt_tag, raw_local_path, regex_builder},
@@ -25,7 +25,7 @@ use crossbeam_utils::thread;
 use colored::Colorize;
 use regex::bytes::Regex;
 
-pub enum WorkerResult {
+pub(crate) enum WorkerResult {
     Entry((PathBuf, usize)),
     #[allow(dead_code)] // Never constructed
     Error(std::io::Error),
@@ -35,7 +35,7 @@ pub enum WorkerResult {
 /// a command on the result if `-x|--exec` or `-X|--exec-batch` if passed using
 /// `generate_and_execute` or `generate_and_execute_batch` from
 /// [CommandTemplate](crate::exe::CommandTemplate)
-pub fn receiver(
+pub(crate) fn receiver(
     app: &Arc<App>,
     opts: &Arc<SearchOpts>,
     cmd: Option<Arc<CommandTemplate>>,
@@ -161,7 +161,12 @@ pub fn receiver(
 
 /// Spawn a sender channel that filters results and `sends` them to
 /// [receiver](self::receiver)
-pub fn sender(app: &Arc<App>, opts: &Arc<SearchOpts>, re: Arc<Regex>, tx: Sender<WorkerResult>) {
+pub(crate) fn sender(
+    app: &Arc<App>,
+    opts: &Arc<SearchOpts>,
+    re: Arc<Regex>,
+    tx: Sender<WorkerResult>,
+) {
     let app = Arc::clone(app);
     let opts = Arc::clone(opts);
     let re = Arc::clone(&re);

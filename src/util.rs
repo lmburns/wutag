@@ -3,19 +3,22 @@ use colored::{Color, ColoredString, Colorize};
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
 use lexiclean::Lexiclean;
 use lscolors::{LsColors, Style};
+use once_cell::sync::Lazy;
 use regex::bytes::{Regex, RegexBuilder};
 use std::{
     borrow::Cow,
     ffi::{OsStr, OsString},
     fmt::Display,
     fs,
-    io::{self, BufRead, BufReader, Cursor},
+    io::{self, BufRead, BufReader, Cursor, Write},
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, Once},
 };
 
 use clap_generate::{generate, Generator};
 use crossbeam_channel as channel;
+use env_logger::fmt::Color as LogColor;
+use log::LevelFilter;
 
 // use crossbeam_channel::{Receiver, Sender};
 // use crossbeam_utils::thread;
@@ -25,11 +28,55 @@ use crate::{
     consts::{APP_NAME, DEFAULT_MAX_DEPTH},
     filesystem::{create_temp_ignore, delete_file, osstr_to_bytes, write_temp_ignore},
     subcommand::App,
-    wutag_error,
+    wutag_error, Opts,
 };
 use wutag_core::tag::Tag;
 
-pub fn fmt_err<E: Display>(err: E) -> String {
+pub(crate) fn initialize_logging(args: &Opts) {
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        env_logger::Builder::new()
+            .format_timestamp(None)
+            .format(|buf, record| {
+                let mut style = buf.style();
+                let level_style = match record.level() {
+                    log::Level::Warn => style.set_color(LogColor::Yellow),
+                    log::Level::Info => style.set_color(LogColor::Green),
+                    log::Level::Debug => style.set_color(LogColor::Magenta),
+                    log::Level::Trace => style.set_color(LogColor::Cyan),
+                    _ => style.set_color(LogColor::Red),
+                };
+
+                let mut style = buf.style();
+                let target_style = style.set_color(LogColor::Ansi256(14));
+
+                writeln!(
+                    buf,
+                    " {}: {} {}",
+                    level_style.value(record.level()),
+                    target_style.value(record.target()),
+                    record.args()
+                )
+            })
+            .filter(None, match &args.verbose {
+                1 => LevelFilter::Warn,
+                2 => LevelFilter::Info,
+                3 => LevelFilter::Debug,
+                4 => LevelFilter::Trace,
+                _ => LevelFilter::Off,
+            })
+            .init();
+    });
+}
+
+pub(crate) fn parse_path<P: AsRef<Path>>(path: P) -> Result<(), String> {
+    fs::metadata(path)
+        .map_err(|_| "must be a valid path")
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+pub(crate) fn fmt_err<E: Display>(err: E) -> String {
     format!("{} {}", "ERROR:".red().bold(), format!("{}", err).white())
 }
 
@@ -37,7 +84,7 @@ pub(crate) fn fmt_ok<S: AsRef<str>>(msg: S) -> String {
     format!("{} {}", "OK".green().bold(), msg.as_ref().white())
 }
 
-pub fn fmt_path<P: AsRef<Path>>(path: P, base_color: Color, ls_colors: bool) -> String {
+pub(crate) fn fmt_path<P: AsRef<Path>>(path: P, base_color: Color, ls_colors: bool) -> String {
     // ls_colors implies forced coloring
     if ls_colors {
         let lscolors = LsColors::from_env().unwrap_or_default();
@@ -65,7 +112,7 @@ pub fn fmt_path<P: AsRef<Path>>(path: P, base_color: Color, ls_colors: bool) -> 
 
 /// Format a local path (i.e., remove path components before files local to
 /// directory)
-pub fn fmt_local_path<P: AsRef<Path>>(
+pub(crate) fn fmt_local_path<P: AsRef<Path>>(
     path: P,
     local_path: P,
     base_color: Color,
@@ -103,11 +150,11 @@ pub fn fmt_local_path<P: AsRef<Path>>(
     }
 }
 
-pub fn fmt_tag(tag: &Tag) -> ColoredString {
+pub(crate) fn fmt_tag(tag: &Tag) -> ColoredString {
     tag.name().color(*tag.color()).bold()
 }
 
-pub fn raw_local_path<P: AsRef<Path>>(path: P, local: P) -> String {
+pub(crate) fn raw_local_path<P: AsRef<Path>>(path: P, local: P) -> String {
     let mut replaced = local.as_ref().display().to_string();
     if !replaced.ends_with('/') {
         replaced.push('/');
@@ -160,17 +207,14 @@ pub(crate) fn glob_builder(pattern: &str) -> String {
 
 /// Match uppercase characters against Unicode characters as well. Tags can also
 /// be any valid Unicode character
-pub fn contains_upperchar(pattern: &str) -> bool {
-    lazy_static::lazy_static! {
-        static ref UPPER_REG: Regex = Regex::new(r"[[:upper:]]").unwrap();
-    };
-
+pub(crate) fn contains_upperchar(pattern: &str) -> bool {
+    static UPPER_REG: Lazy<Regex> = Lazy::new(|| Regex::new(r"[[:upper:]]").unwrap());
     let cow_pat: Cow<OsStr> = Cow::Owned(OsString::from(pattern));
     UPPER_REG.is_match(&osstr_to_bytes(cow_pat.as_ref()))
 }
 
 /// Build a regular expression with RegexBuilder (bytes)
-pub fn regex_builder(pattern: &str, case_insensitive: bool, case_sensitive: bool) -> Regex {
+pub(crate) fn regex_builder(pattern: &str, case_insensitive: bool, case_sensitive: bool) -> Regex {
     let sensitive = !case_insensitive && (case_sensitive || contains_upperchar(pattern));
 
     log::debug!(

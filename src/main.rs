@@ -1,3 +1,48 @@
+#![deny(clippy::all)]
+#![deny(clippy::correctness)]
+#![deny(clippy::style)]
+#![deny(clippy::complexity)]
+#![deny(clippy::perf)]
+#![deny(clippy::pedantic)]
+#![deny(
+    absolute_paths_not_starting_with_crate,
+    anonymous_parameters,
+    bad_style,
+    const_err,
+    dead_code,
+    keyword_idents,
+    improper_ctypes,
+    macro_use_extern_crate,
+    meta_variable_misuse,
+    missing_abi,
+    no_mangle_generic_items,
+    non_shorthand_field_patterns,
+    noop_method_call,
+    overflowing_literals,
+    path_statements,
+    patterns_in_fns_without_body,
+    pointer_structural_match,
+    private_in_public,
+    semicolon_in_expressions_from_macros,
+    single_use_lifetimes,
+    trivial_casts,
+    trivial_numeric_casts,
+    unaligned_references,
+    unconditional_recursion,
+    unreachable_pub,
+    unsafe_code,
+    unused,
+    unused_allocation,
+    unused_comparisons,
+    unused_extern_crates,
+    unused_import_braces,
+    unused_lifetimes,
+    unused_parens,
+    unused_qualifications,
+    variant_size_differences,
+    while_true
+)]
+#![allow(clippy::similar_names, clippy::struct_excessive_bools)]
 mod comp_helper;
 mod config;
 mod consts;
@@ -10,23 +55,18 @@ mod subcommand;
 mod util;
 
 use config::Config;
-use log::LevelFilter;
 use opt::Opts;
 use subcommand::App;
+use util::initialize_logging;
 
 fn main() {
     let config = Config::load_default_location().unwrap_or_default();
     let args = Opts::get_args();
+    initialize_logging(&args);
 
-    env_logger::Builder::new()
-        .filter(None, match &args.verbose {
-            1 => LevelFilter::Warn,
-            2 => LevelFilter::Info,
-            3 => LevelFilter::Debug,
-            4 => LevelFilter::Trace,
-            _ => LevelFilter::Off,
-        })
-        .init();
+    log::info!("Inof here");
+    log::trace!("trace here");
+    log::warn!("warn here");
 
     if let Err(e) = App::run(args, config) {
         eprintln!("{}", e);

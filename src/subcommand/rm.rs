@@ -1,16 +1,17 @@
 use super::{uses::*, App};
 
 #[derive(Clap, Clone, Debug, PartialEq)]
-pub struct RmOpts {
+pub(crate) struct RmOpts {
     /// A glob pattern like "*.png" (or regex).
-    pub pattern: String,
-    pub tags:    Vec<String>,
+    pub(crate) pattern: String,
+    pub(crate) tags:    Vec<String>,
 }
 
 impl App {
     pub(crate) fn rm(&mut self, opts: &RmOpts) {
         // Global will match a glob only against files that are tagged
         // Could add a fixed string option
+        log::debug!("RmOpts: {:#?}", opts);
         log::debug!("Using registry: {}", self.registry.path.display());
         let pat = if self.pat_regex {
             String::from(&opts.pattern)
@@ -80,6 +81,7 @@ impl App {
             Arc::new(re),
             &Arc::new(self.clone()),
             |entry: &ignore::DirEntry| {
+                log::debug!("Using WalkParallel");
                 let id = self.registry.find_entry(entry.path());
                 let tags = opts
                     .tags

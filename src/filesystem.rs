@@ -4,11 +4,10 @@ use std::{
     ffi::OsStr,
     fs::{self, File, Metadata},
     io::{self, Write},
-    iter,
     path::{Path, PathBuf},
 };
 
-use rand::{distributions::Alphanumeric, thread_rng, Rng};
+use rand::{distributions::Alphanumeric, Rng};
 use std::os::unix::fs::{FileTypeExt, PermissionsExt};
 
 use colored::Colorize;
@@ -18,16 +17,16 @@ use crate::wutag_error;
 
 /// FileTypes to filter against when searching (taken from `fd`)
 #[derive(Debug, Clone)]
-pub struct FileTypes {
-    pub files:            bool,
-    pub directories:      bool,
-    pub symlinks:         bool,
-    pub block_devices:    bool,
-    pub char_devices:     bool,
-    pub sockets:          bool,
-    pub fifos:            bool,
-    pub executables_only: bool,
-    pub empty_only:       bool,
+pub(crate) struct FileTypes {
+    pub(crate) files:            bool,
+    pub(crate) directories:      bool,
+    pub(crate) symlinks:         bool,
+    pub(crate) block_devices:    bool,
+    pub(crate) char_devices:     bool,
+    pub(crate) sockets:          bool,
+    pub(crate) fifos:            bool,
+    pub(crate) executables_only: bool,
+    pub(crate) empty_only:       bool,
 }
 
 impl Default for FileTypes {
@@ -47,16 +46,16 @@ impl Default for FileTypes {
 }
 
 #[derive(Debug, Error)]
-pub enum Error {
+pub(crate) enum Error {
     #[error("No metadata exists for {0}")]
     Metadata(String),
     #[error("IO Error: {0}")]
     IOError(String),
 }
 
-pub type FileInfoResult<T> = std::result::Result<T, Error>;
+pub(crate) type FileInfoResult<T> = Result<T, Error>;
 
-pub trait FileInfo {
+pub(crate) trait FileInfo {
     fn path(&self) -> &Path;
     fn file_type(&self) -> Option<fs::FileType>;
     fn meta(&self) -> FileInfoResult<Metadata>;
@@ -111,7 +110,7 @@ impl FileInfo for &Path {
 }
 
 impl FileTypes {
-    pub fn should_ignore(&self, entry: &impl FileInfo) -> bool {
+    pub(crate) fn should_ignore(&self, entry: &impl FileInfo) -> bool {
         if let Some(ref entry_type) = entry.file_type() {
             (!self.files && entry_type.is_file())
                 || (!self.directories && entry_type.is_dir())
@@ -135,7 +134,7 @@ impl FileTypes {
     }
 }
 
-pub fn is_empty(entry: &impl FileInfo) -> bool {
+pub(crate) fn is_empty(entry: &impl FileInfo) -> bool {
     if let Some(file_type) = entry.file_type() {
         if file_type.is_dir() {
             if let Ok(mut entries) = fs::read_dir(entry.path()) {
@@ -153,25 +152,24 @@ pub fn is_empty(entry: &impl FileInfo) -> bool {
     }
 }
 
-pub fn create_temp_path() -> String {
-    let mut rng = thread_rng();
+pub(crate) fn create_temp_path() -> String {
     let mut tmp_path = env::temp_dir();
     tmp_path.push(format!(
         "{}-{}",
         env!("CARGO_PKG_NAME"),
-        iter::repeat(())
-            .map(|()| rng.sample(Alphanumeric))
-            .map(char::from)
+        rand::thread_rng()
+            .sample_iter(&Alphanumeric)
             .take(12)
+            .map(char::from)
             .collect::<String>()
     ));
     tmp_path.display().to_string()
 }
 
-pub fn modify_temp_ignore<P: AsRef<Path>>(
+pub(crate) fn modify_temp_ignore<P: AsRef<Path>>(
     path: P,
-    content: &dyn Fn(&mut fs::File) -> io::Result<()>,
-) -> Result<PathBuf, self::Error> {
+    content: &dyn Fn(&mut File) -> io::Result<()>,
+) -> Result<PathBuf, Error> {
     let res = File::create(&path);
     let path = path.as_ref().to_path_buf();
 
@@ -199,7 +197,7 @@ pub fn modify_temp_ignore<P: AsRef<Path>>(
     }
 }
 
-pub fn create_temp_ignore(content: &dyn Fn(&mut fs::File) -> io::Result<()>) -> String {
+pub(crate) fn create_temp_ignore(content: &dyn Fn(&mut File) -> io::Result<()>) -> String {
     let tmp = create_temp_path();
     match modify_temp_ignore(&tmp, content) {
         Ok(tmp) => tmp.display().to_string(),
@@ -210,7 +208,7 @@ pub fn create_temp_ignore(content: &dyn Fn(&mut fs::File) -> io::Result<()>) -> 
     }
 }
 
-pub fn write_temp_ignore(ignores: &[String], file: &fs::File) -> io::Result<()> {
+pub(crate) fn write_temp_ignore(ignores: &[String], file: &File) -> io::Result<()> {
     let mut writer = io::BufWriter::new(file);
 
     ignores.iter().for_each(|i| {
@@ -220,7 +218,7 @@ pub fn write_temp_ignore(ignores: &[String], file: &fs::File) -> io::Result<()> 
     Ok(())
 }
 
-pub fn delete_file<P: AsRef<Path>>(file: P) {
+pub(crate) fn delete_file<P: AsRef<Path>>(file: P) {
     let path = file.as_ref().to_path_buf();
 
     if path.exists() && path.is_file() {
@@ -238,7 +236,7 @@ pub fn delete_file<P: AsRef<Path>>(file: P) {
 }
 
 /// Determine whether file (path) contains path and if so, return true
-pub fn contained_path<P: AsRef<Path>>(file: P, path: P) -> bool {
+pub(crate) fn contained_path<P: AsRef<Path>>(file: P, path: P) -> bool {
     file.as_ref()
         .display()
         .to_string()
@@ -246,7 +244,7 @@ pub fn contained_path<P: AsRef<Path>>(file: P, path: P) -> bool {
 }
 
 /// Convert an OsStr to bytes for RegexBuilder
-pub fn osstr_to_bytes(input: &OsStr) -> Cow<[u8]> {
+pub(crate) fn osstr_to_bytes(input: &OsStr) -> Cow<[u8]> {
     use std::os::unix::ffi::OsStrExt;
     Cow::Borrowed(input.as_bytes())
 }

@@ -1,14 +1,14 @@
-pub mod clean_cache;
-pub mod clear;
-pub mod cp;
-pub mod edit;
-pub mod list;
-pub mod print_completions;
-pub mod rm;
-pub mod search;
-pub mod set;
-pub mod uses;
-pub mod view;
+pub(crate) mod clean_cache;
+pub(crate) mod clear;
+pub(crate) mod cp;
+pub(crate) mod edit;
+pub(crate) mod list;
+pub(crate) mod print_completions;
+pub(crate) mod rm;
+pub(crate) mod search;
+pub(crate) mod set;
+pub(crate) mod uses;
+pub(crate) mod view;
 
 use crate::opt::{Command, Opts};
 use uses::*;
@@ -17,24 +17,24 @@ use uses::*;
 // TODO: Add list options for search
 
 #[derive(Clone, Debug)]
-pub struct App {
-    pub base_color:       Color,
-    pub base_dir:         PathBuf,
-    pub border_color:     cli_table::Color,
-    pub case_insensitive: bool,
-    pub case_sensitive:   bool,
-    pub color_when:       String,
-    pub colors:           Vec<Color>,
-    pub exclude:          Vec<String>,
-    pub extension:        Option<RegexSet>,
-    pub file_type:        Option<FileTypes>,
-    pub format:           String,
-    pub global:           bool,
-    pub ignores:          Option<Vec<String>>,
-    pub ls_colors:        bool,
-    pub max_depth:        Option<usize>,
-    pub pat_regex:        bool,
-    pub registry:         TagRegistry,
+pub(crate) struct App {
+    pub(crate) base_color:       Color,
+    pub(crate) base_dir:         PathBuf,
+    pub(crate) border_color:     cli_table::Color,
+    pub(crate) case_insensitive: bool,
+    pub(crate) case_sensitive:   bool,
+    pub(crate) color_when:       String,
+    pub(crate) colors:           Vec<Color>,
+    pub(crate) exclude:          Vec<String>,
+    pub(crate) extension:        Option<RegexSet>,
+    pub(crate) file_type:        Option<FileTypes>,
+    pub(crate) format:           String,
+    pub(crate) global:           bool,
+    pub(crate) ignores:          Option<Vec<String>>,
+    pub(crate) ls_colors:        bool,
+    pub(crate) max_depth:        Option<usize>,
+    pub(crate) pat_regex:        bool,
+    pub(crate) registry:         TagRegistry,
 }
 
 impl App {
@@ -137,26 +137,26 @@ impl App {
                     state_file.display().to_string().green(),
                 );
                 TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
-            } else if !registry.display().to_string().ends_with('/') {
-                fs::create_dir_all(
-                    &registry
-                        .parent()
-                        .context("Could not get parent of nonexisting path")?,
-                )
-                .with_context(|| {
-                    format!(
-                        "unable to create registry directory: '{}'",
-                        registry.display()
-                    )
-                })?;
-                TagRegistry::load(&registry).unwrap_or_else(|_| TagRegistry::new(&registry))
-            } else {
+            } else if registry.display().to_string().ends_with('/') {
                 wutag_error!(
                     "{} last error is a directory path. Using default registry: {}",
                     registry.display().to_string().green(),
                     state_file.display().to_string().green(),
-                );
+                    );
                 TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
+            } else {
+                fs::create_dir_all(
+                    &registry
+                    .parent()
+                    .context("Could not get parent of nonexisting path")?,
+                    )
+                    .with_context(|| {
+                        format!(
+                            "unable to create registry directory: '{}'",
+                            registry.display()
+                        )
+                    })?;
+                TagRegistry::load(&registry).unwrap_or_else(|_| TagRegistry::new(&registry))
             }
         } else {
             TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))

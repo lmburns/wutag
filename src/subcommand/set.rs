@@ -1,13 +1,13 @@
 use super::{uses::*, App};
 
 #[derive(Clap, Clone, Debug, PartialEq)]
-pub struct SetOpts {
+pub(crate) struct SetOpts {
     /// Do not show errors that tag already exists
     #[clap(name = "quiet", long, short = 'q')]
-    quiet:       bool,
+    quiet:              bool,
     /// Clear all tags before setting them
     #[clap(long, short)]
-    pub clear:   bool,
+    pub(crate) clear:   bool,
     /// Explicitly select color for tag
     #[clap(long, short = 'C', takes_value = true,
         validator = |t| parse_color(t)
@@ -15,34 +15,31 @@ pub struct SetOpts {
                             .map(|_| ())
                             .map_err(|e| e.to_string())
     )]
-    pub color:   Option<String>,
+    pub(crate) color:   Option<String>,
     #[clap(name = "stdin", long, short = 's')]
-    pub stdin:   bool,
+    pub(crate) stdin:   bool,
     /// A glob pattern like "*.png".
     #[clap(
         required_unless_present = "stdin", // Would be nice to have a default_value_if_present
     )]
-    pub pattern: String,
-    pub tags:    Vec<String>,
+    pub(crate) pattern: String,
+    pub(crate) tags:    Vec<String>,
 }
 
 impl App {
     pub(crate) fn set(&mut self, opts: &SetOpts) {
+        log::debug!("SetOpts: {:#?}", opts);
         log::debug!("Using registry: {}", self.registry.path.display());
-        log::debug!("SetOptS: {:#?}", opts);
 
         // Needed because it's not possible (as far as I know) to skip an argument if
         // another is present
-        let tags = if opts.stdin {
-            let mut tmp = vec![opts.pattern.clone()];
-            tmp.extend(opts.tags.clone());
-            tmp
-        } else {
-            opts.tags.clone()
-        };
+        let mut tags = opts.tags.clone();
+        if (opts.stdin || atty::isnt(atty::Stream::Stdin)) && atty::is(atty::Stream::Stdout) {
+            tags.push(opts.pattern.clone());
+        }
 
         let tags = tags
-            .iter()
+            .par_iter()
             .map(|t| {
                 if let Some(t) = self.registry.get_tag(t) {
                     t.clone()
@@ -66,11 +63,12 @@ impl App {
             glob_builder(&opts.pattern)
         };
 
+        log::debug!("Is a TTY?: {}", atty::is(atty::Stream::Stdout));
         let re = regex_builder(&pat, self.case_insensitive, self.case_sensitive);
         log::debug!("Compiled pattern: {}", re);
 
-        // TODO: Fix repeated code
-        if opts.stdin {
+        if (opts.stdin || atty::isnt(atty::Stream::Stdin)) && atty::is(atty::Stream::Stdout) {
+            log::debug!("Using STDIN");
             collect_stdin_paths(&self.base_dir)
                 .iter()
                 .for_each(|entry| {

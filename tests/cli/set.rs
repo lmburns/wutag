@@ -16,7 +16,7 @@ fn multiple_files_same_ft_glob() {
 fn multiple_files_diff_ft_glob() {
     wutag_clear();
     wutag()
-        .args(&["set", "*sh", "tag_mdg"])
+        .args(&["-m", "100", "set", "*sh", "tag_mdg"])
         .assert()
         .success()
         .stdout(predicate::str::contains(expand_file!("dpmas/samp.zsh")))
@@ -90,7 +90,7 @@ fn multiple_files_multiple_glob() {
 fn multiple_files_multiple_regex() {
     wutag_clear();
     wutag()
-        .args(&["--regex", "set", ".*\\.(zsh|sh|bash)$", "tag_mfmg"])
+        .args(&["--regex", "set", ".*\\.(zsh|sh|bash)$", "ag_mfmr"])
         .assert()
         .success()
         .stdout(predicate::str::contains(expand_file!("dpmas/samp.zsh")))

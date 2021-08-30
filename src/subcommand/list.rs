@@ -2,7 +2,7 @@ use super::{uses::*, App};
 
 // It seems that 'name' has to be defined to use 'requires' or 'conflicts_with'
 #[derive(Clap, Debug, Clone, PartialEq)]
-pub enum ListObject {
+pub(crate) enum ListObject {
     Tags {
         #[clap(long = "completions", short = 'c', hidden = true)]
         for_completions: bool,
@@ -53,18 +53,19 @@ pub enum ListObject {
 }
 
 #[derive(Clap, Debug, Clone, PartialEq)]
-pub struct ListOpts {
+pub(crate) struct ListOpts {
     /// The object to list. Valid values are: 'tags', 'files'.
     #[clap(subcommand)]
-    pub object: ListObject,
+    pub(crate) object: ListObject,
     /// If provided output will be raw so that it can be easily piped to other
     /// commands
     #[clap(long, short)]
-    pub raw:    bool,
+    pub(crate) raw:    bool,
 }
 
 impl App {
     pub(crate) fn list(&self, opts: &ListOpts) {
+        log::debug!("ListOpts: {:#?}", opts);
         log::debug!("Using registry: {}", self.registry.path.display());
 
         let mut table = vec![];

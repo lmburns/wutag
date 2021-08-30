@@ -1,4 +1,4 @@
-pub const ZSH_COMPLETION_REP: &[(&str, &str)] = &[
+pub(crate) const ZSH_COMPLETION_REP: &[(&str, &str)] = &[
     (
         "(( $+functions[_wutag__clean-cache_commands] )) ||
 _wutag__clean-cache_commands() {

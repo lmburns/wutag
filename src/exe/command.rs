@@ -4,7 +4,7 @@ use super::exits::ExitCode;
 use crate::wutag_error;
 use colored::Colorize;
 
-pub fn execute_command(mut cmd: Command, out_perm: &Mutex<()>) -> ExitCode {
+pub(crate) fn execute_command(mut cmd: Command, out_perm: &Mutex<()>) -> ExitCode {
     // Spawn the supplied command.
     let output = cmd.output();
 

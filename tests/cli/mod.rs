@@ -12,8 +12,10 @@ mod search;
 mod view;
 
 use assert_cmd::cargo::CommandCargoExt;
+// use assert_cmd::prelude::*;
+use once_cell::sync::Lazy;
 use predicates::{prelude::predicate, str::PredicateStrExt};
-use rand::{distributions::Alphanumeric, thread_rng, Rng};
+use rand::{distributions::Alphanumeric, Rng};
 use serial_test::serial;
 use std::{
     env,
@@ -30,12 +32,16 @@ const FILE_DIR: &str = "tests/example_files";
 const ANOTHER_FILE_DIR: &str = "tests/sample_dir";
 const NEW_REGISTRY: &str = "tests/sample.reg";
 
-lazy_static::lazy_static! {
-    static ref CWD: PathBuf = env::current_dir()
-        .expect("unable to get CWD").join(FILE_DIR);
-    static ref CWD_TWO: PathBuf = env::current_dir().expect("unable to get CWD")
-        .join(ANOTHER_FILE_DIR);
-}
+static CWD: Lazy<PathBuf> = Lazy::new(|| {
+    env::current_dir()
+        .expect("unable to get CWD")
+        .join(FILE_DIR)
+});
+static CWD_TWO: Lazy<PathBuf> = Lazy::new(|| {
+    env::current_dir()
+        .expect("unable to get CWD")
+        .join(ANOTHER_FILE_DIR)
+});
 
 #[macro_export]
 macro_rules! tag_out {
@@ -59,13 +65,12 @@ macro_rules! expand_file_dir_two {
 }
 
 pub fn create_temp_path() -> String {
-    let mut rng = thread_rng();
     let mut tmp_path = env::temp_dir();
     tmp_path.push(
-        std::iter::repeat(())
-            .map(|()| rng.sample(Alphanumeric))
-            .map(char::from)
+        rand::thread_rng()
+            .sample_iter(&Alphanumeric)
             .take(12)
+            .map(char::from)
             .collect::<String>(),
     );
     tmp_path.display().to_string()
@@ -142,6 +147,8 @@ pub fn wutag_clear() {
 pub fn wutag_clear_global() {
     wutag_cmd_new_registry_global()
         .args(&["-g", "clear", "*"])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
         .status()
         .expect("error removing tags globally");
 }
@@ -160,6 +167,8 @@ pub fn wutag_clean() {
 pub fn wutag_set(pat: &str, tag: &str) {
     wutag_cmd_new_registry()
         .args(&["-m", "5", "set", pat, tag])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
         .status()
         .expect("=== error setting tag ===");
 }
@@ -168,6 +177,8 @@ pub fn wutag_set(pat: &str, tag: &str) {
 pub fn wutag_rm(pat: &str, tag: &str) {
     wutag_cmd_new_registry()
         .args(&["rm", pat, tag])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
         .status()
         .expect("=== error removing tag ===");
 }

@@ -204,7 +204,13 @@ Clears all tags from files matching globs. This can also be used to clear tags f
         * Other tokens:
             * `{@s}` sets a tag (e.g., `wutag search '*.rs' -x {@s} new`)
             * `{@r}` removes a tag
-            * `{@c}` clears tags (no other argument is required)
+            * `{@x}` clears tags (no other argument is required)
+            * `{@c}` copies tags to a pattern
+
+```sh
+# {@c}
+wutag -g search '*.txt' -t xx -x {@c} '*.toml'
+```
 
 #### Edit tags in `$EDITOR`
 * Can use `wutag edit -V <pattern>` to open tags in editor to edit them
@@ -213,12 +219,15 @@ Clears all tags from files matching globs. This can also be used to clear tags f
 * Example:
 
 ```sh
-fd -e rs '*cargo*' | wutag set -s tag1 tag2
+fd -e rs '*cargo*' | wutag set --stdin tag1 tag2
+# Note that --stdin does not need to be explicitly called
+fd -e rs '*cargo*' | wutag set tag1 tag2
 ```
 
 #### Todo
 * [ ] Fix `any` vs the normal `all` with search (it doesn't work)
 * [ ] Add global option to `cp`
+* [ ] Add something to remove tag if file is encountered and has a tag that is being set but is not in current registry
 * [ ] Add more tests
 * [ ] Add usage examples and images
 

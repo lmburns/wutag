@@ -1,7 +1,7 @@
 use super::{uses::*, App};
 
 #[derive(Clap, Debug, Clone, PartialEq)]
-pub struct ViewOpts {
+pub(crate) struct ViewOpts {
     /// Open tags in selected edtor (use only with vi, vim, neovim)
     #[clap(
         long, short,
@@ -11,9 +11,9 @@ pub struct ViewOpts {
         setting = ArgSettings::HideEnv,
         setting = ArgSettings::HideDefaultValue,
     )]
-    pub editor:  String,
+    pub(crate) editor:  String,
     #[clap(long, short = 'a')]
-    pub all:     bool,
+    pub(crate) all:     bool,
     /// Format of file to view results (toml, yaml, json)
     #[clap(
         name = "format",
@@ -24,7 +24,7 @@ pub struct ViewOpts {
         Format of the file viewed in the editor with the matching search results.\
         The possible values are: 'toml', 'yaml|yml', 'json'."
     )]
-    pub format:  Option<String>,
+    pub(crate) format:  Option<String>,
     /// Search with a tag as a filter
     #[clap(
         name = "tags",
@@ -34,7 +34,7 @@ pub struct ViewOpts {
         Limit search results even further by using a tag as a filter. Can search just for tags by \
                       not using '--pattern'"
     )]
-    pub tags:    Vec<String>,
+    pub(crate) tags:    Vec<String>,
     /// Pattern to search for and open result in editor
     #[clap(
         name = "pattern",
@@ -44,11 +44,15 @@ pub struct ViewOpts {
         This pattern is optional. If no pattern is given, all files that have a tag will be shown \
                       in the editor. Otherwise, the results that match the pattern will be shown."
     )]
-    pub pattern: Option<String>,
+    pub(crate) pattern: Option<String>,
 }
 
+// TODO: Handles errors when saving file
 impl App {
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn view(&mut self, opts: &ViewOpts) {
+        log::debug!("ViewOpts: {:#?}", opts);
+        log::debug!("Using registry: {}", self.registry.path.display());
         let pat = if let Some(pattern) = &opts.pattern {
             if self.pat_regex {
                 String::from(pattern)
@@ -243,7 +247,9 @@ impl App {
         });
         log::debug!("Diffs: {:#?}", diff);
 
-        if !diff.is_empty() {
+        if diff.is_empty() {
+            log::debug!("There were no diffs");
+        } else {
             let base = &self.base_dir.clone();
             // let is_symlink = |entry: fs::Metadata, local| {
             //     if entry.file_type().is_symlink() {
@@ -258,22 +264,22 @@ impl App {
             for (local, tags) in diff.iter() {
                 let entry = &if fs::symlink_metadata(local).is_ok()
                     || fs::symlink_metadata(base.join(local)).is_ok()
-                {
-                    base.join(local).lexiclean()
-                } else {
-                    // Should never be reached since the diff iterator would filter it
-                    wutag_error!(
-                        "{} {} does not exist",
-                        "X".red().bold(),
-                        self.base_dir
+                    {
+                        base.join(local).lexiclean()
+                    } else {
+                        // Should never be reached since the diff iterator would filter it
+                        wutag_error!(
+                            "{} {} does not exist",
+                            "X".red().bold(),
+                            self.base_dir
                             .join(local)
                             .display()
                             .to_string()
                             .magenta()
                             .bold()
-                    );
-                    continue;
-                };
+                        );
+                        continue;
+                    };
                 log::debug!("Using entry: {}", entry.display());
 
                 // Clear all tags before writing new ones so there wouldn't
@@ -308,7 +314,7 @@ impl App {
                             Tag::random(t, &self.colors)
                         }
                     })
-                    .collect::<Vec<_>>()
+                .collect::<Vec<_>>()
                     .iter()
                     .for_each(|tag| {
                         if let Err(e) = entry.tag(tag) {
@@ -321,8 +327,6 @@ impl App {
                         }
                     });
             }
-        } else {
-            log::debug!("There were no diffs");
         }
         log::debug!("Saving registry...");
         self.save_registry();

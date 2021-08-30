@@ -3,7 +3,6 @@ use crate::{expand_file, expand_file_dir_two};
 
 #[test]
 fn local_glob() {
-    wutag_clean();
     wutag_set("*.toml", "toml");
     wutag()
         .args(&["rm", "*.toml", "toml"])
@@ -15,7 +14,6 @@ fn local_glob() {
 
 #[test]
 fn local_case_sensitive_glob() {
-    wutag_clean();
     wutag_set("*.toml", "toml_t");
     wutag()
         .args(&["rm", "*A*.toml", "toml_t"])
@@ -29,7 +27,6 @@ fn local_case_sensitive_glob() {
 
 #[test]
 fn local_case_sensitive_flag_glob() {
-    wutag_clean();
     wutag_set("*.toml", "toml_s");
     wutag()
         .args(&["-s", "rm", "*a*.toml", "toml_s"])
@@ -43,7 +40,6 @@ fn local_case_sensitive_flag_glob() {
 
 #[test]
 fn local_regex() {
-    wutag_clean();
     wutag_set("*.toml", "toml_x");
     wutag()
         .args(&["-r", "rm", ".*\\.toml", "toml_x"])
@@ -55,7 +51,6 @@ fn local_regex() {
 
 #[test]
 fn local_case_sensitive_regex() {
-    wutag_clean();
     wutag_set("*.toml", "toml_k");
     wutag()
         .args(&["-r", "rm", ".*A.*\\.toml", "toml_k"])
@@ -69,10 +64,9 @@ fn local_case_sensitive_regex() {
 
 #[test]
 fn local_case_sensitive_flag_regex() {
-    wutag_clean();
-    wutag_set("*.toml", "toml");
+    wutag_set("*.toml", "tomlaa");
     wutag()
-        .args(&["-r", "-s", "rm", ".*a.*\\.toml", "toml"])
+        .args(&["-r", "-s", "rm", ".*a.*\\.toml", "tomlaa"])
         .assert()
         .success()
         .stdout(predicate::str::contains(expand_file!("dpmas/asdf.toml")))
@@ -81,8 +75,29 @@ fn local_case_sensitive_flag_regex() {
         }));
 }
 
-// FIX: DOESN'T WORK WITHOUT ONCE?
-// I think because it is being calle out of order
+#[test]
+fn local_extension_glob() {
+    wutag_set("*.c", "cext");
+    wutag()
+        .args(&["-e", "c", "rm", "*", "cext"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(expand_file!("hello.c")));
+}
+
+#[test]
+fn local_exclude_glob() {
+    wutag_set("*.zsh", "extg");
+    wutag()
+        .args(&["-E", "sampd/", "rm", "*.zsh", "extg"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(expand_file!("dpmas/samp.zsh")))
+        .stdout(predicate::function(|f: &str| {
+            !f.contains(expand_file!("sampd/exec.zsh").as_str())
+        }));
+}
+
 #[test]
 fn global_glob() {
     INIT.call_once(|| {

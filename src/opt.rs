@@ -36,10 +36,10 @@ use crate::{
     // global_setting = AppSettings::UnifiedHelpMessage,     // Options/Flags together
 )]
 
-pub struct Opts {
+pub(crate) struct Opts {
     #[clap(long, short, global = true, parse(from_occurrences))]
     /// Display debugging messages on 4 levels (i.e., -vv..)
-    pub verbose:          u8,
+    pub(crate) verbose:          u8,
     /// Specify starting path for filesystem traversal
     #[clap(
         long, short,
@@ -54,7 +54,7 @@ pub struct Opts {
         path, otherwise default to current working directory. Only applies to subcommands that \
         take a pattern as a positional argument"
     )]
-    pub dir:              Option<PathBuf>,
+    pub(crate) dir:              Option<PathBuf>,
     /// Increase maximum recursion depth from 2
     #[clap(
         long, short,
@@ -67,7 +67,7 @@ pub struct Opts {
         Increase maximum recursion depth of filesystem traversal to specified value (default: 2). \
                       Only applies to subcommands that take a pattern as a positional argument."
     )]
-    pub max_depth:        Option<usize>,
+    pub(crate) max_depth:        Option<usize>,
     /// Specify a different registry to use
     #[clap(
         long = "registry", short = 'R',
@@ -75,7 +75,7 @@ pub struct Opts {
         env = "WUTAG_REGISTRY",
         setting = ArgSettings::HideEnv,
     )]
-    pub reg:              Option<PathBuf>,
+    pub(crate) reg:              Option<PathBuf>,
     /// Case insensitively search
     #[clap(
         name = "case_insensitive",
@@ -87,7 +87,7 @@ pub struct Opts {
         uppercase-character. Only applies to subcommands that take a pattern as a positional \
         argument."
     )]
-    pub case_insensitive: bool,
+    pub(crate) case_insensitive: bool,
     /// Case sensitively search
     #[clap(
         name = "case_sensitive",
@@ -98,7 +98,7 @@ pub struct Opts {
         --case-insensitive. Only applies to subcommands that take a pattern as a positional \
         argument."
     )]
-    pub case_sensitive:   bool,
+    pub(crate) case_sensitive:   bool,
     /// Search with a regular expressions
     #[clap(
         long,
@@ -107,7 +107,7 @@ pub struct Opts {
         Search for files using a regular expressions instead of a glob. Only applies to \
                       subcommands that take a pattern as a positional argument."
     )]
-    pub regex:            bool,
+    pub(crate) regex:            bool,
     /// Apply operation to all tags and files instead of locally
     #[clap(
         name = "global",
@@ -118,10 +118,10 @@ pub struct Opts {
                       directories or directories specified with '-d|--dir'. Only applies to \
                       'search', 'list', 'rm', and 'clear'."
     )]
-    pub global:           bool,
+    pub(crate) global:           bool,
     /// Respect 'LS_COLORS' environment variable when coloring the output
     #[clap(long, short = 'l', conflicts_with = "color")]
-    pub ls_colors:        bool,
+    pub(crate) ls_colors:        bool,
     /// When to colorize output
     #[clap(
         name = "color", long = "color", short = 'c',
@@ -131,7 +131,7 @@ pub struct Opts {
         When to colorize output (usually meant for piping). Valid values are: always, \
         auto, never. The always selection only applies to the path as of now."
     )]
-    pub color_when:       Option<String>,
+    pub(crate) color_when:       Option<String>,
     /// File-type(s) to filter by: f|file, d|directory, l|symlink, e|empty
     #[clap(
         long = "type",
@@ -142,7 +142,7 @@ pub struct Opts {
         value_name = "filetype",
         long_about = FILE_TYPE.as_ref(),
     )]
-    pub file_type:        Option<Vec<String>>,
+    pub(crate) file_type:        Option<Vec<String>>,
     #[clap(
         long = "ext",
         short = 'e',
@@ -158,7 +158,7 @@ pub struct Opts {
         "
     )]
     /// Filter results by file extension
-    pub extension:        Option<Vec<String>>,
+    pub(crate) extension:        Option<Vec<String>>,
     #[clap(
         long = "exclude", short = 'E',
         number_of_values = 1,
@@ -173,14 +173,14 @@ pub struct Opts {
         "
     )]
     /// Exclude results that match pattern
-    pub exclude:          Option<Vec<String>>,
+    pub(crate) exclude:          Option<Vec<String>>,
     #[clap(subcommand)]
-    pub cmd:              Command,
+    pub(crate) cmd:              Command,
 }
 
 impl Opts {
     /// Allows a default command to run if no arguments are passed
-    pub fn get_args() -> Self {
+    pub(crate) fn get_args() -> Self {
         if env::args_os().len() > 1 {
             Self::parse()
         } else {
@@ -219,7 +219,7 @@ impl Default for Command {
 // }
 
 #[derive(Clap, Debug, Clone, PartialEq)]
-pub enum Command {
+pub(crate) enum Command {
     /// Lists all available tags or files.
     #[clap(
         aliases = &["ls", "l", "li", "lis"],

@@ -81,8 +81,8 @@ impl App {
         let mut map: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
         if opts.all {
-            if let Err(e) = reg_ok(
-                Arc::new(re),
+            reg_ok(
+                &Arc::new(re),
                 &Arc::new(self.clone()),
                 |entry: &ignore::DirEntry| {
                     map.insert(
@@ -111,9 +111,7 @@ impl App {
                         },
                     );
                 },
-            ) {
-                wutag_error!("{}", e);
-            }
+            );
         } else {
             for (id, entry) in self.registry.list_entries_and_ids() {
                 if !self.global && !contained_path(entry.path(), &self.base_dir) {

@@ -185,8 +185,8 @@ impl Opts {
             Self::parse()
         } else {
             Self {
-                // May switch to local
-                global: true,
+                // May switch to global
+                global: false,
                 cmd: Command::default(),
                 ..Default::default()
             }

@@ -116,54 +116,54 @@ impl App {
                 }
                 println!();
             }
-        } else if let Err(e) = reg_ok(
-            Arc::new(re),
-            &Arc::new(self.clone()),
-            |entry: &ignore::DirEntry| {
-                println!(
-                    "{}:",
-                    fmt_path(entry.path(), self.base_color, self.ls_colors)
-                );
-                for tag in &tags {
-                    if opts.clear {
-                        log::debug!(
-                            "Using registry in threads: {}",
-                            self.registry.path.display()
-                        );
-                        if let Some(id) = self.registry.find_entry(entry.path()) {
-                            self.registry.clear_entry(id);
-                        }
-                        match entry.has_tags() {
-                            Ok(has_tags) =>
-                                if has_tags {
-                                    if let Err(e) = entry.clear_tags() {
-                                        err!('\t', e, entry);
-                                    }
+        } else {
+            reg_ok(
+                &Arc::new(re),
+                &Arc::new(self.clone()),
+                |entry: &ignore::DirEntry| {
+                    println!(
+                        "{}:",
+                        fmt_path(entry.path(), self.base_color, self.ls_colors)
+                    );
+                    for tag in &tags {
+                        if opts.clear {
+                            log::debug!(
+                                "Using registry in threads: {}",
+                                self.registry.path.display()
+                            );
+                            if let Some(id) = self.registry.find_entry(entry.path()) {
+                                self.registry.clear_entry(id);
+                            }
+                            match entry.has_tags() {
+                                Ok(has_tags) =>
+                                    if has_tags {
+                                        if let Err(e) = entry.clear_tags() {
+                                            err!('\t', e, entry);
+                                        }
+                                    },
+                                Err(e) => {
+                                    err!(e, entry);
                                 },
-                            Err(e) => {
-                                err!(e, entry);
-                            },
+                            }
                         }
-                    }
 
-                    if let Err(e) = entry.tag(tag) {
-                        // TODO: Make this skip printing path too
-                        if !opts.quiet {
-                            err!('\t', e, entry);
+                        if let Err(e) = entry.tag(tag) {
+                            // TODO: Make this skip printing path too
+                            if !opts.quiet {
+                                err!('\t', e, entry);
+                            }
+                        } else {
+                            let entry = EntryData::new(entry.path());
+                            let id = self.registry.add_or_update_entry(entry);
+                            self.registry.tag_entry(tag, id);
+                            print!("\t{} {}", "+".bold().green(), fmt_tag(tag));
                         }
-                    } else {
-                        let entry = EntryData::new(entry.path());
-                        let id = self.registry.add_or_update_entry(entry);
-                        self.registry.tag_entry(tag, id);
-                        print!("\t{} {}", "+".bold().green(), fmt_tag(tag));
                     }
-                }
-                println!();
-                // log::debug!("Saving registry...");
-                // self.save_registry();
-            },
-        ) {
-            wutag_error!("{}", e);
+                    println!();
+                    // log::debug!("Saving registry...");
+                    // self.save_registry();
+                },
+            );
         }
         log::debug!("Saving registry...");
         self.save_registry();

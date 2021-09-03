@@ -92,8 +92,8 @@ impl App {
                 std::process::exit(1);
             }
 
-            if let Err(e) = reg_ok(
-                Arc::new(re),
+            reg_ok(
+                &Arc::new(re),
                 &Arc::new(self.clone()),
                 |entry: &ignore::DirEntry| {
                     if let Some(id) = self.registry.find_entry(entry.path()) {
@@ -120,9 +120,7 @@ impl App {
                     log::debug!("Saving registry...");
                     self.save_registry();
                 },
-            ) {
-                wutag_error!("{}", e);
-            }
+            );
         }
     }
 }

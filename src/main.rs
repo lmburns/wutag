@@ -48,7 +48,8 @@
     clippy::shadow_reuse,
     clippy::struct_excessive_bools,
     clippy::too_many_lines,
-    clippy::doc_markdown
+    clippy::doc_markdown,
+    clippy::single_match_else
 )]
 mod comp_helper;
 mod config;

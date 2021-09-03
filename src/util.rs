@@ -44,7 +44,7 @@ pub(crate) fn initialize_logging(args: &Opts) {
                     log::Level::Info => style.set_color(LogColor::Green),
                     log::Level::Debug => style.set_color(LogColor::Magenta),
                     log::Level::Trace => style.set_color(LogColor::Cyan),
-                    _ => style.set_color(LogColor::Red),
+                    log::Level::Error => style.set_color(LogColor::Red),
                 };
 
                 let mut style = buf.style();
@@ -272,14 +272,13 @@ pub(crate) fn reg_walker(app: &Arc<App>) -> Result<ignore::WalkParallel> {
         let tmp = create_temp_ignore(&move |file: &mut fs::File| write_temp_ignore(ignore, file));
         let res = walker.add_ignore(&tmp);
         match res {
-            Some(ignore::Error::Partial(_)) => (),
+            Some(ignore::Error::Partial(_)) | None => (),
             Some(err) => {
                 wutag_error!(
                     "Problem with ignore pattern in wutag.yml: {}",
                     err.to_string()
                 );
             },
-            None => (),
         }
         delete_file(tmp);
     }
@@ -289,7 +288,7 @@ pub(crate) fn reg_walker(app: &Arc<App>) -> Result<ignore::WalkParallel> {
 /// Traverses directories using `ignore::WalkParallel`, sending matches across
 /// channels to make the process faster. Executes closure `f` on each matching
 /// entry
-pub(crate) fn reg_ok<F>(pattern: Arc<Regex>, app: &Arc<App>, mut f: F) -> Result<()>
+pub(crate) fn reg_ok<F>(pattern: &Arc<Regex>, app: &Arc<App>, mut f: F)
 where
     F: FnMut(&ignore::DirEntry) + Send + Sync,
 {
@@ -303,20 +302,20 @@ where
 
         scope.spawn(|_| {
             let rx = rx;
-            rx.iter().for_each(|e| f(&e))
+            rx.iter().for_each(|e| f(&e));
         });
 
         scope.spawn(|_| {
             let tx = tx;
             walker.run(|| {
                 let tx = tx.clone();
-                let pattern = Arc::clone(&pattern);
+                let pattern = Arc::clone(pattern);
                 let app = Arc::clone(app);
 
                 Box::new(move |res| {
                     //: Result<ignore::DirEntry,ignore::Error>
                     let entry = match res {
-                        Ok(_entry) => _entry,
+                        Ok(entry_) => entry_,
                         Err(err) => {
                             wutag_error!("unable to access entry {}", err);
                             return ignore::WalkState::Continue;
@@ -382,6 +381,4 @@ where
         "Using regex with base_dir of: {}",
         app.base_dir.to_string_lossy().to_string()
     );
-
-    Ok(())
 }

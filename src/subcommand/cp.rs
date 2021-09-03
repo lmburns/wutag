@@ -84,8 +84,8 @@ impl App {
         } else {
             match list_tags(path) {
                 Ok(tags) => {
-                    if let Err(e) = reg_ok(
-                        Arc::new(re),
+                    reg_ok(
+                        &Arc::new(re),
                         &Arc::new(self.clone()),
                         |entry: &ignore::DirEntry| {
                             println!(
@@ -103,9 +103,7 @@ impl App {
                                 }
                             }
                         },
-                    ) {
-                        wutag_error!("{}", e);
-                    }
+                    );
                     log::debug!("Saving registry...");
                     self.save_registry();
                 },

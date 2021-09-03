@@ -1,7 +1,7 @@
 use super::{
     uses::{
         err, fmt_err, fmt_path, fmt_tag, glob_builder, list_tags, osstr_to_bytes, reg_ok,
-        regex_builder, wutag_error, Arc, Clap, Colorize, Cow, DirEntryExt, OsStr,
+        regex_builder, Arc, Clap, Colorize, Cow, DirEntryExt, OsStr,
     },
     App,
 };
@@ -83,51 +83,51 @@ impl App {
                 log::debug!("Saving registry...");
                 self.save_registry();
             }
-        } else if let Err(e) = reg_ok(
-            Arc::new(re),
-            &Arc::new(self.clone()),
-            |entry: &ignore::DirEntry| {
-                log::debug!("Using WalkParallel");
-                let id = self.registry.find_entry(entry.path());
-                let tags = opts
-                    .tags
-                    .iter()
-                    .map(|tag| {
-                        if let Some(id) = id {
-                            self.registry.untag_by_name(tag, id);
-                        }
-                        entry.get_tag(tag)
-                    })
-                    .collect::<Vec<_>>();
+        } else {
+            reg_ok(
+                &Arc::new(re),
+                &Arc::new(self.clone()),
+                |entry: &ignore::DirEntry| {
+                    log::debug!("Using WalkParallel");
+                    let id = self.registry.find_entry(entry.path());
+                    let tags = opts
+                        .tags
+                        .iter()
+                        .map(|tag| {
+                            if let Some(id) = id {
+                                self.registry.untag_by_name(tag, id);
+                            }
+                            entry.get_tag(tag)
+                        })
+                        .collect::<Vec<_>>();
 
-                if tags.is_empty() {
-                    return;
-                }
-
-                println!(
-                    "{}:",
-                    fmt_path(entry.path(), self.base_color, self.ls_colors)
-                );
-                tags.iter().for_each(|tag| {
-                    let tag = match tag {
-                        Ok(tag) => tag,
-                        Err(e) => {
-                            err!('\t', e, entry);
-                            return;
-                        },
-                    };
-                    if let Err(e) = entry.untag(tag) {
-                        err!('\t', e, entry);
-                    } else {
-                        print!("\t{} {}", "X".bold().red(), fmt_tag(tag));
+                    if tags.is_empty() {
+                        return;
                     }
-                });
-                println!();
-                log::debug!("Saving registry...");
-                self.save_registry();
-            },
-        ) {
-            wutag_error!("{}", e);
+
+                    println!(
+                        "{}:",
+                        fmt_path(entry.path(), self.base_color, self.ls_colors)
+                    );
+                    tags.iter().for_each(|tag| {
+                        let tag = match tag {
+                            Ok(tag) => tag,
+                            Err(e) => {
+                                err!('\t', e, entry);
+                                return;
+                            },
+                        };
+                        if let Err(e) = entry.untag(tag) {
+                            err!('\t', e, entry);
+                        } else {
+                            print!("\t{} {}", "X".bold().red(), fmt_tag(tag));
+                        }
+                    });
+                    println!();
+                    log::debug!("Saving registry...");
+                    self.save_registry();
+                },
+            );
         }
     }
 }

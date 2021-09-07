@@ -259,7 +259,7 @@ pub(crate) fn reg_walker(app: &Arc<App>) -> Result<ignore::WalkParallel> {
     walker
         .threads(num_cpus::get())
         .follow_links(false)
-        .hidden(true)
+        .hidden(false)
         .ignore(false)
         .overrides(overrides)
         .git_global(false)

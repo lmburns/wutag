@@ -104,7 +104,7 @@ impl App {
                     if let Err(e) = entry.tag(tag) {
                         log::debug!("Error setting tag for: {}", entry.display());
                         if !opts.quiet {
-                            wutag_error!("{} {}", e, bold_entry!(entry))
+                            wutag_error!("{} {}", e, bold_entry!(entry));
                         }
                     } else {
                         log::debug!("Setting tag for: {}!", entry.display());

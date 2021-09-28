@@ -16,7 +16,7 @@ use thiserror::Error;
 use crate::wutag_error;
 
 /// FileTypes to filter against when searching (taken from `fd`)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct FileTypes {
     pub(crate) files:            bool,
     pub(crate) directories:      bool,
@@ -27,22 +27,6 @@ pub(crate) struct FileTypes {
     pub(crate) fifos:            bool,
     pub(crate) executables_only: bool,
     pub(crate) empty_only:       bool,
-}
-
-impl Default for FileTypes {
-    fn default() -> FileTypes {
-        FileTypes {
-            files:            false,
-            directories:      false,
-            symlinks:         false,
-            block_devices:    false,
-            char_devices:     false,
-            sockets:          false,
-            fifos:            false,
-            executables_only: false,
-            empty_only:       false,
-        }
-    }
 }
 
 #[derive(Debug, Error)]
@@ -212,7 +196,7 @@ pub(crate) fn write_temp_ignore(ignores: &[String], file: &File) -> io::Result<(
     let mut writer = io::BufWriter::new(file);
 
     for i in ignores.iter() {
-        writeln!(&mut writer, "{}", i).expect("Unable to write to ignore file");
+        writeln!(&mut writer, "{}", i)?;
     }
 
     Ok(())

@@ -32,8 +32,10 @@ use crate::{
 };
 use wutag_core::tag::Tag;
 
+static ONCE: Once = Once::new();
+static UPPER_REG: Lazy<Regex> = Lazy::new(|| Regex::new(r"[[:upper:]]").unwrap());
+
 pub(crate) fn initialize_logging(args: &Opts) {
-    static ONCE: Once = Once::new();
     ONCE.call_once(|| {
         env_logger::Builder::new()
             .format_timestamp(None)
@@ -73,7 +75,7 @@ pub(crate) fn parse_path<P: AsRef<Path>>(path: P) -> Result<(), String> {
     fs::metadata(path)
         .map_err(|_| "must be a valid path")
         .map(|_| ())
-        .map_err(std::string::ToString::to_string)
+        .map_err(ToString::to_string)
 }
 
 pub(crate) fn fmt_err<E: Display>(err: E) -> String {
@@ -87,9 +89,8 @@ pub(crate) fn fmt_ok<S: AsRef<str>>(msg: S) -> String {
 pub(crate) fn fmt_path<P: AsRef<Path>>(path: P, base_color: Color, ls_colors: bool) -> String {
     // ls_colors implies forced coloring
     if ls_colors {
-        let lscolors = LsColors::from_env().unwrap_or_default();
-
-        lscolors
+        LsColors::from_env()
+            .unwrap_or_default()
             .style_for_path_components(path.as_ref())
             .fold(Vec::new(), |mut acc, (component, style)| {
                 acc.push(
@@ -129,9 +130,8 @@ pub(crate) fn fmt_local_path<P: AsRef<Path>>(
         .replace(replaced.as_str(), "");
 
     if ls_colors {
-        let lscolors = LsColors::from_env().unwrap_or_default();
-
-        lscolors
+        LsColors::from_env()
+            .unwrap_or_default()
             .style_for_path_components(path.as_ref())
             .fold(Vec::new(), |mut acc, (component, style)| {
                 acc.push(
@@ -206,7 +206,6 @@ pub(crate) fn glob_builder(pattern: &str) -> String {
 /// Match uppercase characters against Unicode characters as well. Tags can also
 /// be any valid Unicode character
 pub(crate) fn contains_upperchar(pattern: &str) -> bool {
-    static UPPER_REG: Lazy<Regex> = Lazy::new(|| Regex::new(r"[[:upper:]]").unwrap());
     let cow_pat: Cow<OsStr> = Cow::Owned(OsString::from(pattern));
     UPPER_REG.is_match(&osstr_to_bytes(cow_pat.as_ref()))
 }

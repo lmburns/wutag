@@ -33,6 +33,8 @@ pub(crate) struct CompletionsOpts {
 }
 
 impl App {
+    // TODO: Refactor
+    #[allow(clippy::unused_self)]
     pub(crate) fn print_completions(&self, opts: &CompletionsOpts) {
         log::debug!("CompletionOpts: {:#?}", opts);
         let mut app = Opts::into_app();

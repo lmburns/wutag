@@ -63,7 +63,7 @@ impl App {
                         Ok(tags) =>
                             for tag in &tags {
                                 if let Err(e) = entry_path.tag(tag) {
-                                    err!('\t', e, entry)
+                                    err!('\t', e, entry);
                                 } else {
                                     let entry = EntryData::new(entry.path());
                                     let id = self.registry.add_or_update_entry(entry);
@@ -94,7 +94,7 @@ impl App {
                             );
                             for tag in &tags {
                                 if let Err(e) = entry.tag(tag) {
-                                    err!('\t', e, entry)
+                                    err!('\t', e, entry);
                                 } else {
                                     let entry = EntryData::new(entry.path());
                                     let id = self.registry.add_or_update_entry(entry);

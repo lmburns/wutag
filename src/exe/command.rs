@@ -18,8 +18,8 @@ pub(crate) fn execute_command(mut cmd: Command, out_perm: &Mutex<()>) -> ExitCod
             let stdout = io::stdout();
             let stderr = io::stderr();
 
-            let _ = stdout.lock().write_all(&output.stdout);
-            let _ = stderr.lock().write_all(&output.stderr);
+            let _drop = stdout.lock().write_all(&output.stdout);
+            let _drop = stderr.lock().write_all(&output.stderr);
 
             if output.status.code() == Some(0) {
                 ExitCode::Success

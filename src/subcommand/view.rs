@@ -324,7 +324,7 @@ impl App {
                     .iter()
                     .for_each(|tag| {
                         if let Err(e) = entry.tag(tag) {
-                            wutag_error!("{} {}", e, bold_entry!(entry))
+                            wutag_error!("{} {}", e, bold_entry!(entry));
                         } else {
                             let entry = EntryData::new(entry);
                             let id = self.registry.add_or_update_entry(entry);

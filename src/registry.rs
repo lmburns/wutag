@@ -1,4 +1,7 @@
 #![allow(dead_code)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::shadow_unrelated)]
 
 use crate::filesystem::contained_path;
 use rayon::prelude::*;
@@ -48,7 +51,7 @@ impl TagRegistry {
     pub(crate) fn new<P: AsRef<Path>>(path: P) -> Self {
         Self {
             path: path.as_ref().to_path_buf(),
-            ..Default::default()
+            ..Self::default()
         }
     }
 
@@ -331,8 +334,8 @@ mod tests {
         registry.add_or_update_entry(entry.clone());
         let id = registry.find_entry(&path).unwrap();
 
-        let _entry = registry.get_entry(id).unwrap();
-        assert_eq!(_entry.path, entry.path);
+        let entry_ = registry.get_entry(id).unwrap();
+        assert_eq!(entry_.path, entry.path);
 
         let tag = Tag::random("test", DEFAULT_COLORS);
         let second = Tag::random("second", DEFAULT_COLORS);

@@ -225,11 +225,13 @@ impl App {
                             )
                             .cell()
                             .justify(Justify::Right),
-                        ])
+                        ]);
                     });
 
                 if for_completions {
-                    utags.iter().for_each(|tag| println!("{}", tag));
+                    for tag in utags {
+                        println!("{}", tag);
+                    }
                 } else {
                     print_stdout(if border {
                         table

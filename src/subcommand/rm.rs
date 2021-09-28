@@ -109,7 +109,7 @@ impl App {
                         "{}:",
                         fmt_path(entry.path(), self.base_color, self.ls_colors)
                     );
-                    tags.iter().for_each(|tag| {
+                    for tag in tags {
                         let tag = match tag {
                             Ok(tag) => tag,
                             Err(e) => {
@@ -117,12 +117,12 @@ impl App {
                                 return;
                             },
                         };
-                        if let Err(e) = entry.untag(tag) {
+                        if let Err(e) = entry.untag(&tag) {
                             err!('\t', e, entry);
                         } else {
-                            print!("\t{} {}", "X".bold().red(), fmt_tag(tag));
+                            print!("\t{} {}", "X".bold().red(), fmt_tag(&tag));
                         }
-                    });
+                    }
                     println!();
                     log::debug!("Saving registry...");
                     self.save_registry();

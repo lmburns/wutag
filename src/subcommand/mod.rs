@@ -61,9 +61,9 @@ impl App {
             std::env::current_dir().context("failed to determine current working directory")?
         };
 
-        let colors = if let Some(_colors) = config.colors {
+        let colors = if let Some(colors_) = config.colors {
             let mut colors = Vec::new();
-            for color in _colors.iter().map(parse_color) {
+            for color in colors_.iter().map(parse_color) {
                 colors.push(color?);
             }
             colors
@@ -94,13 +94,13 @@ impl App {
                 },
         };
 
-        let format = if let Some(_format) = config.format {
-            match _format.as_ref() {
+        let format = if let Some(format_) = config.format {
+            match format_.as_ref() {
                 f @ ("toml" | "yaml" | "yml" | "json") => f.to_string(),
                 _ => {
                     wutag_error!(
-                        "invalid format found in your configuration. Valid values: toml, yaml, \
-                         yml, json. ...using toml"
+                        "invalid format found as your configuration. Valid values: toml, yaml, \
+                         yml, json. Using the default: toml"
                     );
                     "toml".to_string()
                 },

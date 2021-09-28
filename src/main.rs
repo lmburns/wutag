@@ -1,10 +1,10 @@
-#![deny(clippy::all)]
-#![deny(clippy::correctness)]
-#![deny(clippy::style)]
-#![deny(clippy::complexity)]
-#![deny(clippy::perf)]
-// #![deny(clippy::pedantic)]
 #![deny(
+    clippy::all,
+    clippy::correctness,
+    clippy::style,
+    clippy::complexity,
+    clippy::perf,
+    clippy::pedantic,
     absolute_paths_not_starting_with_crate,
     anonymous_parameters,
     bad_style,
@@ -46,11 +46,11 @@
     clippy::similar_names,
     clippy::struct_excessive_bools,
     clippy::shadow_reuse,
-    clippy::struct_excessive_bools,
     clippy::too_many_lines,
     clippy::doc_markdown,
     clippy::single_match_else
 )]
+
 mod comp_helper;
 mod config;
 mod consts;
@@ -62,6 +62,7 @@ mod registry;
 mod subcommand;
 mod util;
 
+use colored::Colorize;
 use config::Config;
 use opt::Opts;
 use subcommand::App;
@@ -72,11 +73,7 @@ fn main() {
     let args = Opts::get_args();
     initialize_logging(&args);
 
-    log::info!("Inof here");
-    log::trace!("trace here");
-    log::warn!("warn here");
-
     if let Err(e) = App::run(args, config) {
-        eprintln!("{}", e);
+        wutag_error!("{}", e);
     }
 }

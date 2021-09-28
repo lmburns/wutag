@@ -21,6 +21,8 @@ impl ExitCode {
     }
 }
 
+// TODO: Can implement Sized for this, or leave this lint disabled
+#[allow(clippy::needless_pass_by_value)]
 pub(crate) fn generalize_exitcodes(results: Vec<ExitCode>) -> ExitCode {
     if results.iter().any(|&c| ExitCode::is_error(c)) {
         return ExitCode::GeneralError;

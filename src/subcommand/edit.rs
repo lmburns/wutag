@@ -38,7 +38,7 @@ impl App {
         if self.registry.update_tag_color(&opts.tag, color) {
             if let Some(old_tag) = old_tag {
                 let new_tag = self.registry.get_tag(&opts.tag);
-                println!("{} ==> {}", fmt_tag(&old_tag), fmt_tag(new_tag.unwrap()))
+                println!("{} ==> {}", fmt_tag(&old_tag), fmt_tag(new_tag.unwrap()));
             }
         }
 

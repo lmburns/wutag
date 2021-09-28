@@ -169,7 +169,7 @@ impl CommandTemplate {
     /// Using the internal `args` field, and a supplied `input` variable, a
     /// `Command` will be build. Once all arguments have been processed, the
     /// command is executed.
-    pub(crate) fn generate_and_execute(&self, input: &Path, out_perm: Arc<Mutex<()>>) -> ExitCode {
+    pub(crate) fn generate_and_execute(&self, input: &Path, out_perm: &Arc<Mutex<()>>) -> ExitCode {
         let input = strip_current_dir(input);
 
         log::debug!("=== Args before ===: {:#?}", self.args);
@@ -186,7 +186,7 @@ impl CommandTemplate {
         }
 
         log::debug!("=== Final command ===: {:#?}", cmd);
-        execute_command(cmd, &out_perm)
+        execute_command(cmd, out_perm)
     }
 
     pub(crate) fn in_batch_mode(&self) -> bool {

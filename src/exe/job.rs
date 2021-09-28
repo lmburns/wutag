@@ -84,8 +84,8 @@ pub(crate) fn receiver(
                                 };
 
                                 inner.push(
-                                    command.generate_and_execute(&value, Arc::clone(&out_perm)),
-                                )
+                                    command.generate_and_execute(&value, &Arc::clone(&out_perm)),
+                                );
                             }
                             generalize_exitcodes(inner)
                         }));
@@ -164,12 +164,12 @@ pub(crate) fn receiver(
 pub(crate) fn sender(
     app: &Arc<App>,
     opts: &Arc<SearchOpts>,
-    re: Arc<Regex>,
+    re: &Arc<Regex>,
     tx: Sender<WorkerResult>,
 ) {
     let app = Arc::clone(app);
     let opts = Arc::clone(opts);
-    let re = Arc::clone(&re);
+    let re = Arc::clone(re);
 
     let exclude_pattern = regex_builder(
         app.exclude.join("|").as_str(),

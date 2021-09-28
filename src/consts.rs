@@ -48,6 +48,7 @@ pub(crate) static APP_ABOUT: Lazy<String> = Lazy::new(|| {
         RES
     )
 });
+
 // Specify the file-type(s) to filter by. Can be repeated
 pub(crate) static FILE_TYPE: Lazy<String> = Lazy::new(|| {
     "Filter results based on file-type. Does not work with '-g|--global'.\n  'f' or 'file':       \
@@ -58,6 +59,7 @@ pub(crate) static FILE_TYPE: Lazy<String> = Lazy::new(|| {
         "
     .to_string()
 });
+
 #[rustfmt::skip]
 pub(crate) static EXEC_BATCH_EXPL: Lazy<String> = Lazy::new(|| {
     format!(
@@ -82,6 +84,7 @@ pub(crate) static EXEC_BATCH_EXPL: Lazy<String> = Lazy::new(|| {
        GREEN, RES, BRCYAN, RES
     )
 });
+
 pub(crate) static EXEC_EXPL: Lazy<String> = Lazy::new(|| {
     format!(
         "{}\n  An example of using this is:\n  \t {}wutag -g search <tag> -x {{..}} set {{/}} \
@@ -91,12 +94,14 @@ pub(crate) static EXEC_EXPL: Lazy<String> = Lazy::new(|| {
         RES
     )
 });
+
 pub(crate) static OVERRIDE_HELP: Lazy<String> = Lazy::new(|| {
     format!(
         "{}wutag{} [{}FLAGS{}/{}OPTIONS{}] <{}SUBCOMMAND{}> [{}TAGS{}/{}FLAGS{}]",
         BRED, RES, GREEN, RES, GREEN, RES, YELLOW, RES, GREEN, RES, GREEN, RES
     )
 });
+
 pub(crate) static AFTER_HELP: Lazy<String> = Lazy::new(|| {
     format!(
         "See {}wutag{} {}--help{} for longer explanations of some base options.\nUse {}--help{} \
@@ -104,11 +109,13 @@ pub(crate) static AFTER_HELP: Lazy<String> = Lazy::new(|| {
         BRED, RES, GREEN, RES, GREEN, RES
     )
 });
+
 #[rustfmt::skip]
 pub(crate) static APP_AUTHORS: Lazy<String> = Lazy::new(|| format!(
     "{}Wojciech K\u{119}pka{} <{}Wwojciech@wkepka.dev{}>\n\
     {}Lucas Burns{}   <{}lmb@lmburns.com{}>",
     BRRED, RES, BRGREEN, RES, BRRED, RES, BRGREEN, RES,
 ));
+
 pub(crate) static DEFAULT_EDITOR: Lazy<String> =
     Lazy::new(|| std::env::var("EDITOR").unwrap_or_else(|_| "vim".to_string()));

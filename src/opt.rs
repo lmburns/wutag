@@ -188,7 +188,7 @@ impl Opts {
                 // May switch to global
                 global: false,
                 cmd: Command::default(),
-                ..Default::default()
+                ..Self::default()
             }
         }
     }

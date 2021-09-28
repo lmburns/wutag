@@ -92,7 +92,7 @@ impl App {
         let (tx, rx) = channel::unbounded::<WorkerResult>();
 
         let rec = receiver(&app, &opts, command, rx);
-        sender(&app, &opts, re, tx);
+        sender(&app, &opts, &re, tx);
         rec.join().unwrap();
     }
 }

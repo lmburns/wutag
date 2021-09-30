@@ -1,7 +1,9 @@
 //! Utility functions used through this crate and by the main executable
-use colored::Color;
-
 use crate::{Error, Result};
+use colored::Color;
+use tui::style as tui;
+
+// TODO: Add underline and inverse options
 
 /// Parses a [Color](colored::Color) from a foreground color string
 pub fn color_from_fg_str(s: &str) -> Option<Color> {
@@ -93,6 +95,39 @@ pub fn parse_color<S: AsRef<str>>(color: S) -> Result<Color> {
         // hex
         if let Some((r, g, b)) = parse_hex(color) {
             return Ok(Color::TrueColor { r, g, b });
+        }
+    }
+    Err(Error::InvalidColor(color.to_string()))
+}
+
+/// Parses a [Color](tui::styles::Color) from a String. If the provided string
+/// starts with `0x` or `#` or without any prefix the color will be treated as
+/// hex color notation so any colors like `0x1f1f1f` or `#ABBA12` or `121212`
+/// are valid.
+pub fn parse_color_tui<S: AsRef<str>>(color: S) -> Result<tui::Color> {
+    let color = color.as_ref();
+    macro_rules! if_6 {
+        ($c:ident) => {
+            if $c.len() == 6 {
+                Some($c)
+            } else {
+                None
+            }
+        };
+    }
+
+    let result = if let Some(c) = color.strip_prefix("0x") {
+        if_6!(c)
+    } else if let Some(c) = color.strip_prefix('#') {
+        if_6!(c)
+    } else {
+        if_6!(color)
+    };
+
+    if let Some(color) = result {
+        // hex
+        if let Some((r, g, b)) = parse_hex(color) {
+            return Ok(tui::Color::Rgb(r, g, b));
         }
     }
     Err(Error::InvalidColor(color.to_string()))

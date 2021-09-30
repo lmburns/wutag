@@ -48,7 +48,9 @@
     clippy::shadow_reuse,
     clippy::too_many_lines,
     clippy::doc_markdown,
-    clippy::single_match_else
+    clippy::single_match_else,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
 )]
 
 mod comp_helper;

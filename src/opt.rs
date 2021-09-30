@@ -173,6 +173,7 @@ pub(crate) struct Opts {
     )]
     /// Exclude results that match pattern
     pub(crate) exclude:          Option<Vec<String>>,
+    // TODO: use or remove
     /// Open a TUI to manage tags
     #[clap(
         long = "ui",
@@ -266,4 +267,7 @@ pub(crate) enum Command {
     /// Clean the cached tag registry
     #[clap(override_usage = "wutag [FLAG/OPTIONS] clean-cache")]
     CleanCache,
+    /// Open a TUI to manage tags, requires results from a `search`, or `list`
+    #[clap(override_usage = "wutag [FLAG/OPTIONS] ui")]
+    Ui
 }

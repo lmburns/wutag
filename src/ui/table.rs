@@ -3,7 +3,7 @@
 use cassowary::{
     strength::{MEDIUM, REQUIRED, WEAK},
     Expression, Solver,
-    WeightedRelation::*,
+    WeightedRelation::{EQ, GE, LE},
 };
 use std::{
     collections::{hash_set::Iter, HashMap, HashSet},
@@ -283,6 +283,7 @@ where
     }
 }
 
+// where I: Iterator<Item = <I as SeekingIterator>::Item> + SeekingIterator
 impl<H, D, R> StatefulWidget for Table<'_, H, R>
 where
     H: Iterator,
@@ -325,7 +326,7 @@ where
                     variables[i] | EQ(WEAK) | (f64::from(area.width) * f64::from(n) / f64::from(d)),
                 Constraint::Min(v) => variables[i] | GE(WEAK) | f64::from(v),
                 Constraint::Max(v) => variables[i] | LE(WEAK) | f64::from(v),
-            })
+            });
         }
         solver
             .add_constraint(
@@ -347,7 +348,7 @@ where
             } else {
                 value as u16
             };
-            solved_widths[index] = value
+            solved_widths[index] = value;
         }
 
         let mut y = table_area.top();
@@ -390,17 +391,19 @@ where
             (None, self.style)
         };
 
+        // •
         let highlight_symbol = match state.mode {
             TableSelection::Multiple => {
-                let s = self.highlight_symbol.unwrap_or("•").trim_end();
+                let s = self.highlight_symbol.unwrap_or("\u{2022}").trim_end();
                 format!("{} ", s)
             },
             TableSelection::Single => self.highlight_symbol.unwrap_or("").to_string(),
         };
 
+        // ✔
         let mark_symbol = match state.mode {
             TableSelection::Multiple => {
-                let s = self.mark_symbol.unwrap_or("✔").trim_end();
+                let s = self.mark_symbol.unwrap_or("\u{2714}").trim_end();
                 format!("{} ", s)
             },
             TableSelection::Single => self.highlight_symbol.unwrap_or("").to_string(),
@@ -414,13 +417,15 @@ where
             TableSelection::Single => " ".repeat(highlight_symbol.width()),
         };
 
+        // ⦿
         let mark_highlight_symbol = {
-            let s = self.mark_highlight_symbol.unwrap_or("⦿").trim_end();
+            let s = self.mark_highlight_symbol.unwrap_or("\u{29bf}").trim_end();
             format!("{} ", s)
         };
 
+        // ⦾
         let unmark_highlight_symbol = {
-            let s = self.unmark_highlight_symbol.unwrap_or("⦾").trim_end();
+            let s = self.unmark_highlight_symbol.unwrap_or("\u{29be}").trim_end();
             format!("{} ", s)
         };
 
@@ -480,6 +485,7 @@ where
                             style,
                         );
                         if c == header_index {
+                            #[allow(clippy::match_same_arms)]
                             let symbol = match state.mode {
                                 TableSelection::Single => &symbol,
                                 TableSelection::Multiple => &symbol,

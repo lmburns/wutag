@@ -1,3 +1,4 @@
+#![allow(unused)]
 use anyhow::{anyhow, Context, Result};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
@@ -28,8 +29,13 @@ pub(crate) struct Config {
 /// UI general configuration
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub(crate) struct UiConfig {
-    pub(crate) tick_rate:      u64,
-    pub(crate) report_looping: bool,
+    pub(crate) tick_rate:           u64,
+    pub(crate) looping:             bool,
+    pub(crate) selection_indicator: String,
+    pub(crate) selection_bold:      bool,
+    pub(crate) selection_italic:    bool,
+    pub(crate) selection_dim:       bool,
+    pub(crate) selection_blink:     bool,
 }
 
 /// UI Key configuration
@@ -45,6 +51,7 @@ pub(crate) struct KeyConfig {
     pub(crate) page_down:    Key,
     pub(crate) select:       Key,
     pub(crate) select_all:   Key,
+    pub(crate) refresh:      Key,
 
     // Actions to tags
     pub(crate) add:     Key,
@@ -75,6 +82,7 @@ impl Default for KeyConfig {
             remove:       Key::Char('x'),
             select:       Key::Char('v'),
             select_all:   Key::Char('V'),
+            refresh:      Key::Char('r'),
             search:       Key::Char('/'),
             copy:         Key::Char('y'),
             clear:        Key::Char('D'),
@@ -85,7 +93,15 @@ impl Default for KeyConfig {
 
 impl Default for UiConfig {
     fn default() -> Self {
-        Self { tick_rate: 250_u64 }
+        Self {
+            tick_rate:           250_u64,
+            looping:             true,
+            selection_indicator: String::from("\u{2022}"),
+            selection_bold:      true,
+            selection_italic:    false,
+            selection_dim:       false,
+            selection_blink:     false,
+        }
     }
 }
 

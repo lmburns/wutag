@@ -1,4 +1,5 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
+use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
@@ -6,9 +7,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use crate::ui::event::Key;
+
 const CONFIG_FILE: &str = "wutag.yml";
 
-#[derive(Debug, Default, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub(crate) struct Config {
     pub(crate) max_depth:    Option<usize>,
     pub(crate) base_color:   Option<String>,
@@ -16,6 +19,74 @@ pub(crate) struct Config {
     pub(crate) colors:       Option<Vec<String>>,
     pub(crate) ignores:      Option<Vec<String>>,
     pub(crate) format:       Option<String>,
+    #[serde(rename = "keys")]
+    pub(crate) keys:         KeyConfig,
+    #[serde(rename = "ui")]
+    pub(crate) ui:           UiConfig,
+}
+
+/// UI general configuration
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub(crate) struct UiConfig {
+    pub(crate) tick_rate:      u64,
+    pub(crate) report_looping: bool,
+}
+
+/// UI Key configuration
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub(crate) struct KeyConfig {
+    pub(crate) quit:         Key,
+    // Movement
+    pub(crate) up:           Key,
+    pub(crate) down:         Key,
+    pub(crate) go_to_top:    Key,
+    pub(crate) go_to_bottom: Key,
+    pub(crate) page_up:      Key,
+    pub(crate) page_down:    Key,
+    pub(crate) select:       Key,
+    pub(crate) select_all:   Key,
+
+    // Actions to tags
+    pub(crate) add:     Key,
+    pub(crate) clear:   Key,
+    pub(crate) remove:  Key,
+    pub(crate) edit:    Key,
+    pub(crate) search:  Key,
+    pub(crate) copy:    Key,
+    pub(crate) preview: Key,
+    /* pub(crate) modify:       Key,
+     * pub(crate) undo:         Key,
+     * pub(crate) done:         Key,
+     * pub(crate) refresh:      Key, */
+}
+
+impl Default for KeyConfig {
+    fn default() -> Self {
+        Self {
+            quit:         Key::Char('q'),
+            add:          Key::Char('a'),
+            edit:         Key::Char('e'),
+            go_to_bottom: Key::Char('G'),
+            go_to_top:    Key::Char('g'),
+            down:         Key::Char('j'),
+            up:           Key::Char('k'),
+            page_down:    Key::Char('J'),
+            page_up:      Key::Char('K'),
+            remove:       Key::Char('x'),
+            select:       Key::Char('v'),
+            select_all:   Key::Char('V'),
+            search:       Key::Char('/'),
+            copy:         Key::Char('y'),
+            clear:        Key::Char('D'),
+            preview:      Key::Char('P'),
+        }
+    }
+}
+
+impl Default for UiConfig {
+    fn default() -> Self {
+        Self { tick_rate: 250_u64 }
+    }
 }
 
 impl Config {
@@ -57,5 +128,47 @@ impl Config {
                 .context("Invalid configuration directory")?
                 .join("wutag"),
         )
+    }
+}
+
+impl KeyConfig {
+    // TODO: Remove if unnecessary
+    /// Check for duplicate keys within configuration file
+    pub(crate) fn check_dupes(&self) -> Result<()> {
+        let opts = vec![
+            &self.quit,
+            &self.add,
+            &self.edit,
+            &self.go_to_bottom,
+            &self.go_to_top,
+            &self.down,
+            &self.up,
+            &self.page_down,
+            &self.page_up,
+            &self.remove,
+            &self.select,
+            &self.select_all,
+            &self.search,
+            &self.copy,
+            &self.clear,
+        ];
+        let mut cloned = opts.clone();
+        cloned.sort_unstable();
+        cloned.dedup();
+
+        if opts.len() == cloned.len() {
+            Ok(())
+        } else {
+            Err(anyhow!(
+                "{:#?}",
+                crate::wutag_error!(
+                    "configuration contains duplicate keys: {:#?}",
+                    cloned
+                        .into_iter()
+                        .filter(|v| !opts.contains(v))
+                        .collect::<Vec<_>>()
+                )
+            ))
+        }
     }
 }

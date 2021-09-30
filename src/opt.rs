@@ -35,7 +35,6 @@ use crate::{
     // global_setting = AppSettings::InferLongArgs,             // Same as above but for args
     // global_setting = AppSettings::UnifiedHelpMessage,     // Options/Flags together
 )]
-
 pub(crate) struct Opts {
     #[clap(long, short, global = true, parse(from_occurrences))]
     /// Display debugging messages on 4 levels (i.e., -vv..)
@@ -174,6 +173,14 @@ pub(crate) struct Opts {
     )]
     /// Exclude results that match pattern
     pub(crate) exclude:          Option<Vec<String>>,
+    /// Open a TUI to manage tags
+    #[clap(
+        long = "ui",
+        short = 'u',
+        long_about = "Open a TUI to manage tags, requires results from a `search`, or `list`",
+        takes_value = false
+    )]
+    pub(crate) ui:               bool,
     #[clap(subcommand)]
     pub(crate) cmd:              Command,
 }

@@ -10,7 +10,10 @@ pub(crate) mod set;
 pub(crate) mod uses;
 pub(crate) mod view;
 
-use crate::opt::{Command, Opts};
+use crate::{
+    opt::{Command, Opts},
+    ui::ui_app::UiApp,
+};
 use uses::{
     env, fs, parse_color, parse_color_cli_table, wutag_error, Color, Colorize, Config, Context,
     Cow, FileTypes, LookupError, PathBuf, RegexSet, RegexSetBuilder, Result, Stream, TagRegistry,
@@ -39,6 +42,7 @@ pub(crate) struct App {
     pub(crate) max_depth:        Option<usize>,
     pub(crate) pat_regex:        bool,
     pub(crate) registry:         TagRegistry,
+    pub(crate) ui:               Option<UiApp>,
 }
 
 impl App {
@@ -212,6 +216,12 @@ impl App {
         });
         log::debug!("FileTypes: {:#?}", file_types);
 
+        let ui_app = if opts.ui {
+            Some(UiApp::new(config, registry)?)
+        } else {
+            None
+        };
+
         Ok(App {
             base_color,
             base_dir,
@@ -234,6 +244,7 @@ impl App {
             },
             pat_regex: opts.regex,
             registry,
+            ui: ui_app,
         })
     }
 

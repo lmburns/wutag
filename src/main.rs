@@ -60,6 +60,7 @@ mod macros;
 mod opt;
 mod registry;
 mod subcommand;
+mod ui;
 mod util;
 
 use colored::Colorize;

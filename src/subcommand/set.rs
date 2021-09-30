@@ -75,6 +75,8 @@ impl App {
         log::debug!("Compiled pattern: {}", re);
 
         if (opts.stdin || atty::isnt(atty::Stream::Stdin)) && atty::is(atty::Stream::Stdout) {
+            // if (opts.stdin || termion::is_tty(&io::stdin())) &&
+            // termion::is_tty(&io::stdout()) {
             log::debug!("Using STDIN");
             for entry in &collect_stdin_paths(&self.base_dir) {
                 println!("{}:", fmt_path(entry, self.base_color, self.ls_colors));

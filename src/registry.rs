@@ -15,6 +15,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
+use uuid::Uuid;
 
 // use rayon::prelude::*;
 // use rayon::collections::hash_map;
@@ -22,17 +23,24 @@ use std::{
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
 pub(crate) struct EntryData {
     path: PathBuf,
+    uuid: Uuid,
+    // id:   usize,
 }
 
 impl EntryData {
     pub(crate) fn new<P: AsRef<Path>>(path: P) -> Self {
         Self {
             path: path.as_ref().to_path_buf(),
+            uuid: Uuid::new_v4(),
         }
     }
 
     pub(crate) fn path(&self) -> &Path {
         &self.path
+    }
+
+    pub(crate) fn uuid(&self) -> &Uuid {
+        &self.uuid
     }
 }
 
@@ -40,9 +48,9 @@ pub(crate) type EntryId = usize;
 
 #[derive(Default, Deserialize, Serialize, Clone, Debug)]
 pub(crate) struct TagRegistry {
-    pub(crate) tags: HashMap<Tag, Vec<EntryId>>,
-    entries:         HashMap<EntryId, EntryData>,
-    pub(crate) path: PathBuf,
+    pub(crate) tags:    HashMap<Tag, Vec<EntryId>>,
+    pub(crate) entries: HashMap<EntryId, EntryData>,
+    pub(crate) path:    PathBuf,
 }
 
 impl TagRegistry {

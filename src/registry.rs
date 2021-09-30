@@ -11,7 +11,7 @@ use anyhow::{Context, Result};
 use colored::Color;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
+    collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
 };
@@ -24,7 +24,6 @@ use uuid::Uuid;
 pub(crate) struct EntryData {
     path: PathBuf,
     uuid: Uuid,
-    // id:   usize,
 }
 
 impl EntryData {
@@ -48,8 +47,8 @@ pub(crate) type EntryId = usize;
 
 #[derive(Default, Deserialize, Serialize, Clone, Debug)]
 pub(crate) struct TagRegistry {
-    pub(crate) tags:    HashMap<Tag, Vec<EntryId>>,
-    pub(crate) entries: HashMap<EntryId, EntryData>,
+    pub(crate) tags:    BTreeMap<Tag, Vec<EntryId>>,
+    pub(crate) entries: BTreeMap<EntryId, EntryData>,
     pub(crate) path:    PathBuf,
 }
 

@@ -2,7 +2,7 @@
 
 use anyhow::{anyhow, Result};
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fs, io,
     path::{Path, PathBuf},
     time::{Duration, SystemTime},
@@ -14,7 +14,7 @@ use tui::{
     style::{Color, Modifier, Style},
     terminal::Frame,
     text::{Span, Spans, Text},
-    widgets::{Block, BorderType, Borders, Clear, List, ListItem, Paragraph},
+    widgets::{Block, BorderType, Borders, Clear, List, ListItem, ListState, Paragraph},
     Terminal,
 };
 
@@ -86,7 +86,10 @@ pub(crate) struct UiApp {
     pub(crate) current_selection:      usize,
     pub(crate) current_selection_uuid: Option<Uuid>,
     pub(crate) current_selection_id:   Option<u64>,
-    pub(crate) preview_file:           bool,
+    pub(crate) current_selection_path: Option<PathBuf>,
+    pub(crate) list_state:             ListState,
+    pub(crate) file_details:           HashMap<Uuid, String>, // TODO: Show a stat command
+    pub(crate) preview_file:           bool,                  // TODO: Show a file preview
     pub(crate) preview_height:         u16,
     pub(crate) marked:                 HashSet<Uuid>,
     pub(crate) filter:                 LineBuffer,
@@ -104,6 +107,11 @@ impl UiApp {
     /// Create a new instance of the `UiApp`
     pub(crate) fn new(c: Config, reg: TagRegistry) -> Result<Self> {
         let (w, h) = crossterm::terminal::size()?;
+        let mut state = ListState::default();
+        if !reg.entries.is_empty() {
+            state.select(Some(0));
+        }
+
         let mut uiapp = Self {
             config:                 c,
             registry:               reg,
@@ -115,7 +123,10 @@ impl UiApp {
             mode:                   AppMode::WutagList,
             current_selection:      0,
             current_selection_uuid: None,
-            current_selection_id:   None,
+            current_selection_path: None,
+            current_selection_id:   None, // state.selected
+            list_state:             state,
+            file_details:           HashMap::new(),
             preview_file:           false,
             preview_height:         0,
             marked:                 HashSet::new(),
@@ -391,8 +402,10 @@ impl UiApp {
                 self.current_selection - 1
             }
         };
+
         self.current_selection = i;
-        self.current_selection_id = None;
+        // self.current_selection_id = None;
+        self.current_selection_path = None;
         self.current_selection_uuid = None;
     }
 
@@ -406,22 +419,22 @@ impl UiApp {
     /// Fix selection of any errors that may arrise
     pub(crate) fn selection_fix(&mut self) {
         if let (Some(t), Some(id)) = (self.tag_current(), self.current_selection_id) {
-            if t.id() != Some(id) {
-                if let Some(i) = self.tag_index_by_id(id) {
-                    self.current_selection = i;
-                    self.current_selection_id = None;
-                }
-            }
+            // if t.id() != Some(id) {
+            //     if let Some(i) = self.tag_index_by_id(id) {
+            //         self.current_selection = i;
+            //         self.current_selection_id = None;
+            //     }
+            // }
         }
 
-        if let (Some(t), Some(uuid)) = (self.tag_current(), self.current_selection_uuid) {
-            if t.uuid() != &uuid {
-                if let Some(i) = self.task_index_by_uuid(uuid) {
-                    self.current_selection = i;
-                    self.current_selection_uuid = None;
-                }
-            }
-        }
+        // if let (Some(t), Some(uuid)) = (self.tag_current(),
+        // self.current_selection_uuid) {     if t.uuid() != &uuid {
+        //         if let Some(i) = self.task_index_by_uuid(uuid) {
+        //             self.current_selection = i;
+        //             self.current_selection_uuid = None;
+        //         }
+        //     }
+        // }
     }
 
     /// Currently selected task
@@ -430,7 +443,31 @@ impl UiApp {
             return None;
         }
         let selected = self.current_selection;
-        Some(self.registry.list_entries_ids().collect::<Vec<_>>()[selected].clone())
+
+        Some(
+            self.registry
+                .get_entry(*(self.registry.list_entries_ids().collect::<Vec<_>>()[selected]))
+                .expect("failed to get EntryData tag")
+                .clone(),
+        )
+    }
+
+    /// Current selections `Uuid`
+    pub(crate) fn selected_task_uuids(&self) -> Vec<Uuid> {
+        let selected = match self.table_state.mode() {
+            TableSelection::Single => vec![self.current_selection],
+            TableSelection::Multiple => self.table_state.marked().cloned().collect::<Vec<usize>>(),
+        };
+
+        let mut uuids = vec![];
+
+        for s in selected {
+            // let id = self.tasks[s].id().unwrap_or_default();
+            let uuid = *self.registry.entries[&s].uuid();
+            uuids.push(uuid);
+        }
+
+        uuids
     }
 
     /// Find a tag by an id

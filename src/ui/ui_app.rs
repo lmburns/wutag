@@ -407,7 +407,7 @@ impl UiApp {
     pub(crate) fn selection_fix(&mut self) {
         if let (Some(t), Some(id)) = (self.tag_current(), self.current_selection_id) {
             if t.id() != Some(id) {
-                if let Some(i) = self.task_index_by_id(id) {
+                if let Some(i) = self.tag_index_by_id(id) {
                     self.current_selection = i;
                     self.current_selection_id = None;
                 }
@@ -430,7 +430,12 @@ impl UiApp {
             return None;
         }
         let selected = self.current_selection;
-        Some(self.tasks[selected].clone())
+        Some(self.registry.list_entries_ids().collect::<Vec<_>>()[selected].clone())
+    }
+
+    /// Find a tag by an id
+    fn tag_by_id(&self, id: u64) -> Option<EntryData> {
+        todo!();
     }
 
     /// Find a tag's `EntryData` by its' `Uuid`
@@ -439,5 +444,13 @@ impl UiApp {
             .list_entries()
             .find(|t| *t.uuid() == uuid)
             .cloned()
+    }
+
+    fn tag_index_by_id(&self, id: u64) -> Option<usize> {
+        todo!();
+    }
+
+    fn tag_index_by_uuid(&self, uuid: Uuid) -> Option<usize> {
+        self.registry.list_entries().position(|t| *t.uuid() == uuid)
     }
 }

@@ -375,7 +375,10 @@ where
         });
     });
 
-    log::debug!("Using regex with max_depth of: {}", app.max_depth.unwrap());
+    log::debug!(
+        "Using regex with max_depth of: {}",
+        app.max_depth.unwrap_or(DEFAULT_MAX_DEPTH)
+    );
     log::debug!(
         "Using regex with base_dir of: {}",
         app.base_dir.to_string_lossy().to_string()

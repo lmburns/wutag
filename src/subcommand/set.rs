@@ -109,7 +109,7 @@ impl App {
                             wutag_error!("{} {}", e, bold_entry!(entry));
                         }
                     } else {
-                        log::debug!("Setting tag for: {}!", entry.display());
+                        log::debug!("Setting tag for new entry: {}", entry.display());
                         let entry = EntryData::new(entry);
                         let id = self.registry.add_or_update_entry(entry);
                         self.registry.tag_entry(tag, id);
@@ -155,6 +155,7 @@ impl App {
                                 err!('\t', e, entry);
                             }
                         } else {
+                            log::debug!("Setting tag for new entry: {}", entry.path().display());
                             let entry = EntryData::new(entry.path());
                             let id = self.registry.add_or_update_entry(entry);
                             self.registry.tag_entry(tag, id);

@@ -5,6 +5,7 @@ use anyhow::{anyhow, Context, Result};
 use colored::{ColoredString, Colorize};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
+    convert::TryInto,
     fs, io,
     path::{Path, PathBuf},
     time::{Duration, SystemTime},
@@ -25,7 +26,10 @@ use rustyline_derive::Helper;
 use unicode_segmentation::{Graphemes, UnicodeSegmentation};
 use unicode_width::UnicodeWidthStr;
 use uuid::Uuid;
-use wutag_core::{color::parse_color_tui, tag::Tag};
+use wutag_core::{
+    color::{color_tui_from_fg_str, parse_color_tui},
+    tag::Tag,
+};
 
 use super::{
     event::Key,
@@ -90,6 +94,8 @@ pub(crate) struct UiApp {
     pub(crate) current_selection:      usize,
     pub(crate) current_selection_uuid: Option<Uuid>,
     pub(crate) current_selection_path: Option<PathBuf>,
+    pub(crate) current_context_filter: String,
+    pub(crate) current_context:        String,
     pub(crate) list_state:             ListState,
     pub(crate) file_details:           HashMap<Uuid, String>, // TODO: Show a stat command
     pub(crate) preview_file:           bool,                  // TODO: Show a file preview
@@ -130,6 +136,8 @@ impl UiApp {
             current_selection:      state.selected().unwrap_or(0),
             current_selection_uuid: None,
             current_selection_path: None,
+            current_context_filter: String::from(""),
+            current_context:        String::from(""),
             list_state:             state,
             file_details:           HashMap::new(),
             preview_file:           false,
@@ -293,7 +301,7 @@ impl UiApp {
                 Block::default()
                     .borders(Borders::ALL)
                     .border_type(BorderType::Rounded)
-                    .border_style(Style::default().fg(Color::DarkGray))
+                    .border_style(Style::default().fg(Color::Red))
                     .title(title.into()),
             )
             .style(Style::default().fg(Color::Yellow))
@@ -319,21 +327,21 @@ impl UiApp {
             }
 
             let mut title = vec![
-                Span::styled("Tags", style),
+                Span::styled("Overview", style),
                 Span::from("|"),
                 Span::styled("Preview", Style::default().add_modifier(Modifier::DIM)),
             ];
 
-            // if !self.current_context.is_empty() {
-            //     let context_style = Style::default();
-            //     context_style.add_modifier(Modifier::ITALIC);
-            //     title.insert(title.len(), Span::from(" ("));
-            //     title.insert(
-            //         title.len(),
-            //         Span::styled(&self.current_context, context_style),
-            //     );
-            //     title.insert(title.len(), Span::from(")"));
-            // }
+            if !self.current_context.is_empty() {
+                let context_style = Style::default();
+                context_style.add_modifier(Modifier::ITALIC);
+                title.insert(title.len(), Span::from(" ("));
+                title.insert(
+                    title.len(),
+                    Span::styled(&self.current_context, context_style),
+                );
+                title.insert(title.len(), Span::from(")"));
+            }
 
             f.render_widget(
                 Block::default()
@@ -346,97 +354,134 @@ impl UiApp {
         }
 
         let maximum_column_width = rect.width;
-        let widths = self.calculate_widths(
-            &[entries
-                .keys()
-                .map(|k| k.display().to_string())
-                .collect::<Vec<String>>()],
-            &headers,
-            maximum_column_width,
-        );
 
-        // for (i, header) in headers.iter().enumerate() {
-        //     if header == "Description" || header == "Definition" {
-        //         self.description_width = widths[i] - 1;
+        let entries_name = entries.iter().fold(Vec::new(), |mut acc, (k, v)| {
+            acc.push(vec![
+                k.display().to_string(),
+                v.iter()
+                    .map(|tag| tag.name().to_string())
+                    .collect::<Vec<String>>()
+                    .join(" "),
+            ]);
+            acc
+        });
+
+        let widths = self.calculate_widths(&entries_name, &headers, maximum_column_width);
+
+        // for (idx, header) in headers.iter().enumerate() {
+        //     if header == "Tag(s)" {
+        //         self.tag_description_width = widths[idx] - 1;
         //         break;
         //     }
         // }
 
-        let selected = self.current_selection;
+        // let selected = self.current_selection;
         let header = headers.iter();
         let mut rows = vec![];
-        let mut highlight_style = Style::default();
+        let mut hl_style = Style::default();
+
+        // let mut style_tags = vec![];
+
+        // for (idx, (entry, tags)) in entries.iter().enumerate() {}
         for (idx, entry) in entries.keys().enumerate() {
             let tags = entries.get(entry).unwrap();
             for t in tags {
                 let style = self.style_for_tag(t);
-                if idx == self.selected() {
-                    highlight_style = style;
-                    if self.config.ui.selection_bold {
-                        highlight_style = highlight_style.add_modifier(Modifier::BOLD);
-                    }
-                    if self.config.ui.selection_italic {
-                        highlight_style = highlight_style.add_modifier(Modifier::ITALIC);
-                    }
-                    if self.config.ui.selection_dim {
-                        highlight_style = highlight_style.add_modifier(Modifier::DIM);
-                    }
-                    if self.config.ui.selection_blink {
-                        highlight_style = highlight_style.add_modifier(Modifier::SLOW_BLINK);
-                    }
-                }
+                // hl_style = hl_style.add_modifier(mods);
                 rows.push(Row::StyledData(tags.iter(), style));
             }
         }
 
-        // for (i, task) in tasks.iter().enumerate() {
-        //     if i == selected {
-        //         highlight_style = style;
-        //         if self.config.uda_selection_bold {
-        //             highlight_style =
-        // highlight_style.add_modifier(Modifier::BOLD);         }
-        //         if self.config.uda_selection_italic {
-        //             highlight_style =
-        // highlight_style.add_modifier(Modifier::ITALIC);         }
-        //         if self.config.uda_selection_dim {
-        //             highlight_style =
-        // highlight_style.add_modifier(Modifier::DIM);         }
-        //         if self.config.uda_selection_blink {
-        //             highlight_style =
-        // highlight_style.add_modifier(Modifier::SLOW_BLINK);         }
+        // for (idx, entry) in entries.iter().enumerate() {}
+
+        // for (idx, entry) in entries.keys().enumerate() {
+        //     let tags = entries.get(entry).unwrap();
+        //     for t in tags {
+        //         let style = self.style_for_tag(t);
+        //         let mut mods = Modifier::empty();
+        //         if idx == self.selected() {
+        //             hl_style = style;
+        //             if self.config.ui.selection_bold {
+        //                 // hl_style = hl_style.add_modifier(Modifier::BOLD);
+        //                 mods |= Modifier::BOLD;
+        //             }
+        //             if self.config.ui.selection_italic {
+        //                 // hl_style = hl_style.add_modifier(Modifier::ITALIC);
+        //                 mods |= Modifier::ITALIC;
+        //             }
+        //             if self.config.ui.selection_dim {
+        //                 // hl_style = hl_style.add_modifier(Modifier::DIM);
+        //                 mods |= Modifier::DIM;
+        //             }
+        //             if self.config.ui.selection_blink {
+        //                 // hl_style = hl_style.add_modifier(Modifier::SLOW_BLINK);
+        //                 mods |= Modifier::SLOW_BLINK;
+        //             }
+        //         }
+        //         hl_style = hl_style.add_modifier(mods);
+        //         rows.push(Row::StyledData(tags.iter(), style));
         //     }
-        //     rows.push(Row::StyledData(task.iter(), style));
         // }
 
-        // let table = Table::new()
-        // f.render_stateful_widget(table, rect, &mut self.table_state);
+        let constraints: Vec<Constraint> = widths
+            .iter()
+            .map(|i| Constraint::Length((*i).try_into().unwrap_or(maximum_column_width)))
+            .collect();
+
+        let mut style = Style::default();
+        match self.mode {
+            AppMode::WutagList => style = style.add_modifier(Modifier::BOLD),
+            AppMode::WutagError => style = style.add_modifier(Modifier::DIM),
+        }
+
+        let mut title = vec![
+            // Span::styled("Tag", style),
+            // Span::from("  |  "),
+            Span::styled("Wutag", Style::default().add_modifier(Modifier::DIM)),
+        ];
+
+        if !self.current_context.is_empty() {
+            let context_style = Style::default();
+            context_style.add_modifier(Modifier::BOLD);
+            title.insert(title.len(), Span::from(" ("));
+            title.insert(
+                title.len(),
+                Span::styled(&self.current_context, context_style),
+            );
+            title.insert(title.len(), Span::from(")"));
+        }
+
+        let table = Table::new(header, rows.into_iter())
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Rounded)
+                    .title(Spans::from(title))
+                    .title_alignment(Alignment::Left),
+            )
+            .header_style(
+                Style::default()
+                    .add_modifier(Modifier::UNDERLINED)
+                    .add_modifier(Modifier::BOLD),
+            )
+            .highlight_style(hl_style)
+            .highlight_symbol(&self.config.ui.selection_indicator)
+            .mark_symbol(&self.config.ui.mark_indicator)
+            .unmark_symbol(&self.config.ui.unmark_indicator)
+            .widths(&constraints);
+
+        f.render_stateful_widget(table, rect, &mut self.table_state);
     }
 
     /// Get the rows of `Tag`s' to build the `Table`
-    fn get_full_tag_hash(&self) -> BTreeMap<PathBuf, Vec<&Tag>> {
+    fn get_full_tag_hash(&self) -> BTreeMap<PathBuf, Vec<Tag>> {
         self.registry.list_all_paths_and_tags()
     }
 
     /// Get the rows of `Tag`s' to build the `Table` with tags as strings
-    fn get_full_tag_hash_str(&self) -> BTreeMap<PathBuf, Vec<String>> {
+    fn get_full_tag_hash_str(&mut self) -> BTreeMap<PathBuf, Vec<String>> {
         self.registry.list_all_paths_and_tags_as_strings()
     }
-
-    //     let (tasks, headers) = self.get_task_report();
-    //     if tasks.is_empty() {
-    //         let mut style = Style::default();
-    //         match self.mode {
-    //             AppMode::WutagList => style = style.add_modifier(Modifier::BOLD),
-    //             _ => style = style.add_modifier(Modifier::DIM),
-    //         }
-    //
-    //         let mut title = vec![
-    //             Span::styled("Tags", style),
-    //             Span::from("|"),
-    //             Span::styled("Preview",
-    // Style::default().add_modifier(Modifier::DIM)),         ];
-    //     }
-    // }
 
     /// Draw a file preview
     fn draw_preview(&mut self, f: &mut Frame<impl Backend>, rect: Rect) {
@@ -730,7 +775,7 @@ impl UiApp {
     }
 
     /// Current selection
-    pub(crate) fn selected(&self) -> usize {
+    pub(crate) fn selected(&mut self) -> usize {
         self.list_state.selected().unwrap_or(0)
     }
 
@@ -774,46 +819,55 @@ impl UiApp {
         headers: &[String],
         maximum_column_width: u16,
     ) -> Vec<usize> {
-        // naive implementation of calculate widths
         let mut widths = headers.iter().map(String::len).collect::<Vec<usize>>();
 
-        for row in entries.iter() {
-            for (i, cell) in row.iter().enumerate() {
-                widths[i] = std::cmp::max(cell.len(), widths[i]);
+        super::destruct_terminal();
+
+        for entry in entries.iter() {
+            for (idx, cell) in entry.iter().enumerate() {
+                println!("IDX: {:#?}, CELL: {:#?}", idx, cell);
             }
         }
 
-        for (i, header) in headers.iter().enumerate() {
-            if header == "Description" || header == "Definition" {
-                // always give description or definition the most room to breath
-                widths[i] = maximum_column_width as usize;
-                break;
-            }
-        }
-        for (i, header) in headers.iter().enumerate() {
-            if header == "ID" || header == "Name" {
-                // always give ID a couple of extra for indicator
-                widths[i] += self.config.ui.selection_indicator.as_str().width();
-                // if let TableMode::MultipleSelection =
-                // self.task_table_state.mode() {     widths[i]
-                // += 2 };
-            }
-        }
+        // for row in entries.iter() {
+        //     for (i, cell) in row.iter().enumerate() {
+        //         widths[i] = std::cmp::max(cell.len(), widths[i]);
+        //     }
+        // }
 
-        // now start trimming
-        while (widths.iter().sum::<usize>() as u16) >= maximum_column_width - (headers.len()) as u16
-        {
-            let index = widths
-                .iter()
-                .position(|i| i == widths.iter().max().unwrap_or(&0))
-                .unwrap_or_default();
-            if widths[index] == 1 {
-                break;
-            }
-            widths[index] -= 1;
-        }
-
-        widths
+        std::process::exit(1);
+        // for (i, header) in headers.iter().enumerate() {
+        //     if header == "Description" || header == "Definition" {
+        //         // always give description or definition the most room to
+        // breath         widths[i] = maximum_column_width as usize;
+        //         break;
+        //     }
+        // }
+        // for (i, header) in headers.iter().enumerate() {
+        //     if header == "ID" || header == "Name" {
+        //         // always give ID a couple of extra for indicator
+        //         widths[i] +=
+        // self.config.ui.selection_indicator.as_str().width();
+        //         // if let TableMode::MultipleSelection =
+        //         // self.task_table_state.mode() {     widths[i]
+        //         // += 2 };
+        //     }
+        // }
+        //
+        // // now start trimming
+        // while (widths.iter().sum::<usize>() as u16) >= maximum_column_width -
+        // (headers.len()) as u16 {
+        //     let index = widths
+        //         .iter()
+        //         .position(|i| i == widths.iter().max().unwrap_or(&0))
+        //         .unwrap_or_default();
+        //     if widths[index] == 1 {
+        //         break;
+        //     }
+        //     widths[index] -= 1;
+        // }
+        //
+        // widths
     }
 
     /// Find a tag's `EntryData` by its' `Uuid`
@@ -832,7 +886,11 @@ impl UiApp {
         let mut style = Style::default();
         let mut modifiers = Modifier::empty();
 
-        if let Ok(color) = parse_color_tui(tag.color().to_fg_str().to_string()) {
+        // if let Ok(color) = parse_color_tui(tag.color().to_string()) {
+        //     println!("PARSED FIRST");
+        //     style = style.fg(color);
+
+        if let Some(color) = color_tui_from_fg_str(&tag.color().to_fg_str()) {
             style = style.fg(color);
         }
 

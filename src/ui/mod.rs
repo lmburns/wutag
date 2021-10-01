@@ -57,7 +57,10 @@ pub(crate) fn destruct_terminal() {
 
 /// Start the UI interface
 pub(crate) fn start_ui(cli_app: &App, config: Config, registry: TagRegistry) -> Result<(), Error> {
-    panic::set_hook(Box::new(|_| destruct_terminal()));
+    panic::set_hook(Box::new(|info| {
+        destruct_terminal();
+        better_panic::Settings::auto().create_panic_handler()(info);
+    }));
 
     let mut app = ui_app::UiApp::new(config, registry).map_err(Error::UiStartFailure)?;
     let mut terminal = setup_terminal();

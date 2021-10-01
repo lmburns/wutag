@@ -40,6 +40,41 @@ pub fn color_from_fg_str(s: &str) -> Option<Color> {
     }
 }
 
+/// Parses a [Color](tui::style::Color) from a foreground color string
+pub fn color_tui_from_fg_str(s: &str) -> Option<tui::Color> {
+    match s {
+        "30" => Some(tui::Color::Black),
+        "31" => Some(tui::Color::Red),
+        "32" => Some(tui::Color::Green),
+        "33" => Some(tui::Color::Yellow),
+        "34" => Some(tui::Color::Blue),
+        "35" => Some(tui::Color::Magenta),
+        "36" => Some(tui::Color::Cyan),
+        "37" => Some(tui::Color::White),
+        "90" => Some(tui::Color::DarkGray),
+        "91" => Some(tui::Color::LightRed),
+        "92" => Some(tui::Color::LightGreen),
+        "93" => Some(tui::Color::LightYellow),
+        "94" => Some(tui::Color::LightBlue),
+        "95" => Some(tui::Color::LightMagenta),
+        "96" => Some(tui::Color::LightCyan),
+        "97" => None,
+        color =>
+            if color.starts_with("38;2;") {
+                let mut it = s.split(';');
+                it.next()?;
+                it.next()?;
+                Some(tui::Color::Rgb(
+                    it.next()?.parse().ok()?,
+                    it.next()?.parse().ok()?,
+                    it.next()?.parse().ok()?,
+                ))
+            } else {
+                None
+            },
+    }
+}
+
 const fn hex_val(ch: u8) -> u8 {
     match ch {
         b'0'..=b'9' => ch - 48,
@@ -127,6 +162,7 @@ pub fn parse_color_tui<S: AsRef<str>>(color: S) -> Result<tui::Color> {
     if let Some(color) = result {
         // hex
         if let Some((r, g, b)) = parse_hex(color) {
+            println!("PARSED COLOR FUN");
             return Ok(tui::Color::Rgb(r, g, b));
         }
     }

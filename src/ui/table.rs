@@ -1,5 +1,9 @@
 #![allow(unused)]
 
+//! This is taken from `taskwarrior-tui` and provides a `Table` with custom
+//! modifications that are similar to the default
+//! [Table](tui::widgets::table::Table)
+
 use cassowary::{
     strength::{MEDIUM, REQUIRED, WEAK},
     Expression, Solver,
@@ -425,7 +429,10 @@ where
 
         // ⦾
         let unmark_highlight_symbol = {
-            let s = self.unmark_highlight_symbol.unwrap_or("\u{29be}").trim_end();
+            let s = self
+                .unmark_highlight_symbol
+                .unwrap_or("\u{29be}")
+                .trim_end();
             format!("{} ", s)
         };
 

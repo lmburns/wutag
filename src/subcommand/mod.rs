@@ -279,6 +279,7 @@ impl App {
             Command::Set(opts) => self.set(&opts),
             Command::View(ref opts) => self.view(opts),
             Command::Ui => {
+                better_panic::install();
                 if let Err(e) = ui::start_ui(
                     &self.clone(),
                     config,

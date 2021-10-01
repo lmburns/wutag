@@ -374,7 +374,7 @@ impl TagRegistry {
     /// Return the conceptualized data structure that all these functions
     /// correspond to. i.e., a hashmap of the file's path corresponding to a
     /// vector of the `Tag`s
-    pub(crate) fn list_all_paths_and_tags(&self) -> BTreeMap<PathBuf, Vec<&Tag>> {
+    pub(crate) fn list_all_paths_and_tags(&self) -> BTreeMap<PathBuf, Vec<Tag>> {
         let mut path_tags = BTreeMap::new();
 
         for (id, data) in self.list_entries_and_ids() {
@@ -383,6 +383,7 @@ impl TagRegistry {
                 self.list_entry_tags(*id)
                     .unwrap_or_default()
                     .iter()
+                    .map(ToOwned::to_owned)
                     .map(ToOwned::to_owned)
                     .collect::<Vec<_>>(),
             );

@@ -25,7 +25,6 @@ use rustyline::{line_buffer::LineBuffer, At, Editor, Word};
 use rustyline_derive::Helper;
 use unicode_segmentation::{Graphemes, UnicodeSegmentation};
 use unicode_width::UnicodeWidthStr;
-use uuid::Uuid;
 use wutag_core::{
     color::{color_tui_from_fg_str, parse_color_tui},
     tag::Tag,
@@ -39,7 +38,7 @@ use super::{
 use crate::{
     config::Config,
     opt::{Command, Opts},
-    registry::{EntryData, TagRegistry},
+    registry::{EntryData, EntryId, TagRegistry},
     subcommand::App,
 };
 
@@ -92,15 +91,15 @@ pub(crate) struct UiApp {
     pub(crate) table_state:            TableState,
     pub(crate) mode:                   AppMode,
     pub(crate) current_selection:      usize,
-    pub(crate) current_selection_uuid: Option<Uuid>,
+    pub(crate) current_selection_id:   Option<EntryId>,
     pub(crate) current_selection_path: Option<PathBuf>,
     pub(crate) current_context_filter: String,
     pub(crate) current_context:        String,
     pub(crate) list_state:             ListState,
-    pub(crate) file_details:           HashMap<Uuid, String>, // TODO: Show a stat command
-    pub(crate) preview_file:           bool,                  // TODO: Show a file preview
+    pub(crate) file_details:           HashMap<EntryId, String>, // TODO: Show a stat command
+    pub(crate) preview_file:           bool,                     // TODO: Show a file preview
     pub(crate) preview_height:         u16,
-    pub(crate) marked:                 HashSet<Uuid>,
+    pub(crate) marked:                 HashSet<EntryId>,
     pub(crate) filter:                 LineBuffer,
     pub(crate) last_export:            Option<SystemTime>,
     pub(crate) list_height:            u16,
@@ -134,7 +133,7 @@ impl UiApp {
             terminal_height:        h,
             mode:                   AppMode::WutagList,
             current_selection:      state.selected().unwrap_or(0),
-            current_selection_uuid: None,
+            current_selection_id:   None,
             current_selection_path: None,
             current_context_filter: String::from(""),
             current_context:        String::from(""),
@@ -204,7 +203,7 @@ impl UiApp {
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
             .margin(1)
-            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+            .constraints([Constraint::Percentage(80), Constraint::Percentage(20)].as_ref())
             .split(f.size());
 
         if self.preview_file {
@@ -228,7 +227,7 @@ impl UiApp {
 
         let empty_path = PathBuf::new();
         let selected = self.current_selection;
-        let file_id = if self.registry.tags.is_empty() {
+        let file_id = if self.registry.entries.is_empty() {
             vec!["OKKKKK".to_string()]
         } else {
             match self.table_state.mode() {
@@ -380,48 +379,37 @@ impl UiApp {
         let mut rows = vec![];
         let mut hl_style = Style::default();
 
-        // let mut style_tags = vec![];
+        for (idx, entry) in entries_name.iter().enumerate() {
+            let text = self.styled_text_for_tags(entry);
+            let path = Text::from(vec![Span::styled(path, Style::default())]);
 
-        // for (idx, (entry, tags)) in entries.iter().enumerate() {}
-        for (idx, entry) in entries.keys().enumerate() {
-            let tags = entries.get(entry).unwrap();
-            for t in tags {
-                let style = self.style_for_tag(t);
-                // hl_style = hl_style.add_modifier(mods);
-                rows.push(Row::StyledData(tags.iter(), style));
-            }
+            rows.push(Row::Data(&[path, text].iter()));
+
+            // let style = Style::default();
+            // let mut mods = Modifier::empty();
+            // if idx == self.selected() {
+            //     hl_style = style;
+            //     if self.config.ui.selection_bold {
+            //         // hl_style = hl_style.add_modifier(Modifier::BOLD);
+            //         mods |= Modifier::BOLD;
+            //     }
+            //     if self.config.ui.selection_italic {
+            //         // hl_style = hl_style.add_modifier(Modifier::ITALIC);
+            //         mods |= Modifier::ITALIC;
+            //     }
+            //     if self.config.ui.selection_dim {
+            //         // hl_style = hl_style.add_modifier(Modifier::DIM);
+            //         mods |= Modifier::DIM;
+            //     }
+            //     if self.config.ui.selection_blink {
+            //         // hl_style = hl_style.add_modifier(Modifier::SLOW_BLINK);
+            //         mods |= Modifier::SLOW_BLINK;
+            //     }
+            // }
+            // hl_style = hl_style.add_modifier(mods);
+
+            // rows.push(Row::StyledData(entry.iter(), style));
         }
-
-        // for (idx, entry) in entries.iter().enumerate() {}
-
-        // for (idx, entry) in entries.keys().enumerate() {
-        //     let tags = entries.get(entry).unwrap();
-        //     for t in tags {
-        //         let style = self.style_for_tag(t);
-        //         let mut mods = Modifier::empty();
-        //         if idx == self.selected() {
-        //             hl_style = style;
-        //             if self.config.ui.selection_bold {
-        //                 // hl_style = hl_style.add_modifier(Modifier::BOLD);
-        //                 mods |= Modifier::BOLD;
-        //             }
-        //             if self.config.ui.selection_italic {
-        //                 // hl_style = hl_style.add_modifier(Modifier::ITALIC);
-        //                 mods |= Modifier::ITALIC;
-        //             }
-        //             if self.config.ui.selection_dim {
-        //                 // hl_style = hl_style.add_modifier(Modifier::DIM);
-        //                 mods |= Modifier::DIM;
-        //             }
-        //             if self.config.ui.selection_blink {
-        //                 // hl_style = hl_style.add_modifier(Modifier::SLOW_BLINK);
-        //                 mods |= Modifier::SLOW_BLINK;
-        //             }
-        //         }
-        //         hl_style = hl_style.add_modifier(mods);
-        //         rows.push(Row::StyledData(tags.iter(), style));
-        //     }
-        // }
 
         let constraints: Vec<Constraint> = widths
             .iter()
@@ -451,7 +439,7 @@ impl UiApp {
             title.insert(title.len(), Span::from(")"));
         }
 
-        let table = Table::new(header, rows.into_iter())
+        let table = Table::new(header, rows)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
@@ -514,6 +502,7 @@ impl UiApp {
     // } else if input == self.config.keys.select_all {
     //     self.table_state.multiple_selection();
     //     self.toggle_mark_all();
+
     #[allow(clippy::unnecessary_wraps)]
     pub(crate) fn handle_input(&mut self, input: Key) -> Result<()> {
         match self.mode {
@@ -572,11 +561,11 @@ impl UiApp {
     pub(crate) fn update_table_state(&mut self) {
         self.table_state.select(Some(self.current_selection));
 
-        for uuid in self.marked.clone() {
-            if self.tag_by_uuid(uuid).is_none() {
-                self.marked.remove(&uuid);
-            }
-        }
+        // for uuid in self.marked.clone() {
+        //     if self.tag_by_uuid(uuid).is_none() {
+        //         self.marked.remove(&uuid);
+        //     }
+        // }
 
         if self.marked.is_empty() {
             self.table_state.single_selection();
@@ -584,9 +573,9 @@ impl UiApp {
 
         self.table_state.clear();
 
-        for uuid in &self.marked {
-            self.table_state.mark(self.tag_index_by_uuid(*uuid));
-        }
+        // for uuid in &self.marked {
+        //     self.table_state.mark(self.tag_index_by_uuid(*uuid));
+        // }
     }
 
     /// Get the `TagRegistry`'s last modification time
@@ -633,7 +622,7 @@ impl UiApp {
         self.select(i);
         self.current_selection = i;
         self.current_selection_path = None;
-        self.current_selection_uuid = None;
+        self.current_selection_id = None;
     }
 
     /// Go to the bottom of the screen
@@ -643,7 +632,7 @@ impl UiApp {
         }
         self.select(self.registry.entries.len() - 1);
         self.current_selection = self.registry.entries.len() - 1;
-        self.current_selection_uuid = None;
+        self.current_selection_id = None;
     }
 
     /// Go to the top of the screen
@@ -653,7 +642,7 @@ impl UiApp {
         }
         self.select(0);
         self.current_selection = 0;
-        self.current_selection_uuid = None;
+        self.current_selection_id = None;
     }
 
     /// Move to next item in list
@@ -675,7 +664,7 @@ impl UiApp {
         };
         self.select(i);
         self.current_selection = i;
-        self.current_selection_uuid = None;
+        self.current_selection_id = None;
     }
 
     /// Move to previous item in list
@@ -697,7 +686,7 @@ impl UiApp {
         };
         self.select(i);
         self.current_selection = i;
-        self.current_selection_uuid = None;
+        self.current_selection_id = None;
     }
 
     /// Move to next page
@@ -724,7 +713,7 @@ impl UiApp {
         };
         self.select(i);
         self.current_selection = i;
-        self.current_selection_uuid = None;
+        self.current_selection_id = None;
     }
 
     /// Move to previous page
@@ -747,7 +736,7 @@ impl UiApp {
         };
         self.select(i);
         self.current_selection = i;
-        self.current_selection_uuid = None;
+        self.current_selection_id = None;
     }
 
     /// Fix cursor position under any errors that may arise
@@ -759,14 +748,14 @@ impl UiApp {
 
     /// Fix selection of any errors that may arrise
     pub(crate) fn selection_fix(&mut self) {
-        if let (Some(t), Some(uuid)) = (self.tag_current(), self.current_selection_uuid) {
-            if t.uuid() != &uuid {
-                if let Some(i) = self.tag_index_by_uuid(uuid) {
-                    self.current_selection = i;
-                    self.current_selection_uuid = None;
-                }
-            }
-        }
+        // if let (Some(t), Some(uuid)) = (self.tag_current(),
+        // self.current_selection_id) {     if t.uuid() != &uuid {
+        //         if let Some(i) = self.tag_index_by_uuid(uuid) {
+        //             self.current_selection = i;
+        //             self.current_selection_id = None;
+        //         }
+        //     }
+        // }
     }
 
     /// Make the selection
@@ -794,23 +783,23 @@ impl UiApp {
         )
     }
 
-    /// Current selections `Uuid`
-    pub(crate) fn selected_task_uuids(&self) -> Vec<Uuid> {
-        let selected = match self.table_state.mode() {
-            TableSelection::Single => vec![self.current_selection],
-            TableSelection::Multiple => self.table_state.marked().copied().collect::<Vec<usize>>(),
-        };
-
-        let mut uuids = vec![];
-
-        for s in selected {
-            // let id = self.tasks[s].id().unwrap_or_default();
-            let uuid = *self.registry.entries[&s].uuid();
-            uuids.push(uuid);
-        }
-
-        uuids
-    }
+    // /// Current selections `EntryId`
+    // pub(crate) fn selected_task_ids(&self) -> Vec<EntryId> {
+    //     let selected = match self.table_state.mode() {
+    //         TableSelection::Single => vec![self.current_selection],
+    //         TableSelection::Multiple =>
+    // self.table_state.marked().copied().collect::<Vec<usize>>(),     };
+    //
+    //     let mut ids = vec![];
+    //
+    //     for s in selected {
+    //         // let id = self.registry.find_entry()
+    //         // let uuid = *self.registry.entries[&s].uuid();
+    //         // uuids.push(uuid);
+    //     }
+    //
+    //     ids
+    // }
 
     /// Calculate the widths of the chunks for displaying
     pub(crate) fn calculate_widths(
@@ -821,67 +810,122 @@ impl UiApp {
     ) -> Vec<usize> {
         let mut widths = headers.iter().map(String::len).collect::<Vec<usize>>();
 
-        super::destruct_terminal();
+        // super::destruct_terminal();
 
         for entry in entries.iter() {
             for (idx, cell) in entry.iter().enumerate() {
-                println!("IDX: {:#?}, CELL: {:#?}", idx, cell);
+                // println!("IDX: {:#?}, CELL: {:#?}", idx, cell);
+                widths[idx] = std::cmp::max(cell.len(), widths[idx]);
             }
         }
 
-        // for row in entries.iter() {
-        //     for (i, cell) in row.iter().enumerate() {
-        //         widths[i] = std::cmp::max(cell.len(), widths[i]);
-        //     }
-        // }
+        // println!("WIDTH: {:#?}", widths);
 
-        std::process::exit(1);
-        // for (i, header) in headers.iter().enumerate() {
-        //     if header == "Description" || header == "Definition" {
-        //         // always give description or definition the most room to
-        // breath         widths[i] = maximum_column_width as usize;
-        //         break;
-        //     }
-        // }
-        // for (i, header) in headers.iter().enumerate() {
-        //     if header == "ID" || header == "Name" {
-        //         // always give ID a couple of extra for indicator
-        //         widths[i] +=
-        // self.config.ui.selection_indicator.as_str().width();
-        //         // if let TableMode::MultipleSelection =
-        //         // self.task_table_state.mode() {     widths[i]
-        //         // += 2 };
-        //     }
-        // }
-        //
-        // // now start trimming
-        // while (widths.iter().sum::<usize>() as u16) >= maximum_column_width -
-        // (headers.len()) as u16 {
-        //     let index = widths
-        //         .iter()
-        //         .position(|i| i == widths.iter().max().unwrap_or(&0))
-        //         .unwrap_or_default();
-        //     if widths[index] == 1 {
-        //         break;
-        //     }
-        //     widths[index] -= 1;
-        // }
-        //
-        // widths
+        for (idx, header) in headers.iter().enumerate() {
+            if header == "Tag(s)" {
+                // Give Tag(s) the maximum room to breath as it is the most variable (usually)
+                widths[idx] = maximum_column_width as usize;
+                break;
+            }
+        }
+
+        // std::process::exit(1);
+
+        for (idx, header) in headers.iter().enumerate() {
+            if header == "Filename" {
+                // Filename is first column, so add width of selection indicator
+                widths[idx] += self.config.ui.selection_indicator.as_str().width();
+            }
+        }
+
+        // now start trimming
+        while (widths.iter().sum::<usize>() as u16) >= maximum_column_width - (headers.len()) as u16
+        {
+            let index = widths
+                .iter()
+                .position(|i| i == widths.iter().max().unwrap_or(&0))
+                .unwrap_or_default();
+            if widths[index] == 1 {
+                break;
+            }
+            widths[index] -= 1;
+        }
+
+        widths
     }
 
-    /// Find a tag's `EntryData` by its' `Uuid`
-    fn tag_by_uuid(&self, uuid: Uuid) -> Option<EntryData> {
-        self.registry
-            .list_entries()
-            .find(|t| *t.uuid() == uuid)
-            .cloned()
+    // /// Find a tag's `EntryData` by its' `Uuid`
+    // fn tag_by_uuid(&self, uuid: Uuid) -> Option<EntryData> {
+    //     self.registry
+    //         .list_entries()
+    //         .find(|t| *t.uuid() == uuid)
+    //         .cloned()
+    // }
+    //
+    // fn tag_index_by_uuid(&self, uuid: Uuid) -> Option<usize> {
+    //     self.registry.list_entries().position(|t| *t.uuid() == uuid)
+    // }
+
+    /// Returns a `Text` object of every styled `Tag`
+    fn styled_text_for_tags<'a>(&self, entry: &[String]) -> Text<'a> {
+        let mut row = vec![];
+
+        let path = entry[0].clone();
+        let id = self.registry.find_entry(&path).unwrap_or_default();
+        let tags = self.registry.list_entry_tags(id).unwrap_or_default();
+
+        // let mut colored = vec![Span::styled(path, Style::default())];
+        let mut colored = vec![];
+
+        for tag in tags {
+            let mut style = Style::default();
+            let mut modifiers = Modifier::empty();
+
+            if let Some(color) = color_tui_from_fg_str(&tag.color().to_fg_str()) {
+                style = style.fg(color);
+            }
+
+            modifiers |= Modifier::BOLD;
+            style = style.add_modifier(modifiers);
+
+            colored.push(Span::styled(tag.clone().name().to_string(), style));
+        }
+
+        Text::from(row)
     }
 
-    fn tag_index_by_uuid(&self, uuid: Uuid) -> Option<usize> {
-        self.registry.list_entries().position(|t| *t.uuid() == uuid)
+    /// Returns a vector of `Style` for a vector of (`PathBuf`, ...`Tag`)
+    fn style_for_tags(&self, entry: &[String]) -> Vec<Style> {
+        let mut styles = vec![];
+
+        let id = self
+            .registry
+            .find_entry(entry[0].clone())
+            .unwrap_or_default();
+
+        let tags = self.registry.list_entry_tags(id).unwrap_or_default();
+
+        // if let Ok(color) = parse_color_tui(tag.color().to_string()) {
+        //     println!("PARSED FIRST");
+        //     style = style.fg(color);
+
+        for tag in tags {
+            let mut style = Style::default();
+            let mut modifiers = Modifier::empty();
+
+            if let Some(color) = color_tui_from_fg_str(&tag.color().to_fg_str()) {
+                style = style.fg(color);
+            }
+
+            modifiers |= Modifier::BOLD;
+            style = style.add_modifier(modifiers);
+            styles.push(style);
+        }
+
+        styles
     }
 
+    /// Return style for individual `Tag`
     fn style_for_tag(&self, tag: &Tag) -> Style {
         let mut style = Style::default();
         let mut modifiers = Modifier::empty();

@@ -16,7 +16,6 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-use uuid::Uuid;
 
 // use rayon::prelude::*;
 // use rayon::collections::hash_map;
@@ -26,8 +25,6 @@ use uuid::Uuid;
 pub(crate) struct EntryData {
     /// Path of the file entry with tags
     path: PathBuf,
-    /// UUID generated specifically for the `tui` aspect of this crate
-    uuid: Uuid,
 }
 
 impl EntryData {
@@ -35,18 +32,12 @@ impl EntryData {
     pub(crate) fn new<P: AsRef<Path>>(path: P) -> Self {
         Self {
             path: path.as_ref().to_path_buf(),
-            uuid: Uuid::new_v4(),
         }
     }
 
     /// Return the path of the `EntryData` instance
     pub(crate) fn path(&self) -> &Path {
         &self.path
-    }
-
-    /// Return the `Uuid` of the `EntryData` instance
-    pub(crate) fn uuid(&self) -> &Uuid {
-        &self.uuid
     }
 }
 
@@ -60,8 +51,7 @@ pub(crate) struct TagRegistry {
     /// Hash of the `Tag` name and the file id (`EntryId`) in which these tags
     /// are associated with
     pub(crate) tags:    BTreeMap<Tag, Vec<EntryId>>,
-    /// Hash of the file id (`EntryId`) and the entries data (`EntryData`),
-    /// which contains the `Uuid` and its' path
+    /// Hash of the file id (`EntryId`) and the entries data (`EntryData`)
     pub(crate) entries: BTreeMap<EntryId, EntryData>,
     /// Path to the `TagRegistry`
     pub(crate) path:    PathBuf,

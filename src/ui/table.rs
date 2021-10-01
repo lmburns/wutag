@@ -18,6 +18,7 @@ use tui::{
     buffer::Buffer,
     layout::{Constraint, Rect},
     style::Style,
+    text::Text,
     widgets::{Block, StatefulWidget, Widget},
 };
 use unicode_segmentation::{Graphemes, UnicodeSegmentation};
@@ -101,15 +102,96 @@ impl TableState {
     }
 }
 
-/// Holds data to be displayed in a Table widget
-#[derive(Debug, Clone)]
-pub(crate) enum Row<D>
+// /// Holds data to be displayed in a Table widget
+// #[derive(Debug, Clone)]
+// pub(crate) enum ModifiedRow<D>
+// where
+//     D: Iterator,
+//     D::Item: Display,
+// {
+//     Data(D),
+//     StyledData(D, Style),
+// }
+
+#[derive(Debug, Clone, PartialEq, Default)]
+#[allow(single_use_lifetimes)]
+pub struct Cell<'a> {
+    content: Text<'a>,
+    style:   Style,
+}
+
+impl Cell<'_> {
+    /// Set the `Style` of this cell.
+    pub fn style(mut self, style: Style) -> Self {
+        self.style = style;
+        self
+    }
+}
+
+impl<'a, T> From<T> for Cell<'a>
 where
-    D: Iterator,
-    D::Item: Display,
+    T: Into<Text<'a>>,
 {
-    Data(D),
-    StyledData(D, Style),
+    fn from(content: T) -> Cell<'a> {
+        Cell {
+            content: content.into(),
+            style:   Style::default(),
+        }
+    }
+}
+
+/// By default, a row has a height of 1 but you can change this using
+/// [`Row::height`].
+#[derive(Debug, Clone, PartialEq, Default)]
+#[allow(single_use_lifetimes)]
+pub struct Row<'a> {
+    cells:         Vec<Cell<'a>>,
+    height:        u16,
+    style:         Style,
+    bottom_margin: u16,
+}
+
+impl<'a> Row<'a> {
+    /// Creates a new [`Row`] from an iterator where items can be converted to a
+    /// [`Cell`].
+    pub fn new<T>(cells: T) -> Self
+    where
+        T: IntoIterator,
+        T::Item: Into<Cell<'a>>,
+    {
+        Self {
+            height:        1,
+            cells:         cells.into_iter().map(|c| c.into()).collect(),
+            style:         Style::default(),
+            bottom_margin: 0,
+        }
+    }
+
+    /// Set the fixed height of the [`Row`]. Any [`Cell`] whose content has more
+    /// lines than this height will see its content truncated.
+    pub fn height(mut self, height: u16) -> Self {
+        self.height = height;
+        self
+    }
+
+    /// Set the [`Style`] of the entire row. This [`Style`] can be overriden by
+    /// the [`Style`] of a any individual [`Cell`] or event by their
+    /// [`Text`] content.
+    pub fn style(mut self, style: Style) -> Self {
+        self.style = style;
+        self
+    }
+
+    /// Set the bottom margin. By default, the bottom margin is `0`.
+    pub fn bottom_margin(mut self, margin: u16) -> Self {
+        self.bottom_margin = margin;
+        self
+    }
+
+    /// Returns the total height of the row.
+    fn total_height(&self) -> u16 {
+        self.height.saturating_add(self.bottom_margin)
+    }
 }
 
 /// Table module
@@ -145,12 +227,12 @@ pub(crate) struct Table<'a, H, R> {
     rows:                    R,
 }
 
-impl<'a, H, R> Default for Table<'a, H, R>
+impl<H, R> Default for Table<'_, H, R>
 where
     H: Iterator + Default,
     R: Iterator + Default,
 {
-    fn default() -> Table<'a, H, R> {
+    fn default() -> Self {
         Table {
             block:                   None,
             style:                   Style::default(),
@@ -170,15 +252,13 @@ where
     }
 }
 
-impl<'a, H, D, R> Table<'a, H, R>
+impl<'a, H, R> Table<'a, H, R>
 where
     H: Iterator,
-    D: Iterator,
-    D::Item: Display,
-    R: Iterator<Item = Row<D>>,
+    R: IntoIterator<Item = Row<'a>>
 {
-    pub(crate) fn new(header: H, rows: R) -> Table<'a, H, R> {
-        Table {
+    pub(crate) fn new(header: H, rows: R) -> Self {
+        Self {
             block: None,
             style: Style::default(),
             header,
@@ -196,12 +276,12 @@ where
         }
     }
 
-    pub(crate) fn block(mut self, block: Block<'a>) -> Table<'a, H, R> {
+    pub(crate) fn block(mut self, block: Block<'a>) -> Self {
         self.block = Some(block);
         self
     }
 
-    pub(crate) fn header<II>(mut self, header: II) -> Table<'a, H, R>
+    pub(crate) fn header<II>(mut self, header: II) -> Self
     where
         II: IntoIterator<Item = H::Item, IntoIter = H>,
     {
@@ -209,12 +289,12 @@ where
         self
     }
 
-    pub(crate) fn header_style(mut self, style: Style) -> Table<'a, H, R> {
+    pub(crate) fn header_style(mut self, style: Style) -> Self {
         self.header_style = style;
         self
     }
 
-    pub(crate) fn widths(mut self, widths: &'a [Constraint]) -> Table<'a, H, R> {
+    pub(crate) fn widths(mut self, widths: &'a [Constraint]) -> Self {
         let between_0_and_100 = |&w| match w {
             Constraint::Percentage(p) => p <= 100,
             _ => true,
@@ -227,74 +307,67 @@ where
         self
     }
 
-    pub(crate) fn rows<II>(mut self, rows: II) -> Table<'a, H, R>
+    pub(crate) fn rows<II>(mut self, rows: II) -> Self
     where
-        II: IntoIterator<Item = Row<D>, IntoIter = R>,
+        II: IntoIterator<Item = Row<'a>, IntoIter = R>,
     {
         self.rows = rows.into_iter();
         self
     }
 
-    pub(crate) fn style(mut self, style: Style) -> Table<'a, H, R> {
+    pub(crate) fn style(mut self, style: Style) -> Self {
         self.style = style;
         self
     }
 
-    pub(crate) fn mark_symbol(mut self, mark_symbol: &'a str) -> Table<'a, H, R> {
+    pub(crate) fn mark_symbol(mut self, mark_symbol: &'a str) -> Self {
         self.mark_symbol = Some(mark_symbol);
         self
     }
 
-    pub(crate) fn unmark_symbol(mut self, unmark_symbol: &'a str) -> Table<'a, H, R> {
+    pub(crate) fn unmark_symbol(mut self, unmark_symbol: &'a str) -> Self {
         self.unmark_symbol = Some(unmark_symbol);
         self
     }
 
-    pub(crate) fn mark_highlight_symbol(
-        mut self,
-        mark_highlight_symbol: &'a str,
-    ) -> Table<'a, H, R> {
+    pub(crate) fn mark_highlight_symbol(mut self, mark_highlight_symbol: &'a str) -> Self {
         self.mark_highlight_symbol = Some(mark_highlight_symbol);
         self
     }
 
-    pub(crate) fn unmark_highlight_symbol(
-        mut self,
-        unmark_highlight_symbol: &'a str,
-    ) -> Table<'a, H, R> {
+    pub(crate) fn unmark_highlight_symbol(mut self, unmark_highlight_symbol: &'a str) -> Self {
         self.unmark_highlight_symbol = Some(unmark_highlight_symbol);
         self
     }
 
-    pub(crate) fn highlight_symbol(mut self, highlight_symbol: &'a str) -> Table<'a, H, R> {
+    pub(crate) fn highlight_symbol(mut self, highlight_symbol: &'a str) -> Self {
         self.highlight_symbol = Some(highlight_symbol);
         self
     }
 
-    pub(crate) fn highlight_style(mut self, highlight_style: Style) -> Table<'a, H, R> {
+    pub(crate) fn highlight_style(mut self, highlight_style: Style) -> Self {
         self.highlight_style = highlight_style;
         self
     }
 
-    pub(crate) fn column_spacing(mut self, spacing: u16) -> Table<'a, H, R> {
+    pub(crate) fn column_spacing(mut self, spacing: u16) -> Self {
         self.column_spacing = spacing;
         self
     }
 
-    pub(crate) fn header_gap(mut self, gap: u16) -> Table<'a, H, R> {
+    pub(crate) fn header_gap(mut self, gap: u16) -> Self {
         self.header_gap = gap;
         self
     }
 }
 
 // where I: Iterator<Item = <I as SeekingIterator>::Item> + SeekingIterator
-impl<H, D, R> StatefulWidget for Table<'_, H, R>
+// <H as Iterator>::Item: Display
+impl<'a, H, R> StatefulWidget for Table<'a, H, R>
 where
     H: Iterator,
     H::Item: Display,
-    D: Iterator,
-    D::Item: Display,
-    R: Iterator<Item = Row<D>>,
+    R: Iterator<Item = Row<'a>>,
 {
     type State = TableState;
 
@@ -370,7 +443,7 @@ where
                     *w as usize,
                     self.header_style,
                 );
-                if t.to_string() == "ID" {
+                if t.to_string() == "Filename" {
                     buf.set_stringn(
                         x,
                         y,
@@ -399,7 +472,7 @@ where
         let highlight_symbol = match state.mode {
             TableSelection::Multiple => {
                 let s = self.highlight_symbol.unwrap_or("\u{2022}").trim_end();
-                format!("{} ", s)
+                String::from(s)
             },
             TableSelection::Single => self.highlight_symbol.unwrap_or("").to_string(),
         };
@@ -408,7 +481,7 @@ where
         let mark_symbol = match state.mode {
             TableSelection::Multiple => {
                 let s = self.mark_symbol.unwrap_or("\u{2714}").trim_end();
-                format!("{} ", s)
+                String::from(s)
             },
             TableSelection::Single => self.highlight_symbol.unwrap_or("").to_string(),
         };
@@ -416,7 +489,7 @@ where
         let blank_symbol = match state.mode {
             TableSelection::Multiple => {
                 let s = self.unmark_symbol.unwrap_or(" ").trim_end();
-                format!("{} ", s)
+                String::from(s)
             },
             TableSelection::Single => " ".repeat(highlight_symbol.width()),
         };
@@ -424,7 +497,7 @@ where
         // ⦿
         let mark_highlight_symbol = {
             let s = self.mark_highlight_symbol.unwrap_or("\u{29bf}").trim_end();
-            format!("{} ", s)
+            String::from(s)
         };
 
         // ⦾
@@ -433,7 +506,7 @@ where
                 .unmark_highlight_symbol
                 .unwrap_or("\u{29be}")
                 .trim_end();
-            format!("{} ", s)
+            String::from(s)
         };
 
         // Draw rows
@@ -453,6 +526,7 @@ where
             } else {
                 0
             };
+
             for (i, row) in self.rows.skip(state.offset).take(remaining).enumerate() {
                 let (data, style, symbol) = match row {
                     Row::Data(d) | Row::StyledData(d, _)

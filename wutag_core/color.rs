@@ -135,6 +135,39 @@ pub fn parse_color<S: AsRef<str>>(color: S) -> Result<Color> {
     Err(Error::InvalidColor(color.to_string()))
 }
 
+/// Parses a [Color](cli_table::Color) from a String. If the provided string
+/// starts with `0x` or `#` or without any prefix the color will be treated as
+/// hex color notation so any colors like `0x1f1f1f` or `#ABBA12` or `121212`
+/// are valid.
+pub fn parse_color_cli_table<S: AsRef<str>>(color: S) -> Result<cli_table::Color> {
+    let color = color.as_ref();
+    macro_rules! if_6 {
+        ($c:ident) => {
+            if $c.len() == 6 {
+                Some($c)
+            } else {
+                None
+            }
+        };
+    }
+
+    let result = if let Some(c) = color.strip_prefix("0x") {
+        if_6!(c)
+    } else if let Some(c) = color.strip_prefix('#') {
+        if_6!(c)
+    } else {
+        if_6!(color)
+    };
+
+    if let Some(color) = result {
+        // hex
+        if let Some((r, g, b)) = parse_hex(color) {
+            return Ok(cli_table::Color::Rgb(r, g, b));
+        }
+    }
+    Err(Error::InvalidColor(color.to_string()))
+}
+
 /// Parses a [Color](tui::styles::Color) from a String. If the provided string
 /// starts with `0x` or `#` or without any prefix the color will be treated as
 /// hex color notation so any colors like `0x1f1f1f` or `#ABBA12` or `121212`
@@ -169,37 +202,55 @@ pub fn parse_color_tui<S: AsRef<str>>(color: S) -> Result<tui::Color> {
     Err(Error::InvalidColor(color.to_string()))
 }
 
-/// Parses a [Color](cli_table::Color) from a String. If the provided string
-/// starts with `0x` or `#` or without any prefix the color will be treated as
-/// hex color notation so any colors like `0x1f1f1f` or `#ABBA12` or `121212`
-/// are valid.
-pub fn parse_color_cli_table<S: AsRef<str>>(color: S) -> Result<cli_table::Color> {
-    let color = color.as_ref();
-    macro_rules! if_6 {
-        ($c:ident) => {
-            if $c.len() == 6 {
-                Some($c)
-            } else {
-                None
-            }
-        };
+/// Wrapper for tui widget colors
+#[derive(Clone, Copy, Debug)]
+pub struct TuiColor {
+    /// Inner tui widget color type
+    inner: tui::Color,
+}
+
+impl TuiColor {
+    /// Returns the underlying [`TuiColor`] type
+    ///
+    /// [`Color`](tui::style::Color)
+    pub fn get(self) -> tui::Color {
+        self.inner
     }
+}
 
-    let result = if let Some(c) = color.strip_prefix("0x") {
-        if_6!(c)
-    } else if let Some(c) = color.strip_prefix('#') {
-        if_6!(c)
-    } else {
-        if_6!(color)
-    };
-
-    if let Some(color) = result {
-        // hex
-        if let Some((r, g, b)) = parse_hex(color) {
-            return Ok(cli_table::Color::Rgb(r, g, b));
+impl<'a> From<&'a str> for TuiColor {
+    fn from(s: &'a str) -> Self {
+        Self {
+            inner: match s.to_ascii_lowercase().trim() {
+                "black" => tui::Color::Black,
+                "red" => tui::Color::Red,
+                "green" => tui::Color::Green,
+                "yellow" => tui::Color::Yellow,
+                "blue" => tui::Color::Blue,
+                "magenta" => tui::Color::Magenta,
+                "cyan" => tui::Color::Cyan,
+                "gray" => tui::Color::Gray,
+                "darkgray" => tui::Color::DarkGray,
+                "lightred" => tui::Color::LightRed,
+                "lightgreen" => tui::Color::LightGreen,
+                "lightyellow" => tui::Color::LightYellow,
+                "lightblue" => tui::Color::LightBlue,
+                "lightmagenta" => tui::Color::LightMagenta,
+                "lightcyan" => tui::Color::LightCyan,
+                "white" => tui::Color::White,
+                _ => match parse_color_tui(s) {
+                    Ok(rgb) => rgb,
+                    Err(_) => Self::default().get(),
+                },
+            },
         }
     }
-    Err(Error::InvalidColor(color.to_string()))
+}
+
+impl Default for TuiColor {
+    fn default() -> Self {
+        Self { inner: tui::Color::Gray }
+    }
 }
 
 #[cfg(test)]

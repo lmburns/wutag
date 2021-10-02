@@ -18,7 +18,7 @@ use tui::{
     buffer::Buffer,
     layout::{Constraint, Rect},
     style::Style,
-    text::Text,
+    text::{Span, Text},
     widgets::{Block, StatefulWidget, Widget},
 };
 use unicode_segmentation::{Graphemes, UnicodeSegmentation};
@@ -115,14 +115,20 @@ impl TableState {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 #[allow(single_use_lifetimes)]
-pub struct Cell<'a> {
+pub(crate) struct Cell<'a> {
     content: Text<'a>,
     style:   Style,
 }
 
+// impl Display for Cell<'_> {
+//     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+//         write!(f, "{}", self.content.lines)
+//     }
+// }
+
 impl Cell<'_> {
     /// Set the `Style` of this cell.
-    pub fn style(mut self, style: Style) -> Self {
+    pub(crate) fn style(mut self, style: Style) -> Self {
         self.style = style;
         self
     }
@@ -144,24 +150,32 @@ where
 /// [`Row::height`].
 #[derive(Debug, Clone, PartialEq, Default)]
 #[allow(single_use_lifetimes)]
-pub struct Row<'a> {
+pub(crate) struct Row<'a> {
     cells:         Vec<Cell<'a>>,
     height:        u16,
     style:         Style,
     bottom_margin: u16,
 }
 
+// impl<'a> Iterator for Row<'a> {
+//     type Item = Cell<'a>;
+//
+//     fn next(&mut self) -> Option<Self::Item> {
+//         self.cells.iter().next().map(|s| *s)
+//     }
+// }
+
 impl<'a> Row<'a> {
     /// Creates a new [`Row`] from an iterator where items can be converted to a
     /// [`Cell`].
-    pub fn new<T>(cells: T) -> Self
+    pub(crate) fn new<T>(cells: T) -> Self
     where
         T: IntoIterator,
         T::Item: Into<Cell<'a>>,
     {
         Self {
             height:        1,
-            cells:         cells.into_iter().map(|c| c.into()).collect(),
+            cells:         cells.into_iter().map(Into::into).collect(),
             style:         Style::default(),
             bottom_margin: 0,
         }
@@ -169,7 +183,7 @@ impl<'a> Row<'a> {
 
     /// Set the fixed height of the [`Row`]. Any [`Cell`] whose content has more
     /// lines than this height will see its content truncated.
-    pub fn height(mut self, height: u16) -> Self {
+    pub(crate) fn height(mut self, height: u16) -> Self {
         self.height = height;
         self
     }
@@ -177,13 +191,13 @@ impl<'a> Row<'a> {
     /// Set the [`Style`] of the entire row. This [`Style`] can be overriden by
     /// the [`Style`] of a any individual [`Cell`] or event by their
     /// [`Text`] content.
-    pub fn style(mut self, style: Style) -> Self {
+    pub(crate) fn style(mut self, style: Style) -> Self {
         self.style = style;
         self
     }
 
     /// Set the bottom margin. By default, the bottom margin is `0`.
-    pub fn bottom_margin(mut self, margin: u16) -> Self {
+    pub(crate) fn bottom_margin(mut self, margin: u16) -> Self {
         self.bottom_margin = margin;
         self
     }
@@ -196,7 +210,7 @@ impl<'a> Row<'a> {
 
 /// Table module
 #[derive(Debug, Clone)]
-pub(crate) struct Table<'a, H, R> {
+pub(crate) struct Table<'a, H> {
     /// A block to wrap the widget in
     block:                   Option<Block<'a>>,
     /// Base style for the widget
@@ -224,13 +238,12 @@ pub(crate) struct Table<'a, H, R> {
     /// Symbol in front of the unmarked and selected row
     unmark_highlight_symbol: Option<&'a str>,
     /// Data to display in each row
-    rows:                    R,
+    rows:                    Vec<Row<'a>>,
 }
 
-impl<H, R> Default for Table<'_, H, R>
+impl<H> Default for Table<'_, H>
 where
     H: Iterator + Default,
-    R: Iterator + Default,
 {
     fn default() -> Self {
         Table {
@@ -247,17 +260,19 @@ where
             unmark_symbol:           None,
             mark_highlight_symbol:   None,
             unmark_highlight_symbol: None,
-            rows:                    R::default(),
+            rows:                    Vec::new(),
         }
     }
 }
 
-impl<'a, H, R> Table<'a, H, R>
+impl<'a, H> Table<'a, H>
 where
     H: Iterator,
-    R: IntoIterator<Item = Row<'a>>
 {
-    pub(crate) fn new(header: H, rows: R) -> Self {
+    pub(crate) fn new<R>(header: H, rows: R) -> Self
+    where
+        R: IntoIterator<Item = Row<'a>>,
+    {
         Self {
             block: None,
             style: Style::default(),
@@ -272,7 +287,7 @@ where
             unmark_symbol: None,
             mark_highlight_symbol: None,
             unmark_highlight_symbol: None,
-            rows,
+            rows: rows.into_iter().collect(),
         }
     }
 
@@ -307,11 +322,11 @@ where
         self
     }
 
-    pub(crate) fn rows<II>(mut self, rows: II) -> Self
+    pub(crate) fn rows<R>(mut self, rows: R) -> Self
     where
-        II: IntoIterator<Item = Row<'a>, IntoIter = R>,
+        R: IntoIterator<Item = Row<'a>>,
     {
-        self.rows = rows.into_iter();
+        self.rows = rows.into_iter().collect();
         self
     }
 
@@ -361,13 +376,10 @@ where
     }
 }
 
-// where I: Iterator<Item = <I as SeekingIterator>::Item> + SeekingIterator
-// <H as Iterator>::Item: Display
-impl<'a, H, R> StatefulWidget for Table<'a, H, R>
+impl<H> StatefulWidget for Table<'_, H>
 where
     H: Iterator,
     H::Item: Display,
-    R: Iterator<Item = Row<'a>>,
 {
     type State = TableState;
 
@@ -462,7 +474,8 @@ where
         y += 1 + self.header_gap;
 
         // Use highlight_style only if something is selected
-        let (selected, highlight_style) = if state.current_selection().is_some() {
+        let is_selected = state.current_selection().is_some();
+        let (selected, highlight_style) = if is_selected {
             (state.current_selection(), self.highlight_style)
         } else {
             (None, self.style)
@@ -527,93 +540,151 @@ where
                 0
             };
 
-            for (i, row) in self.rows.skip(state.offset).take(remaining).enumerate() {
-                let (data, style, symbol) = match row {
-                    Row::Data(d) | Row::StyledData(d, _)
-                        if Some(i) == state.current_selection().map(|s| s - state.offset) =>
+            for (i, row) in self
+                .rows
+                .into_iter()
+                .skip(state.offset)
+                .take(remaining)
+                .enumerate()
+            {
+                // println!("ROW: {:#?}", row);
+
+                buf.set_style(area, row.style);
+
+                let symbol = {
+                    if Some(i) == state.current_selection().map(|s| s - state.offset) {
                         match state.mode {
                             TableSelection::Multiple => {
                                 if state.marked.contains(&(i + state.offset)) {
-                                    (d, highlight_style, mark_highlight_symbol.to_string())
+                                    mark_highlight_symbol.to_string()
                                 } else {
-                                    (d, highlight_style, unmark_highlight_symbol.to_string())
+                                    unmark_highlight_symbol.to_string()
                                 }
                             },
-                            TableSelection::Single =>
-                                (d, highlight_style, highlight_symbol.to_string()),
-                        },
-                    Row::Data(d) =>
-                        if state.marked.contains(&(i + state.offset)) {
-                            (d, default_style, mark_symbol.to_string())
-                        } else {
-                            (d, default_style, blank_symbol.to_string())
-                        },
-                    Row::StyledData(d, s) =>
-                        if state.marked.contains(&(i + state.offset)) {
-                            (d, s, mark_symbol.to_string())
-                        } else {
-                            (d, s, blank_symbol.to_string())
-                        },
-                };
-                x = table_area.left();
-                for (c, (w, elt)) in solved_widths.iter().zip(data).enumerate() {
-                    let s = if c == 0 {
-                        buf.set_stringn(
-                            x,
-                            y + i as u16,
-                            format!("{symbol:^width$}", symbol = "", width = area.width as usize),
-                            *w as usize,
-                            style,
-                        );
-                        if c == header_index {
-                            #[allow(clippy::match_same_arms)]
-                            let symbol = match state.mode {
-                                TableSelection::Single => &symbol,
-                                TableSelection::Multiple => &symbol,
-                            };
-                            format!(
-                                "{symbol}{elt:>width$}",
-                                symbol = symbol,
-                                elt = elt,
-                                width = (*w as usize).saturating_sub(symbol.to_string().width())
-                            )
-                        } else {
-                            format!(
-                                "{symbol}{elt:<width$}",
-                                symbol = symbol,
-                                elt = elt,
-                                width = (*w as usize).saturating_sub(symbol.to_string().width())
-                            )
+                            TableSelection::Single => highlight_symbol.to_string(),
                         }
+                    } else if state.marked.contains(&(i + state.offset)) {
+                        mark_symbol.to_string()
                     } else {
-                        buf.set_stringn(
-                            x - 1,
-                            y + i as u16,
-                            format!("{symbol:^width$}", symbol = "", width = area.width as usize),
-                            *w as usize + 1,
-                            style,
-                        );
-                        if c == header_index {
-                            format!("{elt:>width$}", elt = elt, width = *w as usize)
-                        } else {
-                            format!("{elt:<width$}", elt = elt, width = *w as usize)
+                        blank_symbol.to_string()
+                    }
+                };
+
+                let style = highlight_style;
+
+                x = table_area.left();
+
+                // Cell { content: Text { lines: [ Spans [ Span {} ]],  }, style: Style {} }
+                for (oidx, (w, cell)) in solved_widths.iter().zip(row.cells).enumerate() {
+                    buf.set_style(area, cell.style);
+
+                    // Spans { content: "tag name", style: Style { fg: Some(color) } }
+                    for (idx, spans) in cell.content.lines.iter().enumerate() {
+                        if idx as u16 >= area.height {
+                            break;
                         }
-                    };
-                    buf.set_stringn(x, y + i as u16, s, *w as usize, style);
+
+                        let mut remaining_width = *w;
+                        let mut x = x;
+                        let span_length = spans.0.len();
+
+                        for (ii, span) in spans.0.iter().enumerate() {
+                            if remaining_width == 0 {
+                                break;
+                            }
+
+                            let pos = if oidx == 0 {
+                                // Filename
+                                buf.set_stringn(
+                                    x,
+                                    y + i as u16,
+                                    format!(
+                                        "{symbol:^width$}",
+                                        symbol = "",
+                                        width = area.width as usize
+                                    ),
+                                    remaining_width as usize,
+                                    span.style,
+                                );
+                                buf.set_stringn(
+                                    x,
+                                    y + i as u16,
+                                    if oidx == header_index {
+                                        #[allow(clippy::match_same_arms)]
+                                        let symbol = match state.mode {
+                                            TableSelection::Single => &symbol,
+                                            TableSelection::Multiple => &symbol,
+                                        };
+                                        format!(
+                                            "{symbol}{cont:>width$}",
+                                            symbol = symbol,
+                                            cont = span.content.as_ref(),
+                                            width = (remaining_width as usize)
+                                                .saturating_sub(symbol.to_string().width())
+                                        )
+                                    } else {
+                                        format!(
+                                            "{symbol}{cont:<width$}",
+                                            symbol = symbol,
+                                            cont = span.content.as_ref(),
+                                            width = (remaining_width as usize)
+                                                .saturating_sub(symbol.to_string().width())
+                                        )
+                                    },
+                                    remaining_width as usize,
+                                    span.style,
+                                )
+                            } else if span_length > 1 && ii < span_length {
+                                // If tags are greater than one and it's not the last
+                                buf.set_stringn(
+                                    x,
+                                    y + i as u16,
+                                    format!("{} ", span.content.as_ref()),
+                                    (remaining_width as usize)
+                                        .saturating_sub(" ".to_string().width()),
+                                    span.style,
+                                )
+                            } else {
+                                // If it's a single tag or the last tag
+                                buf.set_stringn(
+                                    x,
+                                    y + i as u16,
+                                    span.content.as_ref(),
+                                    remaining_width as usize,
+                                    span.style,
+                                )
+                            };
+
+                            let new_w = pos.0.saturating_sub(x);
+                            x = pos.0;
+                            remaining_width = remaining_width.saturating_sub(new_w);
+                        }
+                    }
+
                     x += *w + self.column_spacing;
+                }
+                if is_selected {
+                    buf.set_style(area, highlight_style);
                 }
             }
         }
     }
 }
 
-impl<H, D, R> Widget for Table<'_, H, R>
+// fn render_cell(buf: &mut Buffer, cell: &Cell, area: Rect) {
+//     buf.set_style(area, cell.style);
+//     for (i, spans) in cell.content.lines.iter().enumerate() {
+//         if i as u16 >= area.height {
+//             break;
+//         }
+//         buf.set_spans(area.x, area.y + i as u16, spans, area.width);
+//     }
+// }
+
+impl<H> Widget for Table<'_, H>
 where
     H: Iterator,
     H::Item: Display,
-    D: Iterator,
-    D::Item: Display,
-    R: Iterator<Item = Row<D>>,
 {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let mut state = TableState::default();

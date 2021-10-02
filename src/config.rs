@@ -8,7 +8,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::ui::event::Key;
+use crate::ui::{event::Key, style::TuiStyle};
+use wutag_core::color::TuiColor;
 
 const CONFIG_FILE: &str = "wutag.yml";
 
@@ -38,6 +39,9 @@ pub(crate) struct UiConfig {
     pub(crate) selection_italic:    bool,
     pub(crate) selection_dim:       bool,
     pub(crate) selection_blink:     bool,
+    pub(crate) paths_bold:          bool,
+    pub(crate) paths_color:         String,
+    pub(crate) colored_ui:          bool,
 }
 
 /// UI Key configuration
@@ -105,6 +109,9 @@ impl Default for UiConfig {
             selection_italic:    false,
             selection_dim:       false,
             selection_blink:     false,
+            paths_bold:          true,
+            paths_color:         String::from("blue"),
+            colored_ui:          true,
         }
     }
 }

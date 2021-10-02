@@ -1,5 +1,6 @@
 #![allow(unused)]
 pub(crate) mod event;
+pub(crate) mod style;
 pub(crate) mod table;
 pub(crate) mod ui_app;
 
@@ -53,6 +54,13 @@ pub(crate) fn destruct_terminal() {
     terminal::disable_raw_mode().unwrap();
     execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture).unwrap();
     execute!(io::stdout(), cursor::Show).unwrap();
+}
+
+/// Used with print statements for debugging purposes
+pub(crate) fn dump_and_exit<F: FnOnce() + Send>(f: F) {
+    destruct_terminal();
+    f();
+    std::process::exit(1);
 }
 
 /// Start the UI interface

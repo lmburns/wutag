@@ -1,6 +1,9 @@
 #![allow(unused)]
 #![allow(clippy::unused_self)]
 
+// TODO: ListItem
+// TODO: Dim selection
+
 use anyhow::{anyhow, Context, Result};
 use colored::{ColoredString, Colorize};
 use std::{
@@ -26,12 +29,13 @@ use rustyline_derive::Helper;
 use unicode_segmentation::{Graphemes, UnicodeSegmentation};
 use unicode_width::UnicodeWidthStr;
 use wutag_core::{
-    color::{color_tui_from_fg_str, parse_color_tui},
+    color::{color_tui_from_fg_str, parse_color_tui, TuiColor},
     tag::Tag,
 };
 
 use super::{
     event::Key,
+    style::TuiStyle,
     table::{Row, Table, TableSelection, TableState},
 };
 
@@ -83,27 +87,28 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 #[derive(Debug)]
 pub(crate) struct UiApp {
     pub(crate) config:                 Config,
-    pub(crate) registry:               TagRegistry,
-    pub(crate) should_quit:            bool,
-    pub(crate) dirty:                  bool,
-    pub(crate) terminal_width:         u16,
-    pub(crate) terminal_height:        u16,
-    pub(crate) table_state:            TableState,
-    pub(crate) mode:                   AppMode,
+    pub(crate) current_context:        String,
+    pub(crate) current_context_filter: String,
     pub(crate) current_selection:      usize,
     pub(crate) current_selection_id:   Option<EntryId>,
     pub(crate) current_selection_path: Option<PathBuf>,
-    pub(crate) current_context_filter: String,
-    pub(crate) current_context:        String,
-    pub(crate) list_state:             ListState,
+    pub(crate) dirty:                  bool,
+    pub(crate) error:                  String,
     pub(crate) file_details:           HashMap<EntryId, String>, // TODO: Show a stat command
-    pub(crate) preview_file:           bool,                     // TODO: Show a file preview
-    pub(crate) preview_height:         u16,
-    pub(crate) marked:                 HashSet<EntryId>,
     pub(crate) filter:                 LineBuffer,
+    pub(crate) colored:             bool,
     pub(crate) last_export:            Option<SystemTime>,
     pub(crate) list_height:            u16,
-    pub(crate) error:                  String,
+    pub(crate) list_state:             ListState,
+    pub(crate) marked:                 HashSet<EntryId>,
+    pub(crate) mode:                   AppMode,
+    pub(crate) preview_file:           bool, // TODO: Show a file preview
+    pub(crate) preview_height:         u16,
+    pub(crate) registry:               TagRegistry,
+    pub(crate) should_quit:            bool,
+    pub(crate) table_state:            TableState,
+    pub(crate) terminal_height:        u16,
+    pub(crate) terminal_width:         u16,
 }
 
 /// Mode that application is in
@@ -125,27 +130,28 @@ impl UiApp {
 
         let mut uiapp = Self {
             config:                 c,
-            registry:               reg,
-            table_state:            TableState::default(),
-            should_quit:            false,
-            dirty:                  false,
-            terminal_width:         w,
-            terminal_height:        h,
-            mode:                   AppMode::WutagList,
+            current_context:        String::from(""),
+            current_context_filter: String::from(""),
             current_selection:      state.selected().unwrap_or(0),
             current_selection_id:   None,
             current_selection_path: None,
-            current_context_filter: String::from(""),
-            current_context:        String::from(""),
-            list_state:             state,
+            dirty:                  false,
+            error:                  String::from(""),
             file_details:           HashMap::new(),
-            preview_file:           false,
-            preview_height:         0,
-            marked:                 HashSet::new(),
             filter:                 LineBuffer::with_capacity(MAX_LINE),
+            colored:             true,
             last_export:            None,
             list_height:            0,
-            error:                  String::from(""),
+            list_state:             state,
+            marked:                 HashSet::new(),
+            mode:                   AppMode::WutagList,
+            preview_file:           false,
+            preview_height:         0,
+            registry:               reg,
+            should_quit:            false,
+            table_state:            TableState::default(),
+            terminal_height:        h,
+            terminal_width:         w,
         };
 
         Ok(uiapp)
@@ -253,6 +259,7 @@ impl UiApp {
                 },
             }
         };
+
         match self.mode {
             AppMode::WutagList => self.draw_command(
                 f,
@@ -316,7 +323,7 @@ impl UiApp {
         let headers = vec!["Filename", "Tag(s)"]
             .iter()
             .map(ToString::to_string)
-            .collect::<Vec<String>>();
+            .collect::<Vec<_>>();
 
         if entries.is_empty() {
             let mut style = Style::default();
@@ -380,10 +387,18 @@ impl UiApp {
         let mut hl_style = Style::default();
 
         for (idx, entry) in entries_name.iter().enumerate() {
-            let text = self.styled_text_for_tags(entry);
-            let path = Text::from(vec![Span::styled(path, Style::default())]);
+            rows.push(Row::new(vec![
+                Text::from(Spans::from(vec![Span::styled(
+                    entry[0].clone(),
+                    Style::default()
+                        .fg(Color::Blue)
+                        .add_modifier(Modifier::BOLD),
+                )])),
+                self.styled_text_for_tags(entry),
+            ]));
 
-            rows.push(Row::Data(&[path, text].iter()));
+            // Spans::from(vec![Span::styled(line.to_string(),
+            // highlight_style)])
 
             // let style = Style::default();
             // let mut mods = Modifier::empty();
@@ -402,7 +417,8 @@ impl UiApp {
             //         mods |= Modifier::DIM;
             //     }
             //     if self.config.ui.selection_blink {
-            //         // hl_style = hl_style.add_modifier(Modifier::SLOW_BLINK);
+            //         // hl_style =
+            // hl_style.add_modifier(Modifier::SLOW_BLINK);
             //         mods |= Modifier::SLOW_BLINK;
             //     }
             // }
@@ -417,6 +433,7 @@ impl UiApp {
             .collect();
 
         let mut style = Style::default();
+
         match self.mode {
             AppMode::WutagList => style = style.add_modifier(Modifier::BOLD),
             AppMode::WutagError => style = style.add_modifier(Modifier::DIM),
@@ -425,7 +442,16 @@ impl UiApp {
         let mut title = vec![
             // Span::styled("Tag", style),
             // Span::from("  |  "),
-            Span::styled("Wutag", Style::default().add_modifier(Modifier::DIM)),
+            Span::styled(
+                "Wutag",
+                if self.colored {
+                    Style::default()
+                        .add_modifier(Modifier::BOLD)
+                        .fg(Color::Rgb(239, 29, 85))
+                } else {
+                    Style::default()
+                },
+            ),
         ];
 
         if !self.current_context.is_empty() {
@@ -832,6 +858,7 @@ impl UiApp {
         // std::process::exit(1);
 
         for (idx, header) in headers.iter().enumerate() {
+            // TODO: What's this do?
             if header == "Filename" {
                 // Filename is first column, so add width of selection indicator
                 widths[idx] += self.config.ui.selection_indicator.as_str().width();
@@ -890,6 +917,8 @@ impl UiApp {
 
             colored.push(Span::styled(tag.clone().name().to_string(), style));
         }
+
+        row.push(Spans::from(colored));
 
         Text::from(row)
     }

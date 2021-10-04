@@ -30,18 +30,18 @@ pub(crate) struct Config {
 /// UI general configuration
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub(crate) struct UiConfig {
-    pub(crate) tick_rate:           u64,
+    pub(crate) colored_ui:          bool,
     pub(crate) looping:             bool,
-    pub(crate) selection_indicator: String,
     pub(crate) mark_indicator:      String,
-    pub(crate) unmark_indicator:    String,
-    pub(crate) selection_bold:      bool,
-    pub(crate) selection_italic:    bool,
-    pub(crate) selection_dim:       bool,
-    pub(crate) selection_blink:     bool,
     pub(crate) paths_bold:          bool,
     pub(crate) paths_color:         String,
-    pub(crate) colored_ui:          bool,
+    pub(crate) selection_blink:     bool,
+    pub(crate) selection_bold:      bool,
+    pub(crate) selection_dim:       bool,
+    pub(crate) selection_indicator: String,
+    pub(crate) selection_italic:    bool,
+    pub(crate) tick_rate:           u64,
+    pub(crate) unmark_indicator:    String,
 }
 
 /// UI Key configuration
@@ -58,6 +58,7 @@ pub(crate) struct KeyConfig {
     pub(crate) select:       Key,
     pub(crate) select_all:   Key,
     pub(crate) refresh:      Key,
+    pub(crate) help:         Key,
 
     // Actions to tags
     pub(crate) add:     Key,
@@ -93,6 +94,7 @@ impl Default for KeyConfig {
             copy:         Key::Char('y'),
             clear:        Key::Char('D'),
             preview:      Key::Char('P'),
+            help:         Key::Char('?'),
         }
     }
 }

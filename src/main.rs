@@ -1,3 +1,6 @@
+#![feature(adt_const_params)]
+#![allow(incomplete_features)]
+
 #![deny(
     clippy::all,
     clippy::correctness,
@@ -50,7 +53,8 @@
     clippy::doc_markdown,
     clippy::single_match_else,
     clippy::cast_possible_truncation,
-    clippy::cast_sign_loss
+    clippy::cast_sign_loss,
+    clippy::upper_case_acronyms
 )]
 
 mod comp_helper;

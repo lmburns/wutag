@@ -3,6 +3,9 @@ pub(crate) mod event;
 pub(crate) mod style;
 pub(crate) mod table;
 pub(crate) mod ui_app;
+pub(crate) mod keybindings;
+pub(crate) mod list;
+pub(crate) mod context;
 
 pub(crate) use event::{Event, EventConfig, Events};
 pub(crate) use ui_app::AppMode;
@@ -82,14 +85,14 @@ pub(crate) fn start_ui(cli_app: &App, config: Config, registry: TagRegistry) -> 
         app.render(cli_app, &mut terminal).unwrap();
         match events.next().map_err(Error::Recv)? {
             Event::Input(input) => {
-                if input == app.config.keys.edit && app.mode == AppMode::WutagList {
+                if input == app.config.keys.edit && app.mode == AppMode::List {
                     events.leave_tui_mode(&mut terminal);
                 }
 
                 let res = app.handle_input(input);
 
-                if input == app.config.keys.edit && app.mode == AppMode::WutagList
-                    || app.mode == AppMode::WutagError
+                if input == app.config.keys.edit && app.mode == AppMode::List
+                    || app.mode == AppMode::Error
                 {
                     events.enter_tui_mode(&mut terminal);
                 }

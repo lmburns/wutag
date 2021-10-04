@@ -16,7 +16,7 @@ use std::{
 };
 use tui::{
     buffer::Buffer,
-    layout::{Constraint, Rect},
+    layout::{Alignment, Constraint, Rect},
     style::Style,
     text::{Span, Text},
     widgets::{Block, StatefulWidget, Widget},
@@ -219,6 +219,8 @@ pub(crate) struct Table<'a, H> {
     header:                  H,
     /// Style for the header
     header_style:            Style,
+    /// Alignment for the header
+    header_alignment:        Alignment,
     /// Width constraints for each column
     widths:                  &'a [Constraint],
     /// Space between each column
@@ -251,6 +253,7 @@ where
             style:                   Style::default(),
             header:                  H::default(),
             header_style:            Style::default(),
+            header_alignment:        Alignment::Left,
             widths:                  &[],
             column_spacing:          1,
             header_gap:              1,
@@ -278,6 +281,7 @@ where
             style: Style::default(),
             header,
             header_style: Style::default(),
+            header_alignment: Alignment::Left,
             widths: &[],
             column_spacing: 1,
             header_gap: 1,
@@ -291,11 +295,13 @@ where
         }
     }
 
+    /// Change/set block that is used to outline the table
     pub(crate) fn block(mut self, block: Block<'a>) -> Self {
         self.block = Some(block);
         self
     }
 
+    /// Change/set header text (below title)
     pub(crate) fn header<II>(mut self, header: II) -> Self
     where
         II: IntoIterator<Item = H::Item, IntoIter = H>,
@@ -304,11 +310,19 @@ where
         self
     }
 
+    /// Change/set header display style
     pub(crate) fn header_style(mut self, style: Style) -> Self {
         self.header_style = style;
         self
     }
 
+    /// Change/set alignment of the header
+    pub(crate) fn header_alignment(mut self, alignment: Alignment) -> Self {
+        self.header_alignment = alignment;
+        self
+    }
+
+    /// TODO:
     pub(crate) fn widths(mut self, widths: &'a [Constraint]) -> Self {
         let between_0_and_100 = |&w| match w {
             Constraint::Percentage(p) => p <= 100,
@@ -322,6 +336,7 @@ where
         self
     }
 
+    /// Change rows of the table
     pub(crate) fn rows<R>(mut self, rows: R) -> Self
     where
         R: IntoIterator<Item = Row<'a>>,
@@ -330,46 +345,60 @@ where
         self
     }
 
+    /// Change overall table style
     pub(crate) fn style(mut self, style: Style) -> Self {
         self.style = style;
         self
     }
 
+    /// Change symbol that indicates item is selected
     pub(crate) fn mark_symbol(mut self, mark_symbol: &'a str) -> Self {
         self.mark_symbol = Some(mark_symbol);
         self
     }
 
+    // TODO: check
+    /// Change highlight symbol, used to indicate that item is selected in
+    /// multi-selection mode
     pub(crate) fn unmark_symbol(mut self, unmark_symbol: &'a str) -> Self {
         self.unmark_symbol = Some(unmark_symbol);
         self
     }
 
+    // TODO: check
+    /// Change highlight symbol, used to indicate that item is selected in
+    /// multi-selection mode
     pub(crate) fn mark_highlight_symbol(mut self, mark_highlight_symbol: &'a str) -> Self {
         self.mark_highlight_symbol = Some(mark_highlight_symbol);
         self
     }
 
+    // TODO: check
+    /// Change highlight symbol, used to indicate that item is not selected
     pub(crate) fn unmark_highlight_symbol(mut self, unmark_highlight_symbol: &'a str) -> Self {
         self.unmark_highlight_symbol = Some(unmark_highlight_symbol);
         self
     }
 
+    /// Change highlight symbol, used to indicate that item is selected
     pub(crate) fn highlight_symbol(mut self, highlight_symbol: &'a str) -> Self {
         self.highlight_symbol = Some(highlight_symbol);
         self
     }
 
+    /// Change highlight style when item is selected
     pub(crate) fn highlight_style(mut self, highlight_style: Style) -> Self {
         self.highlight_style = highlight_style;
         self
     }
 
+    /// Change space between columns of data (filename and tags)
     pub(crate) fn column_spacing(mut self, spacing: u16) -> Self {
         self.column_spacing = spacing;
         self
     }
 
+    /// Change size of vertical gap between the header and the data
     pub(crate) fn header_gap(mut self, gap: u16) -> Self {
         self.header_gap = gap;
         self
@@ -451,22 +480,34 @@ where
                 buf.set_stringn(
                     x,
                     y,
-                    format!("{symbol:>width$}", symbol = " ", width = *w as usize),
+                    match self.header_alignment {
+                        Alignment::Left =>
+                            format!("{symbol:>width$}", symbol = " ", width = *w as usize),
+                        Alignment::Center =>
+                            format!("{symbol:^width$}", symbol = " ", width = *w as usize),
+                        Alignment::Right =>
+                            format!("{symbol:<width$}", symbol = " ", width = *w as usize),
+                    },
                     *w as usize,
                     self.header_style,
                 );
-                if t.to_string() == "Filename" {
-                    buf.set_stringn(
-                        x,
-                        y,
-                        format!("{symbol:>width$}", symbol = t, width = *w as usize),
-                        *w as usize,
-                        self.header_style,
-                    );
-                    header_index = index;
-                } else {
-                    buf.set_stringn(x, y, format!("{}", t), *w as usize, self.header_style);
-                }
+                buf.set_stringn(
+                    x,
+                    y,
+                    match self.header_alignment {
+                        Alignment::Left =>
+                            format!("{symbol:>width$}", symbol = t, width = *w as usize),
+                        Alignment::Center =>
+                            format!("{symbol:^width$}", symbol = t, width = *w as usize),
+                        Alignment::Right =>
+                            format!("{symbol:<width$}", symbol = t, width = *w as usize),
+                    },
+                    *w as usize,
+                    self.header_style,
+                );
+                // buf.set_stringn(x, y, format!("{}", t), *w as usize, self.header_style);
+
+                header_index = index;
                 x += *w + self.column_spacing;
                 index += 1;
             }
@@ -484,6 +525,7 @@ where
         // •
         let highlight_symbol = match state.mode {
             TableSelection::Multiple => {
+                // This format of let s = ... is much easier to read IMO
                 let s = self.highlight_symbol.unwrap_or("\u{2022}").trim_end();
                 String::from(s)
             },
@@ -547,8 +589,6 @@ where
                 .take(remaining)
                 .enumerate()
             {
-                // println!("ROW: {:#?}", row);
-
                 buf.set_style(area, row.style);
 
                 let symbol = {
@@ -635,7 +675,7 @@ where
                                     span.style,
                                 )
                             } else if span_length > 1 && ii < span_length {
-                                // If tags are greater than one and it's not the last
+                                // If tag length is greater than one and it's not the last
                                 buf.set_stringn(
                                     x,
                                     y + i as u16,

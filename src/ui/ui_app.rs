@@ -8,8 +8,8 @@ use anyhow::{anyhow, Context, Result};
 use colored::{ColoredString, Colorize};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
-    convert::TryInto,
-    fs, io,
+    convert::{TryFrom, TryInto},
+    env, fs, io,
     path::{Path, PathBuf},
     time::{Duration, SystemTime},
 };
@@ -24,6 +24,7 @@ use tui::{
     Terminal,
 };
 
+use once_cell::sync::Lazy;
 use rustyline::{line_buffer::LineBuffer, At, Editor, Word};
 use rustyline_derive::Helper;
 use unicode_segmentation::{Graphemes, UnicodeSegmentation};
@@ -35,6 +36,8 @@ use wutag_core::{
 
 use super::{
     event::Key,
+    keybindings::{Keybinding, KEYBINDINGS},
+    list::StatefulList,
     style::TuiStyle,
     table::{Row, Table, TableSelection, TableState},
 };
@@ -48,6 +51,14 @@ use crate::{
 
 const MAX_LINE: usize = 4096;
 
+const PINK: [u8; 3] = [239, 29, 85];
+const DARK_PINK: [u8; 3] = [152, 103, 106];
+const DARK_BLUE: [u8; 3] = [76, 150, 168];
+const YELLOW: [u8; 3] = [255, 149, 0];
+const ORANGE: [u8; 3] = [255, 88, 19];
+const GREEN: [u8; 3] = [129, 156, 59];
+const FG: [u8; 3] = [217, 174, 128];
+
 /// Errors used within the UI module of this crate
 #[derive(Debug, Error)]
 pub(crate) enum Error {
@@ -56,7 +67,9 @@ pub(crate) enum Error {
     IOError(#[source] io::Error),
 }
 
-// Helper functions
+// === Helper functions ===
+
+/// Draw a popup rectangle in the center of the screen
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
@@ -85,18 +98,21 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 
 /// UI aspect of this App
 #[derive(Debug)]
-pub(crate) struct UiApp {
+pub(crate) struct UiApp<'a> {
     pub(crate) config:                 Config,
     pub(crate) current_context:        String,
     pub(crate) current_context_filter: String,
     pub(crate) current_selection:      usize,
     pub(crate) current_selection_id:   Option<EntryId>,
     pub(crate) current_selection_path: Option<PathBuf>,
+    pub(crate) current_directory:      String,
     pub(crate) dirty:                  bool,
     pub(crate) error:                  String,
     pub(crate) file_details:           HashMap<EntryId, String>, // TODO: Show a stat command
     pub(crate) filter:                 LineBuffer,
-    pub(crate) colored:             bool,
+    pub(crate) colored:                bool,
+    pub(crate) paths_color:            Color,
+    pub(crate) keybindings:            StatefulList<Keybinding<'a>>,
     pub(crate) last_export:            Option<SystemTime>,
     pub(crate) list_height:            u16,
     pub(crate) list_state:             ListState,
@@ -114,12 +130,13 @@ pub(crate) struct UiApp {
 /// Mode that application is in
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub(crate) enum AppMode {
-    WutagList,
-    WutagError,
+    List,
+    Error,
+    Help,
     // WutagRemove,
 }
 
-impl UiApp {
+impl UiApp<'_> {
     /// Create a new instance of the `UiApp`
     pub(crate) fn new(c: Config, reg: TagRegistry) -> Result<Self> {
         let (w, h) = crossterm::terminal::size()?;
@@ -128,6 +145,19 @@ impl UiApp {
             state.select(Some(0));
         }
 
+        let parsed_color = parse_color_tui(c.clone().ui.paths_color).unwrap_or_else(|_| {
+            if let Some(color) = c.clone().base_color {
+                parse_color_tui(color).unwrap_or(Color::Blue)
+            } else {
+                Color::Blue
+            }
+        });
+
+        let cwd = env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
+            .display()
+            .to_string();
+
         let mut uiapp = Self {
             config:                 c,
             current_context:        String::from(""),
@@ -135,16 +165,18 @@ impl UiApp {
             current_selection:      state.selected().unwrap_or(0),
             current_selection_id:   None,
             current_selection_path: None,
+            current_directory:      cwd,
             dirty:                  false,
             error:                  String::from(""),
             file_details:           HashMap::new(),
             filter:                 LineBuffer::with_capacity(MAX_LINE),
-            colored:             true,
+            colored:                true,
+            keybindings:            StatefulList::with_items(KEYBINDINGS.to_vec()),
             last_export:            None,
             list_height:            0,
             list_state:             state,
             marked:                 HashSet::new(),
-            mode:                   AppMode::WutagList,
+            mode:                   AppMode::List,
             preview_file:           false,
             preview_height:         0,
             registry:               reg,
@@ -152,9 +184,24 @@ impl UiApp {
             table_state:            TableState::default(),
             terminal_height:        h,
             terminal_width:         w,
+            paths_color:            parsed_color,
         };
 
+        uiapp.get_context();
+
         Ok(uiapp)
+    }
+
+    /// Get current context as a string for displaying purposes
+    pub(crate) fn get_context(&mut self) {
+        self.current_context = format!(
+            r#"
+            Current directory: {}
+            Current registry: {}
+            "#,
+            self.current_directory,
+            self.registry.path.display()
+        );
     }
 
     /// Render the screen on the `Terminal` object
@@ -174,7 +221,7 @@ impl UiApp {
         self.terminal_width = rect.width;
         self.terminal_height = rect.height;
         match self.mode {
-            AppMode::WutagList | AppMode::WutagError => self.draw_tag(app, f),
+            AppMode::List | AppMode::Error | AppMode::Help => self.draw_tag(app, f),
         }
     }
 
@@ -192,16 +239,145 @@ impl UiApp {
         );
     }
 
-    /// Get position of cursor on screen
-    pub(crate) fn get_position(&self, buf: &LineBuffer) -> usize {
-        let mut position = 0;
-        for (i, (i_, g)) in buf.as_str().grapheme_indices(true).enumerate() {
-            if i_ == buf.pos() {
-                break;
-            }
-            position += g.width();
+    /// Draw  help menu showing user-defined/default keybindings
+    #[allow(single_use_lifetimes)]
+    pub(crate) fn draw_help<'a, T>(&mut self, f: &mut Frame<impl Backend>, title: T, rect: Rect)
+    where
+        T: Into<Spans<'a>>,
+    {
+        f.render_widget(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
+                .border_style(Style::default().fg(Color::Rgb(PINK[0], PINK[1], PINK[2])))
+                .title(title.into()),
+            rect,
+        );
+
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .margin(1)
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+            .split(rect);
+
+        {
+            let description = self
+                .keybindings
+                .selected()
+                .map(|s| {
+                    s.get_description_text(
+                        Style::default()
+                            .fg(Color::Rgb(FG[0], FG[1], FG[2]))
+                            .add_modifier(Modifier::ITALIC),
+                    )
+                })
+                .unwrap_or_default();
+
+            let description_height = u16::try_from(
+                self.keybindings
+                    .selected()
+                    .map(|s| s.description.lines().count())
+                    .unwrap_or_default(),
+            )
+            .unwrap_or(1)
+                + 2;
+
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .margin(1)
+                .constraints(
+                    [
+                        Constraint::Min(
+                            chunks[0]
+                                .height
+                                .checked_sub(description_height)
+                                .unwrap_or_default(),
+                        ),
+                        Constraint::Min(description_height),
+                    ]
+                    .as_ref(),
+                )
+                .split(chunks[0]);
+
+            f.render_stateful_widget(
+                List::new(
+                    self.keybindings
+                        .items
+                        .iter()
+                        .enumerate()
+                        .map(|(i, v)| {
+                            v.as_list_item(
+                                self.is_colored(),
+                                self.keybindings.state.selected() == Some(i),
+                            )
+                        })
+                        .collect::<Vec<ListItem>>(),
+                )
+                .block(
+                    Block::default()
+                        .borders(Borders::RIGHT)
+                        .border_style(Style::default().fg(Color::DarkGray)),
+                )
+                .style(Style::default().fg(self.paths_color))
+                .highlight_style(if self.is_colored() {
+                    Style::default().add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default()
+                        .fg(Color::Reset)
+                        .add_modifier(Modifier::BOLD)
+                }),
+                chunks[0],
+                &mut self.keybindings.state,
+            );
+
+            f.render_widget(
+                Paragraph::new(description)
+                    .block(
+                        Block::default()
+                            .borders(Borders::RIGHT)
+                            .border_style(Style::default().fg(Color::DarkGray)),
+                    )
+                    .style(Style::default().fg(self.paths_color))
+                    .alignment(Alignment::Left)
+                    .wrap(Wrap { trim: true }),
+                chunks[1],
+            );
         }
-        position
+        {
+            // let context_height =
+            // u16::try_from(self.current_context.lines().count()).unwrap_or(1)
+            // + 1;
+            //
+            // let chunks = Layout::default()
+            // .direction(Direction::Vertical)
+            // .margin(1)
+            // .constraints(
+            // [
+            // Constraint::Min(
+            // chunks[1]
+            // .height
+            // .checked_sub(context_height)
+            // .unwrap_or_default(),
+            // ),
+            // Constraint::Min(context_height),
+            // ]
+            // .as_ref(),
+            // )
+            // .split(chunks[1]);
+            //
+            // f.render_widget(
+            // Paragraph::new(Text::raw(self.current_context.clone()))
+            // .block(
+            // Block::default()
+            // .borders(Borders::NONE)
+            // .border_style(Style::default().fg(Color::DarkGray)),
+            // )
+            // .style(self.colored_style::<FG>())
+            // .alignment(Alignment::Left)
+            // .wrap(Wrap { trim: true }),
+            // chunks[1],
+            // );
+        }
     }
 
     /// Draw the startup screen
@@ -261,7 +437,7 @@ impl UiApp {
         };
 
         match self.mode {
-            AppMode::WutagList => self.draw_command(
+            AppMode::List => self.draw_command(
                 f,
                 chunks[1],
                 self.filter.as_str(),
@@ -269,7 +445,7 @@ impl UiApp {
                 self.get_position(&self.filter),
                 false,
             ),
-            AppMode::WutagError => self.draw_command(
+            AppMode::Error => self.draw_command(
                 f,
                 chunks[1],
                 self.error.as_str(),
@@ -277,6 +453,21 @@ impl UiApp {
                 0,
                 false,
             ),
+            AppMode::Help => {
+                // self.draw_command(
+                //     f,
+                //     chunks[1],
+                //     self.filter.as_str(),
+                //     "Filter Tags",
+                //     self.get_position(&self.filter),
+                //     false,
+                // );
+                self.draw_help(
+                    f,
+                    Span::styled("Help Menu", Style::default().add_modifier(Modifier::BOLD)),
+                    chunks[1],
+                );
+            },
         }
     }
 
@@ -292,6 +483,7 @@ impl UiApp {
     ) where
         T: Into<Spans<'a>>,
     {
+        // Filtered Tasks / Preview
         f.render_widget(Clear, rect);
         if cursor {
             f.set_cursor(
@@ -302,16 +494,17 @@ impl UiApp {
                 rect.y + 1,
             );
         }
+
         let p = Paragraph::new(Text::from(text))
             .block(
                 Block::default()
                     .borders(Borders::ALL)
                     .border_type(BorderType::Rounded)
-                    .border_style(Style::default().fg(Color::Red))
+                    .border_style(Style::default().fg(Color::White))
                     .title(title.into()),
             )
             .style(Style::default().fg(Color::Yellow))
-            .alignment(Alignment::Left)
+            // .alignment(Alignment::Left)
             .wrap(Wrap { trim: false })
             .scroll((0, ((position + 3) as u16).saturating_sub(rect.width)));
         f.render_widget(p, rect);
@@ -328,8 +521,8 @@ impl UiApp {
         if entries.is_empty() {
             let mut style = Style::default();
             match self.mode {
-                AppMode::WutagList => style = style.add_modifier(Modifier::BOLD),
-                AppMode::WutagError => style = style.add_modifier(Modifier::DIM),
+                AppMode::List => style = style.add_modifier(Modifier::BOLD),
+                _ => style = style.add_modifier(Modifier::DIM),
             }
 
             let mut title = vec![
@@ -338,16 +531,16 @@ impl UiApp {
                 Span::styled("Preview", Style::default().add_modifier(Modifier::DIM)),
             ];
 
-            if !self.current_context.is_empty() {
-                let context_style = Style::default();
-                context_style.add_modifier(Modifier::ITALIC);
-                title.insert(title.len(), Span::from(" ("));
-                title.insert(
-                    title.len(),
-                    Span::styled(&self.current_context, context_style),
-                );
-                title.insert(title.len(), Span::from(")"));
-            }
+            // if !self.current_context.is_empty() {
+            //     let context_style = Style::default();
+            //     context_style.add_modifier(Modifier::ITALIC);
+            //     title.insert(title.len(), Span::from(" ("));
+            //     title.insert(
+            //         title.len(),
+            //         Span::styled(&self.current_context, context_style),
+            //     );
+            //     title.insert(title.len(), Span::from(")"));
+            // }
 
             f.render_widget(
                 Block::default()
@@ -390,9 +583,15 @@ impl UiApp {
             rows.push(Row::new(vec![
                 Text::from(Spans::from(vec![Span::styled(
                     entry[0].clone(),
-                    Style::default()
-                        .fg(Color::Blue)
-                        .add_modifier(Modifier::BOLD),
+                    if self.colored && self.config.ui.paths_bold {
+                        Style::default()
+                            .fg(self.paths_color)
+                            .add_modifier(Modifier::BOLD)
+                    } else if self.colored {
+                        Style::default().fg(self.paths_color)
+                    } else {
+                        Style::default()
+                    },
                 )])),
                 self.styled_text_for_tags(entry),
             ]));
@@ -435,35 +634,26 @@ impl UiApp {
         let mut style = Style::default();
 
         match self.mode {
-            AppMode::WutagList => style = style.add_modifier(Modifier::BOLD),
-            AppMode::WutagError => style = style.add_modifier(Modifier::DIM),
+            AppMode::List => style = style.add_modifier(Modifier::BOLD),
+            _ => style = style.add_modifier(Modifier::DIM),
         }
 
         let mut title = vec![
             // Span::styled("Tag", style),
             // Span::from("  |  "),
-            Span::styled(
-                "Wutag",
-                if self.colored {
-                    Style::default()
-                        .add_modifier(Modifier::BOLD)
-                        .fg(Color::Rgb(239, 29, 85))
-                } else {
-                    Style::default()
-                },
-            ),
+            self.set_header_style::<PINK>("Wutag"),
         ];
 
-        if !self.current_context.is_empty() {
-            let context_style = Style::default();
-            context_style.add_modifier(Modifier::BOLD);
-            title.insert(title.len(), Span::from(" ("));
-            title.insert(
-                title.len(),
-                Span::styled(&self.current_context, context_style),
-            );
-            title.insert(title.len(), Span::from(")"));
-        }
+        // if !self.current_context.is_empty() {
+        //     let context_style = Style::default();
+        //     context_style.add_modifier(Modifier::BOLD);
+        //     title.insert(title.len(), Span::from(" ("));
+        //     title.insert(
+        //         title.len(),
+        //         Span::styled(&self.current_context, context_style),
+        //     );
+        //     title.insert(title.len(), Span::from(")"));
+        // }
 
         let table = Table::new(header, rows)
             .block(
@@ -475,9 +665,10 @@ impl UiApp {
             )
             .header_style(
                 Style::default()
-                    .add_modifier(Modifier::UNDERLINED)
+                    .fg(Color::Rgb(DARK_PINK[0], DARK_PINK[1], DARK_PINK[2]))
                     .add_modifier(Modifier::BOLD),
             )
+            .header_alignment(Alignment::Center)
             .highlight_style(hl_style)
             .highlight_symbol(&self.config.ui.selection_indicator)
             .mark_symbol(&self.config.ui.mark_indicator)
@@ -485,6 +676,18 @@ impl UiApp {
             .widths(&constraints);
 
         f.render_stateful_widget(table, rect, &mut self.table_state);
+    }
+
+    /// Get position of cursor on screen
+    pub(crate) fn get_position(&self, buf: &LineBuffer) -> usize {
+        let mut position = 0;
+        for (i, (i_, g)) in buf.as_str().grapheme_indices(true).enumerate() {
+            if i_ == buf.pos() {
+                break;
+            }
+            position += g.width();
+        }
+        position
     }
 
     /// Get the rows of `Tag`s' to build the `Table`
@@ -532,7 +735,7 @@ impl UiApp {
     #[allow(clippy::unnecessary_wraps)]
     pub(crate) fn handle_input(&mut self, input: Key) -> Result<()> {
         match self.mode {
-            AppMode::WutagList =>
+            AppMode::List =>
                 if input == self.config.keys.quit || input == Key::Ctrl('c') {
                     self.should_quit = true;
                 } else if input == Key::Esc {
@@ -551,8 +754,32 @@ impl UiApp {
                     self.move_to_next_page();
                 } else if input == Key::PageUp || input == self.config.keys.page_up {
                     self.move_to_previous_page();
+                } else if input == self.config.keys.help {
+                    self.mode = AppMode::Help;
                 },
-            AppMode::WutagError => self.mode = AppMode::WutagList,
+            AppMode::Help =>
+                if input == Key::Ctrl('c') {
+                    self.should_quit = true;
+                } else if input == self.config.keys.quit
+                    || input == self.config.keys.help
+                    || input == Key::Esc
+                {
+                    self.mode = AppMode::List;
+                } else if input == Key::Down || input == self.config.keys.down {
+                    self.keybindings.next();
+                } else if input == Key::Up || input == self.config.keys.up {
+                    self.keybindings.previous();
+                },
+            AppMode::Error => self.mode = AppMode::List,
+            /* } else if input == self.config.keys.go_to_bottom || input == Key::End {
+             *     self.move_to_bottom();
+             * } else if input == self.config.keys.go_to_top || input == Key::Home {
+             *     self.move_to_top();
+             * } else if input == Key::PageDown || input == self.config.keys.page_down {
+             *     self.move_to_next_page();
+             * } else if input == Key::PageUp || input == self.config.keys.page_up {
+             *     self.move_to_previous_page();
+             * }, */
         }
 
         self.update_table_state();
@@ -602,6 +829,11 @@ impl UiApp {
         // for uuid in &self.marked {
         //     self.table_state.mark(self.tag_index_by_uuid(*uuid));
         // }
+    }
+
+    /// Whether the TUI is in a colored state
+    pub(crate) fn is_colored(&self) -> bool {
+        self.colored
     }
 
     /// Get the `TagRegistry`'s last modification time
@@ -970,5 +1202,21 @@ impl UiApp {
         modifiers |= Modifier::BOLD;
         style = style.add_modifier(modifiers);
         style
+    }
+
+    /// Return a styled `Span` based on user configuration
+    fn set_header_style<'a, const COLOR: [u8; 3]>(&self, text: &'a str) -> Span<'a> {
+        Span::styled(text, self.colored_style::<COLOR>())
+    }
+
+    /// Return a `Style` depending on user configuration
+    fn colored_style<const COLOR: [u8; 3]>(&self) -> Style {
+        if self.colored {
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Rgb(COLOR[0], COLOR[1], COLOR[2]))
+        } else {
+            Style::default()
+        }
     }
 }

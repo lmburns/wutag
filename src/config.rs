@@ -8,7 +8,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::ui::{event::Key, style::TuiStyle};
+use crate::ui::event::Key;
 use wutag_core::color::TuiColor;
 
 const CONFIG_FILE: &str = "wutag.yml";

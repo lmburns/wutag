@@ -4,18 +4,15 @@ use tui::widgets::ListState;
 #[derive(Debug)]
 pub(crate) struct StatefulList<T> {
     /// Items that make up the `StatefulList`
-    pub(crate) items:  Vec<T>,
+    pub(crate) items: Vec<T>,
     /// Modifiable state
-    pub(crate) state:  ListState,
+    pub(crate) state: ListState,
 }
 
 impl<T> StatefulList<T> {
     /// Build an instance of `StatefulList`
     pub(crate) fn new(items: Vec<T>, state: ListState) -> StatefulList<T> {
-        Self {
-            items,
-            state,
-        }
+        Self { items, state }
     }
 
     /// Build a new `StatefulList` with specified items

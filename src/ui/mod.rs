@@ -1,11 +1,13 @@
 #![allow(unused)]
 pub(crate) mod event;
-pub(crate) mod style;
-pub(crate) mod table;
-pub(crate) mod ui_app;
+// pub(crate) mod style;
+pub(crate) mod command;
+pub(crate) mod context;
 pub(crate) mod keybindings;
 pub(crate) mod list;
-pub(crate) mod context;
+pub(crate) mod prompt;
+pub(crate) mod table;
+pub(crate) mod ui_app;
 
 pub(crate) use event::{Event, EventConfig, Events};
 pub(crate) use ui_app::AppMode;

@@ -3,6 +3,7 @@
 
 // TODO: ListItem
 // TODO: Dim selection
+// TODO: Local path
 
 use anyhow::{anyhow, Context, Result};
 use colored::{ColoredString, Colorize};
@@ -38,7 +39,6 @@ use super::{
     event::Key,
     keybindings::{Keybinding, KEYBINDINGS},
     list::StatefulList,
-    style::TuiStyle,
     table::{Row, Table, TableSelection, TableState},
 };
 
@@ -51,13 +51,17 @@ use crate::{
 
 const MAX_LINE: usize = 4096;
 
+const FG: [u8; 3] = [232, 192, 151];
+const FG2: [u8; 3] = [217, 174, 128];
 const PINK: [u8; 3] = [239, 29, 85];
 const DARK_PINK: [u8; 3] = [152, 103, 106];
+const DARK_PURPLE: [u8; 3] = [115, 62, 139];
+const BLUE: [u8; 3] = [126, 178, 177];
 const DARK_BLUE: [u8; 3] = [76, 150, 168];
 const YELLOW: [u8; 3] = [255, 149, 0];
 const ORANGE: [u8; 3] = [255, 88, 19];
 const GREEN: [u8; 3] = [129, 156, 59];
-const FG: [u8; 3] = [217, 174, 128];
+const BRIGHT_GREEN: [u8; 3] = [163, 185, 90];
 
 /// Errors used within the UI module of this crate
 #[derive(Debug, Error)]
@@ -100,6 +104,7 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 #[derive(Debug)]
 pub(crate) struct UiApp<'a> {
     pub(crate) config:                 Config,
+    pub(crate) command:                LineBuffer,
     pub(crate) current_context:        String,
     pub(crate) current_context_filter: String,
     pub(crate) current_selection:      usize,
@@ -120,6 +125,7 @@ pub(crate) struct UiApp<'a> {
     pub(crate) mode:                   AppMode,
     pub(crate) preview_file:           bool, // TODO: Show a file preview
     pub(crate) preview_height:         u16,
+    pub(crate) preview_scroll:         u16,
     pub(crate) registry:               TagRegistry,
     pub(crate) should_quit:            bool,
     pub(crate) table_state:            TableState,
@@ -160,6 +166,7 @@ impl UiApp<'_> {
 
         let mut uiapp = Self {
             config:                 c,
+            command:                LineBuffer::with_capacity(MAX_LINE),
             current_context:        String::from(""),
             current_context_filter: String::from(""),
             current_selection:      state.selected().unwrap_or(0),
@@ -179,6 +186,7 @@ impl UiApp<'_> {
             mode:                   AppMode::List,
             preview_file:           false,
             preview_height:         0,
+            preview_scroll:         0,
             registry:               reg,
             should_quit:            false,
             table_state:            TableState::default(),
@@ -186,6 +194,9 @@ impl UiApp<'_> {
             terminal_width:         w,
             paths_color:            parsed_color,
         };
+
+        uiapp.filter.insert('h', 1);
+        uiapp.filter.insert('i', 1);
 
         uiapp.get_context();
 
@@ -241,16 +252,20 @@ impl UiApp<'_> {
 
     /// Draw  help menu showing user-defined/default keybindings
     #[allow(single_use_lifetimes)]
-    pub(crate) fn draw_help<'a, T>(&mut self, f: &mut Frame<impl Backend>, title: T, rect: Rect)
-    where
-        T: Into<Spans<'a>>,
-    {
+    pub(crate) fn draw_help<'a>(
+        &mut self,
+        f: &mut Frame<impl Backend>,
+        title: &'a str,
+        rect: Rect,
+    ) {
+        f.render_widget(Clear, rect);
+
         f.render_widget(
             Block::default()
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
-                .border_style(Style::default().fg(Color::Rgb(PINK[0], PINK[1], PINK[2])))
-                .title(title.into()),
+                .title(self.set_header_style::<GREEN>(title))
+                .title_alignment(Alignment::Left),
             rect,
         );
 
@@ -382,12 +397,25 @@ impl UiApp<'_> {
 
     /// Draw the startup screen
     pub(crate) fn draw_tag(&mut self, app: &App, f: &mut Frame<impl Backend>) {
-        let chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .margin(1)
-            .constraints([Constraint::Percentage(80), Constraint::Percentage(20)].as_ref())
-            .split(f.size());
+        let rect = f.size();
 
+        // Full screen
+        let full_chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(1)
+            .constraints([Constraint::Min(rect.height - 1), Constraint::Min(1)].as_ref())
+            .split(rect);
+
+        // Split screen
+        // .constraints([Constraint::Percentage(80),
+        // Constraint::Percentage(20)].as_ref())
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .margin(1)
+            .constraints([Constraint::Min(0), Constraint::Length(3)].as_ref())
+            .split(rect);
+
+        // TODO: switch logic
         if self.preview_file {
             let split_layout = Layout::default()
                 .direction(Direction::Vertical)
@@ -396,7 +424,7 @@ impl UiApp<'_> {
 
             self.preview_height = split_layout[1].height;
             self.draw_table(app, f, split_layout[0]);
-            // self.draw_preview(f, split_layout[1]);
+            self.draw_preview(f, split_layout[1]);
         } else {
             let full_layout = Layout::default()
                 .direction(Direction::Vertical)
@@ -409,6 +437,8 @@ impl UiApp<'_> {
 
         let empty_path = PathBuf::new();
         let selected = self.current_selection;
+
+        // TODO: whats this
         let file_id = if self.registry.entries.is_empty() {
             vec!["OKKKKK".to_string()]
         } else {
@@ -441,7 +471,7 @@ impl UiApp<'_> {
                 f,
                 chunks[1],
                 self.filter.as_str(),
-                "Filter Tags".to_string(),
+                "Command Prompt",
                 self.get_position(&self.filter),
                 false,
             ),
@@ -449,7 +479,7 @@ impl UiApp<'_> {
                 f,
                 chunks[1],
                 self.error.as_str(),
-                Span::styled("Error", Style::default().add_modifier(Modifier::BOLD)),
+                "Error",
                 0,
                 false,
             ),
@@ -462,27 +492,21 @@ impl UiApp<'_> {
                 //     self.get_position(&self.filter),
                 //     false,
                 // );
-                self.draw_help(
-                    f,
-                    Span::styled("Help Menu", Style::default().add_modifier(Modifier::BOLD)),
-                    chunks[1],
-                );
+                self.draw_help(f, "Help Menu", full_chunks[0]);
             },
         }
     }
 
     #[allow(single_use_lifetimes)]
-    fn draw_command<'a, T>(
+    fn draw_command(
         &self,
         f: &mut Frame<impl Backend>,
         rect: Rect,
         text: &str,
-        title: T,
+        title: &str,
         position: usize,
         cursor: bool,
-    ) where
-        T: Into<Spans<'a>>,
-    {
+    ) {
         // Filtered Tasks / Preview
         f.render_widget(Clear, rect);
         if cursor {
@@ -500,13 +524,54 @@ impl UiApp<'_> {
                 Block::default()
                     .borders(Borders::ALL)
                     .border_type(BorderType::Rounded)
-                    .border_style(Style::default().fg(Color::White))
-                    .title(title.into()),
+                    .style(Style::default().fg(Color::Rgb(FG[0], FG[1], FG[2])))
+                    .title(self.set_header_style::<PINK>(title)),
             )
-            .style(Style::default().fg(Color::Yellow))
             // .alignment(Alignment::Left)
-            .wrap(Wrap { trim: false })
+            // .wrap(Wrap { trim: false })
             .scroll((0, ((position + 3) as u16).saturating_sub(rect.width)));
+        f.render_widget(p, rect);
+    }
+
+    /// Draw a file preview
+    fn draw_preview(&mut self, f: &mut Frame<impl Backend>, rect: Rect) {
+        if self.registry.entries.is_empty() {
+            f.render_widget(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Rounded)
+                    .title("No tagged file found"),
+                rect,
+            );
+            return;
+        }
+
+        let selected = self.selected();
+        // TODO: fix
+        let path = self
+            .current_selection_path
+            .clone()
+            .unwrap_or_else(|| PathBuf::from("."));
+
+        // let data = match self.task_details.get(&task_uuid) {
+        //     Some(s) => s.clone(),
+        //     None => "Loading task details ...".to_string(),
+        // };
+        // self.task_details_scroll = std::cmp::min(
+        //     (data.lines().count() as u16)
+        //         .saturating_sub(rect.height)
+        //         .saturating_add(2),
+        //     self.task_details_scroll,
+        // );
+
+        let p = Paragraph::new(Text::from("File Preview"))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Rounded)
+                    .title(format!("Entry: {}", path.display())),
+            )
+            .scroll((self.preview_scroll, 0));
         f.render_widget(p, rect);
     }
 
@@ -660,6 +725,7 @@ impl UiApp<'_> {
                 Block::default()
                     .borders(Borders::ALL)
                     .border_type(BorderType::Rounded)
+                    .style(Style::default().fg(Color::Rgb(FG[0], FG[1], FG[2])))
                     .title(Spans::from(title))
                     .title_alignment(Alignment::Left),
             )
@@ -676,6 +742,81 @@ impl UiApp<'_> {
             .widths(&constraints);
 
         f.render_stateful_widget(table, rect, &mut self.table_state);
+    }
+
+    /// Draw the command prompt
+    pub(crate) fn draw_command_prompt(&self, f: &mut Frame<impl Backend>, rect: Rect) {
+        // #[allow(clippy::if_not_else)]
+        // f.render_widget(
+        // Paragraph::new(Spans::from(if !app.prompt.text.is_empty() {
+        // vec![Span::raw(format!(
+        // "{}{}",
+        // app.prompt.output_type, app.prompt.text
+        // ))]
+        // } else {
+        // let arrow_color = if app.state.style.is_colored() {
+        // Color::LightBlue
+        // } else {
+        // Color::DarkGray
+        // };
+        // vec![
+        // Span::styled("< ", Style::default().fg(arrow_color)),
+        // match app.tab {
+        // Tab::Keys(key_type) => Span::raw(format!(
+        // "list {}{}",
+        // key_type,
+        // if !app.keys_table.items.is_empty() {
+        // format!(
+        // " ({}/{})",
+        // app.keys_table.state.tui.selected().unwrap_or_default() + 1,
+        // app.keys_table.items.len()
+        // )
+        // } else {
+        // String::new()
+        // }
+        // )),
+        // Tab::Help => Span::raw("help"),
+        // },
+        // Span::styled(" >", Style::default().fg(arrow_color)),
+        // ]
+        // }))
+        // .style(if app.state.style.is_colored() {
+        // match app.prompt.output_type {
+        // OutputType::Success => Style::default()
+        // .fg(Color::LightGreen)
+        // .add_modifier(Modifier::BOLD),
+        // OutputType::Warning => Style::default()
+        // .fg(Color::LightYellow)
+        // .add_modifier(Modifier::BOLD),
+        // OutputType::Failure => Style::default()
+        // .fg(Color::LightRed)
+        // .add_modifier(Modifier::BOLD),
+        // OutputType::Action =>
+        // if app.state.style.is_colored() {
+        // Style::default()
+        // .fg(Color::LightBlue)
+        // .add_modifier(Modifier::BOLD)
+        // } else {
+        // Style::default().add_modifier(Modifier::BOLD)
+        // },
+        // OutputType::None => Style::default(),
+        // }
+        // } else if app.prompt.output_type != OutputType::None {
+        // Style::default().add_modifier(Modifier::BOLD)
+        // } else {
+        // Style::default()
+        // })
+        // .alignment(if !app.prompt.text.is_empty() {
+        // Alignment::Left
+        // } else {
+        // Alignment::Right
+        // })
+        // .wrap(Wrap { trim: false }),
+        // rect,
+        // );
+        // if app.prompt.is_enabled() {
+        // frame.set_cursor(rect.x + app.prompt.text.width() as u16, rect.y +
+        // 1); }
     }
 
     /// Get position of cursor on screen
@@ -698,11 +839,6 @@ impl UiApp<'_> {
     /// Get the rows of `Tag`s' to build the `Table` with tags as strings
     fn get_full_tag_hash_str(&mut self) -> BTreeMap<PathBuf, Vec<String>> {
         self.registry.list_all_paths_and_tags_as_strings()
-    }
-
-    /// Draw a file preview
-    fn draw_preview(&mut self, f: &mut Frame<impl Backend>, rect: Rect) {
-        todo!();
     }
 
     pub(crate) fn toggle_mark(&mut self) {

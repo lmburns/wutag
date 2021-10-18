@@ -1,3 +1,6 @@
+// TODO: Add option to open editor with a pattern that matches new files, not
+// just files that are already tagged
+
 use super::{
     uses::{
         bold_entry, clear_tags, contained_path, create_temp_path, fmt_path, fmt_tag, fs,

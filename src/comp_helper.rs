@@ -92,4 +92,10 @@ _wutag_tags() {
     // Make this replace globally
     (r#"'*::tags:' \"#, r#"'*::_wutag_tags:' \"#),
     (r#"'*::tags:' \"#, r#"'*::tags:_wutag_tags' \"#),
+    (
+        "'-t+[The tag to edit]:tag: ' \\
+'--tag=[The tag to edit]:tag: ' \\",
+        "'-t+[The tag to edit]::_wutag_tags' \\
+'--tag=[The tag to edit]::_wutag_tags' \\",
+    ),
 ];

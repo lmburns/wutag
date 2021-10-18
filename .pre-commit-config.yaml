@@ -40,7 +40,10 @@ repos:
       cd completions &&
       cargo run -- print-completions --shell zsh > _wutag &&
       cargo run -- print-completions --shell bash > wutag.bash &&
-      git add _wutag
+      cargo run -- print-completions --shell elvish > wutag.elvish &&
+      cargo run -- print-completions --shell fish > wutag.fish &&
+      cargo run -- print-completions --shell powershell > wutag.ps1 &&
+      git add _wutag wutag.bash wutag.elvish wutag.fish wutag.ps1
       '
   - id: update-manpage
     name: update man page

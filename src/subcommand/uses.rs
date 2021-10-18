@@ -1,6 +1,6 @@
 pub(crate) use anyhow::{Context, Result};
 pub(crate) use atty::Stream;
-pub(crate) use clap::{ArgSettings, Clap, ValueHint};
+pub(crate) use clap::{ArgSettings, Args, Subcommand, ValueHint};
 
 pub(crate) use cli_table::{
     format::{Border, Justify, Separator},

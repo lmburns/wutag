@@ -189,8 +189,12 @@ pub(crate) fn collect_stdin_paths(base: &Path) -> Vec<PathBuf> {
 }
 
 /// Print completions
-pub(crate) fn gen_completions<G: Generator>(app: &mut clap::App, cursor: &mut Cursor<Vec<u8>>) {
-    generate::<G, _>(app, APP_NAME, cursor);
+pub(crate) fn gen_completions<G: Generator>(
+    gen: G,
+    app: &mut clap::App,
+    cursor: &mut Cursor<Vec<u8>>,
+) {
+    generate(gen, app, APP_NAME, cursor);
 }
 
 /// Build a glob from GlobBuilder and return a regex

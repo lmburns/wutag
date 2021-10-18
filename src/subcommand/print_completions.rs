@@ -1,6 +1,6 @@
 use super::{
     uses::{
-        comp_helper, fs, gen_completions, io, replace, Clap, Colorize, PathBuf, ValueHint, Write,
+        comp_helper, fs, gen_completions, io, replace, Args, Colorize, PathBuf, ValueHint, Write,
     },
     App,
 };
@@ -13,11 +13,16 @@ use clap_generate::{
 };
 use lexiclean::Lexiclean;
 
-#[derive(Clap, Debug, Clone, PartialEq)]
+// Shell::arg_values()
+
+#[derive(Args, Debug, Clone, PartialEq)]
 pub(crate) struct CompletionsOpts {
     /// Shell to print completions. Available shells are: bash, elvish, fish,
     /// powershell, zsh
-    #[clap(long, possible_values = &Shell::variants())]
+    #[clap(
+        long,
+        possible_values = &["bash", "zsh", "powershell", "elvish", "fish"]
+    )]
     pub(crate) shell: Shell,
     /// Directory to output completions to
     #[clap(
@@ -43,11 +48,11 @@ impl App {
         let mut cursor = io::Cursor::new(buffer);
 
         match opts.shell {
-            Shell::Bash => gen_completions::<Bash>(&mut app, &mut cursor),
-            Shell::Elvish => gen_completions::<Elvish>(&mut app, &mut cursor),
-            Shell::Fish => gen_completions::<Fish>(&mut app, &mut cursor),
-            Shell::PowerShell => gen_completions::<PowerShell>(&mut app, &mut cursor),
-            Shell::Zsh => gen_completions::<Zsh>(&mut app, &mut cursor),
+            Shell::Bash => gen_completions(Bash, &mut app, &mut cursor),
+            Shell::Elvish => gen_completions(Elvish, &mut app, &mut cursor),
+            Shell::Fish => gen_completions(Fish, &mut app, &mut cursor),
+            Shell::PowerShell => gen_completions(PowerShell, &mut app, &mut cursor),
+            Shell::Zsh => gen_completions(Zsh, &mut app, &mut cursor),
             _ => (),
         }
 

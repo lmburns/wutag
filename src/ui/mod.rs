@@ -2,10 +2,11 @@
 pub(crate) mod event;
 // pub(crate) mod style;
 pub(crate) mod command;
+pub(crate) mod completion;
 pub(crate) mod context;
+pub(crate) mod history;
 pub(crate) mod keybindings;
 pub(crate) mod list;
-pub(crate) mod prompt;
 pub(crate) mod table;
 pub(crate) mod ui_app;
 

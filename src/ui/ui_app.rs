@@ -6,6 +6,8 @@
 // TODO: Local path
 
 use anyhow::{anyhow, Context, Result};
+use clap::IntoApp;
+use clap_generate::{generators::Zsh, Generator};
 use colored::{ColoredString, Colorize};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
@@ -26,7 +28,9 @@ use tui::{
 };
 
 use once_cell::sync::Lazy;
-use rustyline::{line_buffer::LineBuffer, At, Editor, Word};
+use rustyline::{
+    history::SearchDirection as HistoryDirection, line_buffer::LineBuffer, At, Editor, Word,
+};
 use rustyline_derive::Helper;
 use unicode_segmentation::{Graphemes, UnicodeSegmentation};
 use unicode_width::UnicodeWidthStr;
@@ -36,7 +40,9 @@ use wutag_core::{
 };
 
 use super::{
+    completion::{self, CompletionList},
     event::Key,
+    history::HistoryContext,
     keybindings::{Keybinding, KEYBINDINGS},
     list::StatefulList,
     table::{Row, Table, TableSelection, TableState},
@@ -51,17 +57,17 @@ use crate::{
 
 const MAX_LINE: usize = 4096;
 
-const FG: [u8; 3] = [232, 192, 151];
-const FG2: [u8; 3] = [217, 174, 128];
-const PINK: [u8; 3] = [239, 29, 85];
-const DARK_PINK: [u8; 3] = [152, 103, 106];
-const DARK_PURPLE: [u8; 3] = [115, 62, 139];
-const BLUE: [u8; 3] = [126, 178, 177];
-const DARK_BLUE: [u8; 3] = [76, 150, 168];
-const YELLOW: [u8; 3] = [255, 149, 0];
-const ORANGE: [u8; 3] = [255, 88, 19];
-const GREEN: [u8; 3] = [129, 156, 59];
-const BRIGHT_GREEN: [u8; 3] = [163, 185, 90];
+pub(crate) const FG: [u8; 3] = [232, 192, 151];
+pub(crate) const FG2: [u8; 3] = [217, 174, 128];
+pub(crate) const PINK: [u8; 3] = [239, 29, 85];
+pub(crate) const DARK_PINK: [u8; 3] = [152, 103, 106];
+pub(crate) const DARK_PURPLE: [u8; 3] = [115, 62, 139];
+pub(crate) const BLUE: [u8; 3] = [126, 178, 177];
+pub(crate) const DARK_BLUE: [u8; 3] = [76, 150, 168];
+pub(crate) const YELLOW: [u8; 3] = [255, 149, 0];
+pub(crate) const ORANGE: [u8; 3] = [255, 88, 19];
+pub(crate) const GREEN: [u8; 3] = [129, 156, 59];
+pub(crate) const BRIGHT_GREEN: [u8; 3] = [163, 185, 90];
 
 /// Errors used within the UI module of this crate
 #[derive(Debug, Error)]
@@ -103,34 +109,37 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 /// UI aspect of this App
 #[derive(Debug)]
 pub(crate) struct UiApp<'a> {
-    pub(crate) config:                 Config,
-    pub(crate) command:                LineBuffer,
-    pub(crate) current_context:        String,
-    pub(crate) current_context_filter: String,
-    pub(crate) current_selection:      usize,
-    pub(crate) current_selection_id:   Option<EntryId>,
-    pub(crate) current_selection_path: Option<PathBuf>,
-    pub(crate) current_directory:      String,
-    pub(crate) dirty:                  bool,
-    pub(crate) error:                  String,
-    pub(crate) file_details:           HashMap<EntryId, String>, // TODO: Show a stat command
-    pub(crate) filter:                 LineBuffer,
-    pub(crate) colored:                bool,
-    pub(crate) paths_color:            Color,
-    pub(crate) keybindings:            StatefulList<Keybinding<'a>>,
-    pub(crate) last_export:            Option<SystemTime>,
-    pub(crate) list_height:            u16,
-    pub(crate) list_state:             ListState,
-    pub(crate) marked:                 HashSet<EntryId>,
-    pub(crate) mode:                   AppMode,
-    pub(crate) preview_file:           bool, // TODO: Show a file preview
-    pub(crate) preview_height:         u16,
-    pub(crate) preview_scroll:         u16,
-    pub(crate) registry:               TagRegistry,
-    pub(crate) should_quit:            bool,
-    pub(crate) table_state:            TableState,
-    pub(crate) terminal_height:        u16,
-    pub(crate) terminal_width:         u16,
+    pub(crate) colored:                 bool,
+    pub(crate) command:                 LineBuffer,
+    pub(crate) command_history_context: HistoryContext,
+    pub(crate) completion_list:         CompletionList,
+    pub(crate) completion_show:         bool,
+    pub(crate) config:                  Config,
+    pub(crate) current_context:         String,
+    pub(crate) current_context_command: String,
+    pub(crate) current_directory:       String,
+    pub(crate) current_selection:       usize,
+    pub(crate) current_selection_id:    Option<EntryId>,
+    pub(crate) current_selection_path:  Option<PathBuf>,
+    pub(crate) dirty:                   bool,
+    pub(crate) error:                   String,
+    pub(crate) file_details:            HashMap<EntryId, String>, // TODO: Show a stat command
+    pub(crate) history_status:          Option<String>,
+    pub(crate) keybindings:             StatefulList<Keybinding<'a>>,
+    pub(crate) last_export:             Option<SystemTime>,
+    pub(crate) list_height:             u16,
+    pub(crate) list_state:              ListState,
+    pub(crate) marked:                  HashSet<EntryId>,
+    pub(crate) mode:                    AppMode,
+    pub(crate) paths_color:             Color,
+    pub(crate) preview_file:            bool, // TODO: Show a file preview
+    pub(crate) preview_height:          u16,
+    pub(crate) preview_scroll:          u16,
+    pub(crate) registry:                TagRegistry,
+    pub(crate) should_quit:             bool,
+    pub(crate) table_state:             TableState,
+    pub(crate) terminal_height:         u16,
+    pub(crate) terminal_width:          u16,
 }
 
 /// Mode that application is in
@@ -139,6 +148,7 @@ pub(crate) enum AppMode {
     List,
     Error,
     Help,
+    Command,
     // WutagRemove,
 }
 
@@ -165,40 +175,46 @@ impl UiApp<'_> {
             .to_string();
 
         let mut uiapp = Self {
-            config:                 c,
-            command:                LineBuffer::with_capacity(MAX_LINE),
-            current_context:        String::from(""),
-            current_context_filter: String::from(""),
-            current_selection:      state.selected().unwrap_or(0),
-            current_selection_id:   None,
-            current_selection_path: None,
-            current_directory:      cwd,
-            dirty:                  false,
-            error:                  String::from(""),
-            file_details:           HashMap::new(),
-            filter:                 LineBuffer::with_capacity(MAX_LINE),
-            colored:                true,
-            keybindings:            StatefulList::with_items(KEYBINDINGS.to_vec()),
-            last_export:            None,
-            list_height:            0,
-            list_state:             state,
-            marked:                 HashSet::new(),
-            mode:                   AppMode::List,
-            preview_file:           false,
-            preview_height:         0,
-            preview_scroll:         0,
-            registry:               reg,
-            should_quit:            false,
-            table_state:            TableState::default(),
-            terminal_height:        h,
-            terminal_width:         w,
-            paths_color:            parsed_color,
+            colored:                 true,
+            command:                 LineBuffer::with_capacity(MAX_LINE),
+            command_history_context: HistoryContext::new("command.history")?,
+            completion_list:         CompletionList::with_items(vec![]),
+            completion_show:         false,
+            config:                  c.clone(),
+            current_context:         String::from(""),
+            current_context_command: String::from(""),
+            current_directory:       cwd,
+            current_selection:       state.selected().unwrap_or(0),
+            current_selection_id:    None,
+            current_selection_path:  None,
+            dirty:                   false,
+            error:                   String::from(""),
+            file_details:            HashMap::new(),
+            history_status:          None,
+            keybindings:             StatefulList::with_items(KEYBINDINGS.to_vec()),
+            last_export:             None,
+            list_height:             0,
+            list_state:              state,
+            marked:                  HashSet::new(),
+            mode:                    AppMode::List,
+            paths_color:             parsed_color,
+            preview_file:            false,
+            preview_height:          0,
+            preview_scroll:          0,
+            registry:                reg,
+            should_quit:             false,
+            table_state:             TableState::default(),
+            terminal_height:         h,
+            terminal_width:          w,
         };
 
-        uiapp.filter.insert('h', 1);
-        uiapp.filter.insert('i', 1);
+        for ch in c.ui.startup_cmd.unwrap_or_default().chars() {
+            uiapp.command.insert(ch, 1);
+        }
 
         uiapp.get_context();
+        uiapp.update(true)?;
+        uiapp.command_history_context.load()?;
 
         Ok(uiapp)
     }
@@ -231,8 +247,10 @@ impl UiApp<'_> {
         let rect = f.size();
         self.terminal_width = rect.width;
         self.terminal_height = rect.height;
+        // Use for whenever (if ever) a new mode is added
         match self.mode {
-            AppMode::List | AppMode::Error | AppMode::Help => self.draw_tag(app, f),
+            AppMode::List | AppMode::Error | AppMode::Help | AppMode::Command =>
+                self.draw_tag(app, f),
         }
     }
 
@@ -470,26 +488,39 @@ impl UiApp<'_> {
             AppMode::List => self.draw_command(
                 f,
                 chunks[1],
-                self.filter.as_str(),
-                "Command Prompt",
-                self.get_position(&self.filter),
+                self.command.as_str(),
+                self.set_header_style::<PINK>("Command Prompt"),
+                self.get_position(&self.command),
                 false,
             ),
-            AppMode::Error => self.draw_command(
-                f,
-                chunks[1],
-                self.error.as_str(),
-                "Error",
-                0,
-                false,
-            ),
+            AppMode::Command => {
+                let position = self.get_position(&self.command);
+                if self.completion_show {
+                    self.draw_completion_popup(f, chunks[1], position);
+                }
+                self.draw_command(
+                    f,
+                    chunks[1],
+                    self.command.as_str(),
+                    Span::styled(
+                        "Command Prompt",
+                        Style::default()
+                            .add_modifier(Modifier::ITALIC)
+                            .fg(Color::Rgb(PINK[0], PINK[1], PINK[2])),
+                    ),
+                    position,
+                    true,
+                );
+            },
+            AppMode::Error =>
+                self.draw_command(f, chunks[1], self.error.as_str(), "Error", 0, false),
             AppMode::Help => {
                 // self.draw_command(
                 //     f,
                 //     chunks[1],
-                //     self.filter.as_str(),
-                //     "Filter Tags",
-                //     self.get_position(&self.filter),
+                //     self.command.as_str(),
+                //     "Help",
+                //     self.get_position(&self.command),
                 //     false,
                 // );
                 self.draw_help(f, "Help Menu", full_chunks[0]);
@@ -498,16 +529,17 @@ impl UiApp<'_> {
     }
 
     #[allow(single_use_lifetimes)]
-    fn draw_command(
+    fn draw_command<'a, T>(
         &self,
         f: &mut Frame<impl Backend>,
         rect: Rect,
         text: &str,
-        title: &str,
+        title: T,
         position: usize,
         cursor: bool,
-    ) {
-        // Filtered Tasks / Preview
+    ) where
+        T: Into<Spans<'a>>,
+    {
         f.render_widget(Clear, rect);
         if cursor {
             f.set_cursor(
@@ -525,13 +557,14 @@ impl UiApp<'_> {
                     .borders(Borders::ALL)
                     .border_type(BorderType::Rounded)
                     .style(Style::default().fg(Color::Rgb(FG[0], FG[1], FG[2])))
-                    .title(self.set_header_style::<PINK>(title)),
+                    .title(title.into()),
             )
-            // .alignment(Alignment::Left)
-            // .wrap(Wrap { trim: false })
             .scroll((0, ((position + 3) as u16).saturating_sub(rect.width)));
         f.render_widget(p, rect);
     }
+
+    // .alignment(Alignment::Left)
+    // .wrap(Wrap { trim: false })
 
     /// Draw a file preview
     fn draw_preview(&mut self, f: &mut Frame<impl Backend>, rect: Rect) {
@@ -819,6 +852,66 @@ impl UiApp<'_> {
         // 1); }
     }
 
+    /// Draw the completion list pop-up
+    fn draw_completion_popup(
+        &mut self,
+        f: &mut Frame<impl Backend>,
+        rect: Rect,
+        cursor_position: usize,
+    ) {
+        if self.completion_list.candidates().is_empty() {
+            self.completion_show = false;
+            return;
+        }
+
+        // Iterate through all elements in the `items` app and append some debug text to
+        // it.
+        let items: Vec<ListItem> = self
+            .completion_list
+            .candidates()
+            .iter()
+            .map(|p| {
+                let lines = vec![Spans::from(p.display.clone())];
+                ListItem::new(lines).style(Style::default().fg(Color::Rgb(FG[0], FG[1], FG[2])))
+            })
+            .collect();
+
+        // self.config.ui.completion_color
+
+        // Create a List from all list items and highlight the currently selected one
+        let items = List::new(items)
+            .block(Block::default().borders(Borders::NONE).title(""))
+            .style(Style::default().fg(Color::Red))
+            .highlight_style(
+                Style::default()
+                    .add_modifier(Modifier::BOLD)
+                    .fg(Color::Rgb(ORANGE[0], ORANGE[1], ORANGE[2])),
+            )
+            .highlight_symbol(&self.config.ui.selection_indicator);
+
+        let area = f.size();
+
+        let mut rect = rect;
+        rect.height = std::cmp::min(area.height / 2, self.completion_list.len() as u16 + 2);
+        rect.width = std::cmp::min(
+            area.width / 2,
+            self.completion_list
+                .max_width()
+                .unwrap_or(40)
+                .try_into()
+                .unwrap_or(area.width / 2),
+        );
+        rect.y = rect.y.saturating_sub(rect.height);
+        if cursor_position as u16 + rect.width >= area.width {
+            rect.x = area.width - rect.width;
+        } else {
+            rect.x = cursor_position as u16;
+        }
+
+        f.render_widget(Clear, rect);
+        f.render_stateful_widget(items, rect, &mut self.completion_list.state);
+    }
+
     /// Get position of cursor on screen
     pub(crate) fn get_position(&self, buf: &LineBuffer) -> usize {
         let mut position = 0;
@@ -892,6 +985,10 @@ impl UiApp<'_> {
                     self.move_to_previous_page();
                 } else if input == self.config.keys.help {
                     self.mode = AppMode::Help;
+                } else if input == Key::Char(':') {
+                    self.mode = AppMode::Command;
+                    self.command_history_context.last();
+                    self.update_completion_list();
                 },
             AppMode::Help =>
                 if input == Key::Ctrl('c') {
@@ -906,6 +1003,92 @@ impl UiApp<'_> {
                 } else if input == Key::Up || input == self.config.keys.up {
                     self.keybindings.previous();
                 },
+            AppMode::Command => match input {
+                Key::Esc =>
+                    if self.completion_show {
+                        self.completion_show = false;
+                        self.completion_list.unselect();
+                    } else {
+                        self.mode = AppMode::List;
+                        self.command_history_context.add(self.command.as_str());
+                        self.update(true)?;
+                    },
+                Key::Char('\n') => {
+                    if self.completion_show {
+                        self.completion_show = false;
+                        if let Some(sel) = self.completion_list.selected() {
+                            let (before, after) =
+                                self.command.as_str().split_at(self.command.pos());
+                            let f = format!("{}{}{}", before, sel, after);
+                            self.command.update(&f, self.command.pos() + sel.len());
+                        }
+                        self.completion_list.unselect();
+                        self.dirty = true;
+                    } else {
+                        // TODO: add error
+                        self.mode = AppMode::List;
+                        self.command_history_context.add(self.command.as_str());
+                        self.update(true)?;
+                    }
+                },
+                Key::Up =>
+                    if self.completion_show && !self.completion_list.is_empty() {
+                        self.completion_list.previous();
+                    } else if let Some(s) = self.command_history_context.history_search(
+                        &self.command.as_str()[..self.command.pos()],
+                        HistoryDirection::Reverse,
+                    ) {
+                        let p = self.command.pos();
+                        self.command.update("", 0);
+                        self.command.update(&s, std::cmp::min(p, s.len()));
+                        self.dirty = true;
+                    },
+                Key::Down =>
+                    if self.completion_show && !self.completion_list.is_empty() {
+                        self.completion_list.next();
+                    } else if let Some(s) = self.command_history_context.history_search(
+                        &self.command.as_str()[..self.command.pos()],
+                        HistoryDirection::Forward,
+                    ) {
+                        let p = self.command.pos();
+                        self.command.update("", 0);
+                        self.command.update(&s, std::cmp::min(p, s.len()));
+                        self.dirty = true;
+                    },
+                Key::Tab | Key::Ctrl('n') =>
+                    if !self.completion_list.is_empty() {
+                        self.update_input_for_completion();
+                        if !self.completion_show {
+                            self.completion_show = true;
+                        }
+                        self.completion_list.next();
+                    },
+                Key::BackTab | Key::Ctrl('p') => {
+                    if self.completion_show && !self.completion_list.is_empty() {
+                        self.completion_list.previous();
+                    }
+                },
+                Key::Ctrl('r') => {
+                    self.command.update("", 0);
+                    for c in self
+                        .config
+                        .clone()
+                        .ui
+                        .startup_cmd
+                        .unwrap_or_default()
+                        .chars()
+                    {
+                        self.command.insert(c, 1);
+                    }
+                    self.update_input_for_completion();
+                    self.dirty = true;
+                },
+                _ => {
+                    handle_movement(&mut self.command, input);
+                    self.update_input_for_completion();
+                    self.dirty = true;
+                },
+            },
             AppMode::Error => self.mode = AppMode::List,
             /* } else if input == self.config.keys.go_to_bottom || input == Key::End {
              *     self.move_to_bottom();
@@ -934,7 +1117,7 @@ impl UiApp<'_> {
         //     self.export_contexts()?;
         //     self.update_tags();
         //     self.task_details.clear();
-        //     self.save_history()?;
+        self.save_history()?;
         // }
 
         self.cursor_fix();
@@ -965,6 +1148,12 @@ impl UiApp<'_> {
         // for uuid in &self.marked {
         //     self.table_state.mark(self.tag_index_by_uuid(*uuid));
         // }
+    }
+
+    /// Save command history to a file
+    pub(crate) fn save_history(&mut self) -> Result<()> {
+        self.command_history_context.write()?;
+        Ok(())
     }
 
     /// Whether the TUI is in a colored state
@@ -1354,5 +1543,89 @@ impl UiApp<'_> {
         } else {
             Style::default()
         }
+    }
+
+    /// Update items in the completion list
+    pub(crate) fn update_completion_list(&mut self) {
+        self.completion_list.clear();
+
+        if self.mode == AppMode::Command {
+            let app = Opts::into_app();
+            // let l = Zsh::all_subcommands(&k);
+
+            for item in app.get_subcommands() {
+                match item.to_string().as_str() {
+                    "print-completions" | "ui" => {},
+                    _ => self.completion_list.insert(format!("{}", item)),
+                }
+            }
+            // for item in app.get_flags() {
+            //     match item.to_string().as_str() {
+            //         "--help" | "--ui" | "--version" | "--verbose" => {},
+            //         _ => self.completion_list.insert(format!("{}", item)),
+            //     }
+            // }
+            for item in app.get_opts() {
+                self.completion_list.insert(format!("{}", item));
+            }
+        }
+    }
+
+    /// Update input being fed into the completion list
+    pub(crate) fn update_input_for_completion(&mut self) {
+        if self.mode == AppMode::Command {
+            let i = completion::get_word_under_cursor(self.command.as_str(), self.command.pos());
+            let input = self.command.as_str()[i..self.command.pos()].to_string();
+            self.completion_list.input(input);
+        }
+    }
+}
+
+// Handle cursor movement of the command `LineBuffer`
+pub(crate) fn handle_movement(linebuffer: &mut LineBuffer, input: Key) {
+    match input {
+        Key::Ctrl('f') | Key::Right => {
+            linebuffer.move_forward(1);
+        },
+        Key::Ctrl('b') | Key::Left => {
+            linebuffer.move_backward(1);
+        },
+        Key::Ctrl('h') | Key::Backspace => {
+            linebuffer.backspace(1);
+        },
+        Key::Ctrl('d') | Key::Delete => {
+            linebuffer.delete(1);
+        },
+        Key::Ctrl('a') | Key::Home => {
+            linebuffer.move_home();
+        },
+        Key::Ctrl('e') | Key::End => {
+            linebuffer.move_end();
+        },
+        Key::Ctrl('k') => {
+            linebuffer.kill_line();
+        },
+        Key::Ctrl('u') => {
+            linebuffer.discard_line();
+        },
+        Key::Ctrl('w') | Key::AltBackspace | Key::CtrlBackspace => {
+            linebuffer.delete_prev_word(Word::Emacs, 1);
+        },
+        Key::Alt('d') | Key::AltDelete | Key::CtrlDelete => {
+            linebuffer.delete_word(At::AfterEnd, Word::Emacs, 1);
+        },
+        Key::Alt('f') => {
+            linebuffer.move_to_next_word(At::AfterEnd, Word::Emacs, 1);
+        },
+        Key::Alt('b') => {
+            linebuffer.move_to_prev_word(Word::Emacs, 1);
+        },
+        Key::Alt('t') => {
+            linebuffer.transpose_words(1);
+        },
+        Key::Char(c) => {
+            linebuffer.insert(c, 1);
+        },
+        _ => {},
     }
 }

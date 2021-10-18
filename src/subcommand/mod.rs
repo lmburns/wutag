@@ -15,9 +15,9 @@ use crate::{
     ui,
 };
 use uses::{
-    env, fs, parse_color, parse_color_cli_table, wutag_error, Color, Colorize,
-    Config, Context, Cow, FileTypes, LookupError, PathBuf, RegexSet, RegexSetBuilder, Result,
-    Stream, TagRegistry, DEFAULT_BASE_COLOR, DEFAULT_BORDER_COLOR, DEFAULT_COLORS,
+    env, fs, parse_color, parse_color_cli_table, wutag_error, Color, Colorize, Config, Context,
+    Cow, FileTypes, LookupError, PathBuf, RegexSet, RegexSetBuilder, Result, Stream, TagRegistry,
+    DEFAULT_BASE_COLOR, DEFAULT_BORDER_COLOR, DEFAULT_COLORS,
 };
 
 // TODO: Add --all option to view

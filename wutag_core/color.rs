@@ -249,7 +249,9 @@ impl<'a> From<&'a str> for TuiColor {
 
 impl Default for TuiColor {
     fn default() -> Self {
-        Self { inner: tui::Color::Gray }
+        Self {
+            inner: tui::Color::Gray,
+        }
     }
 }
 

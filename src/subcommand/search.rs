@@ -1,12 +1,12 @@
 use super::{
     uses::{
-        channel, glob_builder, receiver, regex_builder, sender, Arc, Clap, CommandTemplate,
+        channel, glob_builder, receiver, regex_builder, sender, Arc, Args, CommandTemplate,
         ValueHint, WorkerResult, EXEC_BATCH_EXPL, EXEC_EXPL,
     },
     App,
 };
 
-#[derive(Clap, Clone, Debug, PartialEq)]
+#[derive(Args, Clone, Debug, PartialEq)]
 pub(crate) struct SearchOpts {
     /// If provided output will be raw so that it can be easily piped to other
     /// commands

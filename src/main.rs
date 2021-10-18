@@ -1,6 +1,5 @@
 #![feature(adt_const_params)]
 #![allow(incomplete_features)]
-
 #![deny(
     clippy::all,
     clippy::correctness,

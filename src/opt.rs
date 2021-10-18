@@ -1,5 +1,5 @@
 //! Options used by the main executable
-use clap::{crate_version, AppSettings, ArgSettings, Clap, ValueHint};
+use clap::{crate_version, AppSettings, ArgSettings, Parser, Subcommand, ValueHint};
 use std::{env, fs, path::PathBuf};
 
 use crate::{
@@ -17,7 +17,7 @@ use crate::{
     },
 };
 
-#[derive(Clap, Default, Clone, Debug, PartialEq)]
+#[derive(Parser, Default, Clone, Debug, PartialEq)]
 #[clap(
     version = crate_version!(),
     author = APP_AUTHORS.as_ref(),
@@ -25,10 +25,8 @@ use crate::{
     after_help = AFTER_HELP.as_ref(),
     override_usage = OVERRIDE_HELP.as_ref(),
     max_term_width = 100,
-    global_setting = AppSettings::ColoredHelp,
-    global_setting = AppSettings::ColorAuto,
+    color = clap::ColorChoice::Auto,
     global_setting = AppSettings::DisableHelpSubcommand,        // Disables help (use -h)
-    global_setting = AppSettings::DisableVersionForSubcommands, // Shows no --version
     global_setting = AppSettings::DeriveDisplayOrder,           // Display in order listed here
     global_setting = AppSettings::HidePossibleValuesInHelp,
     global_setting = AppSettings::InferSubcommands,             // l, li, lis == list
@@ -226,7 +224,7 @@ impl Default for Command {
 //     })
 // }
 
-#[derive(Clap, Debug, Clone, PartialEq)]
+#[derive(Subcommand, Debug, Clone, PartialEq)]
 pub(crate) enum Command {
     /// Lists all available tags or files.
     #[clap(
@@ -268,6 +266,9 @@ pub(crate) enum Command {
     #[clap(override_usage = "wutag [FLAG/OPTIONS] clean-cache")]
     CleanCache,
     /// Open a TUI to manage tags, requires results from a `search`, or `list`
-    #[clap(override_usage = "wutag [FLAG/OPTIONS] ui")]
-    Ui
+    #[clap(
+        aliases = &["tui"],
+        override_usage = "wutag [FLAG/OPTIONS] ui"
+    )]
+    Ui,
 }

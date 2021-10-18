@@ -8,6 +8,8 @@ use tui::{
     widgets::ListItem,
 };
 
+use super::ui_app::{DARK_BLUE, GREEN};
+
 /// Representation of a keybinding
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Keybinding<'a> {
@@ -64,7 +66,7 @@ impl<'a> Keybinding<'a> {
         let highlight_style = if highlighted {
             Style::default().fg(Color::Reset)
         } else {
-            Style::default()
+            Style::default().fg(Color::Rgb(GREEN[0], GREEN[1], GREEN[2]))
         };
         ListItem::new(if colored {
             Text::from(vec![
@@ -73,7 +75,7 @@ impl<'a> Keybinding<'a> {
                     keys.push(Span::styled(
                         key,
                         Style::default()
-                            .fg(Color::Green)
+                            .fg(Color::Rgb(DARK_BLUE[0], DARK_BLUE[1], DARK_BLUE[2]))
                             .add_modifier(Modifier::BOLD),
                     ));
                     keys.push(Span::styled("] ", highlight_style));
@@ -184,6 +186,7 @@ pub(crate) static KEYBINDINGS: Lazy<&[Keybinding]> = Lazy::new(|| {
             action:      "exit",
             description: r#"
             Exit the program
+            :ok test
             "#,
         },
         Keybinding {

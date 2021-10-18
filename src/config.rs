@@ -31,6 +31,7 @@ pub(crate) struct Config {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub(crate) struct UiConfig {
     pub(crate) colored_ui:          bool,
+    pub(crate) completion_color:    String,
     pub(crate) looping:             bool,
     pub(crate) mark_indicator:      String,
     pub(crate) paths_bold:          bool,
@@ -40,6 +41,7 @@ pub(crate) struct UiConfig {
     pub(crate) selection_dim:       bool,
     pub(crate) selection_indicator: String,
     pub(crate) selection_italic:    bool,
+    pub(crate) startup_cmd:         Option<String>,
     pub(crate) tick_rate:           u64,
     pub(crate) unmark_indicator:    String,
 }
@@ -102,18 +104,20 @@ impl Default for KeyConfig {
 impl Default for UiConfig {
     fn default() -> Self {
         Self {
-            tick_rate:           250_u64,
+            colored_ui:          true,
+            completion_color:    String::from("dark"),
             looping:             true,
-            selection_indicator: String::from("\u{2022}"),
             mark_indicator:      String::from("\u{2714}"),
-            unmark_indicator:    String::from(" "),
-            selection_bold:      true,
-            selection_italic:    false,
-            selection_dim:       false,
-            selection_blink:     false,
             paths_bold:          true,
             paths_color:         String::from("blue"),
-            colored_ui:          true,
+            selection_blink:     false,
+            selection_bold:      true,
+            selection_dim:       false,
+            selection_indicator: String::from("\u{2022}"),
+            selection_italic:    false,
+            startup_cmd:         Some(String::from("--global list files --with-tags")),
+            tick_rate:           250_u64,
+            unmark_indicator:    String::from(" "),
         }
     }
 }
@@ -149,14 +153,7 @@ impl Config {
 
     /// Loads config file from home directory of user executing the program
     pub(crate) fn load_default_location() -> Result<Self> {
-        Self::load(
-            std::env::var_os("XDG_CONFIG_HOME")
-                .map(PathBuf::from)
-                .filter(|p| p.is_absolute())
-                .or_else(|| dirs::home_dir().map(|d| d.join(".config")))
-                .context("Invalid configuration directory")?
-                .join("wutag"),
-        )
+        Self::load(get_config_path()?)
     }
 }
 
@@ -200,4 +197,21 @@ impl KeyConfig {
             ))
         }
     }
+}
+
+/// Get configuration file path
+pub(crate) fn get_config_path() -> Result<PathBuf> {
+    #[cfg(target_os = "macos")]
+    let conf_dir_og = std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute())
+        .or_else(|| dirs::home_dir().map(|d| d.join(".config")))
+        .context("Invalid configuration directory");
+
+    #[cfg(not(target_os = "macos"))]
+    let conf_dir_og = dirs::config_dir();
+
+    conf_dir_og
+        .map(|p| p.join("wutag"))
+        .context("unable to join config path")
 }

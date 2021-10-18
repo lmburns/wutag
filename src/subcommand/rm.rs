@@ -1,12 +1,12 @@
 use super::{
     uses::{
         err, fmt_err, fmt_path, fmt_tag, glob_builder, list_tags, osstr_to_bytes, reg_ok,
-        regex_builder, Arc, Clap, Colorize, Cow, DirEntryExt, OsStr,
+        regex_builder, Arc, Args, Colorize, Cow, DirEntryExt, OsStr,
     },
     App,
 };
 
-#[derive(Clap, Clone, Debug, PartialEq)]
+#[derive(Args, Clone, Debug, PartialEq)]
 pub(crate) struct RmOpts {
     /// A glob pattern like "*.png" (or regex).
     pub(crate) pattern: String,

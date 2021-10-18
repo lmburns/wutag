@@ -382,7 +382,6 @@ impl TagRegistry {
         path_tags
     }
 
-
     /// Lists ids of all entries present in the registry.
     pub(crate) fn list_entries_ids(&self) -> impl Iterator<Item = &EntryId> {
         self.entries.keys()

@@ -58,6 +58,11 @@ _wutag__list__tags_commands() {
     local commands; commands=()
     _describe -t commands 'wutag list tags commands' commands \"$@\"
 }
+(( $+functions[_wutag__ui_commands] )) ||
+_wutag__ui_commands() {
+    local commands; commands=()
+    _describe -t commands 'wutag ui commands' commands \"$@\"
+}
 (( $+functions[_wutag__view_commands] )) ||
 _wutag__view_commands() {
     local commands; commands=()
@@ -87,10 +92,4 @@ _wutag_tags() {
     // Make this replace globally
     (r#"'*::tags:' \"#, r#"'*::_wutag_tags:' \"#),
     (r#"'*::tags:' \"#, r#"'*::tags:_wutag_tags' \"#),
-    (
-        "'-t+[The tag to edit]' \\
-'--tag=[The tag to edit]' \\",
-        "'-t+[The tag to edit]::_wutag_tags' \\
-'--tag=[The tag to edit]::_wutag_tags' \\",
-    ),
 ];

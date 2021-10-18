@@ -99,72 +99,72 @@ impl Events {
             let tx = tx.clone();
             let key_input_disabled = key_input_disabled.clone();
 
-                let mut last_tick = Instant::now();
-                loop {
-                    let timeout = tick_rate
-                        .checked_sub(last_tick.elapsed())
-                        .unwrap_or(tick_rate);
-                    if key_input_disabled.load(Ordering::Relaxed) {
-                        std::thread::sleep(timeout);
-                        continue;
-                    } else if event::poll(timeout).expect("no events available in thread") {
-                        #[allow(clippy::collapsible_match)]
-                        match event::read() {
-                            Ok(event) => match event {
-                                event::Event::Key(key) => {
-                                    let key = match key.code {
-                                        Code::Char(c) => match key.modifiers {
-                                            Modifier::NONE | Modifier::SHIFT => Key::Char(c),
-                                            Modifier::ALT => Key::Alt(c),
-                                            Modifier::CONTROL => Key::Ctrl(c),
-                                            _ => Key::Null,
-                                        },
-                                        Code::Backspace => match key.modifiers {
-                                            Modifier::ALT => Key::AltBackspace,
-                                            Modifier::CONTROL => Key::CtrlBackspace,
-                                            _ => Key::Backspace,
-                                        },
-                                        Code::Delete => match key.modifiers {
-                                            Modifier::ALT => Key::AltDelete,
-                                            Modifier::CONTROL => Key::CtrlDelete,
-                                            _ => Key::Delete,
-                                        },
-                                        Code::Tab => Key::Tab,
-                                        Code::BackTab => Key::BackTab,
-                                        Code::Left => Key::Left,
-                                        Code::Right => Key::Right,
-                                        Code::Up => Key::Up,
-                                        Code::Down => Key::Down,
-                                        Code::Home => Key::Home,
-                                        Code::End => Key::End,
-                                        Code::PageUp => Key::PageUp,
-                                        Code::PageDown => Key::PageDown,
-                                        Code::Insert => Key::Insert,
-                                        Code::Esc => Key::Esc,
-                                        Code::F(k) => Key::F(k),
-                                        Code::Null => Key::Null,
-                                        Code::Enter => Key::Char('\n'),
-                                    };
-                                    tx.send(Event::Input(key))
-                                        .expect("failed to send key event");
-                                    std::thread::sleep(Duration::from_millis(1));
-                                },
-                                // event::Event::Mouse(mouse) => {},
-                                // event::Event::Resize(w, h) => {},
-                                _ => {
-                                    tx.send(Event::Tick).expect("failed to send tick event");
-                                },
+            let mut last_tick = Instant::now();
+            loop {
+                let timeout = tick_rate
+                    .checked_sub(last_tick.elapsed())
+                    .unwrap_or(tick_rate);
+                if key_input_disabled.load(Ordering::Relaxed) {
+                    std::thread::sleep(timeout);
+                    continue;
+                } else if event::poll(timeout).expect("no events available in thread") {
+                    #[allow(clippy::collapsible_match)]
+                    match event::read() {
+                        Ok(event) => match event {
+                            event::Event::Key(key) => {
+                                let key = match key.code {
+                                    Code::Char(c) => match key.modifiers {
+                                        Modifier::NONE | Modifier::SHIFT => Key::Char(c),
+                                        Modifier::ALT => Key::Alt(c),
+                                        Modifier::CONTROL => Key::Ctrl(c),
+                                        _ => Key::Null,
+                                    },
+                                    Code::Backspace => match key.modifiers {
+                                        Modifier::ALT => Key::AltBackspace,
+                                        Modifier::CONTROL => Key::CtrlBackspace,
+                                        _ => Key::Backspace,
+                                    },
+                                    Code::Delete => match key.modifiers {
+                                        Modifier::ALT => Key::AltDelete,
+                                        Modifier::CONTROL => Key::CtrlDelete,
+                                        _ => Key::Delete,
+                                    },
+                                    Code::Tab => Key::Tab,
+                                    Code::BackTab => Key::BackTab,
+                                    Code::Left => Key::Left,
+                                    Code::Right => Key::Right,
+                                    Code::Up => Key::Up,
+                                    Code::Down => Key::Down,
+                                    Code::Home => Key::Home,
+                                    Code::End => Key::End,
+                                    Code::PageUp => Key::PageUp,
+                                    Code::PageDown => Key::PageDown,
+                                    Code::Insert => Key::Insert,
+                                    Code::Esc => Key::Esc,
+                                    Code::F(k) => Key::F(k),
+                                    Code::Null => Key::Null,
+                                    Code::Enter => Key::Char('\n'),
+                                };
+                                tx.send(Event::Input(key))
+                                    .expect("failed to send key event");
+                                std::thread::sleep(Duration::from_millis(1));
                             },
+                            // event::Event::Mouse(mouse) => {},
+                            // event::Event::Resize(w, h) => {},
                             _ => {
                                 tx.send(Event::Tick).expect("failed to send tick event");
                             },
-                        }
-                    }
-                    if last_tick.elapsed() >= tick_rate {
-                        tx.send(Event::Tick).expect("failed to send tick event");
-                        last_tick = Instant::now();
+                        },
+                        _ => {
+                            tx.send(Event::Tick).expect("failed to send tick event");
+                        },
                     }
                 }
+                if last_tick.elapsed() >= tick_rate {
+                    tx.send(Event::Tick).expect("failed to send tick event");
+                    last_tick = Instant::now();
+                }
+            }
         });
         Events { rx }
     }

@@ -1,13 +1,13 @@
 use super::{
     uses::{
         err, fmt_err, fmt_path, fmt_tag, glob_builder, list_tags, osstr_to_bytes, parse_path,
-        reg_ok, regex_builder, wutag_error, Arc, Clap, Colorize, Cow, DirEntryExt, EntryData,
+        reg_ok, regex_builder, wutag_error, Arc, Args, Colorize, Cow, DirEntryExt, EntryData,
         OsStr, PathBuf, ValueHint,
     },
     App,
 };
 
-#[derive(Clap, Debug, Clone, PartialEq)]
+#[derive(Args, Debug, Clone, PartialEq)]
 pub(crate) struct CpOpts {
     /// Path to the file from which to copy tags from
     #[clap(

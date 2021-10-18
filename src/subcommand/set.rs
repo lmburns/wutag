@@ -1,13 +1,13 @@
 use super::{
     uses::{
         bold_entry, collect_stdin_paths, err, fmt_err, fmt_path, fmt_tag, glob_builder,
-        parse_color, reg_ok, regex_builder, wutag_error, Arc, Clap, Colorize, DirEntryExt,
+        parse_color, reg_ok, regex_builder, wutag_error, Arc, Args, Colorize, DirEntryExt,
         EntryData, IntoParallelRefIterator, ParallelIterator, Tag, DEFAULT_COLOR,
     },
     App,
 };
 
-#[derive(Clap, Clone, Debug, PartialEq)]
+#[derive(Args, Clone, Debug, PartialEq)]
 pub(crate) struct SetOpts {
     /// Do not show errors that tag already exists
     #[clap(name = "quiet", long, short = 'q')]
@@ -75,6 +75,8 @@ impl App {
         log::debug!("Compiled pattern: {}", re);
 
         if (opts.stdin || atty::isnt(atty::Stream::Stdin)) && atty::is(atty::Stream::Stdout) {
+            // if (opts.stdin || termion::is_tty(&io::stdin())) &&
+            // termion::is_tty(&io::stdout()) {
             log::debug!("Using STDIN");
             for entry in &collect_stdin_paths(&self.base_dir) {
                 println!("{}:", fmt_path(entry, self.base_color, self.ls_colors));
@@ -107,7 +109,7 @@ impl App {
                             wutag_error!("{} {}", e, bold_entry!(entry));
                         }
                     } else {
-                        log::debug!("Setting tag for: {}", entry.display());
+                        log::debug!("Setting tag for new entry: {}", entry.display());
                         let entry = EntryData::new(entry);
                         let id = self.registry.add_or_update_entry(entry);
                         self.registry.tag_entry(tag, id);
@@ -154,7 +156,7 @@ impl App {
                                 err!('\t', e, entry);
                             }
                         } else {
-                            log::debug!("Setting tag for: {}", entry.path().display());
+                            log::debug!("Setting tag for new entry: {}", entry.path().display());
                             let entry = EntryData::new(entry.path());
                             let id = self.registry.add_or_update_entry(entry);
                             self.registry.tag_entry(tag, id);

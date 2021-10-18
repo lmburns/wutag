@@ -1,3 +1,5 @@
+#![feature(adt_const_params)]
+#![allow(incomplete_features)]
 #![deny(
     clippy::all,
     clippy::correctness,
@@ -48,7 +50,10 @@
     clippy::shadow_reuse,
     clippy::too_many_lines,
     clippy::doc_markdown,
-    clippy::single_match_else
+    clippy::single_match_else,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::upper_case_acronyms
 )]
 
 mod comp_helper;
@@ -60,6 +65,7 @@ mod macros;
 mod opt;
 mod registry;
 mod subcommand;
+mod ui;
 mod util;
 
 use colored::Colorize;

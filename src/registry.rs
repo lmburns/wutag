@@ -3,6 +3,7 @@
 #![allow(clippy::cast_sign_loss)]
 #![allow(clippy::shadow_unrelated)]
 
+// util::fmt_tag
 use crate::filesystem::contained_path;
 use rayon::prelude::*;
 use wutag_core::tag::Tag;
@@ -11,7 +12,7 @@ use anyhow::{Context, Result};
 use colored::Color;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
+    collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
 };
@@ -19,30 +20,41 @@ use std::{
 // use rayon::prelude::*;
 // use rayon::collections::hash_map;
 
+/// Representation of a tagged file
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
 pub(crate) struct EntryData {
+    /// Path of the file entry with tags
     path: PathBuf,
 }
 
 impl EntryData {
+    /// Generate a new `EntryData` instance
     pub(crate) fn new<P: AsRef<Path>>(path: P) -> Self {
         Self {
             path: path.as_ref().to_path_buf(),
         }
     }
 
+    /// Return the path of the `EntryData` instance
     pub(crate) fn path(&self) -> &Path {
         &self.path
     }
 }
 
+/// Alias to `usize`, which is a hashed timestamp written to the files extended
+/// attributes
 pub(crate) type EntryId = usize;
 
+/// Representation of the entire registry
 #[derive(Default, Deserialize, Serialize, Clone, Debug)]
 pub(crate) struct TagRegistry {
-    pub(crate) tags: HashMap<Tag, Vec<EntryId>>,
-    entries:         HashMap<EntryId, EntryData>,
-    pub(crate) path: PathBuf,
+    /// Hash of the `Tag` name and the file id (`EntryId`) in which these tags
+    /// are associated with
+    pub(crate) tags:    BTreeMap<Tag, Vec<EntryId>>,
+    /// Hash of the file id (`EntryId`) and the entries data (`EntryData`)
+    pub(crate) entries: BTreeMap<EntryId, EntryData>,
+    /// Path to the `TagRegistry`
+    pub(crate) path:    PathBuf,
 }
 
 impl TagRegistry {
@@ -206,6 +218,7 @@ impl TagRegistry {
         }
     }
 
+    /// Check if the file entry has a specific tag
     pub(crate) fn entry_has_tags(&self, id: EntryId, tags: &[String]) -> bool {
         let entry_tags = self.list_entry_tags(id).unwrap_or_else(Vec::new);
 
@@ -239,6 +252,7 @@ impl TagRegistry {
         entries
     }
 
+    /// Return a vector of `PathBuf`'s that have a specific tag or tags
     pub(crate) fn list_entries_paths<T, S>(
         &self,
         tags: T,
@@ -274,6 +288,98 @@ impl TagRegistry {
             });
         entries.dedup();
         entries
+    }
+
+    // /// Returns a `BTreeMap` of (`PathBuf`, `Vec<String>`) where the path is the
+    // /// file path and the nested vector is the list of raw `Tag` name. This is
+    // /// used for the `tui`, and the results vary depending if the user wants all
+    // /// results (`global`) or not
+    // pub(crate) fn list_paths_and_tags(
+    //     &self,
+    //     tags: Vec<String>,
+    //     global: bool,
+    //     base_dir: &Path,
+    // ) -> BTreeMap<PathBuf, Vec<String>> {
+    //     let cloned = tags.clone();
+    //     let mut path_tags = BTreeMap::new();
+    //     let mut entries = cloned
+    //         .iter()
+    //         .fold(Vec::new(), |mut acc, tag| {
+    //             if let Some(entries) = self
+    //                 .tags
+    //                 .iter()
+    //                 .find(|(t, _)| t.name() == tag)
+    //                 .map(|(_, e)| e)
+    //             {
+    //                 acc.extend_from_slice(&entries[..]);
+    //             }
+    //             acc
+    //         })
+    //         .iter()
+    //         .fold(Vec::new(), |mut acc, id| {
+    //             if let Some(entry) = self.get_entry(*id) {
+    //                 if !global && !contained_path(entry.path(), base_dir) {
+    //                 } else {
+    //                     acc.push((PathBuf::from(entry.path()), id));
+    //                 }
+    //             }
+    //             acc
+    //         });
+    //     entries.dedup();
+    //
+    //     for (entry, id) in entries.iter() {
+    //         path_tags.insert(
+    //             entry.clone(),
+    //             self.list_entry_tags(**id)
+    //                 .unwrap_or_default()
+    //                 .iter()
+    //                 .map(|t| t.name().to_owned())
+    //                 .collect::<Vec<_>>(),
+    //         );
+    //     }
+    //
+    //     path_tags
+    // }
+
+    /// Return the conceptualized data structure that all these functions
+    /// correspond to. i.e., a hashmap of the file's path corresponding to a
+    /// vector of the tag *names* as strings
+    pub(crate) fn list_all_paths_and_tags_as_strings(&self) -> BTreeMap<PathBuf, Vec<String>> {
+        let mut path_tags = BTreeMap::new();
+
+        for (id, data) in self.list_entries_and_ids() {
+            path_tags.insert(
+                data.path().to_path_buf(),
+                self.list_entry_tags(*id)
+                    .unwrap_or_default()
+                    .iter()
+                    .map(|t| t.name().to_owned())
+                    .collect::<Vec<_>>(),
+            );
+        }
+
+        path_tags
+    }
+
+    /// Return the conceptualized data structure that all these functions
+    /// correspond to. i.e., a hashmap of the file's path corresponding to a
+    /// vector of the `Tag`s
+    pub(crate) fn list_all_paths_and_tags(&self) -> BTreeMap<PathBuf, Vec<Tag>> {
+        let mut path_tags = BTreeMap::new();
+
+        for (id, data) in self.list_entries_and_ids() {
+            path_tags.insert(
+                data.path().to_path_buf(),
+                self.list_entry_tags(*id)
+                    .unwrap_or_default()
+                    .iter()
+                    .map(ToOwned::to_owned)
+                    .map(ToOwned::to_owned)
+                    .collect::<Vec<_>>(),
+            );
+        }
+
+        path_tags
     }
 
     /// Lists ids of all entries present in the registry.

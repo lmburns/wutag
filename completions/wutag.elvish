@@ -1,0 +1,198 @@
+
+use builtin;
+use str;
+
+set edit:completion:arg-completer[wutag] = [@words]{
+    fn spaces [n]{
+        builtin:repeat $n ' ' | str:join ''
+    }
+    fn cand [text desc]{
+        edit:complex-candidate $text &display=$text' '(spaces (- 14 (wcswidth $text)))$desc
+    }
+    var command = 'wutag'
+    for word $words[1..-1] {
+        if (str:has-prefix $word '-') {
+            break
+        }
+        set command = $command';'$word
+    }
+    var completions = [
+        &'wutag'= {
+            cand -d 'Specify starting path for filesystem traversal'
+            cand --dir 'Specify starting path for filesystem traversal'
+            cand -m 'Increase maximum recursion depth from 2'
+            cand --max-depth 'Increase maximum recursion depth from 2'
+            cand -R 'Specify a different registry to use'
+            cand --registry 'Specify a different registry to use'
+            cand -c 'When to colorize output'
+            cand --color 'When to colorize output'
+            cand -t 'File-type(s) to filter by: f|file, d|directory, l|symlink, e|empty'
+            cand --type 'File-type(s) to filter by: f|file, d|directory, l|symlink, e|empty'
+            cand -e 'Filter results by file extension'
+            cand --ext 'Filter results by file extension'
+            cand -E 'Exclude results that match pattern'
+            cand --exclude 'Exclude results that match pattern'
+            cand -h 'Print help information'
+            cand --help 'Print help information'
+            cand -V 'Print version information'
+            cand --version 'Print version information'
+            cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand -i 'Case insensitively search'
+            cand --case_insensitive 'Case insensitively search'
+            cand -s 'Case sensitively search'
+            cand --case_sensitive 'Case sensitively search'
+            cand -r 'Search with a regular expressions'
+            cand --regex 'Search with a regular expressions'
+            cand -g 'Apply operation to all tags and files instead of locally'
+            cand --global 'Apply operation to all tags and files instead of locally'
+            cand -l 'Respect ''LS_COLORS'' environment variable when coloring the output'
+            cand --ls-colors 'Respect ''LS_COLORS'' environment variable when coloring the output'
+            cand -u 'Open a TUI to manage tags'
+            cand --ui 'Open a TUI to manage tags'
+            cand list 'Lists all available tags or files'
+            cand set 'Set tag(s) on files that match the given pattern'
+            cand rm 'Remove tag(s) from the files that match the provided pattern'
+            cand clear 'Clears all tags of the files that match the provided pattern'
+            cand search 'Searches for files that have all of the provided ''tags'''
+            cand cp 'Copies tags from the specified file to files that match a pattern'
+            cand view 'View the results in an editor (optional pattern)'
+            cand edit 'Edits a tag''s color'
+            cand print-completions 'Prints completions for the specified shell to dir or stdout'
+            cand clean-cache 'Clean the cached tag registry'
+            cand ui 'Open a TUI to manage tags, requires results from a `search`, or `list`'
+        }
+        &'wutag;list'= {
+            cand -r 'If provided output will be raw so that it can be easily piped to other commands'
+            cand --raw 'If provided output will be raw so that it can be easily piped to other commands'
+            cand -h 'Print help information'
+            cand --help 'Print help information'
+            cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand tags 'tags'
+            cand files 'files'
+        }
+        &'wutag;list;tags'= {
+            cand --version 'Print version information'
+            cand -c 'c'
+            cand --completions 'completions'
+            cand -b 'Use border separators when formatting output'
+            cand --border 'Use border separators when formatting output'
+            cand -h 'Print help information'
+            cand --help 'Print help information'
+            cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
+        }
+        &'wutag;list;files'= {
+            cand --version 'Print version information'
+            cand -t 'Display tags along with the files'
+            cand --with-tags 'Display tags along with the files'
+            cand -f 'Format the tags and files output into columns'
+            cand --format 'Format the tags and files output into columns'
+            cand -b 'Use border separators when formatting output'
+            cand --border 'Use border separators when formatting output'
+            cand -G 'Display tags and files on separate lines'
+            cand --garrulous 'Display tags and files on separate lines'
+            cand -h 'Print help information'
+            cand --help 'Print help information'
+            cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
+        }
+        &'wutag;set'= {
+            cand -C 'Explicitly select color for tag'
+            cand --color 'Explicitly select color for tag'
+            cand -q 'Do not show errors that tag already exists'
+            cand --quiet 'Do not show errors that tag already exists'
+            cand -c 'Clear all tags before setting them'
+            cand --clear 'Clear all tags before setting them'
+            cand -s 's'
+            cand --stdin 'stdin'
+            cand -h 'Print help information'
+            cand --help 'Print help information'
+            cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
+        }
+        &'wutag;rm'= {
+            cand -h 'Print help information'
+            cand --help 'Print help information'
+            cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
+        }
+        &'wutag;clear'= {
+            cand -n 'Clear all files from registry that no longer exist (requires --global)'
+            cand --non-existent 'Clear all files from registry that no longer exist (requires --global)'
+            cand -h 'Print help information'
+            cand --help 'Print help information'
+            cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
+        }
+        &'wutag;search'= {
+            cand -x 'Execute a command on each individual file'
+            cand --exec 'Execute a command on each individual file'
+            cand -X 'Execute a command on the batch of matching files'
+            cand --exec-batch 'Execute a command on the batch of matching files'
+            cand -t 'Search just by tags or along with a tag(s)'
+            cand --tags 'Search just by tags or along with a tag(s)'
+            cand -r 'If provided output will be raw so that it can be easily piped to other commands'
+            cand --raw 'If provided output will be raw so that it can be easily piped to other commands'
+            cand -h 'Print help information'
+            cand --help 'Print help information'
+            cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
+        }
+        &'wutag;cp'= {
+            cand -h 'Print help information'
+            cand --help 'Print help information'
+            cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
+        }
+        &'wutag;view'= {
+            cand -e 'Open tags in selected edtor (use only with vi, vim, neovim)'
+            cand --editor 'Open tags in selected edtor (use only with vi, vim, neovim)'
+            cand -f 'Format of file to view results (toml, yaml, json)'
+            cand --format 'Format of file to view results (toml, yaml, json)'
+            cand -t 'Search with a tag as a filter'
+            cand --tags 'Search with a tag as a filter'
+            cand -p 'Pattern to search for and open result in editor'
+            cand --pattern 'Pattern to search for and open result in editor'
+            cand -a 'a'
+            cand --all 'all'
+            cand -h 'Print help information'
+            cand --help 'Print help information'
+            cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
+        }
+        &'wutag;edit'= {
+            cand -c 'Set the color of the tag to the specified color. Accepted values are hex colors like ''0x000000'' or ''#1F1F1F'' or just plain ''ff000a''. The colors are case insensitive meaning ''1f1f1f'' is equivalent to ''1F1F1F'''
+            cand --color 'Set the color of the tag to the specified color. Accepted values are hex colors like ''0x000000'' or ''#1F1F1F'' or just plain ''ff000a''. The colors are case insensitive meaning ''1f1f1f'' is equivalent to ''1F1F1F'''
+            cand -t 'The tag to edit'
+            cand --tag 'The tag to edit'
+            cand -h 'Print help information'
+            cand --help 'Print help information'
+            cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
+        }
+        &'wutag;print-completions'= {
+            cand --shell 'Shell to print completions. Available shells are: bash, elvish, fish, powershell, zsh'
+            cand -d 'Directory to output completions to'
+            cand --dir 'Directory to output completions to'
+            cand -h 'Print help information'
+            cand --help 'Print help information'
+            cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
+        }
+        &'wutag;clean-cache'= {
+            cand -h 'Print help information'
+            cand --help 'Print help information'
+            cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
+        }
+        &'wutag;ui'= {
+            cand -h 'Print help information'
+            cand --help 'Print help information'
+            cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
+        }
+    ]
+    $completions[$command]
+}

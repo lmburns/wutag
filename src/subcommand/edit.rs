@@ -1,9 +1,9 @@
 use super::{
-    uses::{fmt_err, fmt_tag, parse_color, Clap},
+    uses::{fmt_err, fmt_tag, parse_color, Args},
     App,
 };
 
-#[derive(Clap, Debug, Clone, PartialEq)]
+#[derive(Args, Debug, Clone, PartialEq)]
 pub(crate) struct EditOpts {
     #[clap(
         name = "color",

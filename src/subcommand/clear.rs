@@ -1,12 +1,12 @@
 use super::{
     uses::{
         clear_tags, err, fmt_err, fmt_ok, fmt_path, fs, glob_builder, has_tags, osstr_to_bytes,
-        reg_ok, regex_builder, wutag_error, Arc, Clap, Colorize, Cow, DirEntryExt, OsStr,
+        reg_ok, regex_builder, wutag_error, Arc, Args, Colorize, Cow, DirEntryExt, OsStr,
     },
     App,
 };
 
-#[derive(Clap, Debug, Clone, PartialEq)]
+#[derive(Args, Debug, Clone, PartialEq)]
 pub(crate) struct ClearOpts {
     // Opts::into_app().get_matches_from(env::args_os()).is_present("global")
     /// Clear all files from registry that no longer exist (requires --global)

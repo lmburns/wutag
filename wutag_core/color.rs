@@ -1,7 +1,9 @@
 //! Utility functions used through this crate and by the main executable
-use colored::Color;
-
 use crate::{Error, Result};
+use colored::Color;
+use tui::style as tui;
+
+// TODO: Add underline and inverse options
 
 /// Parses a [Color](colored::Color) from a foreground color string
 pub fn color_from_fg_str(s: &str) -> Option<Color> {
@@ -32,6 +34,41 @@ pub fn color_from_fg_str(s: &str) -> Option<Color> {
                     g: it.next()?.parse().ok()?,
                     b: it.next()?.parse().ok()?,
                 })
+            } else {
+                None
+            },
+    }
+}
+
+/// Parses a [Color](tui::style::Color) from a foreground color string
+pub fn color_tui_from_fg_str(s: &str) -> Option<tui::Color> {
+    match s {
+        "30" => Some(tui::Color::Black),
+        "31" => Some(tui::Color::Red),
+        "32" => Some(tui::Color::Green),
+        "33" => Some(tui::Color::Yellow),
+        "34" => Some(tui::Color::Blue),
+        "35" => Some(tui::Color::Magenta),
+        "36" => Some(tui::Color::Cyan),
+        "37" => Some(tui::Color::White),
+        "90" => Some(tui::Color::DarkGray),
+        "91" => Some(tui::Color::LightRed),
+        "92" => Some(tui::Color::LightGreen),
+        "93" => Some(tui::Color::LightYellow),
+        "94" => Some(tui::Color::LightBlue),
+        "95" => Some(tui::Color::LightMagenta),
+        "96" => Some(tui::Color::LightCyan),
+        "97" => None,
+        color =>
+            if color.starts_with("38;2;") {
+                let mut it = s.split(';');
+                it.next()?;
+                it.next()?;
+                Some(tui::Color::Rgb(
+                    it.next()?.parse().ok()?,
+                    it.next()?.parse().ok()?,
+                    it.next()?.parse().ok()?,
+                ))
             } else {
                 None
             },
@@ -129,6 +166,93 @@ pub fn parse_color_cli_table<S: AsRef<str>>(color: S) -> Result<cli_table::Color
         }
     }
     Err(Error::InvalidColor(color.to_string()))
+}
+
+/// Parses a [Color](tui::styles::Color) from a String. If the provided string
+/// starts with `0x` or `#` or without any prefix the color will be treated as
+/// hex color notation so any colors like `0x1f1f1f` or `#ABBA12` or `121212`
+/// are valid.
+pub fn parse_color_tui<S: AsRef<str>>(color: S) -> Result<tui::Color> {
+    let color = color.as_ref();
+    macro_rules! if_6 {
+        ($c:ident) => {
+            if $c.len() == 6 {
+                Some($c)
+            } else {
+                None
+            }
+        };
+    }
+
+    let result = if let Some(c) = color.strip_prefix("0x") {
+        if_6!(c)
+    } else if let Some(c) = color.strip_prefix('#') {
+        if_6!(c)
+    } else {
+        if_6!(color)
+    };
+
+    if let Some(color) = result {
+        // hex
+        if let Some((r, g, b)) = parse_hex(color) {
+            println!("PARSED COLOR FUN");
+            return Ok(tui::Color::Rgb(r, g, b));
+        }
+    }
+    Err(Error::InvalidColor(color.to_string()))
+}
+
+/// Wrapper for tui widget colors
+#[derive(Clone, Copy, Debug)]
+pub struct TuiColor {
+    /// Inner tui widget color type
+    inner: tui::Color,
+}
+
+impl TuiColor {
+    /// Returns the underlying [`TuiColor`] type
+    ///
+    /// [`Color`](tui::style::Color)
+    pub fn get(self) -> tui::Color {
+        self.inner
+    }
+}
+
+impl<'a> From<&'a str> for TuiColor {
+    fn from(s: &'a str) -> Self {
+        Self {
+            inner: match s.to_ascii_lowercase().trim() {
+                "black" => tui::Color::Black,
+                "red" => tui::Color::Red,
+                "green" => tui::Color::Green,
+                "yellow" => tui::Color::Yellow,
+                "blue" => tui::Color::Blue,
+                "magenta" => tui::Color::Magenta,
+                "cyan" => tui::Color::Cyan,
+                "gray" => tui::Color::Gray,
+                "darkgray" => tui::Color::DarkGray,
+                "lightred" => tui::Color::LightRed,
+                "lightgreen" => tui::Color::LightGreen,
+                "lightyellow" => tui::Color::LightYellow,
+                "lightblue" => tui::Color::LightBlue,
+                "lightmagenta" => tui::Color::LightMagenta,
+                "lightcyan" => tui::Color::LightCyan,
+                "white" => tui::Color::White,
+                _ => match parse_color_tui(s) {
+                    Ok(rgb) => rgb,
+                    Err(_) => Self::default().get(),
+                },
+            },
+        }
+    }
+}
+
+impl Default for TuiColor {
+    fn default() -> Self {
+        Self {
+            inner: tui::Color::Gray,
+        }
+    }
 }
 
 #[cfg(test)]

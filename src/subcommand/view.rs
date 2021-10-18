@@ -1,15 +1,18 @@
+// TODO: Add option to open editor with a pattern that matches new files, not
+// just files that are already tagged
+
 use super::{
     uses::{
         bold_entry, clear_tags, contained_path, create_temp_path, fmt_path, fmt_tag, fs,
         glob_builder, osstr_to_bytes, process, raw_local_path, reg_ok, regex_builder, ternary,
-        wutag_error, Arc, ArgSettings, BTreeMap, Clap, Colorize, Cow, DirEntryExt, EntryData,
+        wutag_error, Arc, ArgSettings, Args, BTreeMap, Colorize, Cow, DirEntryExt, EntryData,
         IntoParallelRefIterator, Lexiclean, OsStr, ParallelIterator, PathBuf, Tag, Write,
         DEFAULT_EDITOR,
     },
     App,
 };
 
-#[derive(Clap, Debug, Clone, PartialEq)]
+#[derive(Args, Debug, Clone, PartialEq)]
 pub(crate) struct ViewOpts {
     /// Open tags in selected edtor (use only with vi, vim, neovim)
     #[clap(

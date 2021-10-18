@@ -1,13 +1,14 @@
 use super::{
     uses::{
         contained_path, fmt_local_path, fmt_path, fmt_tag, print_stdout, raw_local_path, ternary,
-        Border, Cell, Clap, ColorChoice, Colorize, HashMap, Justify, Separator, Style, Table,
+        Args, Border, Cell, ColorChoice, Colorize, HashMap, Justify, Separator, Style, Subcommand,
+        Table,
     },
     App,
 };
 
 // It seems that 'name' has to be defined to use 'requires' or 'conflicts_with'
-#[derive(Clap, Debug, Clone, PartialEq)]
+#[derive(Subcommand, Debug, Clone, PartialEq)]
 pub(crate) enum ListObject {
     Tags {
         #[clap(long = "completions", short = 'c', hidden = true)]
@@ -58,7 +59,7 @@ pub(crate) enum ListObject {
     },
 }
 
-#[derive(Clap, Debug, Clone, PartialEq)]
+#[derive(Args, Debug, Clone, PartialEq)]
 pub(crate) struct ListOpts {
     /// The object to list. Valid values are: 'tags', 'files'.
     #[clap(subcommand)]

@@ -10,7 +10,10 @@ pub(crate) mod set;
 pub(crate) mod uses;
 pub(crate) mod view;
 
-use crate::opt::{Command, Opts};
+use crate::{
+    opt::{Command, Opts},
+    ui,
+};
 use uses::{
     env, fs, parse_color, parse_color_cli_table, wutag_error, Color, Colorize, Config, Context,
     Cow, FileTypes, LookupError, PathBuf, RegexSet, RegexSetBuilder, Result, Stream, TagRegistry,
@@ -41,11 +44,78 @@ pub(crate) struct App {
     pub(crate) registry:         TagRegistry,
 }
 
+// TODO: Move this? Where should it be at?
+// This must be moved out of the `impl` for the `App` so that way it can be
+// accessed outside of the `App` struct, which requires that every field of the
+// `UiApp` be thread safe, and it is not
+
+/// Load the `TagRegistry`
+pub(crate) fn load_registry(opts: &Opts) -> Result<TagRegistry> {
+    let state_file = std::env::var_os("XDG_CACHE_HOME")
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute())
+        .or_else(|| dirs::home_dir().map(|d| d.join(".cache")))
+        .map(|p| p.join("wutag.registry"))
+        .unwrap();
+
+    let registry = if let Some(registry) = &opts.reg {
+        // Expand both tlide '~' and environment variables in 'WUTAG_REGISTRY' env var
+        let registry = &PathBuf::from(
+            shellexpand::full(&registry.display().to_string())
+                .unwrap_or_else(|_| {
+                    Cow::from(
+                        LookupError {
+                            var_name: "Unkown environment variable".into(),
+                            cause:    env::VarError::NotPresent,
+                        }
+                        .to_string(),
+                    )
+                })
+                .to_string(),
+        );
+
+        if registry.is_file() && registry.file_name().is_some() {
+            TagRegistry::load(&registry).unwrap_or_else(|_| TagRegistry::new(&registry))
+        } else if registry.is_dir() && registry.file_name().is_some() {
+            wutag_error!(
+                "{} is not a file. Using default registry: {}",
+                registry.display().to_string().green(),
+                state_file.display().to_string().green(),
+            );
+            TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
+        } else if registry.display().to_string().ends_with('/') {
+            wutag_error!(
+                "{} last error is a directory path. Using default registry: {}",
+                registry.display().to_string().green(),
+                state_file.display().to_string().green(),
+            );
+            TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
+        } else {
+            fs::create_dir_all(
+                &registry
+                    .parent()
+                    .context("Could not get parent of nonexisting path")?,
+            )
+            .with_context(|| {
+                format!(
+                    "unable to create registry directory: '{}'",
+                    registry.display()
+                )
+            })?;
+            TagRegistry::load(&registry).unwrap_or_else(|_| TagRegistry::new(&registry))
+        }
+    } else {
+        TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
+    };
+
+    Ok(registry)
+}
+
 impl App {
     pub(crate) fn run(opts: Opts, config: Config) -> Result<()> {
-        let mut app = Self::new(&opts, config)?;
+        let mut app = Self::new(&opts, config.clone())?;
         log::trace!("CONFIGURATION: {:#?}", app);
-        app.run_command(opts.cmd);
+        app.run_command(opts, config);
 
         Ok(())
     }
@@ -109,62 +179,7 @@ impl App {
             "toml".to_string()
         };
 
-        let state_file = std::env::var_os("XDG_CACHE_HOME")
-            .map(PathBuf::from)
-            .filter(|p| p.is_absolute())
-            .or_else(|| dirs::home_dir().map(|d| d.join(".cache")))
-            .map(|p| p.join("wutag.registry"))
-            .unwrap();
-
-        let registry = if let Some(registry) = &opts.reg {
-            // Expand both tlide '~' and environment variables in 'WUTAG_REGISTRY' env var
-            let registry = &PathBuf::from(
-                shellexpand::full(&registry.display().to_string())
-                    .unwrap_or_else(|_| {
-                        Cow::from(
-                            LookupError {
-                                var_name: "Unkown environment variable".into(),
-                                cause:    env::VarError::NotPresent,
-                            }
-                            .to_string(),
-                        )
-                    })
-                    .to_string(),
-            );
-
-            if registry.is_file() && registry.file_name().is_some() {
-                TagRegistry::load(&registry).unwrap_or_else(|_| TagRegistry::new(&registry))
-            } else if registry.is_dir() && registry.file_name().is_some() {
-                wutag_error!(
-                    "{} is not a file. Using default registry: {}",
-                    registry.display().to_string().green(),
-                    state_file.display().to_string().green(),
-                );
-                TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
-            } else if registry.display().to_string().ends_with('/') {
-                wutag_error!(
-                    "{} last error is a directory path. Using default registry: {}",
-                    registry.display().to_string().green(),
-                    state_file.display().to_string().green(),
-                );
-                TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
-            } else {
-                fs::create_dir_all(
-                    &registry
-                        .parent()
-                        .context("Could not get parent of nonexisting path")?,
-                )
-                .with_context(|| {
-                    format!(
-                        "unable to create registry directory: '{}'",
-                        registry.display()
-                    )
-                })?;
-                TagRegistry::load(&registry).unwrap_or_else(|_| TagRegistry::new(&registry))
-            }
-        } else {
-            TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
-        };
+        let registry = load_registry(opts)?;
 
         let extensions = opts
             .extension
@@ -237,20 +252,22 @@ impl App {
         })
     }
 
+    /// Save the `TagRegistry` after modifications
     pub(crate) fn save_registry(&mut self) {
         if let Err(e) = self.registry.save() {
-            eprintln!("failed to save registry - {}", e);
+            wutag_error!("failed to save registry - {}", e);
         }
     }
 
-    pub(crate) fn run_command(&mut self, cmd: Command) {
+    /// Run the subcommand from the command-line
+    pub(crate) fn run_command(&mut self, opts: Opts, config: Config) {
         if self.color_when == "never" {
             colored::control::SHOULD_COLORIZE.set_override(false);
         } else if self.color_when == "always" {
             colored::control::SHOULD_COLORIZE.set_override(true);
         }
 
-        match cmd {
+        match opts.cmd {
             Command::CleanCache => self.clean_cache(),
             Command::Clear(ref opts) => self.clear(opts),
             Command::Cp(ref opts) => self.cp(opts),
@@ -261,6 +278,18 @@ impl App {
             Command::Search(ref opts) => self.search(opts),
             Command::Set(opts) => self.set(&opts),
             Command::View(ref opts) => self.view(opts),
+            Command::Ui => {
+                better_panic::install();
+                if let Err(e) = ui::start_ui(
+                    &self.clone(),
+                    config,
+                    load_registry(&opts).expect("unable to get tag registry"),
+                ) {
+                    ui::destruct_terminal();
+                    wutag_error!("{}", e);
+                    std::process::exit(1);
+                }
+            },
         }
     }
 }

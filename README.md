@@ -2,6 +2,10 @@
 [![master](https://github.com/vv9k/wutag/actions/workflows/master.yml/badge.svg)](https://github.com/vv9k/wutag/actions/workflows/master.yml)
 A command line tool for colorfully tagging files
 
+NOTE: This program uses the nightly compiler for the feature `adt_const_params`, which allows using `const` parameters.
+
+TODO: Fix registry
+
 ## Flags
 These flags apply to mostly all all commands. If the command involves a pattern, then all flags will apply.
 Also, see `--help` for the main binary or any subcommand for longer explanations of most options.

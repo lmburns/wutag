@@ -105,6 +105,7 @@ pub(crate) fn load_registry(opts: &Opts) -> Result<TagRegistry> {
             TagRegistry::load(&registry).unwrap_or_else(|_| TagRegistry::new(&registry))
         }
     } else {
+        log::debug!("loading default registry");
         TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
     };
 
@@ -153,6 +154,7 @@ impl App {
             .transpose()?
             .unwrap_or(DEFAULT_BORDER_COLOR);
 
+        // TODO: cleaner way?
         let color_when = match opts.color_when {
             Some(ref s) if s == "always" => "always",
             Some(ref s) if s == "never" => "never",

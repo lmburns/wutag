@@ -14,7 +14,6 @@ complete -c wutag -n "__fish_use_subcommand" -s s -l case_sensitive -d 'Case sen
 complete -c wutag -n "__fish_use_subcommand" -s r -l regex -d 'Search with a regular expressions'
 complete -c wutag -n "__fish_use_subcommand" -s g -l global -d 'Apply operation to all tags and files instead of locally'
 complete -c wutag -n "__fish_use_subcommand" -s l -l ls-colors -d 'Respect \'LS_COLORS\' environment variable when coloring the output'
-complete -c wutag -n "__fish_use_subcommand" -s u -l ui -d 'Open a TUI to manage tags'
 complete -c wutag -n "__fish_use_subcommand" -f -a "list" -d 'Lists all available tags or files'
 complete -c wutag -n "__fish_use_subcommand" -f -a "set" -d 'Set tag(s) on files that match the given pattern'
 complete -c wutag -n "__fish_use_subcommand" -f -a "rm" -d 'Remove tag(s) from the files that match the provided pattern'

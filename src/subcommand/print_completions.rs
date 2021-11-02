@@ -81,7 +81,7 @@ impl App {
                 Shell::Fish => "wutag.fish",
                 Shell::PowerShell => "_wutag.ps1",
                 Shell::Zsh => "_wutag",
-                _ => "", // ??
+                _ => unreachable!(),
             };
             let outdir = &dir.join(filename).lexiclean();
             fs::write(outdir, out).expect("failed to write completion script");

@@ -72,12 +72,11 @@ use colored::Colorize;
 use config::Config;
 use opt::Opts;
 use subcommand::App;
-use util::initialize_logging;
 
 fn main() {
     let config = Config::load_default_location().unwrap_or_default();
     let args = Opts::get_args();
-    initialize_logging(&args);
+    util::initialize_logging(&args);
 
     if let Err(e) = App::run(args, config) {
         wutag_error!("{}", e);

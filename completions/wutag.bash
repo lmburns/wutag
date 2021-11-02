@@ -59,7 +59,7 @@ _wutag() {
 
     case "${cmd}" in
         wutag)
-            opts="-h -V -v -d -m -R -i -s -r -g -l -c -t -e -E -u --help --version --verbose --dir --max-depth --registry --case_insensitive --case_sensitive --regex --global --ls-colors --color --type --ext --exclude --ui list set rm clear search cp view edit print-completions clean-cache ui"
+            opts="-h -V -v -d -m -R -i -s -r -g -l -c -t -e -E --help --version --verbose --dir --max-depth --registry --case_insensitive --case_sensitive --regex --global --ls-colors --color --type --ext --exclude list set rm clear search cp view edit print-completions clean-cache ui"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

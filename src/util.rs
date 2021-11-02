@@ -148,10 +148,15 @@ pub(crate) fn fmt_local_path<P: AsRef<Path>>(
     }
 }
 
+/// Format the tag by coloring it the specified color
 pub(crate) fn fmt_tag(tag: &Tag) -> ColoredString {
     tag.name().color(*tag.color()).bold()
 }
 
+/// Return a local path with no color, i.e., one in which /home/user/... is not
+/// used and it is relative to the current directory. The searching of the paths
+/// does not go above the folder in which this command is read and only searches
+/// recursively
 pub(crate) fn raw_local_path<P: AsRef<Path>>(path: P, local: P) -> String {
     let mut replaced = local.as_ref().display().to_string();
     if !replaced.ends_with('/') {
@@ -177,6 +182,8 @@ pub(crate) fn replace(haystack: &mut String, needle: &str, replacement: &str) ->
     }
 }
 
+/// Collect the paths that are entered in through `stdin`. This can be achieved
+/// by doing something like: `fd <name> -tf | wutag set <tag>`
 pub(crate) fn collect_stdin_paths(base: &Path) -> Vec<PathBuf> {
     BufReader::new(io::stdin())
         .lines()
@@ -188,7 +195,7 @@ pub(crate) fn collect_stdin_paths(base: &Path) -> Vec<PathBuf> {
         .collect::<Vec<_>>()
 }
 
-/// Print completions
+/// Print completions to `stdout` or to a file
 pub(crate) fn gen_completions<G: Generator>(
     gen: G,
     app: &mut clap::App,
@@ -197,7 +204,8 @@ pub(crate) fn gen_completions<G: Generator>(
     generate(gen, app, APP_NAME, cursor);
 }
 
-/// Build a glob from GlobBuilder and return a regex
+/// Build a glob with [`GlobBuilder`](globset::GlobBuilder) and return a string
+/// to be compiled as a regular expression
 pub(crate) fn glob_builder(pattern: &str) -> String {
     let builder = globset::GlobBuilder::new(pattern);
     builder
@@ -214,7 +222,7 @@ pub(crate) fn contains_upperchar(pattern: &str) -> bool {
     UPPER_REG.is_match(&osstr_to_bytes(cow_pat.as_ref()))
 }
 
-/// Build a regular expression with RegexBuilder (bytes)
+/// Build a regular expression with [`RegexBuilder`](regex::bytes::RegexBuilder)
 pub(crate) fn regex_builder(pattern: &str, case_insensitive: bool, case_sensitive: bool) -> Regex {
     let sensitive = !case_insensitive && (case_sensitive || contains_upperchar(pattern));
 

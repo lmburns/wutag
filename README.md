@@ -2,32 +2,39 @@
 [![master](https://github.com/vv9k/wutag/actions/workflows/master.yml/badge.svg)](https://github.com/vv9k/wutag/actions/workflows/master.yml)
 A command line tool for colorfully tagging files
 
-NOTE: This program uses the nightly compiler for the feature `adt_const_params`, which allows using `const` parameters.
+NOTE: This program uses the nightly compiler for the feature `adt_const_params`, which allows using `const` parameters in functions.
 
-TODO: Fix registry
+### Todo
+* [ ] Cleanup `README`
+* [ ] Prevent the need of nightly compiler
+* [ ] Guarantee that registry changes work with tests
+* [ ] Fix `any` vs the normal `all` with search (it doesn't work)
+* [ ] Add global option to `cp`
+* [ ] Add something to remove tag if file is encountered and has a tag that is being set but is not in current registry
+* [ ] Add more tests
+* [ ] Add usage examples and images
+* [ ] Allow `-e ext` without glob pattern
 
 ## Flags
 These flags apply to mostly all all commands. If the command involves a pattern, then all flags will apply.
 Also, see `--help` for the main binary or any subcommand for longer explanations of most options.
 ```sh
-FLAGS:
-    -h, --help                Print help information
-    -V, --version             Print version information
-    -v, --verbose             Display debugging messages on 4 levels (i.e., -vv..)
-    -i, --case_insensitive    Case insensitively search
-    -s, --case_sensitive      Case sensitively search
-    -r, --regex               Search with a regular expressions
-    -g, --global              Apply operation to all tags and files instead of locally
-    -l, --ls-colors           Respect 'LS_COLORS' environment variable when coloring the output
-
 OPTIONS:
-    -d, --dir <DIR>...            Specify starting path for filesystem traversal
-    -m, --max-depth <num>         Increase maximum recursion depth from 2
-    -R, --registry <REG>          Specify a different registry to use
-    -c, --color <when>            When to colorize output
-    -t, --type <filetype>...      File-type(s) to filter by: f|file, d|directory, l|symlink, e|empty
-    -e, --ext <extension>...      Filter results by file extension
-    -E, --exclude <pattern>...    Exclude results that match pattern
+    -v, --verbose              Display debugging messages on 4 levels (i.e., -vv..)
+    -d, --dir <dir>            Specify starting path for filesystem traversal
+    -m, --max-depth <num>      Increase maximum recursion depth from 2
+    -R, --registry <reg>       Specify a different registry to use
+    -i, --case_insensitive     Case insensitively search
+    -s, --case_sensitive       Case sensitively search
+    -r, --regex                Search with a regular expressions
+    -g, --global               Apply operation to all tags and files instead of locally
+    -l, --ls-colors            Respect 'LS_COLORS' environment variable when coloring the output
+    -c, --color <when>         When to colorize output
+    -t, --type <filetype>      File-type(s) to filter by: f|file, d|directory, l|symlink, e|empty
+    -e, --ext <extension>      Filter results by file extension
+    -E, --exclude <pattern>    Exclude results that match pattern
+    -h, --help                 Print help information
+    -V, --version              Print version information
 ```
 
 ## Subcommands
@@ -98,8 +105,8 @@ OPTIONS:
 #### Examples
 ```sh
 wutag -E src/ -e rs -e go set '*' <tag>       # Exclude src/ & set all files with 'rs' or 'go' extension to <tag>
-wutag -E src/ set '*{rs,go}' <tag>            # Same as above
-wutag -E src/ -r set '.*\.(rs|go)' <tag>      # Same as above
+wutag -E src/ set '*{rs,go}' <tag>            # Tag all 'rs' and 'go' files
+wutag -E src/ -r set '.*\.(rs|go)' <tag>      # Same as above except as a regular expression
 wutag -i set '*glob' <tag> --color="#EF1D55"  # Ignore case and set specific color
 wutag -d ~/dir set '*glob' <tag>              # Set tag in another directory
 wutag -R ~/dir/new.reg -td set '*glob' <tag>  # Set tag in another registry on directories
@@ -115,11 +122,13 @@ Has no special options. All main binary options apply.
 Clears all tags from files matching globs. This can also be used to clear tags from files that are still in the registry but are no longer on the file-system, but using the command `wutag clear --non-existent`
 
 
-## Fork
+## Differences with my fork and the original
 #### New directory locations
 * [x] `macOS` now uses the following locations:
     * [x] `$HOME/.cache` instead of `$HOME/Library/Caches` for `wutag.registry`
     * [x] `$HOME/.config` instead of `$HOME/Library/Application Support` for `wutag.yml`
+    * The reason for this is because I do not like spaces in my filenames
+    * and I use the `XDG` specifications when using `macOS`
 
 #### Global option
 * [x] `list`, `rm`, `clear`, and `search` have `--global` option to match only on files that are already tagged
@@ -153,8 +162,6 @@ Clears all tags from files matching globs. This can also be used to clear tags f
     * `wutag -g search <pattern> <optional_tag>`
     * To search just by using a tag, use `*` as a pattern
 * [x] Can filter results by file type using `-t|--type` with any subcommand requiring a pattern
-
-* [ ] TODO: Allow `-e ext` without glob pattern
 
 #### Multiple registries
 * [x] Multiple registries are available with the `-R|--registry` option
@@ -201,10 +208,10 @@ Clears all tags from files matching globs. This can also be used to clear tags f
     * Normal `fd` placeholders can be used
     * A new placeholder `{..}` will execute `wutag` commands on the file
     * For example: `wutag -g search markdown -x {..} set {/} new_tag`
-    * If file path is `/Users/user/testing/home/main.rs`
-        * `{..}` expands to `wutag -d /Users/user/testing/home`
+    * If file path is `/home/user/testing/home/main.rs`
+        * `{..}` expands to `wutag -d /home/user/testing/home`
         * `{/}` expands to `main.rs`
-        * [TIP]: Use `... -x {@} ...` for forced colored output
+        * **[TIP]**: Use `... -x {@} ...` for forced colored output
         * Other tokens:
             * `{@s}` sets a tag (e.g., `wutag search '*.rs' -x {@s} new`)
             * `{@r}` removes a tag
@@ -217,23 +224,20 @@ wutag -g search '*.txt' -t xx -x {@c} '*.toml'
 ```
 
 #### Edit tags in `$EDITOR`
-* Can use `wutag edit -V <pattern>` to open tags in editor to edit them
+```sh
+wutag view --all -p <pattern> # view *all* files matching pattern
+wutag view                    # view all files that are already tagged
+wutag view -a -f json         # view all files that are already tagged in json format
+```
 
 #### Set tags through `stdin`
 * Example:
 
 ```sh
-fd -e rs '*cargo*' | wutag set --stdin tag1 tag2
+fd -e rs '*main*' | wutag set --stdin tag1 tag2
 # Note that --stdin does not need to be explicitly called
-fd -e rs '*cargo*' | wutag set tag1 tag2
+fd -e rs '*main*' | wutag set tag1 tag2
 ```
-
-#### Todo
-* [ ] Fix `any` vs the normal `all` with search (it doesn't work)
-* [ ] Add global option to `cp`
-* [ ] Add something to remove tag if file is encountered and has a tag that is being set but is not in current registry
-* [ ] Add more tests
-* [ ] Add usage examples and images
 
 ![Example usage](https://github.com/vv9k/wutag/blob/master/static/usage.svg)
 
@@ -352,6 +356,11 @@ Use --help after a subcommand for explanations of more options.
 ### More help
 Use the `--help` flag for longer explanations on some flags, as well as `--help|-h` after each subcommand
 to see the available options. Tip: If completions are installed it will help a ton.
+
+### Credit
+* This is a fork. Original can be found [here](https://github.com/vv9k/wutag)
+* Also want to thank [sharkdp's fd](https://github.com/sharkdp/fd) repository, because some of the code and ideas came from there
+
 
 ## License
 [MIT](https://github.com/vv9k/wutag/blob/master/LICENSE)

@@ -1,3 +1,6 @@
+//! Constants used throughout this crate. This is mainly to 'prettify' the
+//! output with color
+
 use clap::crate_description;
 use colored::Color::{
     self, Blue, BrightBlue, BrightCyan, BrightGreen, BrightMagenta, BrightRed, BrightYellow, Cyan,
@@ -5,6 +8,7 @@ use colored::Color::{
 };
 use once_cell::sync::Lazy;
 
+// ANSI excape characters for coloring output
 pub(crate) const YELLOW: &str = "\x1b[0;33m";
 pub(crate) const GREEN: &str = "\x1b[0;32m";
 pub(crate) const BRCYAN: &str = "\x1b[38;5;14m";

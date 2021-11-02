@@ -20,7 +20,6 @@ use std::{
 
 use crossbeam_channel as channel;
 use crossbeam_channel::{Receiver, Sender};
-use crossbeam_utils::thread;
 use serde::{Deserialize, Serialize};
 use tui::{backend::CrosstermBackend, Terminal};
 
@@ -108,52 +107,44 @@ impl Events {
                     std::thread::sleep(timeout);
                     continue;
                 } else if event::poll(timeout).expect("no events available in thread") {
-                    #[allow(clippy::collapsible_match)]
                     match event::read() {
-                        Ok(event) => match event {
-                            event::Event::Key(key) => {
-                                let key = match key.code {
-                                    Code::Char(c) => match key.modifiers {
-                                        Modifier::NONE | Modifier::SHIFT => Key::Char(c),
-                                        Modifier::ALT => Key::Alt(c),
-                                        Modifier::CONTROL => Key::Ctrl(c),
-                                        _ => Key::Null,
-                                    },
-                                    Code::Backspace => match key.modifiers {
-                                        Modifier::ALT => Key::AltBackspace,
-                                        Modifier::CONTROL => Key::CtrlBackspace,
-                                        _ => Key::Backspace,
-                                    },
-                                    Code::Delete => match key.modifiers {
-                                        Modifier::ALT => Key::AltDelete,
-                                        Modifier::CONTROL => Key::CtrlDelete,
-                                        _ => Key::Delete,
-                                    },
-                                    Code::Tab => Key::Tab,
-                                    Code::BackTab => Key::BackTab,
-                                    Code::Left => Key::Left,
-                                    Code::Right => Key::Right,
-                                    Code::Up => Key::Up,
-                                    Code::Down => Key::Down,
-                                    Code::Home => Key::Home,
-                                    Code::End => Key::End,
-                                    Code::PageUp => Key::PageUp,
-                                    Code::PageDown => Key::PageDown,
-                                    Code::Insert => Key::Insert,
-                                    Code::Esc => Key::Esc,
-                                    Code::F(k) => Key::F(k),
-                                    Code::Null => Key::Null,
-                                    Code::Enter => Key::Char('\n'),
-                                };
-                                tx.send(Event::Input(key))
-                                    .expect("failed to send key event");
-                                std::thread::sleep(Duration::from_millis(1));
-                            },
-                            // event::Event::Mouse(mouse) => {},
-                            // event::Event::Resize(w, h) => {},
-                            _ => {
-                                tx.send(Event::Tick).expect("failed to send tick event");
-                            },
+                        Ok(event::Event::Key(key)) => {
+                            let key = match key.code {
+                                Code::Char(c) => match key.modifiers {
+                                    Modifier::NONE | Modifier::SHIFT => Key::Char(c),
+                                    Modifier::ALT => Key::Alt(c),
+                                    Modifier::CONTROL => Key::Ctrl(c),
+                                    _ => Key::Null,
+                                },
+                                Code::Backspace => match key.modifiers {
+                                    Modifier::ALT => Key::AltBackspace,
+                                    Modifier::CONTROL => Key::CtrlBackspace,
+                                    _ => Key::Backspace,
+                                },
+                                Code::Delete => match key.modifiers {
+                                    Modifier::ALT => Key::AltDelete,
+                                    Modifier::CONTROL => Key::CtrlDelete,
+                                    _ => Key::Delete,
+                                },
+                                Code::Tab => Key::Tab,
+                                Code::BackTab => Key::BackTab,
+                                Code::Left => Key::Left,
+                                Code::Right => Key::Right,
+                                Code::Up => Key::Up,
+                                Code::Down => Key::Down,
+                                Code::Home => Key::Home,
+                                Code::End => Key::End,
+                                Code::PageUp => Key::PageUp,
+                                Code::PageDown => Key::PageDown,
+                                Code::Insert => Key::Insert,
+                                Code::Esc => Key::Esc,
+                                Code::F(k) => Key::F(k),
+                                Code::Null => Key::Null,
+                                Code::Enter => Key::Char('\n'),
+                            };
+                            tx.send(Event::Input(key))
+                                .expect("failed to send key event");
+                            std::thread::sleep(Duration::from_millis(1));
                         },
                         _ => {
                             tx.send(Event::Tick).expect("failed to send tick event");

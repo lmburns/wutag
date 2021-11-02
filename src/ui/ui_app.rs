@@ -14,6 +14,7 @@ use std::{
     convert::{TryFrom, TryInto},
     env, fs, io,
     path::{Path, PathBuf},
+    process,
     time::{Duration, SystemTime},
 };
 use thiserror::Error;
@@ -28,6 +29,7 @@ use tui::{
 };
 
 use once_cell::sync::Lazy;
+use regex::Regex;
 use rustyline::{
     history::SearchDirection as HistoryDirection, line_buffer::LineBuffer, At, Editor, Word,
 };
@@ -1057,7 +1059,7 @@ impl UiApp<'_> {
                     },
                 Key::Tab | Key::Ctrl('n') =>
                     if !self.completion_list.is_empty() {
-                        self.update_input_for_completion();
+                        self.update_completion_matching();
                         if !self.completion_show {
                             self.completion_show = true;
                         }
@@ -1080,12 +1082,15 @@ impl UiApp<'_> {
                     {
                         self.command.insert(c, 1);
                     }
-                    self.update_input_for_completion();
+                    self.update_completion_matching();
                     self.dirty = true;
                 },
                 _ => {
                     handle_movement(&mut self.command, input);
-                    self.update_input_for_completion();
+                    // self.check_command_status()?;
+                    // self.update_completion_list();
+                    self.complist();
+                    self.update_completion_matching();
                     self.dirty = true;
                 },
             },
@@ -1549,35 +1554,138 @@ impl UiApp<'_> {
     pub(crate) fn update_completion_list(&mut self) {
         self.completion_list.clear();
 
+        // let i = completion::get_word_under_cursor(self.command.as_str(),
+        // self.command.pos()); let input =
+        // self.command.as_str()[i..self.command.pos()].to_string();
+
         if self.mode == AppMode::Command {
             let app = Opts::into_app();
-            // let l = Zsh::all_subcommands(&k);
 
             for item in app.get_subcommands() {
                 match item.to_string().as_str() {
                     "print-completions" | "ui" => {},
-                    _ => self.completion_list.insert(format!("{}", item)),
+                    _ => {
+                        // if input == item.to_string() {
+                        //     self.completion_list.clear();
+                        // }
+                        self.completion_list.insert(format!("{}", item));
+                    },
                 }
-            }
-            // for item in app.get_flags() {
-            //     match item.to_string().as_str() {
-            //         "--help" | "--ui" | "--version" | "--verbose" => {},
-            //         _ => self.completion_list.insert(format!("{}", item)),
-            //     }
-            // }
-            for item in app.get_opts() {
-                self.completion_list.insert(format!("{}", item));
             }
         }
     }
 
-    /// Update input being fed into the completion list
-    pub(crate) fn update_input_for_completion(&mut self) {
+    pub(crate) fn complist(&mut self) {
+        let i = completion::get_word_under_cursor(self.command.as_str(), self.command.pos());
+        let input = self.command.as_str()[i..self.command.pos()].to_string();
+        #[allow(clippy::needless_collect)] // ???
+        let full_cmd = self.command.as_str().split(' ').collect::<Vec<_>>();
+
+        if self.mode == AppMode::Command {
+            let app = Opts::into_app();
+
+            // Length equaling one here represents an empty command prompt
+            if full_cmd.len() == 1 {
+                self.completion_list.clear();
+                for item in app.get_subcommands() {
+                    match item.to_string().as_str() {
+                        "print-completions" | "ui" => {},
+                        _ => {
+                            // if input == item.to_string() {
+                            //     self.completion_list.clear();
+                            // }
+                            self.completion_list.insert(format!("{}", item));
+                        },
+                    }
+                }
+                for item in app.get_arguments() {
+                    match item.to_string().as_str() {
+                        "--help" | "--version" | "--verbose" | "--ls-colors" => {},
+                        _ => self.completion_list.insert(format!("{}", item)),
+                    }
+                }
+            } else {
+                self.completion_list
+                    .insert(format!("len2: {}", full_cmd.len()));
+                for item in app.get_subcommands() {
+                    // if item.to_string() == input {
+                    if self.command.as_str().contains(&item.to_string()) {
+                        for flag in item.get_opts() {
+                            self.completion_list.insert(format!("{}", flag));
+                        }
+                    }
+                }
+            }
+
+            // if app.get_subcommands().any(|sub| sub.to_string() == input) {
+            //     self.completion_list.clear();
+            //     self.completion_list.insert(format!("sub: {}", input));
+            // }
+        }
+    }
+
+    /// Update input being fed into the completion list. This function will
+    /// refresh the completion menu, narrowing down the matches or removing them
+    /// completely if no match is found.
+    pub(crate) fn update_completion_matching(&mut self) {
         if self.mode == AppMode::Command {
             let i = completion::get_word_under_cursor(self.command.as_str(), self.command.pos());
             let input = self.command.as_str()[i..self.command.pos()].to_string();
+
+            // if input == item.to_string() {
+            //     // self.completion_list.clear();
+            //     for flag in item.get_arguments() {
+            //         self.completion_list.insert(format!("{} zz", flag));
+            //     }
+            // },
+            //
             self.completion_list.input(input);
         }
+    }
+
+    /// Check for the status of currently typed command
+    pub(crate) fn check_command_status(&mut self) -> Result<()> {
+        let i = completion::get_word_under_cursor(self.command.as_str(), self.command.pos());
+        let input = self.command.as_str()[i..self.command.pos()].to_string();
+
+        let full_cmd = self.command.as_str().split(' ').collect::<Vec<&str>>();
+        self.completion_list
+            .insert(format!("cmd: {}", self.command.as_str()));
+
+        let cmd = process::Command::new("wutag")
+            .args(full_cmd)
+            .output()
+            .expect("failed to test wutag command");
+
+        if !cmd.status.success() {
+            self.completion_list
+                .insert("Fundamental error taking place".to_string());
+
+            let patt = Regex::new(r"error")?;
+            #[allow(clippy::needless_collect)]
+            let output = String::from_utf8(cmd.stdout.clone())?
+                .lines()
+                .filter(|line| patt.is_match(line))
+                .map(ToString::to_string)
+                .collect::<Vec<String>>();
+
+            self.completion_list.insert(format!(
+                "output: {}",
+                String::from_utf8(cmd.stdout)?
+                    .lines()
+                    .map(ToString::to_string)
+                    .collect::<String>()
+            ));
+
+            if !output.is_empty() {
+                self.completion_list
+                    .insert("Your command contains an error".to_string());
+            }
+        }
+
+        // TODO: switch to error mode
+
+        Ok(())
     }
 }
 

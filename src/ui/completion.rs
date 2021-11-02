@@ -58,9 +58,17 @@ impl Completer for CompletionHelper {
             .iter()
             .filter_map(|cand| {
                 if cand.starts_with(&word[..pos]) {
+                    // Options such as --dir <dir>
+                    let replacement = if cand.contains(' ') {
+                        cand[pos..].split(' ').collect::<Vec<&str>>()[0].to_string()
+                    } else if cand.contains('<') || cand.contains('>') {
+                        " ".to_string()
+                    } else {
+                        cand[pos..].to_string()
+                    };
                     Some(Pair {
-                        display:     cand.clone(),
-                        replacement: cand[pos..].to_owned(),
+                        display: cand.clone(),
+                        replacement,
                     })
                 } else {
                     None

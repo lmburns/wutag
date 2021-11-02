@@ -41,6 +41,7 @@ pub(crate) struct Opts {
     #[clap(
         long, short,
         number_of_values = 1,
+        value_name = "dir",
         value_hint = ValueHint::DirPath,
         validator = |t| fs::metadata(t)
                             .map_err(|_| "must be a valid path")
@@ -70,6 +71,7 @@ pub(crate) struct Opts {
         long = "registry", short = 'R',
         value_hint = ValueHint::FilePath,
         env = "WUTAG_REGISTRY",
+        value_name = "reg",
         setting = ArgSettings::HideEnv,
     )]
     pub(crate) reg:              Option<PathBuf>,
@@ -171,15 +173,6 @@ pub(crate) struct Opts {
     )]
     /// Exclude results that match pattern
     pub(crate) exclude:          Option<Vec<String>>,
-    // TODO: use or remove
-    /// Open a TUI to manage tags
-    #[clap(
-        long = "ui",
-        short = 'u',
-        long_about = "Open a TUI to manage tags, requires results from a `search`, or `list`",
-        takes_value = false
-    )]
-    pub(crate) ui:               bool,
     #[clap(subcommand)]
     pub(crate) cmd:              Command,
 }
@@ -233,7 +226,10 @@ pub(crate) enum Command {
     )]
     List(ListOpts),
     /// Set tag(s) on files that match the given pattern
-    #[clap(override_usage = "wutag [FLAG/OPTIONS] set [FLAG/OPTIONS] <pattern> <tag>")]
+    #[clap(
+        aliases = &["set", "tag"],
+        override_usage = "wutag [FLAG/OPTIONS] set [FLAG/OPTIONS] <pattern> <tag>"
+    )]
     Set(SetOpts),
     /// Remove tag(s) from the files that match the provided pattern
     #[clap(
@@ -251,7 +247,7 @@ pub(crate) enum Command {
     #[clap(override_usage = "wutag [FLAG/OPTIONS] cp [FLAG/OPTIONS] <input_path> <pattern>")]
     Cp(CpOpts),
     /// View the results in an editor (optional pattern)
-    #[clap(override_usage = "wutag [FLAG/OPTIONS] view [FLAG/OPTIONS] [<pattern>]")]
+    #[clap(override_usage = "wutag [FLAG/OPTIONS] view [FLAG/OPTIONS] -p [<pattern>]")]
     View(ViewOpts),
     /// Edits a tag's color
     #[clap(override_usage = "wutag edit --color <color> <tag>")]

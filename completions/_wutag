@@ -15,12 +15,12 @@ _wutag() {
 
     local context curcontext="$curcontext" state line
     _arguments "${_arguments_options[@]}" \
-'-d+[Specify starting path for filesystem traversal]:DIR:_files -/' \
-'--dir=[Specify starting path for filesystem traversal]:DIR:_files -/' \
+'-d+[Specify starting path for filesystem traversal]:dir:_files -/' \
+'--dir=[Specify starting path for filesystem traversal]:dir:_files -/' \
 '-m+[Increase maximum recursion depth from 2]:num: ' \
 '--max-depth=[Increase maximum recursion depth from 2]:num: ' \
-'-R+[Specify a different registry to use]:REG:_files' \
-'--registry=[Specify a different registry to use]:REG:_files' \
+'-R+[Specify a different registry to use]:reg:_files' \
+'--registry=[Specify a different registry to use]:reg:_files' \
 '-c+[When to colorize output]:when:(never auto always)' \
 '--color=[When to colorize output]:when:(never auto always)' \
 '*-t+[File-type(s) to filter by: f|file, d|directory, l|symlink, e|empty]:filetype: ' \
@@ -45,8 +45,6 @@ _wutag() {
 '--global[Apply operation to all tags and files instead of locally]' \
 '(-c --color)-l[Respect '\''LS_COLORS'\'' environment variable when coloring the output]' \
 '(-c --color)--ls-colors[Respect '\''LS_COLORS'\'' environment variable when coloring the output]' \
-'-u[Open a TUI to manage tags]' \
-'--ui[Open a TUI to manage tags]' \
 ":: :_wutag_commands" \
 "*::: :->wutag" \
 && ret=0

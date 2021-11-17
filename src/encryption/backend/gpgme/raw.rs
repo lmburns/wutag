@@ -13,9 +13,9 @@ use zeroize::Zeroize;
 /// GPGME encryption flags
 const ENCRYPT_FLAGS: EncryptFlags = EncryptFlags::ALWAYS_TRUST;
 
-/// Encrypt the [`Plaintext`](crate::encryption::Plaintext) CBOR (Concise Binary
-/// Object Representation) a.k.a. the [`wutag`](crate)
-/// [`Registry`](crate::registry::Registry)
+/// Encrypt the [`Plaintext`](crate::encryption::Plaintext) to
+/// [`Ciphertext`](crate::encryption::Ciphertext), only used with the
+/// [`wutag`](crate) [`Registry`](crate::registry::Registry)
 ///
 /// - `context`: GPGME context
 /// - `recipients`: recipients whose fingerprint will be used to encrypt with

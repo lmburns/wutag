@@ -11,7 +11,7 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use colored::{Color, Colorize};
-use once_cell::sync::OnceCell;
+use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use shellexpand::LookupError;
@@ -28,12 +28,14 @@ use std::{
     collections::BTreeMap,
     env, fs,
     path::{Path, PathBuf},
+    sync::atomic::{AtomicUsize, Ordering},
 };
 
 /// Name of registry file
 const REGISTRY_FILE: &str = "wutag.registry";
 /// Only print 'matching key info' once
-static KEY_INFO: OnceCell<()> = OnceCell::new();
+static KEY_INFO: Lazy<AtomicUsize> = Lazy::new(|| AtomicUsize::new(0));
+// static KEY_INFO: OnceCell<()> = OnceCell::new();
 
 /// Representation of a tagged file
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
@@ -132,13 +134,14 @@ impl TagRegistry {
         #[cfg(feature = "encrypt-gpgme")]
         if is_encrypted(path) {
             log::debug!("registry is encrypted");
+            // Should only happen once
             if !config.to_encrypt {
                 wutag_info!("switching to non-encrypted registry configuration");
             }
 
             // If it is encrypted, decrypt it to read the data
             Self::crypt_registry(path, config, false)?;
-        } else if config.to_encrypt {
+        } else if config.to_encrypt && KEY_INFO.load(Ordering::Relaxed) == 0 {
             log::debug!("registry is unencrypted");
             wutag_info!("switching to encrypted registry configuration");
         }
@@ -491,7 +494,11 @@ impl TagRegistry {
                     })
             }) {
                 // Run this only once since it will be ran be encrypting it back as well
-                KEY_INFO.get_or_init(|| log::info!("found matching key: {}", found));
+                if KEY_INFO.load(Ordering::Relaxed) == 0 {
+                    log::info!("found matching key: {}", found);
+                    KEY_INFO.fetch_add(1, Ordering::Relaxed);
+                }
+                // KEY_INFO.get_or_init(|| log::info!("found matching key: {}", found));
 
                 // ## If the content is encrypted
                 if is_encrypted(path) && !encrypt {
@@ -544,7 +551,13 @@ impl TagRegistry {
 
 #[cfg(feature = "encrypt-gpgme")]
 pub(crate) fn is_encrypted<P: AsRef<Path>>(path: P) -> bool {
-    let content = fs::read_to_string(path.as_ref())
+    let path = path.as_ref();
+
+    if !path.exists() {
+        return false;
+    }
+
+    let content = fs::read_to_string(path)
         .unwrap_or_else(|_| wutag_fatal!("failure to read registry file to string"));
 
     content.contains("-----BEGIN PGP MESSAGE-----") && content.contains("-----END PGP MESSAGE-----")
@@ -552,15 +565,6 @@ pub(crate) fn is_encrypted<P: AsRef<Path>>(path: P) -> bool {
 
 /// Load the `TagRegistry`
 pub(crate) fn load_registry(opts: &Opts, config: &EncryptConfig) -> Result<TagRegistry> {
-    // wutag_error!() doesn't implement fmt::Display
-    let expand_error = |dir: &PathBuf| -> String {
-        format!(
-            "{}: unable to create registry directory: '{}'",
-            "[wutag error]".red().bold(),
-            dir.display()
-        )
-    };
-
     // Default location of registry
     let def_registry = TagRegistry::default();
     let state_file = def_registry.path;
@@ -582,7 +586,7 @@ pub(crate) fn load_registry(opts: &Opts, config: &EncryptConfig) -> Result<TagRe
         );
 
         if registry.is_file() && registry.file_name().is_some() {
-            log::debug!("using a non-default registry");
+            log::debug!("using a non-default registry: {}", registry.display());
             TagRegistry::load(&registry, config).unwrap_or_else(|_| TagRegistry::new(&registry))
             //
         } else if registry.is_dir() && registry.file_name().is_some() {
@@ -602,15 +606,19 @@ pub(crate) fn load_registry(opts: &Opts, config: &EncryptConfig) -> Result<TagRe
             TagRegistry::load(&state_file, config).unwrap_or_else(|_| TagRegistry::new(&state_file))
             //
         } else {
-            log::debug!("using a non-default registry");
+            log::debug!("using a non-default registry: {}", registry.display());
             fs::create_dir_all(
                 &registry
                     .parent()
                     .context("Could not get parent of nonexisting path")?,
             )
-            .with_context(|| expand_error(registry))?;
+            .with_context(|| {
+                format!(
+                    "unable to create registry directory: {}",
+                    registry.display()
+                )
+            })?;
 
-            // Loading here shouldn't ever get ran
             TagRegistry::load(&registry, config).unwrap_or_else(|_| {
                 log::debug!("creating a non-default registry");
                 TagRegistry::new(&registry)

@@ -1,7 +1,7 @@
 [package]
 name = "wutag"
 description = "Tag files and manage them with color"
-version = "0.7.0"
+version = "0.7.1"
 authors = [
   "wojciechkepka <wojtek.kepka@protonmail.com>",
   "Lucas Burns <lmb@lmburns.com>",

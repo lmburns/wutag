@@ -22,6 +22,7 @@ complete -c wutag -n "__fish_use_subcommand" -f -a "search" -d 'Searches for fil
 complete -c wutag -n "__fish_use_subcommand" -f -a "cp" -d 'Copies tags from the specified file to files that match a pattern'
 complete -c wutag -n "__fish_use_subcommand" -f -a "view" -d 'View the results in an editor (optional pattern)'
 complete -c wutag -n "__fish_use_subcommand" -f -a "edit" -d 'Edits a tag\'s color'
+complete -c wutag -n "__fish_use_subcommand" -f -a "info" -d 'Display information about the wutag environment'
 complete -c wutag -n "__fish_use_subcommand" -f -a "print-completions" -d 'Prints completions for the specified shell to dir or stdout'
 complete -c wutag -n "__fish_use_subcommand" -f -a "clean-cache" -d 'Clean the cached tag registry'
 complete -c wutag -n "__fish_use_subcommand" -f -a "ui" -d 'Open a TUI to manage tags, requires results from a `search`, or `list`'
@@ -59,6 +60,7 @@ complete -c wutag -n "__fish_seen_subcommand_from search" -s t -l tags -d 'Searc
 complete -c wutag -n "__fish_seen_subcommand_from search" -s r -l raw -d 'If provided output will be raw so that it can be easily piped to other commands'
 complete -c wutag -n "__fish_seen_subcommand_from search" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from search" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
+complete -c wutag -n "__fish_seen_subcommand_from cp" -s G -l glob -d 'Use a glob to match files (must be global)'
 complete -c wutag -n "__fish_seen_subcommand_from cp" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from cp" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from view" -s e -l editor -d 'Open tags in selected edtor (use only with vi, vim, neovim)' -r
@@ -72,6 +74,9 @@ complete -c wutag -n "__fish_seen_subcommand_from edit" -s c -l color -d 'Set th
 complete -c wutag -n "__fish_seen_subcommand_from edit" -s t -l tag -d 'The tag to edit' -r
 complete -c wutag -n "__fish_seen_subcommand_from edit" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from edit" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
+complete -c wutag -n "__fish_seen_subcommand_from info" -s r -l raw -d 'TO BE IMPLEMENTED Do not use color in output'
+complete -c wutag -n "__fish_seen_subcommand_from info" -s h -l help -d 'Print help information'
+complete -c wutag -n "__fish_seen_subcommand_from info" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from print-completions" -l shell -d 'Shell to print completions. Available shells are: bash, elvish, fish, powershell, zsh' -r -f -a "{bash	,zsh	,powershell	,elvish	,fish	}"
 complete -c wutag -n "__fish_seen_subcommand_from print-completions" -s d -l dir -d 'Directory to output completions to' -r -f -a "(__fish_complete_directories)"
 complete -c wutag -n "__fish_seen_subcommand_from print-completions" -s h -l help -d 'Print help information'

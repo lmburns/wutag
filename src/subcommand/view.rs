@@ -1,5 +1,4 @@
-// TODO: Add option to open editor with a pattern that matches new files, not
-// just files that are already tagged
+// TODO: Handles errors when saving file
 
 use super::{
     uses::{
@@ -59,7 +58,6 @@ pub(crate) struct ViewOpts {
     pub(crate) pattern: Option<String>,
 }
 
-// TODO: Handles errors when saving file
 impl App {
     pub(crate) fn view(&mut self, opts: &ViewOpts) {
         log::debug!("ViewOpts: {:#?}", opts);

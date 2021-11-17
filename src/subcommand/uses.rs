@@ -11,7 +11,6 @@ pub(crate) use crossbeam_channel as channel;
 pub(crate) use lexiclean::Lexiclean;
 pub(crate) use rayon::prelude::*;
 pub(crate) use regex::bytes::{RegexSet, RegexSetBuilder};
-pub(crate) use shellexpand::LookupError;
 
 pub(crate) use std::{
     borrow::Cow,
@@ -19,7 +18,7 @@ pub(crate) use std::{
     env,
     ffi::OsStr,
     fs, io,
-    io::prelude::*,
+    io::{prelude::*, BufRead, BufReader},
     path::PathBuf,
     process,
     sync::Arc,
@@ -27,7 +26,7 @@ pub(crate) use std::{
 
 pub(crate) use crate::{
     bold_entry, comp_helper,
-    config::Config,
+    config::{Config, EncryptConfig},
     consts::*,
     err,
     exe::{
@@ -35,13 +34,14 @@ pub(crate) use crate::{
         CommandTemplate,
     },
     filesystem::{contained_path, create_temp_path, osstr_to_bytes, FileTypes},
-    registry::{EntryData, TagRegistry},
-    ternary,
+    opt::{Command, Opts},
+    registry::{self, EntryData, TagRegistry},
+    ternary, ui,
     util::{
         collect_stdin_paths, fmt_err, fmt_local_path, fmt_ok, fmt_path, fmt_tag, gen_completions,
         glob_builder, parse_path, raw_local_path, reg_ok, regex_builder, replace,
     },
-    wutag_error,
+    wutag_error, wutag_fatal, wutag_info,
 };
 
 pub(crate) use wutag_core::{

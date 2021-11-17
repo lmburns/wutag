@@ -7,13 +7,13 @@ NOTE: This program uses the nightly compiler for the feature `adt_const_params`,
 ### Todo
 * [ ] Cleanup `README`
 * [ ] Prevent the need of nightly compiler
-* [ ] Guarantee that registry changes work with tests
 * [ ] Fix `any` vs the normal `all` with search (it doesn't work)
 * [ ] Add global option to `cp`
 * [ ] Add something to remove tag if file is encountered and has a tag that is being set but is not in current registry
-* [ ] Add more tests
-* [ ] Add usage examples and images
 * [ ] Allow `-e ext` without glob pattern
+* [ ] Add more tests
+* [ ] Guarantee that registry changes work with tests
+* [ ] Add usage examples and images
 
 ## Flags
 These flags apply to mostly all all commands. If the command involves a pattern, then all flags will apply.

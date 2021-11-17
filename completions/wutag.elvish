@@ -56,6 +56,7 @@ set edit:completion:arg-completer[wutag] = [@words]{
             cand cp 'Copies tags from the specified file to files that match a pattern'
             cand view 'View the results in an editor (optional pattern)'
             cand edit 'Edits a tag''s color'
+            cand info 'Display information about the wutag environment'
             cand print-completions 'Prints completions for the specified shell to dir or stdout'
             cand clean-cache 'Clean the cached tag registry'
             cand ui 'Open a TUI to manage tags, requires results from a `search`, or `list`'
@@ -139,6 +140,8 @@ set edit:completion:arg-completer[wutag] = [@words]{
             cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
         }
         &'wutag;cp'= {
+            cand -G 'Use a glob to match files (must be global)'
+            cand --glob 'Use a glob to match files (must be global)'
             cand -h 'Print help information'
             cand --help 'Print help information'
             cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
@@ -165,6 +168,14 @@ set edit:completion:arg-completer[wutag] = [@words]{
             cand --color 'Set the color of the tag to the specified color. Accepted values are hex colors like ''0x000000'' or ''#1F1F1F'' or just plain ''ff000a''. The colors are case insensitive meaning ''1f1f1f'' is equivalent to ''1F1F1F'''
             cand -t 'The tag to edit'
             cand --tag 'The tag to edit'
+            cand -h 'Print help information'
+            cand --help 'Print help information'
+            cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
+        }
+        &'wutag;info'= {
+            cand -r 'TO BE IMPLEMENTED Do not use color in output'
+            cand --raw 'TO BE IMPLEMENTED Do not use color in output'
             cand -h 'Print help information'
             cand --help 'Print help information'
             cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'

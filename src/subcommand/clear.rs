@@ -1,7 +1,7 @@
 use super::{
     uses::{
         clear_tags, err, fmt_err, fmt_ok, fmt_path, fs, glob_builder, has_tags, osstr_to_bytes,
-        reg_ok, regex_builder, wutag_error, Arc, Args, Colorize, Cow, DirEntryExt, OsStr,
+        reg_ok, regex_builder, wutag_fatal, Arc, Args, Colorize, Cow, DirEntryExt, OsStr,
     },
     App,
 };
@@ -84,12 +84,11 @@ impl App {
             // options of a subcommand to communicate with options of the main
             // binary
             if opts.non_existent && !self.global {
-                wutag_error!(
+                wutag_fatal!(
                     "{} requires {}",
                     "--non-existent".green(),
                     "--global".green()
                 );
-                std::process::exit(1);
             }
 
             reg_ok(

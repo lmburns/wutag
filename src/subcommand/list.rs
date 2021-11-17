@@ -1,3 +1,6 @@
+// TODO: list files relative to directory as an option
+// TODO: add sorting option by tag etc
+
 use super::{
     uses::{
         contained_path, fmt_local_path, fmt_path, fmt_tag, print_stdout, raw_local_path, ternary,
@@ -76,9 +79,9 @@ impl App {
         log::debug!("Using registry: {}", self.registry.path.display());
 
         let mut table = vec![];
-        let colorchoice = match self.color_when {
-            ref s if s == "always" => ColorChoice::Always,
-            ref s if s == "never" => ColorChoice::Never,
+        let colorchoice = match self.color_when.as_ref() {
+            "always" => ColorChoice::Always,
+            "never" => ColorChoice::Never,
             _ => ColorChoice::Auto,
         };
 
@@ -100,9 +103,9 @@ impl App {
                 };
 
                 for (id, file) in self.registry.list_entries_and_ids() {
-                    // Skips paths that are not contained within one another to respect the `-d`
-                    // flag Global is just another way to specify -d ~ (list files locally
-                    // by default)
+                    // Skips paths that are not contained within current directory to respect the
+                    // `-d` flag. Global is just another way to specify -d=~
+                    // (list files locally by default, i.e., no subcommand is given)
                     if !self.global && !contained_path(file.path(), &self.base_dir) {
                         continue;
                     }
@@ -165,17 +168,17 @@ impl App {
                     }
                 }
                 if formatted {
-                    print_stdout(if border {
+                    print_stdout(ternary!(
+                        border,
                         table
                             .table()
                             .foreground_color(Some(self.border_color))
-                            .color_choice(colorchoice)
-                    } else {
+                            .color_choice(colorchoice),
                         table
                             .table()
                             .border(Border::builder().build())
                             .separator(Separator::builder().build())
-                    })
+                    ))
                     .expect("Unable to print table");
                 }
             },
@@ -234,17 +237,17 @@ impl App {
                         println!("{}", tag);
                     }
                 } else {
-                    print_stdout(if border {
+                    print_stdout(ternary!(
+                        border,
                         table
                             .table()
                             .foreground_color(Some(self.border_color))
-                            .color_choice(colorchoice)
-                    } else {
+                            .color_choice(colorchoice),
                         table
                             .table()
                             .border(Border::builder().build())
                             .separator(Separator::builder().build())
-                    })
+                    ))
                     .expect("Unable to print table");
                 }
             },

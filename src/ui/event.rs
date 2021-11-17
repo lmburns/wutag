@@ -27,9 +27,12 @@ use tui::{backend::CrosstermBackend, Terminal};
 pub(crate) enum Key {
     Char(char),
     Alt(char),
+    #[serde(alias = "Control")]
     Ctrl(char),
     Backspace,
+    #[serde(alias = "Ctrl-Backspace", alias = "Control-Backspace")]
     CtrlBackspace,
+    #[serde(alias = "Alt-Backspace")]
     AltBackspace,
     Left,
     Right,
@@ -37,16 +40,24 @@ pub(crate) enum Key {
     Down,
     Home,
     End,
+    #[serde(alias = "Page-Up")]
     PageUp,
+    #[serde(alias = "Page-Down")]
     PageDown,
     Tab,
+    #[serde(alias = "Back-Tab")]
     BackTab,
     Insert,
     Delete,
+    #[serde(alias = "Ctrl-Delete", alias = "Control-Delete")]
     CtrlDelete,
+    #[serde(alias = "Alt-Delete")]
     AltDelete,
+    #[serde(alias = "None")]
     Null,
+    #[serde(alias = "Escape")]
     Esc,
+    #[serde(alias = "Func", alias = "Function")]
     F(u8),
 }
 

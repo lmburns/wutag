@@ -14,50 +14,94 @@ use wutag_core::color::TuiColor;
 const CONFIG_FILE: &str = "wutag.yml";
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[serde(rename_all = "snake_case", default)]
 pub(crate) struct Config {
+    #[serde(alias = "max-depth")]
     pub(crate) max_depth:    Option<usize>,
+    #[serde(alias = "base-color")]
     pub(crate) base_color:   Option<String>,
+    #[serde(alias = "border-color")]
     pub(crate) border_color: Option<String>,
     pub(crate) colors:       Option<Vec<String>>,
+    #[serde(alias = "ignore")]
     pub(crate) ignores:      Option<Vec<String>>,
     pub(crate) format:       Option<String>,
-    #[serde(rename = "keys")]
-    pub(crate) keys:         KeyConfig,
-    #[serde(rename = "ui")]
-    pub(crate) ui:           UiConfig,
+
+    #[cfg(feature = "ui")]
+    #[serde(rename = "keys", alias = "Keys")]
+    pub(crate) keys: KeyConfig,
+    #[cfg(feature = "ui")]
+    #[serde(rename = "tui", alias = "ui", alias = "UI", alias = "TUI")]
+    pub(crate) ui:   UiConfig,
+
+    #[cfg(feature = "encrypt-gpgme")]
+    #[serde(rename = "encryption", alias = "Encryption")]
+    pub(crate) encryption: EncryptConfig,
+}
+
+/// Encryption section of configuration file
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[serde(rename_all = "snake_case", default)]
+pub(crate) struct EncryptConfig {
+    #[serde(alias = "public-key")]
+    pub(crate) public_key: Option<String>,
+    #[serde(alias = "to-encrypt")]
+    pub(crate) to_encrypt: bool,
+    #[serde(alias = "TTY")]
+    pub(crate) tty:        bool,
 }
 
 /// UI general configuration
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "snake_case", default)]
 pub(crate) struct UiConfig {
+    #[serde(alias = "colored-ui")]
     pub(crate) colored_ui:          bool,
+    #[serde(alias = "completion-color")]
     pub(crate) completion_color:    String,
     pub(crate) looping:             bool,
+    #[serde(alias = "mark-indicator")]
     pub(crate) mark_indicator:      String,
+    #[serde(alias = "paths-bold", alias = "bold-paths")]
     pub(crate) paths_bold:          bool,
+    #[serde(alias = "paths-color", alias = "color-paths")]
     pub(crate) paths_color:         String,
+    #[serde(alias = "selection-blink")]
     pub(crate) selection_blink:     bool,
+    #[serde(alias = "selection-bold")]
     pub(crate) selection_bold:      bool,
+    #[serde(alias = "selection-dim")]
     pub(crate) selection_dim:       bool,
+    #[serde(alias = "selection-indicator")]
     pub(crate) selection_indicator: String,
+    #[serde(alias = "selection-italic")]
     pub(crate) selection_italic:    bool,
+    #[serde(alias = "startup-cmd", alias = "startup-command")]
     pub(crate) startup_cmd:         Option<String>,
+    #[serde(alias = "tick-rate")]
     pub(crate) tick_rate:           u64,
+    #[serde(alias = "unmark-indicator")]
     pub(crate) unmark_indicator:    String,
 }
 
 /// UI Key configuration
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "snake_case", default)]
 pub(crate) struct KeyConfig {
     pub(crate) quit:         Key,
     // Movement
     pub(crate) up:           Key,
     pub(crate) down:         Key,
+    #[serde(alias = "go-to-top", alias = "goto-top")]
     pub(crate) go_to_top:    Key,
+    #[serde(alias = "go-to-bottom", alias = "goto-bottom")]
     pub(crate) go_to_bottom: Key,
+    #[serde(alias = "page-up")]
     pub(crate) page_up:      Key,
+    #[serde(alias = "page-down")]
     pub(crate) page_down:    Key,
     pub(crate) select:       Key,
+    #[serde(alias = "select-all")]
     pub(crate) select_all:   Key,
     pub(crate) refresh:      Key,
     pub(crate) help:         Key,
@@ -132,8 +176,9 @@ impl Config {
         }
 
         let path = path.join(CONFIG_FILE);
+
         if !path.is_file() {
-            let initialization = "---\nmax_depth: 2\n...";
+            let initialization = include_str!("../example/wutag.yml");
 
             let mut config_file: fs::File = fs::OpenOptions::new()
                 .write(true)
@@ -147,11 +192,13 @@ impl Config {
             config_file.flush()?;
         }
 
+        // TODO: Need specific line errors when deserializing configuration file
+        // Until then, don't use the "deny_unknown_fields" for serde
         serde_yaml::from_slice(&fs::read(path).context("failed to read config file")?)
             .context("failed to deserialize config file")
     }
 
-    /// Loads config file from home directory of user executing the program
+    /// Loads config file from configuration directory
     pub(crate) fn load_default_location() -> Result<Self> {
         Self::load(get_config_path()?)
     }

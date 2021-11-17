@@ -1,3 +1,6 @@
+// TODO: return only files as an option
+// TODO: option for a formatted return
+
 use super::{
     uses::{
         channel, glob_builder, receiver, regex_builder, sender, Arc, Args, CommandTemplate,

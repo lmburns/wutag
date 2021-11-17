@@ -11,7 +11,7 @@
     anonymous_parameters,
     bad_style,
     const_err,
-    dead_code,
+    // dead_code,
     keyword_idents,
     improper_ctypes,
     macro_use_extern_crate,
@@ -33,14 +33,14 @@
     unconditional_recursion,
     unreachable_pub,
     unsafe_code,
-    unused,
-    unused_allocation,
-    unused_comparisons,
-    unused_extern_crates,
-    unused_import_braces,
-    unused_lifetimes,
-    unused_parens,
-    unused_qualifications,
+    // unused,
+    // unused_allocation,
+    // unused_comparisons,
+    // unused_extern_crates,
+    // unused_import_braces,
+    // unused_lifetimes,
+    // unused_parens,
+    // unused_qualifications,
     variant_size_differences,
     while_true
 )]
@@ -59,12 +59,15 @@
 mod comp_helper;
 mod config;
 mod consts;
+#[cfg(feature = "encrypt-gpgme")]
+mod encryption;
 mod exe;
 mod filesystem;
 mod macros;
 mod opt;
 mod registry;
 mod subcommand;
+#[cfg(feature = "ui")]
 mod ui;
 mod util;
 
@@ -78,7 +81,7 @@ fn main() {
     let args = Opts::get_args();
     util::initialize_logging(&args);
 
-    if let Err(e) = App::run(args, config) {
+    if let Err(e) = App::run(args, &config) {
         wutag_error!("{}", e);
     }
 }

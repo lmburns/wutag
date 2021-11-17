@@ -1,3 +1,5 @@
+// TODO: Add global option to cp
+
 use super::{
     uses::{
         err, fmt_err, fmt_path, fmt_tag, glob_builder, list_tags, osstr_to_bytes, parse_path,
@@ -9,11 +11,22 @@ use super::{
 
 #[derive(Args, Debug, Clone, PartialEq)]
 pub(crate) struct CpOpts {
+    /// Use a glob to match files (must be global)
+    #[clap(
+        short = 'G',
+        long = "glob",
+        takes_value = false,
+        long_about = "Use a glob to match the input path instead of matching files in the local \
+                      directory. This argument doesn't do anything, and is a placeholder. If the \
+                      global option is used, pattern matching is turned on and file-matching is \
+                      no longer used"
+    )]
+    pub(crate) glob:       bool,
     /// Path to the file from which to copy tags from
     #[clap(
         value_name = "input_path",
         value_hint = ValueHint::FilePath,
-        validator = |t| parse_path(t)
+        // validator = |t| parse_path(t) // Would be nice to be aware of other options
     )]
     pub(crate) input_path: PathBuf,
     /// A glob pattern like "*.png".
@@ -35,7 +48,9 @@ impl App {
         let re = regex_builder(&pat, self.case_insensitive, self.case_sensitive);
         let path = opts.input_path.as_path();
 
-        // FIX: Manage both globs
+        // FIX: Manage both globs for input and output
+        // To do this, a selection menu or something would have to popup to have the
+        // user choose which tags to copy, since multiple would match
         if self.global {
             let exclude_pattern = regex_builder(
                 self.exclude.join("|").as_str(),
@@ -82,6 +97,10 @@ impl App {
                 self.save_registry();
             }
         } else {
+            if let Err(e) = parse_path(path) {
+                wutag_error!("{}: {}", e, path.display());
+            }
+
             match list_tags(path) {
                 Ok(tags) => {
                     reg_ok(

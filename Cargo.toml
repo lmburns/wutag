@@ -2,7 +2,10 @@
 name = "wutag"
 description = "Tag files and manage them with color"
 version = "0.7.0"
-authors = ["wojciechkepka <wojtek.kepka@protonmail.com>", "Lucas Burns <lmb@lmburns.com>"]
+authors = [
+  "wojciechkepka <wojtek.kepka@protonmail.com>",
+  "Lucas Burns <lmb@lmburns.com>",
+]
 edition = "2018"
 repository = "https://github.com/lmburns/wutag"
 categories = ["command-line-utilities", "filesystem", "tagging"]
@@ -13,6 +16,22 @@ readme = "README.md"
 name = "wutag_core"
 path = "wutag_core/lib.rs"
 
+[features]
+default = ["encrypt-gpgme", "ui"]
+
+_encrypt-gpg = []
+
+encrypt-gpgme = ["gpgme", "secstr", "zeroize"]
+ui = [
+  "tui",
+  "rustyline",
+  "rustyline-derive",
+  "unicode-segmentation",
+  "unicode-width",
+  "cassowary",
+  "better-panic",
+]
+
 [dependencies]
 ansi_term = "0.12.1"
 anyhow = "1.0.43"
@@ -21,9 +40,7 @@ base64 = "0.13.0"
 chrono = { version = "0.4.19", features = ["serde"] }
 clap = "3.0.0-beta.5"
 clap_generate = "3.0.0-beta.5"
-cli-table = "0.4.6"
 colored = { git = "https://github.com/wojciechkepka/colored", branch = "master", features = ["serde"] }
-crossterm = { version = "0.20.0", default-features = false }
 crossbeam-channel = "0.5.1"
 crossbeam-utils = "0.8.5"
 dirs = "3.0.2"
@@ -46,14 +63,30 @@ serde_yaml = "0.8.19"
 shellexpand = "2.1.0"
 thiserror = "1.0.26"
 toml = "0.5.8"
+
+# TODO: use or remove
 termion = "1.5.5"
-tui = { version = "0.16.0", features = ["crossterm"] }
-rustyline = "9.0.0"
-rustyline-derive = "0.5.0"
-unicode-segmentation = "1.8.0"
-unicode-width = "0.1.9"
-cassowary = "0.3.0"
-better-panic = "0.2.0"
+rusqlite = "0.26.1"
+
+# TODO: add formatted option
+cli-table = "0.4.6"
+
+# ADD to TUI?
+crossterm = { version = "0.20.0", default-features = false }
+
+# Default feature - tui
+tui = { version = "0.16.0", features = ["crossterm"], optional = true }
+rustyline = { version = "9.0.0", optional = true }
+rustyline-derive = { version = "0.5.0", optional = true }
+unicode-segmentation = { version = "1.8.0", optional = true }
+unicode-width = { version = "0.1.9", optional = true }
+cassowary = { version = "0.3.0", optional = true }
+better-panic = { version = "0.2.0", optional = true }
+
+# Default feature - encryption
+gpgme = { version = "0.10.0", optional = true }
+secstr = { version = "0.4.0", optional = true }
+zeroize = { version = "1.4.3", optional = true }
 
 [dev-dependencies]
 predicates = "2.0.1"

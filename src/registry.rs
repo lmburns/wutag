@@ -1,24 +1,39 @@
-#![allow(dead_code)]
-#![allow(clippy::cast_possible_truncation)]
-#![allow(clippy::cast_sign_loss)]
-#![allow(clippy::shadow_unrelated)]
+// #![allow(dead_code)]
 
-// util::fmt_tag
-use crate::filesystem::contained_path;
+// TODO: look into using an actual database
+
+use crate::{
+    config::EncryptConfig,
+    encryption::{util, InnerCtx, Plaintext, Recipients},
+    filesystem::contained_path,
+    opt::Opts,
+    wutag_error, wutag_fatal, wutag_info,
+};
+use anyhow::{Context, Result};
+use colored::{Color, Colorize};
+use once_cell::sync::OnceCell;
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
+use shellexpand::LookupError;
 use wutag_core::tag::Tag;
 
-use anyhow::{Context, Result};
-use colored::Color;
-use serde::{Deserialize, Serialize};
+// use rusqlite::{
+//     self as rsq, params,
+//     types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput},
+//     Connection,
+// };
+
 use std::{
+    borrow::Cow,
     collections::BTreeMap,
-    fs,
+    env, fs,
     path::{Path, PathBuf},
 };
 
-// use rayon::prelude::*;
-// use rayon::collections::hash_map;
+/// Name of registry file
+const REGISTRY_FILE: &str = "wutag.registry";
+/// Only print 'matching key info' once
+static KEY_INFO: OnceCell<()> = OnceCell::new();
 
 /// Representation of a tagged file
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
@@ -46,20 +61,58 @@ impl EntryData {
 pub(crate) type EntryId = usize;
 
 /// Representation of the entire registry
-#[derive(Default, Deserialize, Serialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub(crate) struct TagRegistry {
+    /// Path to the `TagRegistry`
+    pub(crate) path:    PathBuf,
     /// Hash of the `Tag` name and the file id (`EntryId`) in which these tags
     /// are associated with
     pub(crate) tags:    BTreeMap<Tag, Vec<EntryId>>,
     /// Hash of the file id (`EntryId`) and the entries data (`EntryData`)
     pub(crate) entries: BTreeMap<EntryId, EntryData>,
-    /// Path to the `TagRegistry`
-    pub(crate) path:    PathBuf,
+    /* /// The connection to the database
+     * pub(crate) connection: rsq::Connection, */
+}
+
+impl Default for TagRegistry {
+    fn default() -> Self {
+        let state_file = {
+            #[cfg(target_os = "macos")]
+            let data_dir_og = env::var_os("XDG_DATA_HOME")
+                .map(PathBuf::from)
+                .filter(|p| p.is_absolute())
+                .or_else(|| dirs::home_dir().map(|d| d.join(".local").join("share")))
+                .context("Invalid data directory");
+
+            #[cfg(not(target_os = "macos"))]
+            let data_dir_og = dirs::data_local_dir();
+
+            let data_dir = data_dir_og
+                .map(|p| p.join("wutag"))
+                .expect("unable to join registry path");
+
+            if !data_dir.exists() {
+                fs::create_dir_all(&data_dir).unwrap_or_else(|_| {
+                    wutag_fatal!(
+                        "unable to create tag registry directory: {}",
+                        data_dir.display()
+                    )
+                });
+            }
+
+            data_dir.join(REGISTRY_FILE)
+        };
+
+        Self {
+            path:    state_file,
+            tags:    BTreeMap::new(),
+            entries: BTreeMap::new(),
+        }
+    }
 }
 
 impl TagRegistry {
     /// Creates a new instance of `TagRegistry` with a `path` without loading
-    /// it.
     pub(crate) fn new<P: AsRef<Path>>(path: P) -> Self {
         Self {
             path: path.as_ref().to_path_buf(),
@@ -67,17 +120,40 @@ impl TagRegistry {
         }
     }
 
-    /// Loads a registry from the specified `path`.
-    pub(crate) fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let path = path.as_ref();
-        let data = fs::read(path).context("failed to read saved registry")?;
+    // /// Open the database connection
+    // pub(crate) fn open_db<P: AsRef<Path>>(path: P) -> Result<Connection> {
+    //     Connection::open(&path).map_err(|e| anyhow!(e))
+    // }
 
-        serde_cbor::from_slice(&data).context("failed to deserialize tag registry")
+    /// Loads a registry from the specified `path`.
+    pub(crate) fn load<P: AsRef<Path>>(path: P, config: &EncryptConfig) -> Result<Self> {
+        let path = path.as_ref();
+
+        #[cfg(feature = "encrypt-gpgme")]
+        if is_encrypted(path) {
+            log::debug!("registry is encrypted");
+            if !config.to_encrypt {
+                wutag_info!("switching to non-encrypted registry configuration");
+            }
+
+            // If it is encrypted, decrypt it to read the data
+            Self::crypt_registry(path, config, false)?;
+        } else if config.to_encrypt {
+            log::debug!("registry is unencrypted");
+            wutag_info!("switching to encrypted registry configuration");
+        }
+
+        let data = fs::read(path).context("failed to read saved registry")?;
+        serde_yaml::from_slice(&data).context("failed to deserialize tag registry")
+
+        // serde_cbor::from_slice(&data).context("")
     }
 
     /// Saves the registry serialized to the path from which it was loaded.
     pub(crate) fn save(&self) -> Result<()> {
-        let serialized = serde_cbor::to_vec(&self).context("failed to serialize tag registry")?;
+        // let serialized = serde_cbor::to_vec(&self).context("")?;
+        let serialized = serde_yaml::to_vec(&self).context("failed to serialize tag registry")?;
+
         fs::write(&self.path, &serialized).context("failed to save registry")
     }
 
@@ -94,8 +170,11 @@ impl TagRegistry {
             .find(|(_, e)| **e == entry)
             .map(|(idx, _)| *idx);
 
-        let pos = if let Some(pos) = pos {
-            let e = self.entries.get_mut(&pos).expect("entry");
+        if let Some(pos) = pos {
+            let e = self
+                .entries
+                .get_mut(&pos)
+                .unwrap_or_else(|| wutag_fatal!("failure to get immutable reference: {}", pos));
             *e = entry;
             pos
         } else {
@@ -107,9 +186,7 @@ impl TagRegistry {
             };
             self.entries.insert(timestamp, entry);
             timestamp
-        };
-
-        pos
+        }
     }
 
     fn mut_tag_entries(&mut self, tag: &Tag) -> &mut Vec<EntryId> {
@@ -230,6 +307,7 @@ impl TagRegistry {
     }
 
     /// Returns entries that have all of the `tags`.
+    #[allow(dead_code)]
     pub(crate) fn list_entries_with_tags<T, S>(&self, tags: T) -> Vec<EntryId>
     where
         T: IntoIterator<Item = S>,
@@ -253,6 +331,7 @@ impl TagRegistry {
     }
 
     /// Return a vector of `PathBuf`'s that have a specific tag or tags
+    #[allow(dead_code)]
     pub(crate) fn list_entries_paths<T, S>(
         &self,
         tags: T,
@@ -289,57 +368,6 @@ impl TagRegistry {
         entries.dedup();
         entries
     }
-
-    // /// Returns a `BTreeMap` of (`PathBuf`, `Vec<String>`) where the path is the
-    // /// file path and the nested vector is the list of raw `Tag` name. This is
-    // /// used for the `tui`, and the results vary depending if the user wants all
-    // /// results (`global`) or not
-    // pub(crate) fn list_paths_and_tags(
-    //     &self,
-    //     tags: Vec<String>,
-    //     global: bool,
-    //     base_dir: &Path,
-    // ) -> BTreeMap<PathBuf, Vec<String>> {
-    //     let cloned = tags.clone();
-    //     let mut path_tags = BTreeMap::new();
-    //     let mut entries = cloned
-    //         .iter()
-    //         .fold(Vec::new(), |mut acc, tag| {
-    //             if let Some(entries) = self
-    //                 .tags
-    //                 .iter()
-    //                 .find(|(t, _)| t.name() == tag)
-    //                 .map(|(_, e)| e)
-    //             {
-    //                 acc.extend_from_slice(&entries[..]);
-    //             }
-    //             acc
-    //         })
-    //         .iter()
-    //         .fold(Vec::new(), |mut acc, id| {
-    //             if let Some(entry) = self.get_entry(*id) {
-    //                 if !global && !contained_path(entry.path(), base_dir) {
-    //                 } else {
-    //                     acc.push((PathBuf::from(entry.path()), id));
-    //                 }
-    //             }
-    //             acc
-    //         });
-    //     entries.dedup();
-    //
-    //     for (entry, id) in entries.iter() {
-    //         path_tags.insert(
-    //             entry.clone(),
-    //             self.list_entry_tags(**id)
-    //                 .unwrap_or_default()
-    //                 .iter()
-    //                 .map(|t| t.name().to_owned())
-    //                 .collect::<Vec<_>>(),
-    //         );
-    //     }
-    //
-    //     path_tags
-    // }
 
     /// Return the conceptualized data structure that all these functions
     /// correspond to. i.e., a hashmap of the file's path corresponding to a
@@ -388,6 +416,7 @@ impl TagRegistry {
     }
 
     /// Lists data of all entries present in the registry.
+    #[allow(dead_code)]
     pub(crate) fn list_entries(&self) -> impl Iterator<Item = &EntryData> {
         self.entries.values()
     }
@@ -416,7 +445,11 @@ impl TagRegistry {
     /// updated and `false` otherwise.
     pub(crate) fn update_tag_color<T: AsRef<str>>(&mut self, tag: T, color: Color) -> bool {
         if let Some(mut t) = self.tags.keys().find(|t| t.name() == tag.as_ref()).cloned() {
-            let data = self.tags.remove(&t).expect("removed tag");
+            let data = self
+                .tags
+                .remove(&t)
+                .unwrap_or_else(|| wutag_fatal!("failure to remove tag: {}", t));
+
             t.set_color(&color);
             self.tags.insert(t, data);
             true
@@ -424,6 +457,174 @@ impl TagRegistry {
             false
         }
     }
+
+    /// Encrypt or decrypt the registry
+    #[cfg(feature = "encrypt-gpgme")]
+    pub(crate) fn crypt_registry<P: AsRef<Path>>(
+        path: P,
+        config: &EncryptConfig,
+        encrypt: bool,
+    ) -> Result<()> {
+        let path = path.as_ref();
+        if let Some(public) = config.public_key.clone() {
+            let public = public
+                .trim()
+                .strip_prefix("0x")
+                .unwrap_or_else(|| public.trim())
+                .to_uppercase();
+
+            let mut ctx =
+                util::context(config.tty).context("failure to get cryptography context")?;
+            let all_recipients =
+                Recipients::from(ctx.keys_private().context("no private keys were found")?);
+
+            // (1) E93ACCAAAEB024788C106EDEC011CBEF6628B679
+            // (2) C011CBEF6628B679
+            // (3) lmb@lmburns.com
+            if let Some(found) = all_recipients.keys().iter().find(|key| {
+                public == key.fingerprint(false)
+                    || public == key.fingerprint(true)
+                    || ctx.user_emails().iter().any(|emails| {
+                        emails
+                            .iter()
+                            .any(|email| email.trim().to_uppercase() == public)
+                    })
+            }) {
+                // Run this only once since it will be ran be encrypting it back as well
+                KEY_INFO.get_or_init(|| log::info!("found matching key: {}", found));
+
+                // ## If the content is encrypted
+                if is_encrypted(path) && !encrypt {
+                    log::debug!("decrypting registry");
+
+                    // 1. Decrypt file
+                    let plaintext = ctx
+                        .decrypt_file(path)
+                        .context("failure to decrypt registry")?;
+
+                    // 2. Serialize the decrypted string to a registry
+                    let yaml: TagRegistry = serde_yaml::from_slice(plaintext.unsecure_ref())
+                        .context("failure to convert decrypted registry to TagRegistry")?;
+
+                    // 3. Write the serialized structure to a file
+                    fs::write(path, &serde_yaml::to_vec(&yaml)?)
+                        .context("failed to save registry")?;
+
+                    // self.encrypted = false;
+                } else if encrypt {
+                    // ## If the content is not encrypted
+
+                    // 1. Serialize the unencrypted string to a registry
+                    let yaml: TagRegistry = serde_yaml::from_slice(
+                        &fs::read(path).context("failed to read registry file")?,
+                    )
+                    .context("encrypted file is invalid UTF-8")?;
+
+                    // 2. Convert it to a structure that can be encrypted
+                    let plaintext = Plaintext::from(serde_yaml::to_string(&yaml)?);
+
+                    log::debug!("encrypting registry");
+
+                    // 3. Encrypt and write the file
+                    ctx.encrypt_file(&Recipients::from(vec![found.clone()]), plaintext, path)
+                        .context("failure to encrypt registry")?;
+
+                    // self.encrypted = true;
+                } else {
+                    wutag_fatal!("database encryption/decryption failure");
+                }
+            }
+        } else {
+            wutag_fatal!("you want to encrypt the database but provided no key");
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(feature = "encrypt-gpgme")]
+pub(crate) fn is_encrypted<P: AsRef<Path>>(path: P) -> bool {
+    let content = fs::read_to_string(path.as_ref())
+        .unwrap_or_else(|_| wutag_fatal!("failure to read registry file to string"));
+
+    content.contains("-----BEGIN PGP MESSAGE-----") && content.contains("-----END PGP MESSAGE-----")
+}
+
+/// Load the `TagRegistry`
+pub(crate) fn load_registry(opts: &Opts, config: &EncryptConfig) -> Result<TagRegistry> {
+    // wutag_error!() doesn't implement fmt::Display
+    let expand_error = |dir: &PathBuf| -> String {
+        format!(
+            "{}: unable to create registry directory: '{}'",
+            "[wutag error]".red().bold(),
+            dir.display()
+        )
+    };
+
+    // Default location of registry
+    let def_registry = TagRegistry::default();
+    let state_file = def_registry.path;
+
+    let registry = if let Some(opt_reg) = &opts.reg {
+        // Expand both tlide '~' and environment variables in 'WUTAG_REGISTRY' env var
+        let registry = &PathBuf::from(
+            shellexpand::full(&opt_reg.display().to_string())
+                .unwrap_or_else(|_| {
+                    Cow::from(
+                        LookupError {
+                            var_name: "Unkown environment variable".into(),
+                            cause:    env::VarError::NotPresent,
+                        }
+                        .to_string(),
+                    )
+                })
+                .to_string(),
+        );
+
+        if registry.is_file() && registry.file_name().is_some() {
+            log::debug!("using a non-default registry");
+            TagRegistry::load(&registry, config).unwrap_or_else(|_| TagRegistry::new(&registry))
+            //
+        } else if registry.is_dir() && registry.file_name().is_some() {
+            wutag_error!(
+                "{} is not a file. Using default registry: {}",
+                registry.display().to_string().green(),
+                state_file.display().to_string().green(),
+            );
+            TagRegistry::load(&state_file, config).unwrap_or_else(|_| TagRegistry::new(&state_file))
+            //
+        } else if registry.display().to_string().ends_with('/') {
+            wutag_error!(
+                "{} last error is a directory path. Using default registry: {}",
+                registry.display().to_string().green(),
+                state_file.display().to_string().green(),
+            );
+            TagRegistry::load(&state_file, config).unwrap_or_else(|_| TagRegistry::new(&state_file))
+            //
+        } else {
+            log::debug!("using a non-default registry");
+            fs::create_dir_all(
+                &registry
+                    .parent()
+                    .context("Could not get parent of nonexisting path")?,
+            )
+            .with_context(|| expand_error(registry))?;
+
+            // Loading here shouldn't ever get ran
+            TagRegistry::load(&registry, config).unwrap_or_else(|_| {
+                log::debug!("creating a non-default registry");
+                TagRegistry::new(&registry)
+            })
+        }
+    } else {
+        log::debug!("using default registry");
+        TagRegistry::load(&state_file, config).unwrap_or_else(|_| {
+            log::debug!("creating default registry");
+            TagRegistry::new(&state_file)
+        })
+    };
+
+    Ok(registry)
 }
 
 #[cfg(test)]
@@ -600,7 +801,7 @@ mod tests {
 
         registry.save().unwrap();
 
-        let registry = TagRegistry::load(registry_path).unwrap();
+        let registry = TagRegistry::load(registry_path, &EncryptConfig::default()).unwrap();
         let mut entries = registry.list_entries_and_ids();
         let (got_id, got_entry) = entries.next().unwrap();
         assert!(entries.next().is_none());

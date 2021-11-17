@@ -8,6 +8,7 @@ use crate::{
         clear::ClearOpts,
         cp::CpOpts,
         edit::EditOpts,
+        info::InfoOpts,
         list::{ListObject, ListOpts},
         print_completions::CompletionsOpts,
         rm::RmOpts,
@@ -252,6 +253,8 @@ pub(crate) enum Command {
     /// Edits a tag's color
     #[clap(override_usage = "wutag edit --color <color> <tag>")]
     Edit(EditOpts),
+    /// Display information about the wutag environment
+    Info(InfoOpts),
     /// Prints completions for the specified shell to dir or stdout
     #[clap(
         display_order = 1000,

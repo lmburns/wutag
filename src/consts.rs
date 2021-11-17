@@ -7,6 +7,7 @@ use colored::Color::{
     Green, Magenta, Red, White, Yellow,
 };
 use once_cell::sync::Lazy;
+use std::env;
 
 // ANSI excape characters for coloring output
 pub(crate) const YELLOW: &str = "\x1b[0;33m";
@@ -42,7 +43,7 @@ pub(crate) const DEFAULT_COLORS: &[Color] = &[
     BrightCyan,
 ];
 
-// Colored options used in the output of `--help`
+/// Colored options used in the output of `--help`
 pub(crate) static APP_ABOUT: Lazy<String> = Lazy::new(|| {
     format!(
         "{}DESCRIPTION: {}{}{}",
@@ -53,7 +54,7 @@ pub(crate) static APP_ABOUT: Lazy<String> = Lazy::new(|| {
     )
 });
 
-// Specify the file-type(s) to filter by. Can be repeated
+/// Specify the file-type(s) to filter by. Can be repeated
 pub(crate) static FILE_TYPE: Lazy<String> = Lazy::new(|| {
     "Filter results based on file-type. Does not work with '-g|--global'.\n  'f' or 'file':       \
      regular file\n  'd' or 'dir':        directory\n  'l' or 'symlink':    symlink\n  'b' or \
@@ -64,6 +65,7 @@ pub(crate) static FILE_TYPE: Lazy<String> = Lazy::new(|| {
     .to_string()
 });
 
+/// Colorized message to explain the -X flag to execute commands on tagged files
 #[rustfmt::skip]
 pub(crate) static EXEC_BATCH_EXPL: Lazy<String> = Lazy::new(|| {
     format!(
@@ -89,6 +91,7 @@ pub(crate) static EXEC_BATCH_EXPL: Lazy<String> = Lazy::new(|| {
     )
 });
 
+/// Colorized message to explain the -x flag to execute commands on tagged files
 pub(crate) static EXEC_EXPL: Lazy<String> = Lazy::new(|| {
     format!(
         "{}\n  An example of using this is:\n  \t {}wutag -g search <tag> -x {{..}} set {{/}} \
@@ -99,6 +102,7 @@ pub(crate) static EXEC_EXPL: Lazy<String> = Lazy::new(|| {
     )
 });
 
+/// Colorized message to override the generated help message
 pub(crate) static OVERRIDE_HELP: Lazy<String> = Lazy::new(|| {
     format!(
         "{}wutag{} [{}FLAGS{}/{}OPTIONS{}] <{}SUBCOMMAND{}> [{}TAGS{}/{}FLAGS{}]",
@@ -106,6 +110,7 @@ pub(crate) static OVERRIDE_HELP: Lazy<String> = Lazy::new(|| {
     )
 });
 
+/// Colorized message displayed after the help message
 pub(crate) static AFTER_HELP: Lazy<String> = Lazy::new(|| {
     format!(
         "See {}wutag{} {}--help{} for longer explanations of some base options.\nUse {}--help{} \
@@ -114,6 +119,7 @@ pub(crate) static AFTER_HELP: Lazy<String> = Lazy::new(|| {
     )
 });
 
+/// Colorized message about the app's authors
 #[rustfmt::skip]
 pub(crate) static APP_AUTHORS: Lazy<String> = Lazy::new(|| format!(
     "{}Wojciech K\u{119}pka{} <{}Wwojciech@wkepka.dev{}>\n\
@@ -121,5 +127,20 @@ pub(crate) static APP_AUTHORS: Lazy<String> = Lazy::new(|| format!(
     BRRED, RES, BRGREEN, RES, BRRED, RES, BRGREEN, RES,
 ));
 
-pub(crate) static DEFAULT_EDITOR: Lazy<String> =
-    Lazy::new(|| std::env::var("EDITOR").unwrap_or_else(|_| "vim".to_string()));
+/// Editor to use when viewing tags
+pub(crate) static DEFAULT_EDITOR: Lazy<String> = Lazy::new(|| {
+    env::var("EDITOR").unwrap_or_else(|_| env::var("VISUAL").unwrap_or_else(|_| "vi".to_string()))
+});
+
+#[cfg(feature = "encrypt-gpgme")]
+pub(crate) mod encrypt {
+    use super::{env, Lazy};
+    /// The umask of the registry file
+    pub(crate) static REGISTRY_UMASK: Lazy<u32> = Lazy::new(|| {
+        u32::from_str_radix(
+            &env::var("WUTAG_REGISTRY_UMASK").unwrap_or_else(|_| "077".to_owned()),
+            8,
+        )
+        .expect("umask is not a valid octal")
+    });
+}

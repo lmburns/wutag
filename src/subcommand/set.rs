@@ -2,7 +2,7 @@ use super::{
     uses::{
         bold_entry, collect_stdin_paths, err, fmt_err, fmt_path, fmt_tag, glob_builder,
         parse_color, reg_ok, regex_builder, wutag_error, Arc, Args, Colorize, DirEntryExt,
-        EntryData, IntoParallelRefIterator, ParallelIterator, Tag, DEFAULT_COLOR,
+        EntryData, IntoParallelRefIterator, ParallelIterator, Tag, ValueHint, DEFAULT_COLOR,
     },
     App,
 };
@@ -28,6 +28,7 @@ pub(crate) struct SetOpts {
     /// A glob pattern like "*.png".
     #[clap(
         required_unless_present = "stdin", // Would be nice to have a default_value_if_present
+        value_hint = ValueHint::FilePath,
     )]
     pub(crate) pattern: String,
     pub(crate) tags:    Vec<String>,

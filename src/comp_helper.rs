@@ -25,6 +25,11 @@ _wutag__list__files_commands() {
     local commands; commands=()
     _describe -t commands 'wutag list files commands' commands \"$@\"
 }
+(( $+functions[_wutag__info_commands] )) ||
+_wutag__info_commands() {
+    local commands; commands=()
+    _describe -t commands 'wutag info commands' commands \"$@\"
+}
 (( $+functions[_wutag__list_commands] )) ||
 _wutag__list_commands() {
     local commands; commands=(
@@ -89,7 +94,6 @@ _wutag_tags() {
     return ret
 }"#,
     ),
-    // Make this replace globally
     (r#"'*::tags:' \"#, r#"'*::_wutag_tags:' \"#),
     (r#"'*::tags:' \"#, r#"'*::tags:_wutag_tags' \"#),
     (
@@ -99,3 +103,12 @@ _wutag_tags() {
 '--tag=[The tag to edit]:tag:_wutag_tags' \\",
     ),
 ];
+//     // Make this replace globally
+//     (r#"'*::tags:' \"#, r#"'*::_wutag_tags:' \"#),
+//     (r#"'*::tags:' \"#, r#"'*::tags:_wutag_tags' \"#),
+//     (
+//         "'-t+[The tag to edit]:tag: ' \\
+// '--tag=[The tag to edit]:tag: ' \\",
+//         "'-t+[The tag to edit]:tag:_wutag_tags' \\
+// '--tag=[The tag to edit]:tag:_wutag_tags' \\",
+//     ),

@@ -175,7 +175,8 @@ pub(crate) fn replace(haystack: &mut String, needle: &str, replacement: &str) ->
         Ok(())
     } else {
         Err(anyhow!(
-            "Failed to find text:\n{}\n\u{2026}in completion script:\n{}",
+            "\n====================\nFailed to find text\n====================n{}\n\u{2026}in \
+             completion script:\n{}",
             needle,
             haystack
         ))

@@ -2,6 +2,7 @@ pub(crate) mod clean_cache;
 pub(crate) mod clear;
 pub(crate) mod cp;
 pub(crate) mod edit;
+pub(crate) mod info;
 pub(crate) mod list;
 pub(crate) mod print_completions;
 pub(crate) mod rm;
@@ -10,18 +11,12 @@ pub(crate) mod set;
 pub(crate) mod uses;
 pub(crate) mod view;
 
-use crate::{
-    opt::{Command, Opts},
-    ui,
-};
 use uses::{
-    env, fs, parse_color, parse_color_cli_table, wutag_error, Color, Colorize, Config, Context,
-    Cow, FileTypes, LookupError, PathBuf, RegexSet, RegexSetBuilder, Result, Stream, TagRegistry,
-    DEFAULT_BASE_COLOR, DEFAULT_BORDER_COLOR, DEFAULT_COLORS,
+    env, parse_color, parse_color_cli_table, registry, ui, wutag_error, wutag_fatal, Color,
+    Colorize, Command, Config, Context, EncryptConfig, FileTypes, Opts, PathBuf, RegexSet,
+    RegexSetBuilder, Result, Stream, TagRegistry, DEFAULT_BASE_COLOR, DEFAULT_BORDER_COLOR,
+    DEFAULT_COLORS,
 };
-
-// TODO: Add --all option to view
-// TODO: Add list options for search
 
 #[derive(Clone, Debug)]
 pub(crate) struct App {
@@ -42,6 +37,9 @@ pub(crate) struct App {
     pub(crate) max_depth:        Option<usize>,
     pub(crate) pat_regex:        bool,
     pub(crate) registry:         TagRegistry,
+
+    #[cfg(feature = "encrypt-gpgme")]
+    pub(crate) encrypt: EncryptConfig,
 }
 
 // TODO: Move this? Where should it be at?
@@ -49,73 +47,11 @@ pub(crate) struct App {
 // accessed outside of the `App` struct, which requires that every field of the
 // `UiApp` be thread safe, and it is not
 
-/// Load the `TagRegistry`
-pub(crate) fn load_registry(opts: &Opts) -> Result<TagRegistry> {
-    let state_file = std::env::var_os("XDG_CACHE_HOME")
-        .map(PathBuf::from)
-        .filter(|p| p.is_absolute())
-        .or_else(|| dirs::home_dir().map(|d| d.join(".cache")))
-        .map(|p| p.join("wutag.registry"))
-        .unwrap();
-
-    let registry = if let Some(registry) = &opts.reg {
-        // Expand both tlide '~' and environment variables in 'WUTAG_REGISTRY' env var
-        let registry = &PathBuf::from(
-            shellexpand::full(&registry.display().to_string())
-                .unwrap_or_else(|_| {
-                    Cow::from(
-                        LookupError {
-                            var_name: "Unkown environment variable".into(),
-                            cause:    env::VarError::NotPresent,
-                        }
-                        .to_string(),
-                    )
-                })
-                .to_string(),
-        );
-
-        if registry.is_file() && registry.file_name().is_some() {
-            TagRegistry::load(&registry).unwrap_or_else(|_| TagRegistry::new(&registry))
-        } else if registry.is_dir() && registry.file_name().is_some() {
-            wutag_error!(
-                "{} is not a file. Using default registry: {}",
-                registry.display().to_string().green(),
-                state_file.display().to_string().green(),
-            );
-            TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
-        } else if registry.display().to_string().ends_with('/') {
-            wutag_error!(
-                "{} last error is a directory path. Using default registry: {}",
-                registry.display().to_string().green(),
-                state_file.display().to_string().green(),
-            );
-            TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
-        } else {
-            fs::create_dir_all(
-                &registry
-                    .parent()
-                    .context("Could not get parent of nonexisting path")?,
-            )
-            .with_context(|| {
-                format!(
-                    "unable to create registry directory: '{}'",
-                    registry.display()
-                )
-            })?;
-            TagRegistry::load(&registry).unwrap_or_else(|_| TagRegistry::new(&registry))
-        }
-    } else {
-        log::debug!("loading default registry");
-        TagRegistry::load(&state_file).unwrap_or_else(|_| TagRegistry::new(&state_file))
-    };
-
-    Ok(registry)
-}
-
 impl App {
-    pub(crate) fn run(opts: Opts, config: Config) -> Result<()> {
+    pub(crate) fn run(opts: Opts, config: &Config) -> Result<()> {
         let mut app = Self::new(&opts, config.clone())?;
-        log::trace!("CONFIGURATION: {:#?}", app);
+        log::trace!("CONFIGURATION FILE: {:#?}", config);
+        log::trace!("CONFIGURATION RESULT: {:#?}", app);
         app.run_command(opts, config);
 
         Ok(())
@@ -154,7 +90,6 @@ impl App {
             .transpose()?
             .unwrap_or(DEFAULT_BORDER_COLOR);
 
-        // TODO: cleaner way?
         let color_when = match opts.color_when {
             Some(ref s) if s == "always" => "always",
             Some(ref s) if s == "never" => "never",
@@ -167,21 +102,24 @@ impl App {
         };
 
         let format = if let Some(format_) = config.format {
-            match format_.as_ref() {
-                f @ ("toml" | "yaml" | "yml" | "json") => f.to_string(),
-                _ => {
-                    wutag_error!(
-                        "invalid format found as your configuration. Valid values: toml, yaml, \
-                         yml, json. Using the default: toml"
-                    );
-                    "toml".to_string()
-                },
+            {
+                match format_.as_ref() {
+                    f @ ("toml" | "yaml" | "yml" | "json") => f,
+                    _ => {
+                        wutag_error!(
+                            "invalid format found as your configuration. Valid values: toml, \
+                             yaml, yml, json. Using the default: toml"
+                        );
+                        "toml"
+                    },
+                }
             }
+            .to_string()
         } else {
             "toml".to_string()
         };
 
-        let registry = load_registry(opts)?;
+        let registry = registry::load_registry(opts, &config.encryption)?;
 
         let extensions = opts
             .extension
@@ -251,6 +189,9 @@ impl App {
             },
             pat_regex: opts.regex,
             registry,
+
+            #[cfg(any(feature = "encrypt-gpgme"))]
+            encrypt: config.encryption,
         })
     }
 
@@ -262,7 +203,7 @@ impl App {
     }
 
     /// Run the subcommand from the command-line
-    pub(crate) fn run_command(&mut self, opts: Opts, config: Config) {
+    pub(crate) fn run_command(&mut self, opts: Opts, config: &Config) {
         if self.color_when == "never" {
             colored::control::SHOULD_COLORIZE.set_override(false);
         } else if self.color_when == "always" {
@@ -274,6 +215,7 @@ impl App {
             Command::Clear(ref opts) => self.clear(opts),
             Command::Cp(ref opts) => self.cp(opts),
             Command::Edit(ref opts) => self.edit(opts),
+            Command::Info(ref opts) => self.info(opts),
             Command::List(ref opts) => self.list(opts),
             Command::PrintCompletions(ref opts) => self.print_completions(opts),
             Command::Rm(ref opts) => self.rm(opts),
@@ -284,14 +226,27 @@ impl App {
                 better_panic::install();
                 if let Err(e) = ui::start_ui(
                     &self.clone(),
-                    config,
-                    load_registry(&opts).expect("unable to get tag registry"),
+                    config.clone(),
+                    registry::load_registry(&opts, &config.encryption)
+                        .expect("unable to get tag registry"),
                 ) {
                     ui::destruct_terminal();
-                    wutag_error!("{}", e);
-                    std::process::exit(1);
+                    wutag_fatal!("{}", e);
                 }
             },
+        };
+
+        #[cfg(feature = "encrypt-gpgme")]
+        self.handle_encryption();
+    }
+
+    /// Encryption command to run after every subcommand
+    pub(crate) fn handle_encryption(&self) {
+        if self.encrypt.to_encrypt && !registry::is_encrypted(&self.registry.path) {
+            log::debug!("Attempting to encrypt registry");
+            if let Err(e) = TagRegistry::crypt_registry(&self.registry.path, &self.encrypt, true) {
+                wutag_fatal!("{}", e);
+            }
         }
     }
 }

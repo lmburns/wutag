@@ -58,6 +58,7 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('cp', 'cp', [CompletionResultType]::ParameterValue, 'Copies tags from the specified file to files that match a pattern')
             [CompletionResult]::new('view', 'view', [CompletionResultType]::ParameterValue, 'View the results in an editor (optional pattern)')
             [CompletionResult]::new('edit', 'edit', [CompletionResultType]::ParameterValue, 'Edits a tag''s color')
+            [CompletionResult]::new('info', 'info', [CompletionResultType]::ParameterValue, 'Display information about the wutag environment')
             [CompletionResult]::new('print-completions', 'print-completions', [CompletionResultType]::ParameterValue, 'Prints completions for the specified shell to dir or stdout')
             [CompletionResult]::new('clean-cache', 'clean-cache', [CompletionResultType]::ParameterValue, 'Clean the cached tag registry')
             [CompletionResult]::new('ui', 'ui', [CompletionResultType]::ParameterValue, 'Open a TUI to manage tags, requires results from a `search`, or `list`')
@@ -149,6 +150,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             break
         }
         'wutag;cp' {
+            [CompletionResult]::new('-G', 'G', [CompletionResultType]::ParameterName, 'Use a glob to match files (must be global)')
+            [CompletionResult]::new('--glob', 'glob', [CompletionResultType]::ParameterName, 'Use a glob to match files (must be global)')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
@@ -177,6 +180,15 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--color', 'color', [CompletionResultType]::ParameterName, 'Set the color of the tag to the specified color. Accepted values are hex colors like ''0x000000'' or ''#1F1F1F'' or just plain ''ff000a''. The colors are case insensitive meaning ''1f1f1f'' is equivalent to ''1F1F1F''')
             [CompletionResult]::new('-t', 't', [CompletionResultType]::ParameterName, 'The tag to edit')
             [CompletionResult]::new('--tag', 'tag', [CompletionResultType]::ParameterName, 'The tag to edit')
+            [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
+            [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
+            [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            break
+        }
+        'wutag;info' {
+            [CompletionResult]::new('-r', 'r', [CompletionResultType]::ParameterName, 'TO BE IMPLEMENTED Do not use color in output')
+            [CompletionResult]::new('--raw', 'raw', [CompletionResultType]::ParameterName, 'TO BE IMPLEMENTED Do not use color in output')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')

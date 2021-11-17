@@ -28,6 +28,9 @@ _wutag() {
             files)
                 cmd+="__files"
                 ;;
+            info)
+                cmd+="__info"
+                ;;
             list)
                 cmd+="__list"
                 ;;
@@ -59,7 +62,7 @@ _wutag() {
 
     case "${cmd}" in
         wutag)
-            opts="-h -V -v -d -m -R -i -s -r -g -l -c -t -e -E --help --version --verbose --dir --max-depth --registry --case_insensitive --case_sensitive --regex --global --ls-colors --color --type --ext --exclude list set rm clear search cp view edit print-completions clean-cache ui"
+            opts="-h -V -v -d -m -R -i -s -r -g -l -c -t -e -E --help --version --verbose --dir --max-depth --registry --case_insensitive --case_sensitive --regex --global --ls-colors --color --type --ext --exclude list set rm clear search cp view edit info print-completions clean-cache ui"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -157,7 +160,7 @@ _wutag() {
             return 0
             ;;
         wutag__cp)
-            opts="-h -v --help --verbose <input_path> <pattern>"
+            opts="-G -h -v --glob --help --verbose <input_path> <pattern>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -193,6 +196,20 @@ _wutag() {
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        wutag__info)
+            opts="-r -h -v --raw --help --verbose"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
                 *)
                     COMPREPLY=()
                     ;;

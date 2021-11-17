@@ -35,6 +35,23 @@ macro_rules! wutag_error {
     })
 }
 
+/// Expand to a fatal message
+#[macro_export]
+macro_rules! wutag_fatal {
+    ($($err:tt)*) => ({
+        eprintln!("{}: {}", "[wutag fatal]".yellow().bold(), format!($($err)*));
+        std::process::exit(1);
+    })
+}
+
+/// Expand to an info message
+#[macro_export]
+macro_rules! wutag_info {
+    ($($err:tt)*) => ({
+        eprintln!("{}: {}", "[wutag info]".green().bold(), format!($($err)*));
+    })
+}
+
 /// Make a path display in bold letters
 #[macro_export]
 macro_rules! bold_entry {

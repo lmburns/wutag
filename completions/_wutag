@@ -54,7 +54,7 @@ _wutag() {
         (( CURRENT += 1 ))
         curcontext="${curcontext%:*:*}:wutag-command-$line[1]:"
         case $line[1] in
-            (list)
+            (list|ls)
 _arguments "${_arguments_options[@]}" \
 '-r[If provided output will be raw so that it can be easily piped to other commands]' \
 '--raw[If provided output will be raw so that it can be easily piped to other commands]' \
@@ -67,7 +67,7 @@ _arguments "${_arguments_options[@]}" \
 && ret=0
 
     case $state in
-    (list)
+    (list|ls)
         words=($line[1] "${words[@]}")
         (( CURRENT += 1 ))
         curcontext="${curcontext%:*:*}:wutag-list-command-$line[1]:"
@@ -75,10 +75,16 @@ _arguments "${_arguments_options[@]}" \
             (tags)
 _arguments "${_arguments_options[@]}" \
 '--version[Print version information]' \
-'-c[]' \
-'--completions[]' \
-'-b[Use border separators when formatting output]' \
-'--border[Use border separators when formatting output]' \
+'-c[Do not display tag count]' \
+'--no-count[Do not display tag count]' \
+'-u[Only display unique occurences. (See --help)]' \
+'--unique[Only display unique occurences. (See --help)]' \
+'-s[Sort the output alphabetically (no-count), numerically otherwise]' \
+'--sort[Sort the output alphabetically (no-count), numerically otherwise]' \
+'-1[Display one tag per line instead of tags on files]' \
+'--one-per-line[Display one tag per line instead of tags on files]' \
+'(-c --no-count)-b[Use border separators when formatting output]' \
+'(-c --no-count)--border[Use border separators when formatting output]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
@@ -106,7 +112,7 @@ _arguments "${_arguments_options[@]}" \
     ;;
 esac
 ;;
-(set)
+(set|tag)
 _arguments "${_arguments_options[@]}" \
 '-C+[Explicitly select color for tag]:COLOR: ' \
 '--color=[Explicitly select color for tag]:COLOR: ' \
@@ -151,10 +157,12 @@ _arguments "${_arguments_options[@]}" \
 '(-X --exec-batch)--exec=[Execute a command on each individual file]:cmd:_command_names -e' \
 '(-x --exec)-X+[Execute a command on the batch of matching files]:cmd:_command_names -e' \
 '(-x --exec)--exec-batch=[Execute a command on the batch of matching files]:cmd:_command_names -e' \
-'-t+[Search just by tags or along with a tag(s)]:tags: ' \
-'--tags=[Search just by tags or along with a tag(s)]:tags: ' \
-'-r[If provided output will be raw so that it can be easily piped to other commands]' \
-'--raw[If provided output will be raw so that it can be easily piped to other commands]' \
+'-t+[Search just by tags or along with a tag(s)]:tags:_wutag_tags' \
+'--tags=[Search just by tags or along with a tag(s)]:tags:_wutag_tags' \
+'-r[No colored output. Should be detected automatically on pipe]' \
+'--raw[No colored output. Should be detected automatically on pipe]' \
+'-f[Display only files in the search results]' \
+'--only-files[Display only files in the search results]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
@@ -233,7 +241,7 @@ _arguments "${_arguments_options[@]}" \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
 && ret=0
 ;;
-(ui)
+(ui|tui)
 _arguments "${_arguments_options[@]}" \
 '-h[Print help information]' \
 '--help[Print help information]' \
@@ -250,6 +258,7 @@ esac
 _wutag_commands() {
     local commands; commands=(
 'list:Lists all available tags or files' \
+'ls:Lists all available tags or files' \
 'set:Set tag(s) on files that match the given pattern' \
 'rm:Remove tag(s) from the files that match the provided pattern' \
 'clear:Clears all tags of the files that match the provided pattern' \
@@ -267,8 +276,8 @@ _wutag_commands() {
 (( $+functions[_wutag__list_commands] )) ||
 _wutag__list_commands() {
     local commands; commands=(
-        "tags:" \
-        "files:" \
+        "tags:"
+        "files:"
     )
     _describe -t commands 'wutag list commands' commands "$@"
 }
@@ -277,7 +286,7 @@ _wutag_tags() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
     local -a tags; wtags=(
-        ${(@f)$(_call_program commands wutag -g list -r tags -c)}
+        ${(@f)$(_call_program commands wutag -g list -r tags -1cu)}
     )
 
     _describe -t wtags 'tags' wtags && ret=0

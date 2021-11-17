@@ -11,10 +11,19 @@ use super::{
 
 #[derive(Args, Clone, Debug, PartialEq)]
 pub(crate) struct SearchOpts {
-    /// If provided output will be raw so that it can be easily piped to other
-    /// commands
-    #[clap(long, short)]
+    /// No colored output. Should be detected automatically on pipe
+    #[clap(
+        long = "raw",
+        short = 'r',
+        long_about = "No colored output. Should be detected automatically on a pipe following \
+                      this command. This can also be controlled by the 'NO_COLOR' environment \
+                      variable, or the flag '--color={never,auto}'"
+    )]
     pub(crate) raw: bool,
+
+    /// Display only files in the search results
+    #[clap(long, short = 'f')]
+    pub(crate) only_files: bool,
 
     // /// If set to 'true' all entries containing any of provided tags will be
     // /// returned

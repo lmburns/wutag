@@ -33,6 +33,7 @@ ui = [
 ]
 
 [dependencies]
+# Used for lscolors
 ansi_term = "0.12.1"
 anyhow = "1.0.43"
 atty = "0.2.14"
@@ -63,6 +64,8 @@ serde_yaml = "0.8.19"
 shellexpand = "2.1.0"
 thiserror = "1.0.26"
 toml = "0.5.8"
+itertools = "0.10.1"
+strip-ansi-escapes = "0.1.1"
 
 # TODO: use or remove
 termion = "1.5.5"

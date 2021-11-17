@@ -11,7 +11,7 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use colored::{Color, Colorize};
-use once_cell::sync::Lazy;
+use once_cell::sync::{Lazy, OnceCell};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use shellexpand::LookupError;
@@ -28,14 +28,16 @@ use std::{
     collections::BTreeMap,
     env, fs,
     path::{Path, PathBuf},
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::atomic::{AtomicBool, Ordering},
 };
 
 /// Name of registry file
 const REGISTRY_FILE: &str = "wutag.registry";
 /// Only print 'matching key info' once
-static KEY_INFO: Lazy<AtomicUsize> = Lazy::new(|| AtomicUsize::new(0));
-// static KEY_INFO: OnceCell<()> = OnceCell::new();
+static KEY_INFO: Lazy<AtomicBool> = Lazy::new(|| AtomicBool::new(true));
+// static KEY_INFO: Lazy<AtomicUsize> = Lazy::new(|| AtomicUsize::new(0));
+/// Used for the recursion of the '-x/-X' flags in the search subcommand
+static ENCRYPTION: OnceCell<Result<()>> = OnceCell::new();
 
 /// Representation of a tagged file
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
@@ -140,8 +142,16 @@ impl TagRegistry {
             }
 
             // If it is encrypted, decrypt it to read the data
-            Self::crypt_registry(path, config, false)?;
-        } else if config.to_encrypt && KEY_INFO.load(Ordering::Relaxed) == 0 {
+            ENCRYPTION
+                .get_or_init(|| Self::crypt_registry(path, config, false))
+                .as_ref()
+                .map_err(|e| anyhow::anyhow!(e))?;
+
+        // Detect -x/-X (execute) command and do not display info
+        } else if config.to_encrypt
+            && KEY_INFO.load(Ordering::Relaxed)
+            && atty::is(atty::Stream::Stdout)
+        {
             log::debug!("registry is unencrypted");
             wutag_info!("switching to encrypted registry configuration");
         }
@@ -481,6 +491,22 @@ impl TagRegistry {
             let all_recipients =
                 Recipients::from(ctx.keys_private().context("no private keys were found")?);
 
+            let fatal_fingerprint = || -> ! {
+                wutag_fatal!(
+                    r#"database encryption/decryption failure.
+Available keys are:
+{}
+Use an (1) email, (2) short fingerprint, or (3) full fingerprint"#,
+                    all_recipients
+                        .keys()
+                        .iter()
+                        .fold(String::new(), |mut acc, key| {
+                            acc.push_str(&format!("\t{} {}\n", "+".red().bold(), key));
+                            acc
+                        })
+                )
+            };
+
             // (1) E93ACCAAAEB024788C106EDEC011CBEF6628B679
             // (2) C011CBEF6628B679
             // (3) lmb@lmburns.com
@@ -494,9 +520,9 @@ impl TagRegistry {
                     })
             }) {
                 // Run this only once since it will be ran be encrypting it back as well
-                if KEY_INFO.load(Ordering::Relaxed) == 0 {
+                if KEY_INFO.load(Ordering::Relaxed) {
                     log::info!("found matching key: {}", found);
-                    KEY_INFO.fetch_add(1, Ordering::Relaxed);
+                    KEY_INFO.store(false, Ordering::Relaxed);
                 }
                 // KEY_INFO.get_or_init(|| log::info!("found matching key: {}", found));
 
@@ -538,7 +564,7 @@ impl TagRegistry {
 
                     // self.encrypted = true;
                 } else {
-                    wutag_fatal!("database encryption/decryption failure");
+                    fatal_fingerprint();
                 }
             }
         } else {

@@ -32,7 +32,10 @@ complete -c wutag -n "__fish_seen_subcommand_from list; and not __fish_seen_subc
 complete -c wutag -n "__fish_seen_subcommand_from list; and not __fish_seen_subcommand_from tags; and not __fish_seen_subcommand_from files" -f -a "tags"
 complete -c wutag -n "__fish_seen_subcommand_from list; and not __fish_seen_subcommand_from tags; and not __fish_seen_subcommand_from files" -f -a "files"
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -l version -d 'Print version information'
-complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s c -l completions
+complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s c -l no-count -d 'Do not display tag count'
+complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s u -l unique -d 'Only display unique occurences. (See --help)'
+complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s s -l sort -d 'Sort the output alphabetically (no-count), numerically otherwise'
+complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s 1 -l one-per-line -d 'Display one tag per line instead of tags on files'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s b -l border -d 'Use border separators when formatting output'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
@@ -57,7 +60,8 @@ complete -c wutag -n "__fish_seen_subcommand_from clear" -s v -l verbose -d 'Dis
 complete -c wutag -n "__fish_seen_subcommand_from search" -s x -l exec -d 'Execute a command on each individual file' -r -f -a "(__fish_complete_command)"
 complete -c wutag -n "__fish_seen_subcommand_from search" -s X -l exec-batch -d 'Execute a command on the batch of matching files' -r -f -a "(__fish_complete_command)"
 complete -c wutag -n "__fish_seen_subcommand_from search" -s t -l tags -d 'Search just by tags or along with a tag(s)' -r
-complete -c wutag -n "__fish_seen_subcommand_from search" -s r -l raw -d 'If provided output will be raw so that it can be easily piped to other commands'
+complete -c wutag -n "__fish_seen_subcommand_from search" -s r -l raw -d 'No colored output. Should be detected automatically on pipe'
+complete -c wutag -n "__fish_seen_subcommand_from search" -s f -l only-files -d 'Display only files in the search results'
 complete -c wutag -n "__fish_seen_subcommand_from search" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from search" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from cp" -s G -l glob -d 'Use a glob to match files (must be global)'

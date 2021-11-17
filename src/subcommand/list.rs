@@ -9,22 +9,50 @@ use super::{
     },
     App,
 };
+use itertools::Itertools;
 
-// It seems that 'name' has to be defined to use 'requires' or 'conflicts_with'
 #[derive(Subcommand, Debug, Clone, PartialEq)]
 pub(crate) enum ListObject {
     Tags {
-        #[clap(long = "completions", short = 'c', hidden = true)]
-        for_completions: bool,
+        /// Do not display tag count
+        #[clap(name = "no-count", long = "no-count", short = 'c')]
+        no_count: bool,
+
+        /// Only display unique occurences. (See --help)
+        #[clap(
+            long = "unique",
+            short = 'u',
+            long_about = "When using -cu, unique combinations of tags on files will be displayed. \
+                          When using -1u, unique individual tags will be displayed and counted. \
+                          When using -1cu, unique individual tags will be displayed one per line"
+        )]
+        unique: bool,
+
+        /// Sort the output alphabetically (no-count), numerically otherwise
+        #[clap(long, short = 's')]
+        sort: bool,
+
+        /// Display one tag per line instead of tags on files
+        #[clap(
+            long = "one-per-line",
+            short = '1',
+            long_about = "Display one tag per line. Usually tags are displayed as unique \
+                          combinations to individual files. That is, if a file is is unique by \
+                          having two tags, those two tags will be displayed together and be \
+                          counted as one"
+        )]
+        one_per_line: bool,
+
         /// Use border separators when formatting output
         #[clap(
             long,
             short,
+            conflicts_with = "no-count",
             long_about = "\
             Use a border around the perimeter of the formatted tags, as well as in-between the \
                           lines."
         )]
-        border:          bool,
+        border: bool,
     },
     Files {
         /// Display tags along with the files
@@ -183,56 +211,103 @@ impl App {
                 }
             },
             ListObject::Tags {
-                for_completions,
+                no_count,
                 border,
+                one_per_line,
+                unique,
+                sort,
             } => {
                 let mut utags = Vec::new();
                 for (&id, file) in self.registry.list_entries_and_ids() {
                     if !self.global && !contained_path(file.path(), &self.base_dir) {
                         continue;
                     }
-                    let tags = self
-                        .registry
-                        .list_entry_tags(id)
-                        .map(|tags| {
-                            tags.iter().fold(String::new(), |mut acc, t| {
-                                acc.push_str(&format!(
-                                    "{} ",
-                                    if opts.raw {
-                                        t.name().white()
-                                    } else {
-                                        fmt_tag(t)
-                                    }
-                                ));
-                                acc
+
+                    macro_rules! raw {
+                        ($t:ident) => {
+                            if opts.raw {
+                                $t.name().white()
+                            } else {
+                                fmt_tag($t)
+                            }
+                        };
+                    }
+
+                    if one_per_line {
+                        self.registry.list_entry_tags(id).iter().for_each(|tags| {
+                            tags.iter().for_each(|t| utags.push(format!("{}", raw!(t))));
+                        });
+                    } else {
+                        let tags = self
+                            .registry
+                            .list_entry_tags(id)
+                            .map(|tags| {
+                                tags.iter().fold(String::new(), |mut acc, t| {
+                                    acc.push_str(&format!("{} ", raw!(t)));
+                                    acc
+                                })
                             })
-                        })
-                        .unwrap_or_default()
-                        .clone();
-                    utags.push(tags);
+                            .unwrap_or_default()
+                            .clone();
+
+                        utags.push(tags);
+                    }
                 }
 
-                utags
+                let mut vec = utags
                     .iter()
                     .fold(HashMap::new(), |mut acc, t| {
                         *acc.entry(t.clone()).or_insert(0) += 1;
                         acc
                     })
                     .iter()
-                    .for_each(|(tag, count)| {
-                        table.push(vec![
-                            tag.cell(),
-                            ternary!(
-                                opts.raw,
-                                count.to_string().white(),
-                                count.to_string().green().bold()
-                            )
-                            .cell()
-                            .justify(Justify::Right),
-                        ]);
-                    });
+                    .map(|(s, i)| (s.clone(), *i))
+                    .collect::<Vec<(String, i32)>>();
 
-                if for_completions {
+                // Sort numerically if count is included
+                if sort {
+                    vec = vec.iter().sorted_by_key(|a| -a.1).cloned().collect();
+                }
+
+                for (tag, count) in vec {
+                    table.push(vec![
+                        tag.cell(),
+                        ternary!(
+                            opts.raw,
+                            count.to_string().white(),
+                            count.to_string().green().bold()
+                        )
+                        .cell()
+                        .justify(Justify::Right),
+                    ]);
+                }
+
+                if no_count {
+                    if unique {
+                        utags = utags.iter().unique().cloned().collect_vec();
+                    }
+                    // Sort alphabetically if no count
+                    if sort {
+                        utags = utags
+                            .iter()
+                            .sorted_unstable_by(|a, b| {
+                                macro_rules! strip_ansi {
+                                    ($cmp:ident) => {
+                                        &String::from_utf8(
+                                            strip_ansi_escapes::strip($cmp.as_bytes())
+                                                .unwrap_or_default(),
+                                        )
+                                        .expect("invalid UTF-8")
+                                        .to_ascii_lowercase()
+                                    };
+                                }
+
+                                Ord::cmp(strip_ansi!(b), strip_ansi!(a))
+                            })
+                            .rev()
+                            .cloned()
+                            .collect_vec();
+                    }
                     for tag in utags {
                         println!("{}", tag);
                     }

@@ -132,22 +132,26 @@ pub(crate) fn receiver(
                             );
                         }
 
-                        let tags = app
-                            .registry
-                            .list_entry_tags(id)
-                            .unwrap_or_default()
-                            .iter()
-                            .map(|t| {
-                                if opts.raw {
-                                    t.name().to_owned()
-                                } else {
-                                    fmt_tag(t).to_string()
-                                }
-                            })
-                            .collect::<Vec<_>>()
-                            .join(" ");
+                        if opts.only_files {
+                            println!();
+                        } else {
+                            let tags = app
+                                .registry
+                                .list_entry_tags(id)
+                                .unwrap_or_default()
+                                .iter()
+                                .map(|t| {
+                                    if opts.raw {
+                                        t.name().to_owned()
+                                    } else {
+                                        fmt_tag(t).to_string()
+                                    }
+                                })
+                                .collect::<Vec<_>>()
+                                .join(" ");
 
-                        println!(": {}", tags);
+                            println!(": {}", tags);
+                        }
                     },
                     WorkerResult::Error(err) => {
                         wutag_error!("{}", err.to_string());

@@ -1,3 +1,5 @@
+// TODO: Make replacements global
+
 pub(crate) const ZSH_COMPLETION_REP: &[(&str, &str)] = &[
     (
         "(( $+functions[_wutag__clean-cache_commands] )) ||
@@ -77,8 +79,8 @@ _wutag__view_commands() {
         r#"(( $+functions[_wutag__list_commands] )) ||
 _wutag__list_commands() {
     local commands; commands=(
-        "tags:" \
-        "files:" \
+        "tags:"
+        "files:"
     )
     _describe -t commands 'wutag list commands' commands "$@"
 }
@@ -87,7 +89,7 @@ _wutag_tags() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
     local -a tags; wtags=(
-        ${(@f)$(_call_program commands wutag -g list -r tags -c)}
+        ${(@f)$(_call_program commands wutag -g list -r tags -1cu)}
     )
 
     _describe -t wtags 'tags' wtags && ret=0
@@ -102,13 +104,19 @@ _wutag_tags() {
         "'-t+[The tag to edit]:tag:_wutag_tags' \\
 '--tag=[The tag to edit]:tag:_wutag_tags' \\",
     ),
+    (
+        r#"'-t+[Search just by tags or along with a tag(s)]:tags: ' \
+'--tags=[Search just by tags or along with a tag(s)]:tags: ' \"#,
+        r#"'-t+[Search just by tags or along with a tag(s)]:tags:_wutag_tags' \
+'--tags=[Search just by tags or along with a tag(s)]:tags:_wutag_tags' \"#,
+    ),
+    (r#"(list)"#, r#"(list|ls)"#),
+    (r#"(list)"#, r#"(list|ls)"#),
+    (r#"(ui)"#, r#"(ui|tui)"#),
+    (r#"(set)"#, r#"(set|tag)"#),
+    (
+        r#"'list:Lists all available tags or files' \"#,
+        r#"'list:Lists all available tags or files' \
+'ls:Lists all available tags or files' \"#,
+    ),
 ];
-//     // Make this replace globally
-//     (r#"'*::tags:' \"#, r#"'*::_wutag_tags:' \"#),
-//     (r#"'*::tags:' \"#, r#"'*::tags:_wutag_tags' \"#),
-//     (
-//         "'-t+[The tag to edit]:tag: ' \\
-// '--tag=[The tag to edit]:tag: ' \\",
-//         "'-t+[The tag to edit]:tag:_wutag_tags' \\
-// '--tag=[The tag to edit]:tag:_wutag_tags' \\",
-//     ),

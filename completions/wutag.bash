@@ -246,7 +246,7 @@ _wutag() {
             return 0
             ;;
         wutag__list__tags)
-            opts="-c -b -h -v --version --completions --border --help --verbose"
+            opts="-c -u -s -1 -b -h -v --version --no-count --unique --sort --one-per-line --border --help --verbose"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -300,7 +300,7 @@ _wutag() {
             return 0
             ;;
         wutag__search)
-            opts="-r -x -X -t -h -v --raw --exec --exec-batch --tags --help --verbose <pattern>"
+            opts="-r -f -x -X -t -h -v --raw --only-files --exec --exec-batch --tags --help --verbose <pattern>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

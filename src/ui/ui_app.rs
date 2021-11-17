@@ -151,7 +151,14 @@ pub(crate) enum AppMode {
     Error,
     Help,
     Command,
-    // WutagRemove,
+    /* Remove,
+     * Set,
+     * Clear,
+     * Search,
+     * Cp,
+     * Edit,
+     * View,
+     * Clear */
 }
 
 impl UiApp<'_> {
@@ -419,7 +426,7 @@ impl UiApp<'_> {
     pub(crate) fn draw_tag(&mut self, app: &App, f: &mut Frame<impl Backend>) {
         let rect = f.size();
 
-        // Full screen
+        // Full screen (used for help menu)
         let full_chunks = Layout::default()
             .direction(Direction::Vertical)
             .margin(1)
@@ -429,13 +436,15 @@ impl UiApp<'_> {
         // Split screen
         // .constraints([Constraint::Percentage(80),
         // Constraint::Percentage(20)].as_ref())
+
+        // Command Prompt box
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .margin(1)
             .constraints([Constraint::Min(0), Constraint::Length(3)].as_ref())
             .split(rect);
 
-        // TODO: switch logic
+        // TODO: switch logic (implement file preview)
         if self.preview_file {
             let split_layout = Layout::default()
                 .direction(Direction::Vertical)

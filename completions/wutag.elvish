@@ -142,6 +142,8 @@ set edit:completion:arg-completer[wutag] = [@words]{
             cand --raw 'No colored output. Should be detected automatically on pipe'
             cand -f 'Display only files in the search results'
             cand --only-files 'Display only files in the search results'
+            cand -G 'Display tags and files on separate lines'
+            cand --garrulous 'Display tags and files on separate lines'
             cand -h 'Print help information'
             cand --help 'Print help information'
             cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'

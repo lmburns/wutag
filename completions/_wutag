@@ -163,6 +163,8 @@ _arguments "${_arguments_options[@]}" \
 '--raw[No colored output. Should be detected automatically on pipe]' \
 '-f[Display only files in the search results]' \
 '--only-files[Display only files in the search results]' \
+'(-f --only-files)-G[Display tags and files on separate lines]' \
+'(-f --only-files)--garrulous[Display tags and files on separate lines]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \

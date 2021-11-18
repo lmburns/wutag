@@ -27,6 +27,20 @@ macro_rules! ternary {
     };
 }
 
+/// Detect if the files should be displayed globally
+#[macro_export]
+macro_rules! global_opts {
+    ($local:expr, $global:expr, $app:ident, $garrulous:expr) => {
+        if $garrulous {
+            ternary!($app.global, println!("{}", $global), println!("{}", $local));
+        } else if $app.global {
+            print!("{}", $global);
+        } else {
+            print!("{}", $local);
+        }
+    };
+}
+
 /// Expand to an error message
 #[macro_export]
 macro_rules! wutag_error {

@@ -9,7 +9,9 @@ use std::{
 
 pub(crate) use crate::{
     filesystem::{contained_path, osstr_to_bytes},
+    global_opts,
     subcommand::{search::SearchOpts, App},
+    ternary,
     util::{fmt_local_path, fmt_path, fmt_tag, raw_local_path, regex_builder},
     wutag_error,
 };
@@ -101,27 +103,21 @@ pub(crate) fn receiver(
                 generalize_exitcodes(exits)
             }
         } else {
-            let global_opts = |local: String, global: String| {
-                if app.global {
-                    print!("{}", global);
-                } else {
-                    print!("{}", local);
-                }
-            };
-
             for result in rx {
                 match result {
                     WorkerResult::Entry((entry, id)) => {
                         if opts.raw {
-                            global_opts(
+                            global_opts!(
                                 raw_local_path(
                                     entry.display().to_string(),
                                     app.base_dir.display().to_string(),
                                 ),
                                 entry.display().to_string(),
+                                app,
+                                opts.garrulous
                             );
                         } else {
-                            global_opts(
+                            global_opts!(
                                 fmt_local_path(
                                     &entry,
                                     &app.base_dir,
@@ -129,6 +125,8 @@ pub(crate) fn receiver(
                                     app.ls_colors,
                                 ),
                                 fmt_path(&entry, app.base_color, app.ls_colors),
+                                app,
+                                opts.garrulous
                             );
                         }
 
@@ -150,7 +148,11 @@ pub(crate) fn receiver(
                                 .collect::<Vec<_>>()
                                 .join(" ");
 
-                            println!(": {}", tags);
+                            if opts.garrulous {
+                                println!("\t{}", tags);
+                            } else {
+                                println!(": {}", tags);
+                            }
                         }
                     },
                     WorkerResult::Error(err) => {

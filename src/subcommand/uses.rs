@@ -34,6 +34,7 @@ pub(crate) use crate::{
         CommandTemplate,
     },
     filesystem::{contained_path, create_temp_path, osstr_to_bytes, FileTypes},
+    global_opts,
     opt::{Command, Opts},
     registry::{self, EntryData, TagRegistry},
     ternary, ui,

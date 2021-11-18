@@ -98,6 +98,7 @@ impl Events {
         Events::with_config(EventConfig::default())
     }
 
+    /// Spawn a loop reading inputs from the user to control the TUI
     pub(crate) fn with_config(config: EventConfig) -> Self {
         use crossterm::event::{KeyCode as Code, KeyModifiers as Modifier};
         let tick_rate = config.tick_rate;

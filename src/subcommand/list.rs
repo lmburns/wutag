@@ -3,9 +3,9 @@
 
 use super::{
     uses::{
-        contained_path, fmt_local_path, fmt_path, fmt_tag, print_stdout, raw_local_path, ternary,
-        Args, Border, Cell, ColorChoice, Colorize, HashMap, Justify, Separator, Style, Subcommand,
-        Table,
+        contained_path, fmt_local_path, fmt_path, fmt_tag, global_opts, print_stdout,
+        raw_local_path, ternary, Args, Border, Cell, ColorChoice, Colorize, HashMap, Justify,
+        Separator, Style, Subcommand, Table,
     },
     App,
 };
@@ -74,7 +74,7 @@ pub(crate) enum ListObject {
             short,
             requires = "formatted",
             long_about = "\
-            Use a border around the perimeter of the formatted tags, as well as in-between the \
+            Use a border around the perimeter of the formatted output, as well as in-between the \
                           lines."
         )]
         border:    bool,
@@ -120,16 +120,6 @@ impl App {
                 border,
                 garrulous,
             } => {
-                let global_opts = |local: String, global: String| {
-                    if garrulous {
-                        ternary!(self.global, println!("{}", global), println!("{}", local));
-                    } else if self.global {
-                        print!("{}", global);
-                    } else {
-                        print!("{}", local);
-                    }
-                };
-
                 for (id, file) in self.registry.list_entries_and_ids() {
                     // Skips paths that are not contained within current directory to respect the
                     // `-d` flag. Global is just another way to specify -d=~
@@ -139,12 +129,14 @@ impl App {
                     }
 
                     if opts.raw {
-                        global_opts(
+                        global_opts!(
                             raw_local_path(file.path(), &self.base_dir),
                             file.path().display().to_string(),
+                            self,
+                            garrulous
                         );
                     } else if !formatted {
-                        global_opts(
+                        global_opts!(
                             fmt_local_path(
                                 file.path(),
                                 &self.base_dir,
@@ -152,6 +144,8 @@ impl App {
                                 self.ls_colors,
                             ),
                             fmt_path(file.path(), self.base_color, self.ls_colors),
+                            self,
+                            garrulous
                         );
                     }
 

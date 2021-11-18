@@ -1,4 +1,3 @@
-// TODO: return only files as an option
 // TODO: option for a formatted return
 
 use super::{
@@ -22,7 +21,7 @@ pub(crate) struct SearchOpts {
     pub(crate) raw: bool,
 
     /// Display only files in the search results
-    #[clap(long, short = 'f')]
+    #[clap(name = "only-files", long, short = 'f')]
     pub(crate) only_files: bool,
 
     // /// If set to 'true' all entries containing any of provided tags will be
@@ -58,6 +57,11 @@ pub(crate) struct SearchOpts {
         value_hint = ValueHint::CommandName,
     )]
     pub(crate) execute_batch: Option<Vec<String>>,
+
+    /// Display tags and files on separate lines
+    #[clap(name = "garrulous", long, short = 'G', conflicts_with = "only-files")]
+    pub(crate) garrulous: bool,
+
     /// Search just by tags or along with a tag(s)
     #[clap(
         name = "tags",
@@ -68,10 +72,10 @@ pub(crate) struct SearchOpts {
                       '*' --tag <tag>'
         "
     )]
-    pub(crate) tags:          Vec<String>,
+    pub(crate) tags:    Vec<String>,
     /// Pattern to search tagged files
     #[clap(name = "pattern")]
-    pub(crate) pattern:       String,
+    pub(crate) pattern: String,
 }
 
 impl App {

@@ -151,6 +151,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--raw', 'raw', [CompletionResultType]::ParameterName, 'No colored output. Should be detected automatically on pipe')
             [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Display only files in the search results')
             [CompletionResult]::new('--only-files', 'only-files', [CompletionResultType]::ParameterName, 'Display only files in the search results')
+            [CompletionResult]::new('-G', 'G', [CompletionResultType]::ParameterName, 'Display tags and files on separate lines')
+            [CompletionResult]::new('--garrulous', 'garrulous', [CompletionResultType]::ParameterName, 'Display tags and files on separate lines')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')

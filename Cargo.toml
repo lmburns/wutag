@@ -70,6 +70,7 @@ strip-ansi-escapes = "0.1.1"
 # TODO: use or remove
 termion = "1.5.5"
 rusqlite = "0.26.1"
+notify-rust = "4.0"
 
 # TODO: add formatted option
 cli-table = "0.4.6"

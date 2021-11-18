@@ -300,7 +300,7 @@ _wutag() {
             return 0
             ;;
         wutag__search)
-            opts="-r -f -x -X -G -t -h -v --raw --only-files --exec --exec-batch --garrulous --tags --help --verbose <pattern>"
+            opts="-r -f -x -X -G -a -A -t -h -v --raw --only-files --exec --exec-batch --garrulous --all --only-all --tags --help --verbose <pattern>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

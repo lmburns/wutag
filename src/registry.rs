@@ -308,15 +308,53 @@ impl TagRegistry {
         }
     }
 
-    /// Check if the file entry has a specific tag
-    pub(crate) fn entry_has_tags(&self, id: EntryId, tags: &[String]) -> bool {
+    // TODO: better parsing // use or delete
+    /// Check if the file entry has either tag
+    #[allow(dead_code)]
+    pub(crate) fn entry_has_or_tags(&self, id: EntryId, tags: &[String]) -> bool {
+        let pos = tags.iter().position(|t| t == "@o" || t == "or");
+
+        if let Some(p) = pos {
+            if p == 0 || p == tags.len() - 1 {
+                false
+            } else {
+                self.entry_has_any_tags(id, &[tags[p - 1].clone()])
+                    || self.entry_has_any_tags(id, &[tags[p + 1].clone()])
+            }
+        } else {
+            false
+        }
+    }
+
+    /// Check if the file entry has all and only all specified tags
+    pub(crate) fn entry_has_only_all_tags(&self, id: EntryId, tags: &[String]) -> bool {
+        use std::collections::HashSet;
+
+        let entry_tags = self.list_entry_tags(id).unwrap_or_else(Vec::new);
+        let entry_hash: HashSet<String> = entry_tags.iter().map(|e| e.name().to_string()).collect();
+        let inp_hash: HashSet<String> = tags.iter().cloned().collect();
+
+        let diff: HashSet<_> = entry_hash.symmetric_difference(&inp_hash).collect();
+
+        diff.is_empty()
+    }
+
+    /// Check if the file entry has all specific tags
+    pub(crate) fn entry_has_all_tags(&self, id: EntryId, tags: &[String]) -> bool {
         let entry_tags = self.list_entry_tags(id).unwrap_or_else(Vec::new);
 
-        let has_tags = entry_tags
-            .iter()
-            .find(|t| tags.iter().any(|inp| inp == t.name()));
+        // Reverse what is being checked
+        tags.iter()
+            .all(|t| entry_tags.iter().any(|inp| inp.name() == t))
+    }
 
-        has_tags.is_some()
+    /// Check if the file entry has any specific tags
+    pub(crate) fn entry_has_any_tags(&self, id: EntryId, tags: &[String]) -> bool {
+        let entry_tags = self.list_entry_tags(id).unwrap_or_else(Vec::new);
+
+        entry_tags
+            .iter()
+            .any(|t| tags.iter().any(|inp| inp == t.name()))
     }
 
     /// Returns entries that have all of the `tags`.
@@ -614,7 +652,7 @@ pub(crate) fn load_registry(opts: &Opts, config: &EncryptConfig) -> Result<TagRe
         if registry.is_file() && registry.file_name().is_some() {
             log::debug!("using a non-default registry: {}", registry.display());
             TagRegistry::load(&registry, config).unwrap_or_else(|_| TagRegistry::new(&registry))
-            //
+            //\\
         } else if registry.is_dir() && registry.file_name().is_some() {
             wutag_error!(
                 "{} is not a file. Using default registry: {}",
@@ -622,7 +660,7 @@ pub(crate) fn load_registry(opts: &Opts, config: &EncryptConfig) -> Result<TagRe
                 state_file.display().to_string().green(),
             );
             TagRegistry::load(&state_file, config).unwrap_or_else(|_| TagRegistry::new(&state_file))
-            //
+            //\\
         } else if registry.display().to_string().ends_with('/') {
             wutag_error!(
                 "{} last error is a directory path. Using default registry: {}",
@@ -630,7 +668,7 @@ pub(crate) fn load_registry(opts: &Opts, config: &EncryptConfig) -> Result<TagRe
                 state_file.display().to_string().green(),
             );
             TagRegistry::load(&state_file, config).unwrap_or_else(|_| TagRegistry::new(&state_file))
-            //
+            //\\
         } else {
             log::debug!("using a non-default registry: {}", registry.display());
             fs::create_dir_all(

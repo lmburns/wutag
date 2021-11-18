@@ -25,10 +25,10 @@ use std::{io, panic, time::Duration};
 use thiserror::Error;
 use tui::{backend::CrosstermBackend, Terminal};
 
-// #[cfg(all(target_os = "linux", not(target_env = "musl")))]
-// use notify_rust::Hint;
-// #[cfg(not(target_env = "musl"))]
-// use notify_rust::Notification;
+#[cfg(all(target_os = "linux", not(target_env = "musl")))]
+use notify_rust::Hint;
+#[cfg(not(target_env = "musl"))]
+use notify_rust::Notification;
 
 /// Errors used within the UI module
 #[derive(Debug, Error)]
@@ -127,27 +127,28 @@ pub(crate) fn start_ui(cli_app: &App, config: Config, registry: TagRegistry) -> 
 }
 
 // XXX: Breaks .as_ref() in opts
-// /// Show notification to let me know that what I was trying to do worked
-// pub(crate) fn notify(sum: &str, body: Option<&str>) -> Result<()> {
-//     // Will segfault otherwise
-//     #[cfg(not(target_env = "musl"))]
-//     {
-//         let mut n = Notification::new();
-//         n.appname("wutag")
-//             .summary(sum)
-//             .auto_icon()
-//             .icon("lock")
-//             .timeout(3000);
-//
-//         if let Some(b) = body {
-//             n.body(b);
-//         }
-//
-//         #[cfg(target_os = "linux")]
-//         n.urgency(notify_rust::Urgency::Low)
-//             .hint(Hint::Category("presence.offline".into()));
-//
-//         n.show()?;
-//         return Ok(());
-//     }
-// }
+/// Show notification to let me know that what I was trying to do worked
+pub(crate) fn notify<P: AsRef<str>>(sum: P, body: Option<P>) -> Result<()> {
+    // Will segfault otherwise
+    #[cfg(not(target_env = "musl"))]
+    {
+        let mut n = Notification::new();
+        n.appname("wutag")
+            .summary(sum.as_ref())
+            .auto_icon()
+            .icon("terminal")
+            .timeout(3000);
+
+        if let Some(b) = body {
+            n.body(b.as_ref());
+        }
+
+        #[cfg(target_os = "linux")]
+        n.urgency(notify_rust::Urgency::Low)
+            .hint(Hint::Category("presence.offline".into()));
+
+        n.show()?;
+
+        Ok(())
+    }
+}

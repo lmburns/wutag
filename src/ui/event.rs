@@ -5,10 +5,6 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-// use termion::{
-//     color, event::Key, input::MouseTerminal, raw::IntoRawMode,
-// screen::AlternateScreen, style, };
-
 use std::{
     io::{self, Write},
     sync::{

@@ -11,7 +11,7 @@ use cassowary::{
 };
 use std::{
     collections::{hash_set::Iter, HashMap, HashSet},
-    fmt::Display,
+    fmt::{self, Display},
     iter::{self, Iterator},
 };
 use tui::{
@@ -245,7 +245,7 @@ pub(crate) struct Table<'a, H> {
 
 impl<H> Default for Table<'_, H>
 where
-    H: Iterator + Default,
+    H: Iterator + Default + fmt::Debug + Clone,
 {
     fn default() -> Self {
         Table {
@@ -407,7 +407,7 @@ where
 
 impl<H> StatefulWidget for Table<'_, H>
 where
-    H: Iterator,
+    H: Iterator + fmt::Debug + Sync + Clone,
     H::Item: Display,
 {
     type State = TableState;
@@ -582,6 +582,7 @@ where
                 0
             };
 
+            // super::dump_and_exit(|| println!("STYLE: {:#?}", self.clone()));
             for (i, row) in self
                 .rows
                 .into_iter()
@@ -610,8 +611,6 @@ where
                     }
                 };
 
-                let style = highlight_style;
-
                 x = table_area.left();
 
                 // Cell { content: Text { lines: [ Spans [ Span {} ]],  }, style: Style {} }
@@ -634,7 +633,7 @@ where
                             }
 
                             let pos = if oidx == 0 {
-                                // Filename
+                                // This sets the filename
                                 buf.set_stringn(
                                     x,
                                     y + i as u16,
@@ -655,6 +654,7 @@ where
                                             TableSelection::Single => &symbol,
                                             TableSelection::Multiple => &symbol,
                                         };
+                                        // Unsure when this gets called
                                         format!(
                                             "{symbol}{cont:>width$}",
                                             symbol = symbol,
@@ -676,6 +676,7 @@ where
                                 )
                             } else if span_length > 1 && ii < span_length {
                                 // If tag length is greater than one and it's not the last
+                                // This sets the tags
                                 buf.set_stringn(
                                     x,
                                     y + i as u16,
@@ -703,6 +704,7 @@ where
 
                     x += *w + self.column_spacing;
                 }
+
                 if is_selected {
                     buf.set_style(area, highlight_style);
                 }
@@ -723,7 +725,7 @@ where
 
 impl<H> Widget for Table<'_, H>
 where
-    H: Iterator,
+    H: Iterator + fmt::Debug + Sync + Clone,
     H::Item: Display,
 {
     fn render(self, area: Rect, buf: &mut Buffer) {

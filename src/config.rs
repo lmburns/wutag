@@ -62,6 +62,8 @@ pub(crate) struct UiConfig {
     pub(crate) looping:             bool,
     #[serde(alias = "mark-indicator")]
     pub(crate) mark_indicator:      String,
+    #[serde(alias = "tags-bold", alias = "bold-tags")]
+    pub(crate) tags_bold:           bool,
     #[serde(alias = "paths-bold", alias = "bold-paths")]
     pub(crate) paths_bold:          bool,
     #[serde(alias = "paths-color", alias = "color-paths")]
@@ -152,13 +154,14 @@ impl Default for UiConfig {
             completion_color:    String::from("dark"),
             looping:             true,
             mark_indicator:      String::from("\u{2714}"),
+            tags_bold:           true,
             paths_bold:          true,
             paths_color:         String::from("blue"),
             selection_blink:     false,
             selection_bold:      true,
             selection_dim:       false,
-            selection_indicator: String::from("\u{2022}"),
             selection_italic:    false,
+            selection_indicator: String::from("\u{2022}"),
             startup_cmd:         Some(String::from("--global list files --with-tags")),
             tick_rate:           250_u64,
             unmark_indicator:    String::from(" "),

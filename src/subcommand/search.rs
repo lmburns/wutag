@@ -24,10 +24,6 @@ pub(crate) struct SearchOpts {
     #[clap(name = "only-files", long, short = 'f')]
     pub(crate) only_files: bool,
 
-    // /// If set to 'true' all entries containing any of provided tags will be
-    // /// returned
-    // #[clap(long, short)]
-    // pub(crate) any:     bool,
     /// Execute a command on each individual file
     #[rustfmt::skip]
     #[clap(
@@ -61,6 +57,29 @@ pub(crate) struct SearchOpts {
     /// Display tags and files on separate lines
     #[clap(name = "garrulous", long, short = 'G', conflicts_with = "only-files")]
     pub(crate) garrulous: bool,
+
+    /// Files matching all tags (instead of any)
+    #[clap(
+        name = "all",
+        long,
+        short = 'a',
+        requires = "tags",
+        long_about = "The files that result must contain all matching tags. The default behavior \
+                      is if the file contains any tag"
+    )]
+    pub(crate) all: bool,
+
+    /// Files matching all and only all tags
+    #[clap(
+        name = "only-all",
+        long = "only-all",
+        short = 'A',
+        conflicts_with = "all",
+        requires = "tags",
+        long_about = "The files that result must contain all matching tags and only those \
+                      matching tags"
+    )]
+    pub(crate) only_all: bool,
 
     /// Search just by tags or along with a tag(s)
     #[clap(

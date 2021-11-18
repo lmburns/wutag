@@ -1,4 +1,5 @@
 set shell := ["zsh", "-euyc"]
+set export
 # F
 
 CI := if env_var_or_default("CI", "1") == "0" { "--color=never" } else { "--color=always" }
@@ -80,13 +81,16 @@ view-man: man
 #   just man
 
 @get-version:
-  echo {{version}}
+  print -P "%F{12}%b{{version}}%f%b"
 
 replace FROM TO:
   -fd -tf -e rs -e toml | sad '{{FROM}}' '{{TO}}'
 
 @update-version NEW:
   -just replace {{version}} {{NEW}}
+
+@update-version-1:
+  -just replace {{version}} "$(perl -F'\.' -lane 'print join ".", @F[0..$#F-1], $F[-1] + 1' <<< $version)"
 
 @lint:
   print -Pr "%F{2}%BChecking for FIXME/TODO...%b%f"
@@ -103,11 +107,25 @@ replace FROM TO:
 ###################################################################################
 ###################################################################################
 
+# detect if there's changes
 no-changes:
   git diff --no-ext-diff --quiet --exit-code
 
+# delete merged branches
 d-merged:
   git branch --merged | egrep -v "(^\*|master|dev) | xargs git branch -d"
+
+# generate changelog
+cliff:
+  git cliff --unreleased --strip all
+
+# git cliff --tag {{TAG}} > CHANGELOG.md
+
+# create and sign/verify tag
+sign-tag TAG:
+  git commit -m "chore(release): prepare for {{TAG}}"
+  git tag -sa {{TAG}} -m "Release {{TAG}}"
+  git tag -v {{TAG}}
 
 ###################################################################################
 ###################################################################################

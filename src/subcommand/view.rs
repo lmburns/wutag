@@ -4,9 +4,9 @@ use super::{
     uses::{
         bold_entry, clear_tags, contained_path, create_temp_path, fmt_path, fmt_tag, fs,
         glob_builder, osstr_to_bytes, process, raw_local_path, reg_ok, regex_builder, ternary,
-        wutag_error, Arc, ArgSettings, Args, BTreeMap, Colorize, Cow, DirEntryExt, EntryData,
-        IntoParallelRefIterator, Lexiclean, OsStr, ParallelIterator, PathBuf, Tag, Write,
-        DEFAULT_EDITOR,
+        wutag_error, wutag_fatal, wutag_info, Arc, ArgSettings, Args, BTreeMap, Colorize, Cow,
+        DirEntryExt, EntryData, IntoParallelRefIterator, Lexiclean, OsStr, ParallelIterator,
+        PathBuf, Tag, Write, DEFAULT_EDITOR,
     },
     App,
 };
@@ -140,7 +140,7 @@ impl App {
                 }
 
                 if re.is_match(&search_bytes) {
-                    if !opts.tags.is_empty() && !self.registry.entry_has_tags(*id, &opts.tags) {
+                    if !opts.tags.is_empty() && !self.registry.entry_has_any_tags(*id, &opts.tags) {
                         continue;
                     }
 
@@ -161,23 +161,20 @@ impl App {
             }
         }
 
-        // Lot of code that's repeated once I added option to check default format in
-        // config as well. Opts needs to overwrite config, which is why it's matched
-        // first
-        let tag_file = if let Some(format) = &opts.format {
+        // Opts needs to overwrite config, which is why it's matched first
+        let match_format = |format: &String| -> String {
             match format.as_str() {
                 "toml" => toml::to_string(&map).expect("Unable to convert toml"),
                 "json" => serde_json::to_string_pretty(&map).expect("Unable to convert to json"),
                 "yaml" | "yml" => serde_yaml::to_string(&map).expect("Unable to convert to yaml"),
                 _ => unreachable!(),
             }
+        };
+
+        let tag_file = if let Some(format) = &opts.format {
+            match_format(format)
         } else {
-            match self.format.as_str() {
-                "toml" => toml::to_string(&map).expect("Unable to convert toml"),
-                "json" => serde_json::to_string_pretty(&map).expect("Unable to convert to json"),
-                "yaml" | "yml" => serde_yaml::to_string(&map).expect("Unable to convert to yaml"),
-                _ => unreachable!(),
-            }
+            match_format(&self.format)
         };
 
         let mut tmp_path = PathBuf::from(create_temp_path());
@@ -198,38 +195,26 @@ impl App {
             .write(true)
             .create(true)
             .open(&tmp_path)
-            .unwrap_or_else(|_| panic!("could not create tmp file: '{}'", tmp_path.display()));
+            .unwrap_or_else(|_| {
+                wutag_fatal!("could not create tmp file: '{}'", tmp_path.display())
+            });
 
         tmp_file
             .write_all(tag_file.as_bytes())
-            .unwrap_or_else(|_| panic!("could not write tmp file: '{}'", tmp_path.display()));
+            .unwrap_or_else(|_| wutag_fatal!("could not write tmp file: '{}'", tmp_path.display()));
 
         tmp_file
             .flush()
-            .unwrap_or_else(|_| panic!("could not flush tmp file: '{}'", tmp_path.display()));
+            .unwrap_or_else(|_| wutag_fatal!("could not flush tmp file: '{}'", tmp_path.display()));
 
+        // Option does not need to be given, as it is read from an environment variable
         process::Command::new(opts.editor.to_string())
             .arg(&tmp_path)
             .status()
             .expect("could not spawn editor");
 
-        let emap: BTreeMap<String, Vec<String>> = if let Some(format) = &opts.format {
+        let serialized_format = |format: &String| -> BTreeMap<String, Vec<String>> {
             match format.as_str() {
-                "toml" =>
-                    toml::from_slice(&fs::read(&tmp_path).expect("failed to read tagged file"))
-                        .expect("failed to deserialize tag file"),
-                "json" => serde_json::from_slice(
-                    &fs::read(&tmp_path).expect("failed to read tagged file"),
-                )
-                .expect("failed to deserialize tag file"),
-                "yaml" | "yml" => serde_yaml::from_slice(
-                    &fs::read(&tmp_path).expect("failed to read tagged file"),
-                )
-                .expect("failed to deserialize tag file"),
-                _ => unreachable!(),
-            }
-        } else {
-            match self.format.as_str() {
                 "toml" =>
                     toml::from_slice(&fs::read(&tmp_path).expect("failed to read tagged file"))
                         .expect("failed to deserialize tag file"),
@@ -245,6 +230,12 @@ impl App {
             }
         };
 
+        let emap: BTreeMap<String, Vec<String>> = if let Some(format) = &opts.format {
+            serialized_format(format)
+        } else {
+            serialized_format(&self.format)
+        };
+
         let diff = emap.into_iter().fold(BTreeMap::new(), |mut acc, path| {
             let (key, val) = path;
             if map.iter().any(|(k, v)| *k == key && *v != val) {
@@ -255,7 +246,11 @@ impl App {
         log::debug!("Diffs: {:#?}", diff);
 
         if diff.is_empty() {
-            log::debug!("There were no diffs");
+            // log::debug!("There were no diffs");
+            wutag_info!(
+                "there were no new tags created in {}",
+                self.base_dir.display().to_string().green()
+            );
         } else {
             let base = &self.base_dir.clone();
             // let is_symlink = |entry: fs::Metadata, local| {

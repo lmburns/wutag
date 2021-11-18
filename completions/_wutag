@@ -165,6 +165,10 @@ _arguments "${_arguments_options[@]}" \
 '--only-files[Display only files in the search results]' \
 '(-f --only-files)-G[Display tags and files on separate lines]' \
 '(-f --only-files)--garrulous[Display tags and files on separate lines]' \
+'-a[Files matching all tags (instead of any)]' \
+'--all[Files matching all tags (instead of any)]' \
+'(-a --all)-A[Files matching all and only all tags]' \
+'(-a --all)--only-all[Files matching all and only all tags]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \

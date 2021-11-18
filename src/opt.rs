@@ -18,13 +18,15 @@ use crate::{
     },
 };
 
+// INFO: The fully qualified path is needed after adding 'notify-rust' to
+// dependencies
 #[derive(Parser, Default, Clone, Debug, PartialEq)]
 #[clap(
     version = crate_version!(),
-    author = APP_AUTHORS.as_ref(),
-    about = APP_ABOUT.as_ref(),
-    after_help = AFTER_HELP.as_ref(),
-    override_usage = OVERRIDE_HELP.as_ref(),
+    author = <String as AsRef<str>>::as_ref(&APP_AUTHORS),
+    about = <String as AsRef<str>>::as_ref(&APP_ABOUT),
+    after_help =  <String as AsRef<str>>::as_ref(&AFTER_HELP),
+    override_usage =  <String as AsRef<str>>::as_ref(&OVERRIDE_HELP),
     max_term_width = 100,
     color = clap::ColorChoice::Auto,
     global_setting = AppSettings::DisableHelpSubcommand,        // Disables help (use -h)

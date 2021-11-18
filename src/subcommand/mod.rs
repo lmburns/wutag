@@ -11,6 +11,12 @@ pub(crate) mod set;
 pub(crate) mod uses;
 pub(crate) mod view;
 
+// TODO: imply tags
+// TODO: rename tags
+// TODO: merge tags
+// TODO: tag values
+// TODO: search or/and
+
 use uses::{
     env, parse_color, parse_color_cli_table, registry, ui, wutag_error, wutag_fatal, Color,
     Colorize, Command, Config, Context, EncryptConfig, FileTypes, Opts, PathBuf, RegexSet,

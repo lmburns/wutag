@@ -1,5 +1,7 @@
 /target
+/debug
 Cargo.lock
 .idea
 /extra
 exec/
+rusty-tags.vi

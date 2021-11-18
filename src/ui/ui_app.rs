@@ -1,6 +1,8 @@
 #![allow(unused)]
 #![allow(clippy::unused_self)]
 
+// RUN_ONCE.get_or_init(|| super::notify("made it", None));
+
 // TODO: ListItem
 // TODO: Dim selection
 // TODO: Local path
@@ -9,6 +11,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::IntoApp;
 use clap_generate::{generators::Zsh, Generator};
 use colored::{ColoredString, Colorize};
+use lexiclean::Lexiclean;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     convert::{TryFrom, TryInto},
@@ -19,7 +22,7 @@ use std::{
 };
 use thiserror::Error;
 use tui::{
-    backend::{Backend, TermionBackend},
+    backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Margin, Rect},
     style::{Color, Modifier, Style},
     terminal::Frame,
@@ -28,7 +31,7 @@ use tui::{
     Terminal,
 };
 
-use once_cell::sync::Lazy;
+use once_cell::sync::{Lazy, OnceCell};
 use regex::Regex;
 use rustyline::{
     history::SearchDirection as HistoryDirection, line_buffer::LineBuffer, At, Editor, Word,
@@ -56,6 +59,8 @@ use crate::{
     registry::{EntryData, EntryId, TagRegistry},
     subcommand::App,
 };
+
+static RUN_ONCE: OnceCell<Result<()>> = OnceCell::new();
 
 const MAX_LINE: usize = 4096;
 
@@ -111,7 +116,6 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 /// UI aspect of this App
 #[derive(Debug)]
 pub(crate) struct UiApp<'a> {
-    pub(crate) colored:                 bool,
     pub(crate) command:                 LineBuffer,
     pub(crate) command_history_context: HistoryContext,
     pub(crate) completion_list:         CompletionList,
@@ -179,12 +183,11 @@ impl UiApp<'_> {
         });
 
         let cwd = env::current_dir()
-            .unwrap_or_else(|_| PathBuf::from("."))
+            .unwrap_or_else(|_| PathBuf::from(".").lexiclean())
             .display()
             .to_string();
 
         let mut uiapp = Self {
-            colored:                 true,
             command:                 LineBuffer::with_capacity(MAX_LINE),
             command_history_context: HistoryContext::new("command.history")?,
             completion_list:         CompletionList::with_items(vec![]),
@@ -467,9 +470,9 @@ impl UiApp<'_> {
         let empty_path = PathBuf::new();
         let selected = self.current_selection;
 
-        // TODO: whats this
+        // When selecting files, file_id is shown as files to modify
         let file_id = if self.registry.entries.is_empty() {
-            vec!["OKKKKK".to_string()]
+            vec!["0".to_string()]
         } else {
             match self.table_state.mode() {
                 TableSelection::Single => {
@@ -619,7 +622,7 @@ impl UiApp<'_> {
         f.render_widget(p, rect);
     }
 
-    /// Draw the tag table
+    /// Draw the tag table (filepaths tags)
     fn draw_table(&mut self, app: &App, f: &mut Frame<impl Backend>, rect: Rect) {
         let entries = self.get_full_tag_hash();
         let headers = vec!["Filename", "Tag(s)"]
@@ -683,56 +686,50 @@ impl UiApp<'_> {
         //     }
         // }
 
-        // let selected = self.current_selection;
         let header = headers.iter();
         let mut rows = vec![];
         let mut hl_style = Style::default();
+        let mut mods = Modifier::empty();
 
         for (idx, entry) in entries_name.iter().enumerate() {
+            let style = if self.is_colored() {
+                if self.config.ui.paths_bold {
+                    Style::default()
+                        .fg(self.paths_color)
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(self.paths_color)
+                }
+            } else if self.config.ui.paths_bold {
+                Style::default().add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            };
+
+            if idx == self.selected() {
+                hl_style = style;
+                if self.config.ui.selection_bold {
+                    hl_style = hl_style.add_modifier(Modifier::BOLD);
+                    // mods |= Modifier::BOLD;
+                }
+                if self.config.ui.selection_italic {
+                    hl_style = hl_style.add_modifier(Modifier::ITALIC);
+                    // mods |= Modifier::ITALIC;
+                }
+                if self.config.ui.selection_dim {
+                    hl_style = hl_style.add_modifier(Modifier::DIM);
+                    // mods |= Modifier::DIM;
+                }
+                if self.config.ui.selection_blink {
+                    hl_style.add_modifier(Modifier::SLOW_BLINK);
+                    // mods |= Modifier::SLOW_BLINK;
+                }
+                // hl_style = hl_style.add_modifier(mods);
+            }
             rows.push(Row::new(vec![
-                Text::from(Spans::from(vec![Span::styled(
-                    entry[0].clone(),
-                    if self.colored && self.config.ui.paths_bold {
-                        Style::default()
-                            .fg(self.paths_color)
-                            .add_modifier(Modifier::BOLD)
-                    } else if self.colored {
-                        Style::default().fg(self.paths_color)
-                    } else {
-                        Style::default()
-                    },
-                )])),
+                Text::from(Spans::from(vec![Span::styled(entry[0].clone(), style)])),
                 self.styled_text_for_tags(entry),
             ]));
-
-            // Spans::from(vec![Span::styled(line.to_string(),
-            // highlight_style)])
-
-            // let style = Style::default();
-            // let mut mods = Modifier::empty();
-            // if idx == self.selected() {
-            //     hl_style = style;
-            //     if self.config.ui.selection_bold {
-            //         // hl_style = hl_style.add_modifier(Modifier::BOLD);
-            //         mods |= Modifier::BOLD;
-            //     }
-            //     if self.config.ui.selection_italic {
-            //         // hl_style = hl_style.add_modifier(Modifier::ITALIC);
-            //         mods |= Modifier::ITALIC;
-            //     }
-            //     if self.config.ui.selection_dim {
-            //         // hl_style = hl_style.add_modifier(Modifier::DIM);
-            //         mods |= Modifier::DIM;
-            //     }
-            //     if self.config.ui.selection_blink {
-            //         // hl_style =
-            // hl_style.add_modifier(Modifier::SLOW_BLINK);
-            //         mods |= Modifier::SLOW_BLINK;
-            //     }
-            // }
-            // hl_style = hl_style.add_modifier(mods);
-
-            // rows.push(Row::StyledData(entry.iter(), style));
         }
 
         let constraints: Vec<Constraint> = widths
@@ -747,11 +744,7 @@ impl UiApp<'_> {
             _ => style = style.add_modifier(Modifier::DIM),
         }
 
-        let mut title = vec![
-            // Span::styled("Tag", style),
-            // Span::from("  |  "),
-            self.set_header_style::<PINK>("Wutag"),
-        ];
+        let mut title = vec![self.set_header_style::<PINK>("Wutag")];
 
         // if !self.current_context.is_empty() {
         //     let context_style = Style::default();
@@ -773,11 +766,14 @@ impl UiApp<'_> {
                     .title(Spans::from(title))
                     .title_alignment(Alignment::Left),
             )
-            .header_style(
+            .header_style(if self.is_colored() {
                 Style::default()
                     .fg(Color::Rgb(DARK_PINK[0], DARK_PINK[1], DARK_PINK[2]))
-                    .add_modifier(Modifier::BOLD),
-            )
+                    .add_modifier(Modifier::BOLD)
+                    .add_modifier(Modifier::UNDERLINED)
+            } else {
+                Style::default().add_modifier(Modifier::BOLD)
+            })
             .header_alignment(Alignment::Center)
             .highlight_style(hl_style)
             .highlight_symbol(&self.config.ui.selection_indicator)
@@ -1172,7 +1168,7 @@ impl UiApp<'_> {
 
     /// Whether the TUI is in a colored state
     pub(crate) fn is_colored(&self) -> bool {
-        self.colored
+        self.config.ui.colored_ui
     }
 
     /// Get the `TagRegistry`'s last modification time
@@ -1452,18 +1448,6 @@ impl UiApp<'_> {
         widths
     }
 
-    // /// Find a tag's `EntryData` by its' `Uuid`
-    // fn tag_by_uuid(&self, uuid: Uuid) -> Option<EntryData> {
-    //     self.registry
-    //         .list_entries()
-    //         .find(|t| *t.uuid() == uuid)
-    //         .cloned()
-    // }
-    //
-    // fn tag_index_by_uuid(&self, uuid: Uuid) -> Option<usize> {
-    //     self.registry.list_entries().position(|t| *t.uuid() == uuid)
-    // }
-
     /// Returns a `Text` object of every styled `Tag`
     fn styled_text_for_tags<'a>(&self, entry: &[String]) -> Text<'a> {
         let mut row = vec![];
@@ -1479,13 +1463,17 @@ impl UiApp<'_> {
             let mut style = Style::default();
             let mut modifiers = Modifier::empty();
 
-            if let Some(color) = color_tui_from_fg_str(&tag.color().to_fg_str()) {
-                style = style.fg(color);
+            if self.is_colored() {
+                if let Some(color) = color_tui_from_fg_str(&tag.color().to_fg_str()) {
+                    style = style.fg(color);
+                }
             }
 
-            modifiers |= Modifier::BOLD;
-            style = style.add_modifier(modifiers);
+            if self.config.ui.tags_bold {
+                modifiers |= Modifier::BOLD;
+            }
 
+            style = style.add_modifier(modifiers);
             colored.push(Span::styled(tag.clone().name().to_string(), style));
         }
 
@@ -1494,6 +1482,7 @@ impl UiApp<'_> {
         Text::from(row)
     }
 
+    // TODO: use or delete
     /// Returns a vector of `Style` for a vector of (`PathBuf`, ...`Tag`)
     fn style_for_tags(&self, entry: &[String]) -> Vec<Style> {
         let mut styles = vec![];
@@ -1525,6 +1514,7 @@ impl UiApp<'_> {
         styles
     }
 
+    // TODO: use or delete
     /// Return style for individual `Tag`
     fn style_for_tag(&self, tag: &Tag) -> Style {
         let mut style = Style::default();
@@ -1550,7 +1540,7 @@ impl UiApp<'_> {
 
     /// Return a `Style` depending on user configuration
     fn colored_style<const COLOR: [u8; 3]>(&self) -> Style {
-        if self.colored {
+        if self.is_colored() {
             Style::default()
                 .add_modifier(Modifier::BOLD)
                 .fg(Color::Rgb(COLOR[0], COLOR[1], COLOR[2]))

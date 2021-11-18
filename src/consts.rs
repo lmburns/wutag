@@ -55,13 +55,18 @@ pub(crate) static APP_ABOUT: Lazy<String> = Lazy::new(|| {
 });
 
 /// Specify the file-type(s) to filter by. Can be repeated
+#[rustfmt::skip]
 pub(crate) static FILE_TYPE: Lazy<String> = Lazy::new(|| {
-    "Filter results based on file-type. Does not work with '-g|--global'.\n  'f' or 'file':       \
-     regular file\n  'd' or 'dir':        directory\n  'l' or 'symlink':    symlink\n  'b' or \
-     'block':      block device\n  'c' or 'char':       character device\n  's' or 'socket':     \
-     socket\n  'F' or 'fifo':       fifo\n  'x' or 'executable': executable\n 'e' or 'empty':      \
-     file or directory with 0 size
-        "
+    "Filter results based on file-type. Does not work with '-g|--global'.\n  \
+        'f' or 'file':       regular file\n  \
+        'd' or 'dir':        directory\n  \
+        'l' or 'symlink':    symlink\n  \
+        'b' or 'block':      block device\n  \
+        'c' or 'char':       character device\n  \
+        's' or 'socket':     socket\n  \
+        'F' or 'fifo':       fifo\n  \
+        'x' or 'executable': executable\n \
+        'e' or 'empty':      file or directory with 0 size"
     .to_string()
 });
 

@@ -18,11 +18,7 @@ use std::{
 use crate::{Error, Result};
 
 fn is_symlink(path: &Path) -> bool {
-    let mut is_symlink = false;
-    if let Ok(metadata) = fs::metadata(path) {
-        is_symlink = metadata.file_type().is_symlink();
-    }
-    is_symlink
+    fs::metadata(path).map_or(false, |f| f.file_type().is_symlink())
 }
 
 /// Sets the value of the extended attribute identified by `name` and associated

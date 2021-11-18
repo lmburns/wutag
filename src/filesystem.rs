@@ -94,6 +94,7 @@ impl FileInfo for &Path {
 }
 
 impl FileTypes {
+    /// File types that should be ignored based on CLI arguments
     pub(crate) fn should_ignore(&self, entry: &impl FileInfo) -> bool {
         if let Some(ref entry_type) = entry.file_type() {
             (!self.files && entry_type.is_file())
@@ -118,6 +119,7 @@ impl FileTypes {
     }
 }
 
+/// Check whether the file is empty
 pub(crate) fn is_empty(entry: &impl FileInfo) -> bool {
     if let Some(file_type) = entry.file_type() {
         if file_type.is_dir() {
@@ -136,6 +138,7 @@ pub(crate) fn is_empty(entry: &impl FileInfo) -> bool {
     }
 }
 
+/// Create a path to a temporary file
 pub(crate) fn create_temp_path() -> String {
     let mut tmp_path = env::temp_dir();
     tmp_path.push(format!(
@@ -150,6 +153,7 @@ pub(crate) fn create_temp_path() -> String {
     tmp_path.display().to_string()
 }
 
+/// Modify the temporary ignores file that is built from the configuration file
 pub(crate) fn modify_temp_ignore<P: AsRef<Path>>(
     path: P,
     content: &dyn Fn(&mut File) -> io::Result<()>,
@@ -157,34 +161,32 @@ pub(crate) fn modify_temp_ignore<P: AsRef<Path>>(
     let res = File::create(&path);
     let path = path.as_ref().to_path_buf();
 
+    let expand_err = |s: &str, e: io::Error| -> Error {
+        Error::IOError(format!(
+            "problem when {} {}: {}",
+            s.to_string(),
+            path.display(),
+            e
+        ))
+    };
+
     match res {
         Ok(mut fd) => match content(&mut fd) {
             Ok(_) => match fd.sync_all() {
                 Ok(_) => Ok(path),
-                Err(e) => Err(Error::IOError(format!(
-                    "problem when syncing {}: {}",
-                    path.display(),
-                    e
-                ))),
+                Err(e) => Err(expand_err("syncing", e)),
             },
-            Err(e) => Err(Error::IOError(format!(
-                "problem when writing closure {}: {}",
-                path.display(),
-                e
-            ))),
+            Err(e) => Err(expand_err("writing", e)),
         },
-        Err(e) => Err(Error::IOError(format!(
-            "problem when creating {}: {}",
-            path.display(),
-            e
-        ))),
+        Err(e) => Err(expand_err("creating", e)),
     }
 }
 
+/// Create the temporary ignore file with the given contents
 pub(crate) fn create_temp_ignore(content: &dyn Fn(&mut File) -> io::Result<()>) -> String {
     let tmp = create_temp_path();
     match modify_temp_ignore(&tmp, content) {
-        Ok(tmp) => tmp.display().to_string(),
+        Ok(tmp) => return tmp.display().to_string(),
         Err(e) => {
             wutag_error!("unable to create temporary ignore file: {} {}", tmp, e);
             std::process::exit(1);
@@ -192,6 +194,8 @@ pub(crate) fn create_temp_ignore(content: &dyn Fn(&mut File) -> io::Result<()>) 
     }
 }
 
+/// Write the temporary ignore file (passed to `create_temp_ignore()`, which
+/// returns a string of the contents of the file)
 pub(crate) fn write_temp_ignore(ignores: &[String], file: &File) -> io::Result<()> {
     let mut writer = io::BufWriter::new(file);
 
@@ -202,6 +206,7 @@ pub(crate) fn write_temp_ignore(ignores: &[String], file: &File) -> io::Result<(
     Ok(())
 }
 
+/// Delete the temporarily created ignore file
 pub(crate) fn delete_file<P: AsRef<Path>>(file: P) {
     let path = file.as_ref().to_path_buf();
 

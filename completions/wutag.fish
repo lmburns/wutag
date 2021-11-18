@@ -63,6 +63,8 @@ complete -c wutag -n "__fish_seen_subcommand_from search" -s t -l tags -d 'Searc
 complete -c wutag -n "__fish_seen_subcommand_from search" -s r -l raw -d 'No colored output. Should be detected automatically on pipe'
 complete -c wutag -n "__fish_seen_subcommand_from search" -s f -l only-files -d 'Display only files in the search results'
 complete -c wutag -n "__fish_seen_subcommand_from search" -s G -l garrulous -d 'Display tags and files on separate lines'
+complete -c wutag -n "__fish_seen_subcommand_from search" -s a -l all -d 'Files matching all tags (instead of any)'
+complete -c wutag -n "__fish_seen_subcommand_from search" -s A -l only-all -d 'Files matching all and only all tags'
 complete -c wutag -n "__fish_seen_subcommand_from search" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from search" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from cp" -s G -l glob -d 'Use a glob to match files (must be global)'

@@ -174,7 +174,7 @@ _wutag() {
             return 0
             ;;
         wutag__edit)
-            opts="-c -t -h -v --color --tag --help --verbose"
+            opts="-c -r -h -v --color --rename --help --verbose <tag>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -188,11 +188,11 @@ _wutag() {
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
-                --tag)
+                --rename)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
-                -t)
+                -r)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;

@@ -509,6 +509,22 @@ impl TagRegistry {
         }
     }
 
+    /// Update / rename the name of the tag
+    pub(crate) fn update_tag_name<T: AsRef<str>>(&mut self, tag: T, rename: T) -> bool {
+        if let Some(mut t) = self.tags.keys().find(|t| t.name() == tag.as_ref()).cloned() {
+            let data = self
+                .tags
+                .remove(&t)
+                .unwrap_or_else(|| wutag_fatal!("failure to remove tag: {}", t));
+
+            t.set_name(&rename);
+            self.tags.insert(t, data);
+            true
+        } else {
+            false
+        }
+    }
+
     /// Encrypt or decrypt the registry
     #[cfg(feature = "encrypt-gpgme")]
     pub(crate) fn crypt_registry<P: AsRef<Path>>(

@@ -210,12 +210,13 @@ _arguments "${_arguments_options[@]}" \
 _arguments "${_arguments_options[@]}" \
 '-c+[Set the color of the tag to the specified color. Accepted values are hex colors like '\''0x000000'\'' or '\''#1F1F1F'\'' or just plain '\''ff000a'\''. The colors are case insensitive meaning '\''1f1f1f'\'' is equivalent to '\''1F1F1F'\'']:color: ' \
 '--color=[Set the color of the tag to the specified color. Accepted values are hex colors like '\''0x000000'\'' or '\''#1F1F1F'\'' or just plain '\''ff000a'\''. The colors are case insensitive meaning '\''1f1f1f'\'' is equivalent to '\''1F1F1F'\'']:color: ' \
-'-t+[The tag to edit]:tag:_wutag_tags' \
-'--tag=[The tag to edit]:tag:_wutag_tags' \
+'-r+[New name to replace tag with]:rename: ' \
+'--rename=[New name to replace tag with]:rename: ' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
+':tag -- The tag to edit:_wutag_tags' \
 && ret=0
 ;;
 (info)

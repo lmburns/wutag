@@ -180,8 +180,8 @@ set edit:completion:arg-completer[wutag] = [@words]{
         &'wutag;edit'= {
             cand -c 'Set the color of the tag to the specified color. Accepted values are hex colors like ''0x000000'' or ''#1F1F1F'' or just plain ''ff000a''. The colors are case insensitive meaning ''1f1f1f'' is equivalent to ''1F1F1F'''
             cand --color 'Set the color of the tag to the specified color. Accepted values are hex colors like ''0x000000'' or ''#1F1F1F'' or just plain ''ff000a''. The colors are case insensitive meaning ''1f1f1f'' is equivalent to ''1F1F1F'''
-            cand -t 'The tag to edit'
-            cand --tag 'The tag to edit'
+            cand -r 'New name to replace tag with'
+            cand --rename 'New name to replace tag with'
             cand -h 'Print help information'
             cand --help 'Print help information'
             cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'

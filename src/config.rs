@@ -6,12 +6,17 @@ use std::{
     fs,
     io::Write,
     path::{Path, PathBuf},
+    str::FromStr,
 };
+use tui::layout::Alignment;
 
 use crate::ui::event::Key;
 use wutag_core::color::TuiColor;
 
 const CONFIG_FILE: &str = "wutag.yml";
+
+// INFO: Could redo the structure of Config
+// INFO: Create a global sub-struct, and put keys in UI
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(rename_all = "snake_case", default)]
@@ -55,35 +60,60 @@ pub(crate) struct EncryptConfig {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "snake_case", default)]
 pub(crate) struct UiConfig {
+    /// Whether the UI is colored
     #[serde(alias = "colored-ui")]
-    pub(crate) colored_ui:          bool,
-    #[serde(alias = "completion-color")]
-    pub(crate) completion_color:    String,
-    pub(crate) looping:             bool,
-    #[serde(alias = "mark-indicator")]
-    pub(crate) mark_indicator:      String,
-    #[serde(alias = "tags-bold", alias = "bold-tags")]
-    pub(crate) tags_bold:           bool,
-    #[serde(alias = "paths-bold", alias = "bold-paths")]
-    pub(crate) paths_bold:          bool,
-    #[serde(alias = "paths-color", alias = "color-paths")]
-    pub(crate) paths_color:         String,
-    #[serde(alias = "selection-blink")]
-    pub(crate) selection_blink:     bool,
-    #[serde(alias = "selection-bold")]
-    pub(crate) selection_bold:      bool,
-    #[serde(alias = "selection-dim")]
-    pub(crate) selection_dim:       bool,
-    #[serde(alias = "selection-indicator")]
-    pub(crate) selection_indicator: String,
-    #[serde(alias = "selection-italic")]
-    pub(crate) selection_italic:    bool,
+    pub(crate) colored_ui:  bool,
+    /// TODO: ??
+    pub(crate) looping:     bool,
+    /// Command to run on startup to display files
     #[serde(alias = "startup-cmd", alias = "startup-command")]
-    pub(crate) startup_cmd:         Option<String>,
+    pub(crate) startup_cmd: Option<String>,
+    /// Refresh rate of application
     #[serde(alias = "tick-rate")]
-    pub(crate) tick_rate:           u64,
+    pub(crate) tick_rate:   u64,
+
+    /// Whether tags should be displayed as bold
+    #[serde(alias = "tags-bold", alias = "bold-tags")]
+    pub(crate) tags_bold:        bool,
+    /// Whether paths should be displayed as bold
+    #[serde(alias = "paths-bold", alias = "bold-paths")]
+    pub(crate) paths_bold:       bool,
+    /// Color the paths should be displayed
+    #[serde(alias = "paths-color", alias = "color-paths")]
+    pub(crate) paths_color:      String,
+    /// TODO: Background color of completions
+    #[serde(alias = "completion-color")]
+    pub(crate) completion_color: String,
+
+    /// What symbol should indicate item isn't selected
     #[serde(alias = "unmark-indicator")]
     pub(crate) unmark_indicator:    String,
+    /// What symbol should indicate item is selected
+    #[serde(alias = "selection-indicator")]
+    pub(crate) selection_indicator: String,
+    /// What symbol should indicate item is marked
+    #[serde(alias = "mark-indicator")]
+    pub(crate) mark_indicator:      String,
+
+    /// Whether tags should change color when selected
+    #[serde(alias = "selection-tags", alias = "tag-selections")]
+    pub(crate) selection_tags:   bool,
+    /// Whether selection style should blink
+    #[serde(alias = "selection-blink")]
+    pub(crate) selection_blink:  bool,
+    /// Whether selection style should be bold
+    #[serde(alias = "selection-bold")]
+    pub(crate) selection_bold:   bool,
+    /// Whether selection style should be dim
+    #[serde(alias = "selection-dim")]
+    pub(crate) selection_dim:    bool,
+    /// Whether selection style should be italic
+    #[serde(alias = "selection-italic")]
+    pub(crate) selection_italic: bool,
+
+    /// Alignment of header
+    #[serde(alias = "header-alignment")]
+    pub(crate) header_alignment: String,
 }
 
 /// UI Key configuration
@@ -102,9 +132,9 @@ pub(crate) struct KeyConfig {
     pub(crate) page_up:      Key,
     #[serde(alias = "page-down")]
     pub(crate) page_down:    Key,
-    pub(crate) select:       Key,
     #[serde(alias = "select-all")]
     pub(crate) select_all:   Key,
+    pub(crate) select:       Key,
     pub(crate) refresh:      Key,
     pub(crate) help:         Key,
 
@@ -126,23 +156,23 @@ impl Default for KeyConfig {
     fn default() -> Self {
         Self {
             quit:         Key::Char('q'),
-            add:          Key::Char('a'),
-            edit:         Key::Char('e'),
+            up:           Key::Char('k'),
+            down:         Key::Char('j'),
             go_to_bottom: Key::Char('G'),
             go_to_top:    Key::Char('g'),
-            down:         Key::Char('j'),
-            up:           Key::Char('k'),
-            page_down:    Key::Char('J'),
             page_up:      Key::Char('K'),
-            remove:       Key::Char('x'),
+            page_down:    Key::Char('J'),
             select:       Key::Char('v'),
             select_all:   Key::Char('V'),
             refresh:      Key::Char('r'),
+            help:         Key::Char('?'),
+            add:          Key::Char('a'),
+            clear:        Key::Char('D'),
+            edit:         Key::Char('e'),
+            remove:       Key::Char('x'),
             search:       Key::Char('/'),
             copy:         Key::Char('y'),
-            clear:        Key::Char('D'),
             preview:      Key::Char('P'),
-            help:         Key::Char('?'),
         }
     }
 }
@@ -151,20 +181,22 @@ impl Default for UiConfig {
     fn default() -> Self {
         Self {
             colored_ui:          true,
-            completion_color:    String::from("dark"),
             looping:             true,
-            mark_indicator:      String::from("\u{2714}"),
+            tick_rate:           250_u64,
+            startup_cmd:         Some(String::from("--global list files --with-tags")),
             tags_bold:           true,
             paths_bold:          true,
             paths_color:         String::from("blue"),
+            completion_color:    String::from("dark"),
+            selection_tags:      false,
             selection_blink:     false,
-            selection_bold:      true,
+            selection_bold:      false,
             selection_dim:       false,
-            selection_italic:    false,
-            selection_indicator: String::from("\u{2022}"),
-            startup_cmd:         Some(String::from("--global list files --with-tags")),
-            tick_rate:           250_u64,
+            selection_italic:    true,
+            mark_indicator:      String::from("\u{2714}"),
             unmark_indicator:    String::from(" "),
+            selection_indicator: String::from("\u{2022}"),
+            header_alignment:    String::from("center"),
         }
     }
 }
@@ -245,6 +277,37 @@ impl KeyConfig {
                         .collect::<Vec<_>>()
                 )
             ))
+        }
+    }
+}
+
+/// Wrapper around [`Alignment`](tui::layout::Alignment) to provide
+/// serialization
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub(crate) enum HeaderAlignment {
+    Left,
+    Center,
+    Right,
+}
+
+impl From<HeaderAlignment> for Alignment {
+    fn from(other: HeaderAlignment) -> Alignment {
+        match other {
+            HeaderAlignment::Left => Alignment::Left,
+            HeaderAlignment::Center => Alignment::Center,
+            HeaderAlignment::Right => Alignment::Right,
+        }
+    }
+}
+
+impl FromStr for HeaderAlignment {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<HeaderAlignment, Self::Err> {
+        match s.to_ascii_lowercase().trim() {
+            "left" => Ok(HeaderAlignment::Left),
+            "right" => Ok(HeaderAlignment::Right),
+            _ => Ok(HeaderAlignment::Center),
         }
     }
 }

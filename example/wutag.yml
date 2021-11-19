@@ -78,26 +78,44 @@ keys:
 # TUI settings
 ##############
 tui:
+  # Toggle color on/off
   colored_ui: true
-  completion_color: "dark"
+  # ??
   looping: true
-  tags_bold: true
-  paths_bold: true
-  paths_color: "blue"
-  # What the selection indicator style should be
-  selection_blink: false
-  selection_bold: true
-  selection_dim: false
-  selection_indicator: "•"
-  selection_italic: false
-  # Command that lists files on startup
-  startup_cmd: "--global list files --with-tags"
   # Refresh rate of the TUI
   tick_rate: 250
-  # What the selected/marked indicator is
+  # Command that lists files on startup
+  startup_cmd: "--global list files --with-tags"
+
+  # Whether tags should be bold
+  tags_bold: true
+  # Whether paths should be bold
+  paths_bold: true
+  # TODO: hex -- Color of file paths
+  paths_color: "blue"
+  # Completion pop-up color
+  completion_color: "dark"
+
+  # Whether selection style should blink
+  selection_blink: false
+  # Whether selection style should be bold
+  selection_bold: false
+  # Whether selection style should be dim
+  selection_dim: false
+  # Whether selection style should be italic
+  selection_italic: true
+  # Whether tags should also change color on selection
+  selection_tags: false
+
+  # Icon in front of current selection
+  selection_indicator: "•"
+  # Icon in front of current marked selection(s)
   mark_indicator: "✔"
-  # What the non-selected/marked indicator is
+  # Icon in front of non-selected items
   unmark_indicator: " "
+
+  # Alignment of header (left, center, right)
+  header_alignment: center
 
 #####################
 # Encryption settings

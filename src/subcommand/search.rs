@@ -91,7 +91,8 @@ pub(crate) struct SearchOpts {
                       '*' --tag <tag>'
         "
     )]
-    pub(crate) tags:    Vec<String>,
+    pub(crate) tags: Vec<String>,
+
     /// Pattern to search tagged files
     #[clap(name = "pattern")]
     pub(crate) pattern: String,

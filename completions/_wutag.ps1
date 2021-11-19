@@ -192,8 +192,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
         'wutag;edit' {
             [CompletionResult]::new('-c', 'c', [CompletionResultType]::ParameterName, 'Set the color of the tag to the specified color. Accepted values are hex colors like ''0x000000'' or ''#1F1F1F'' or just plain ''ff000a''. The colors are case insensitive meaning ''1f1f1f'' is equivalent to ''1F1F1F''')
             [CompletionResult]::new('--color', 'color', [CompletionResultType]::ParameterName, 'Set the color of the tag to the specified color. Accepted values are hex colors like ''0x000000'' or ''#1F1F1F'' or just plain ''ff000a''. The colors are case insensitive meaning ''1f1f1f'' is equivalent to ''1F1F1F''')
-            [CompletionResult]::new('-t', 't', [CompletionResultType]::ParameterName, 'The tag to edit')
-            [CompletionResult]::new('--tag', 'tag', [CompletionResultType]::ParameterName, 'The tag to edit')
+            [CompletionResult]::new('-r', 'r', [CompletionResultType]::ParameterName, 'New name to replace tag with')
+            [CompletionResult]::new('--rename', 'rename', [CompletionResultType]::ParameterName, 'New name to replace tag with')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')

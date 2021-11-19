@@ -78,7 +78,7 @@ complete -c wutag -n "__fish_seen_subcommand_from view" -s a -l all
 complete -c wutag -n "__fish_seen_subcommand_from view" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from view" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from edit" -s c -l color -d 'Set the color of the tag to the specified color. Accepted values are hex colors like \'0x000000\' or \'#1F1F1F\' or just plain \'ff000a\'. The colors are case insensitive meaning \'1f1f1f\' is equivalent to \'1F1F1F\'' -r
-complete -c wutag -n "__fish_seen_subcommand_from edit" -s t -l tag -d 'The tag to edit' -r
+complete -c wutag -n "__fish_seen_subcommand_from edit" -s r -l rename -d 'New name to replace tag with' -r
 complete -c wutag -n "__fish_seen_subcommand_from edit" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from edit" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from info" -s r -l raw -d 'TO BE IMPLEMENTED Do not use color in output'

@@ -102,6 +102,7 @@ impl DirEntryExt for ignore::DirEntry {
 }
 
 impl Tag {
+    /// Generate a new tag with a specified color
     pub fn new<S>(name: S, color: Color) -> Self
     where
         S: Into<String>,
@@ -112,6 +113,7 @@ impl Tag {
         }
     }
 
+    /// Generate a new tag with a random color
     pub fn random<S>(name: S, colors: &[Color]) -> Self
     where
         S: Into<String>,
@@ -123,16 +125,24 @@ impl Tag {
         )
     }
 
+    /// Get the tag's name
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    /// Get the tag's color
     pub fn color(&self) -> &Color {
         &self.color
     }
 
+    /// Change or set the tag's color
     pub fn set_color(&mut self, color: &Color) {
         self.color = *color;
+    }
+
+    /// Change or set the tag's name
+    pub fn set_name<T: AsRef<str>>(&mut self, name: T) {
+        self.name = name.as_ref().to_string();
     }
 
     fn hash(&self) -> Result<String> {

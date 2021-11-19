@@ -1,4 +1,5 @@
 #![allow(unused)]
+// TODO: selection highlight
 
 //! This is taken from `taskwarrior-tui` and provides a `Table` with custom
 //! modifications that are similar to the default
@@ -16,7 +17,7 @@ use std::{
 };
 use tui::{
     buffer::Buffer,
-    layout::{Alignment, Constraint, Rect},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::Style,
     text::{Span, Text},
     widgets::{Block, StatefulWidget, Widget},
@@ -183,7 +184,7 @@ impl<'a> Row<'a> {
 
     /// Set the fixed height of the [`Row`]. Any [`Cell`] whose content has more
     /// lines than this height will see its content truncated.
-    pub(crate) fn height(mut self, height: u16) -> Self {
+    pub(crate) const fn height(mut self, height: u16) -> Self {
         self.height = height;
         self
     }
@@ -191,19 +192,19 @@ impl<'a> Row<'a> {
     /// Set the [`Style`] of the entire row. This [`Style`] can be overriden by
     /// the [`Style`] of a any individual [`Cell`] or event by their
     /// [`Text`] content.
-    pub(crate) fn style(mut self, style: Style) -> Self {
+    pub(crate) const fn style(mut self, style: Style) -> Self {
         self.style = style;
         self
     }
 
     /// Set the bottom margin. By default, the bottom margin is `0`.
-    pub(crate) fn bottom_margin(mut self, margin: u16) -> Self {
+    pub(crate) const fn bottom_margin(mut self, margin: u16) -> Self {
         self.bottom_margin = margin;
         self
     }
 
     /// Returns the total height of the row.
-    fn total_height(&self) -> u16 {
+    const fn total_height(&self) -> u16 {
         self.height.saturating_add(self.bottom_margin)
     }
 }
@@ -227,6 +228,8 @@ pub(crate) struct Table<'a, H> {
     column_spacing:          u16,
     /// Space between the header and the rows
     header_gap:              u16,
+    /// Whether selection indicator style should be used on tags
+    highlight_tags:          bool,
     /// Style used to render the selected row
     highlight_style:         Style,
     /// Symbol in front of the selected row
@@ -259,6 +262,7 @@ where
             header_gap:              1,
             highlight_style:         Style::default(),
             highlight_symbol:        None,
+            highlight_tags:          false,
             mark_symbol:             None,
             unmark_symbol:           None,
             mark_highlight_symbol:   None,
@@ -287,6 +291,7 @@ where
             header_gap: 1,
             highlight_style: Style::default(),
             highlight_symbol: None,
+            highlight_tags: false,
             mark_symbol: None,
             unmark_symbol: None,
             mark_highlight_symbol: None,
@@ -380,6 +385,12 @@ where
         self
     }
 
+    /// Change highlight of the tags
+    pub(crate) fn highlight_tags(mut self, highlight_tags: bool) -> Self {
+        self.highlight_tags = highlight_tags;
+        self
+    }
+
     /// Change highlight symbol, used to indicate that item is selected
     pub(crate) fn highlight_symbol(mut self, highlight_symbol: &'a str) -> Self {
         self.highlight_symbol = Some(highlight_symbol);
@@ -458,6 +469,7 @@ where
             )
             .unwrap();
         solver.add_constraints(&ccs).unwrap();
+
         let mut solved_widths = vec![0; variables.len()];
         for &(var, value) in solver.fetch_changes() {
             let index = var_indices[&var];
@@ -506,7 +518,7 @@ where
                     self.header_style,
                 );
                 // buf.set_stringn(x, y, format!("{}", t), *w as usize, self.header_style);
-
+                // Seems unncessary to have to convert from string
                 header_index = index;
                 x += *w + self.column_spacing;
                 index += 1;
@@ -527,7 +539,7 @@ where
             TableSelection::Multiple => {
                 // This format of let s = ... is much easier to read IMO
                 let s = self.highlight_symbol.unwrap_or("\u{2022}").trim_end();
-                String::from(s)
+                format!("{} ", s)
             },
             TableSelection::Single => self.highlight_symbol.unwrap_or("").to_string(),
         };
@@ -536,7 +548,7 @@ where
         let mark_symbol = match state.mode {
             TableSelection::Multiple => {
                 let s = self.mark_symbol.unwrap_or("\u{2714}").trim_end();
-                String::from(s)
+                format!("{} ", s)
             },
             TableSelection::Single => self.highlight_symbol.unwrap_or("").to_string(),
         };
@@ -544,7 +556,7 @@ where
         let blank_symbol = match state.mode {
             TableSelection::Multiple => {
                 let s = self.unmark_symbol.unwrap_or(" ").trim_end();
-                String::from(s)
+                format!("{} ", s)
             },
             TableSelection::Single => " ".repeat(highlight_symbol.width()),
         };
@@ -552,7 +564,7 @@ where
         // ⦿
         let mark_highlight_symbol = {
             let s = self.mark_highlight_symbol.unwrap_or("\u{29bf}").trim_end();
-            String::from(s)
+            format!("{} ", s)
         };
 
         // ⦾
@@ -561,7 +573,7 @@ where
                 .unmark_highlight_symbol
                 .unwrap_or("\u{29be}")
                 .trim_end();
-            String::from(s)
+            format!("{} ", s)
         };
 
         // Draw rows
@@ -590,7 +602,16 @@ where
                 .take(remaining)
                 .enumerate()
             {
-                buf.set_style(area, row.style);
+                // let (r, c) = (table_area.top() + y, table_area.left());
+                //
+                // let table_row_area = Rect {
+                //     x:      c,
+                //     y:      r,
+                //     width:  table_area.width,
+                //     height: row.height,
+                // };
+                //
+                // buf.set_style(table_row_area, row.style);
 
                 let symbol = {
                     if Some(i) == state.current_selection().map(|s| s - state.offset) {
@@ -611,10 +632,27 @@ where
                     }
                 };
 
+                let highlight_tags = self.highlight_tags;
+                let select_style = |style: Style| -> Style {
+                    if Some(i) == state.current_selection().map(|s| s - state.offset) {
+                        highlight_style
+                    } else {
+                        style
+                    }
+                };
+                let should_highlight_tags = |style: Style| -> Style {
+                    if highlight_tags {
+                        select_style(style)
+                    } else {
+                        style
+                    }
+                };
+
                 x = table_area.left();
 
                 // Cell { content: Text { lines: [ Spans [ Span {} ]],  }, style: Style {} }
                 for (oidx, (w, cell)) in solved_widths.iter().zip(row.cells).enumerate() {
+                    // Don't think this is usually filled with style
                     buf.set_style(area, cell.style);
 
                     // Spans { content: "tag name", style: Style { fg: Some(color) } }
@@ -643,7 +681,7 @@ where
                                         width = area.width as usize
                                     ),
                                     remaining_width as usize,
-                                    span.style,
+                                    select_style(span.style),
                                 );
                                 buf.set_stringn(
                                     x,
@@ -672,7 +710,7 @@ where
                                         )
                                     },
                                     remaining_width as usize,
-                                    span.style,
+                                    select_style(span.style),
                                 )
                             } else if span_length > 1 && ii < span_length {
                                 // If tag length is greater than one and it's not the last
@@ -683,7 +721,7 @@ where
                                     format!("{} ", span.content.as_ref()),
                                     (remaining_width as usize)
                                         .saturating_sub(" ".to_string().width()),
-                                    span.style,
+                                    should_highlight_tags(span.style),
                                 )
                             } else {
                                 // If it's a single tag or the last tag
@@ -692,7 +730,7 @@ where
                                     y + i as u16,
                                     span.content.as_ref(),
                                     remaining_width as usize,
-                                    span.style,
+                                    should_highlight_tags(span.style),
                                 )
                             };
 
@@ -705,23 +743,13 @@ where
                     x += *w + self.column_spacing;
                 }
 
-                if is_selected {
-                    buf.set_style(area, highlight_style);
-                }
+                // if state.current_selection().map_or(false, |s| s == i) {
+                //     buf.set_style(table_row_area, highlight_style);
+                // }
             }
         }
     }
 }
-
-// fn render_cell(buf: &mut Buffer, cell: &Cell, area: Rect) {
-//     buf.set_style(area, cell.style);
-//     for (i, spans) in cell.content.lines.iter().enumerate() {
-//         if i as u16 >= area.height {
-//             break;
-//         }
-//         buf.set_spans(area.x, area.y + i as u16, spans, area.width);
-//     }
-// }
 
 impl<H> Widget for Table<'_, H>
 where

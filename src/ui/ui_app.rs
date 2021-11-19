@@ -1,5 +1,6 @@
 #![allow(unused)]
 #![allow(clippy::unused_self)]
+#![allow(clippy::non_ascii_literal)]
 
 // RUN_ONCE.get_or_init(|| super::notify("made it", None));
 
@@ -15,9 +16,10 @@ use lexiclean::Lexiclean;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     convert::{TryFrom, TryInto},
-    env, fs, io,
+    env, fmt, fs, io,
     path::{Path, PathBuf},
     process,
+    str::FromStr,
     time::{Duration, SystemTime},
 };
 use thiserror::Error;
@@ -54,7 +56,7 @@ use super::{
 };
 
 use crate::{
-    config::Config,
+    config::{Config, HeaderAlignment},
     opt::{Command, Opts},
     registry::{EntryData, EntryId, TagRegistry},
     subcommand::App,
@@ -69,6 +71,7 @@ pub(crate) const FG2: [u8; 3] = [217, 174, 128];
 pub(crate) const PINK: [u8; 3] = [239, 29, 85];
 pub(crate) const DARK_PINK: [u8; 3] = [152, 103, 106];
 pub(crate) const DARK_PURPLE: [u8; 3] = [115, 62, 139];
+pub(crate) const MAGENTA: [u8; 3] = [160, 100, 105];
 pub(crate) const BLUE: [u8; 3] = [126, 178, 177];
 pub(crate) const DARK_BLUE: [u8; 3] = [76, 150, 168];
 pub(crate) const YELLOW: [u8; 3] = [255, 149, 0];
@@ -142,6 +145,7 @@ pub(crate) struct UiApp<'a> {
     pub(crate) preview_height:          u16,
     pub(crate) preview_scroll:          u16,
     pub(crate) registry:                TagRegistry,
+    pub(crate) registry_paths:          Vec<PathBuf>,
     pub(crate) should_quit:             bool,
     pub(crate) table_state:             TableState,
     pub(crate) terminal_height:         u16,
@@ -150,6 +154,7 @@ pub(crate) struct UiApp<'a> {
 
 /// Mode that application is in
 #[derive(Debug, PartialEq, Clone, Copy)]
+#[allow(single_use_lifetimes)]
 pub(crate) enum AppMode {
     List,
     Error,
@@ -165,7 +170,18 @@ pub(crate) enum AppMode {
      * Clear */
 }
 
-impl UiApp<'_> {
+impl fmt::Display for AppMode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            AppMode::List => write!(f, "List"),
+            AppMode::Error => write!(f, "Error"),
+            AppMode::Help => write!(f, "Help"),
+            AppMode::Command => write!(f, "Command"),
+        }
+    }
+}
+
+impl<'a> UiApp<'_> {
     /// Create a new instance of the `UiApp`
     pub(crate) fn new(c: Config, reg: TagRegistry) -> Result<Self> {
         let (w, h) = crossterm::terminal::size()?;
@@ -214,6 +230,7 @@ impl UiApp<'_> {
             preview_height:          0,
             preview_scroll:          0,
             registry:                reg,
+            registry_paths:          Vec::new(),
             should_quit:             false,
             table_state:             TableState::default(),
             terminal_height:         h,
@@ -225,6 +242,7 @@ impl UiApp<'_> {
         }
 
         uiapp.get_context();
+        uiapp.import_paths();
         uiapp.update(true)?;
         uiapp.command_history_context.load()?;
 
@@ -280,21 +298,15 @@ impl UiApp<'_> {
         );
     }
 
-    /// Draw  help menu showing user-defined/default keybindings
-    #[allow(single_use_lifetimes)]
-    pub(crate) fn draw_help<'a>(
-        &mut self,
-        f: &mut Frame<impl Backend>,
-        title: &'a str,
-        rect: Rect,
-    ) {
+    /// Draw help menu showing user-defined/default keybindings
+    pub(crate) fn draw_help(&mut self, f: &mut Frame<impl Backend>, rect: Rect, title: Vec<Span>) {
         f.render_widget(Clear, rect);
 
         f.render_widget(
             Block::default()
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
-                .title(self.set_header_style::<GREEN>(title))
+                .title(Spans::from(title))
                 .title_alignment(Alignment::Left),
             rect,
         );
@@ -429,18 +441,40 @@ impl UiApp<'_> {
     pub(crate) fn draw_tag(&mut self, app: &App, f: &mut Frame<impl Backend>) {
         let rect = f.size();
 
-        // Full screen (used for help menu)
-        let full_chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .margin(1)
-            .constraints([Constraint::Min(rect.height - 1), Constraint::Min(1)].as_ref())
-            .split(rect);
-
         // Split screen
         // .constraints([Constraint::Percentage(80),
         // Constraint::Percentage(20)].as_ref())
 
-        // Command Prompt box
+        // Old help
+        // .constraints([Constraint::Min(rect.height - 1), Constraint::Min(1)].as_ref())
+
+        let set_title = |app: &UiApp, mode: String| -> Vec<Span> {
+            let match_mode = |mode: AppMode| -> Modifier {
+                if app.mode == mode {
+                    Modifier::BOLD
+                } else {
+                    Modifier::DIM
+                }
+            };
+
+            vec![
+                app.set_header_style::<PINK>("Wutag", match_mode(AppMode::List)),
+                app.set_header_style::<FG>("|", Modifier::SLOW_BLINK),
+                app.set_header_style::<PINK>("Other", match_mode(AppMode::Help)),
+                Span::from("──("),
+                app.set_header_style::<FG>("Mode: ", Modifier::DIM),
+                // FIX: Issues of returning value referencing function
+                // Would be nice to use function above for this
+                Span::styled(
+                    mode,
+                    Style::default()
+                        .add_modifier(Modifier::BOLD)
+                        .fg(Color::Rgb(ORANGE[0], ORANGE[1], ORANGE[2])),
+                ),
+                Span::from(")"),
+            ]
+        };
+
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .margin(1)
@@ -455,7 +489,12 @@ impl UiApp<'_> {
                 .split(chunks[0]);
 
             self.preview_height = split_layout[1].height;
-            self.draw_table(app, f, split_layout[0]);
+            self.draw_table(
+                app,
+                f,
+                split_layout[0],
+                set_title(self, self.mode.to_string()),
+            );
             self.draw_preview(f, split_layout[1]);
         } else {
             let full_layout = Layout::default()
@@ -464,12 +503,18 @@ impl UiApp<'_> {
                 .split(chunks[0]);
 
             self.preview_height = full_layout[0].height;
-            self.draw_table(app, f, full_layout[0]);
-        }
+            self.draw_table(
+                app,
+                f,
+                full_layout[0],
+                set_title(self, self.mode.to_string()),
+            );
+        };
 
         let empty_path = PathBuf::new();
         let selected = self.current_selection;
 
+        // TODO: use
         // When selecting files, file_id is shown as files to modify
         let file_id = if self.registry.entries.is_empty() {
             vec!["0".to_string()]
@@ -503,7 +548,7 @@ impl UiApp<'_> {
                 f,
                 chunks[1],
                 self.command.as_str(),
-                self.set_header_style::<PINK>("Command Prompt"),
+                self.set_header_style::<PINK>("Command Prompt", Modifier::DIM),
                 self.get_position(&self.command),
                 false,
             ),
@@ -516,12 +561,7 @@ impl UiApp<'_> {
                     f,
                     chunks[1],
                     self.command.as_str(),
-                    Span::styled(
-                        "Command Prompt",
-                        Style::default()
-                            .add_modifier(Modifier::ITALIC)
-                            .fg(Color::Rgb(PINK[0], PINK[1], PINK[2])),
-                    ),
+                    self.set_header_style::<PINK>("Command Prompt", Modifier::BOLD),
                     position,
                     true,
                 );
@@ -529,21 +569,21 @@ impl UiApp<'_> {
             AppMode::Error =>
                 self.draw_command(f, chunks[1], self.error.as_str(), "Error", 0, false),
             AppMode::Help => {
-                // self.draw_command(
-                //     f,
-                //     chunks[1],
-                //     self.command.as_str(),
-                //     "Help",
-                //     self.get_position(&self.command),
-                //     false,
-                // );
-                self.draw_help(f, "Help Menu", full_chunks[0]);
+                self.draw_command(
+                    f,
+                    chunks[1],
+                    self.command.as_str(),
+                    self.set_header_style::<PINK>("Command Prompt", Modifier::BOLD),
+                    self.get_position(&self.command),
+                    false,
+                );
+                self.draw_help(f, chunks[0], set_title(self, self.mode.to_string()));
             },
         }
     }
 
     #[allow(single_use_lifetimes)]
-    fn draw_command<'a, T>(
+    fn draw_command<T>(
         &self,
         f: &mut Frame<impl Backend>,
         rect: Rect,
@@ -580,7 +620,7 @@ impl UiApp<'_> {
     // .alignment(Alignment::Left)
     // .wrap(Wrap { trim: false })
 
-    /// Draw a file preview
+    /// TODO: Draw a file preview
     fn draw_preview(&mut self, f: &mut Frame<impl Backend>, rect: Rect) {
         if self.registry.entries.is_empty() {
             f.render_widget(
@@ -623,7 +663,7 @@ impl UiApp<'_> {
     }
 
     /// Draw the tag table (filepaths tags)
-    fn draw_table(&mut self, app: &App, f: &mut Frame<impl Backend>, rect: Rect) {
+    fn draw_table(&mut self, app: &App, f: &mut Frame<impl Backend>, rect: Rect, title: Vec<Span>) {
         let entries = self.get_full_tag_hash();
         let headers = vec!["Filename", "Tag(s)"]
             .iter()
@@ -631,28 +671,7 @@ impl UiApp<'_> {
             .collect::<Vec<_>>();
 
         if entries.is_empty() {
-            let mut style = Style::default();
-            match self.mode {
-                AppMode::List => style = style.add_modifier(Modifier::BOLD),
-                _ => style = style.add_modifier(Modifier::DIM),
-            }
-
-            let mut title = vec![
-                Span::styled("Overview", style),
-                Span::from("|"),
-                Span::styled("Preview", Style::default().add_modifier(Modifier::DIM)),
-            ];
-
-            // if !self.current_context.is_empty() {
-            //     let context_style = Style::default();
-            //     context_style.add_modifier(Modifier::ITALIC);
-            //     title.insert(title.len(), Span::from(" ("));
-            //     title.insert(
-            //         title.len(),
-            //         Span::styled(&self.current_context, context_style),
-            //     );
-            //     title.insert(title.len(), Span::from(")"));
-            // }
+            // TODO: test this
 
             f.render_widget(
                 Block::default()
@@ -663,8 +682,6 @@ impl UiApp<'_> {
             );
             return;
         }
-
-        let maximum_column_width = rect.width;
 
         let entries_name = entries.iter().fold(Vec::new(), |mut acc, (k, v)| {
             acc.push(vec![
@@ -677,11 +694,12 @@ impl UiApp<'_> {
             acc
         });
 
+        let maximum_column_width = rect.width;
         let widths = self.calculate_widths(&entries_name, &headers, maximum_column_width);
 
         // for (idx, header) in headers.iter().enumerate() {
         //     if header == "Tag(s)" {
-        //         self.tag_description_width = widths[idx] - 1;
+        //         self.tag_widths = widths[idx] - 1;
         //         break;
         //     }
         // }
@@ -709,22 +727,18 @@ impl UiApp<'_> {
             if idx == self.selected() {
                 hl_style = style;
                 if self.config.ui.selection_bold {
-                    hl_style = hl_style.add_modifier(Modifier::BOLD);
-                    // mods |= Modifier::BOLD;
+                    mods |= Modifier::BOLD;
                 }
                 if self.config.ui.selection_italic {
-                    hl_style = hl_style.add_modifier(Modifier::ITALIC);
-                    // mods |= Modifier::ITALIC;
+                    mods |= Modifier::ITALIC;
                 }
                 if self.config.ui.selection_dim {
-                    hl_style = hl_style.add_modifier(Modifier::DIM);
-                    // mods |= Modifier::DIM;
+                    mods |= Modifier::DIM;
                 }
                 if self.config.ui.selection_blink {
-                    hl_style.add_modifier(Modifier::SLOW_BLINK);
-                    // mods |= Modifier::SLOW_BLINK;
+                    mods |= Modifier::SLOW_BLINK;
                 }
-                // hl_style = hl_style.add_modifier(mods);
+                hl_style = hl_style.add_modifier(mods);
             }
             rows.push(Row::new(vec![
                 Text::from(Spans::from(vec![Span::styled(entry[0].clone(), style)])),
@@ -736,26 +750,6 @@ impl UiApp<'_> {
             .iter()
             .map(|i| Constraint::Length((*i).try_into().unwrap_or(maximum_column_width)))
             .collect();
-
-        let mut style = Style::default();
-
-        match self.mode {
-            AppMode::List => style = style.add_modifier(Modifier::BOLD),
-            _ => style = style.add_modifier(Modifier::DIM),
-        }
-
-        let mut title = vec![self.set_header_style::<PINK>("Wutag")];
-
-        // if !self.current_context.is_empty() {
-        //     let context_style = Style::default();
-        //     context_style.add_modifier(Modifier::BOLD);
-        //     title.insert(title.len(), Span::from(" ("));
-        //     title.insert(
-        //         title.len(),
-        //         Span::styled(&self.current_context, context_style),
-        //     );
-        //     title.insert(title.len(), Span::from(")"));
-        // }
 
         let table = Table::new(header, rows)
             .block(
@@ -774,8 +768,14 @@ impl UiApp<'_> {
             } else {
                 Style::default().add_modifier(Modifier::BOLD)
             })
-            .header_alignment(Alignment::Center)
+            .header_alignment(
+                // Seems unncessary to have to convert from string
+                Alignment::from(
+                    HeaderAlignment::from_str(&self.config.ui.header_alignment).unwrap(),
+                ),
+            )
             .highlight_style(hl_style)
+            .highlight_tags(self.config.ui.selection_tags)
             .highlight_symbol(&self.config.ui.selection_indicator)
             .mark_symbol(&self.config.ui.mark_indicator)
             .unmark_symbol(&self.config.ui.unmark_indicator)
@@ -941,32 +941,28 @@ impl UiApp<'_> {
         self.registry.list_all_paths_and_tags_as_strings()
     }
 
+    /// Toggle mark on current selection
     pub(crate) fn toggle_mark(&mut self) {
         if !self.registry.tags.is_empty() {
             let selected = self.current_selection;
-            // let id = self.registry.tags.get(selected);
-            // let task_uuid = *self.tasks[selected].uuid();
-            //
-            // if !self.marked.insert(task_uuid) {
-            //     self.marked.remove(&task_uuid);
-            // }
+            if let Some(id) = self.registry.find_entry(&self.registry_paths[selected]) {
+                if !self.marked.insert(id) {
+                    self.marked.remove(&id);
+                }
+            }
         }
     }
 
-    // pub(crate) fn toggle_mark_all(&mut self) {
-    //     for task in &self.tasks {
-    //         if !self.marked.insert(*task.uuid()) {
-    //             self.marked.remove(task.uuid());
-    //         }
-    //     }
-    // }
-
-    // } else if input == self.config.keys.select {
-    //     self.task_table_state.multiple_selection();
-    //     self.toggle_mark();
-    // } else if input == self.config.keys.select_all {
-    //     self.table_state.multiple_selection();
-    //     self.toggle_mark_all();
+    /// Toggle mark on every item in registry
+    pub(crate) fn toggle_mark_all(&mut self) {
+        for path in &self.registry_paths {
+            if let Some(id) = self.registry.find_entry(&path) {
+                if !self.marked.insert(id) {
+                    self.marked.remove(&id);
+                }
+            }
+        }
+    }
 
     #[allow(clippy::unnecessary_wraps)]
     pub(crate) fn handle_input(&mut self, input: Key) -> Result<()> {
@@ -990,6 +986,12 @@ impl UiApp<'_> {
                     self.move_to_next_page();
                 } else if input == Key::PageUp || input == self.config.keys.page_up {
                     self.move_to_previous_page();
+                } else if input == self.config.keys.select {
+                    self.table_state.multiple_selection();
+                    self.toggle_mark();
+                } else if input == self.config.keys.select_all {
+                    self.table_state.multiple_selection();
+                    self.toggle_mark_all();
                 } else if input == self.config.keys.help {
                     self.mode = AppMode::Help;
                 } else if input == Key::Char(':') {
@@ -1122,6 +1124,7 @@ impl UiApp<'_> {
             //     self.task_report_table.export_headers(None, &self.report)?;
             //     let _ = self.export_tasks();
             self.dirty = false;
+            self.import_paths();
         }
 
         //     self.export_contexts()?;
@@ -1131,11 +1134,11 @@ impl UiApp<'_> {
         // }
 
         self.cursor_fix();
-        // self.update_task_table_state();
+        self.update_table_state();
         // if self.task_report_show_info {
         //     task::block_on(self.update_task_details())?;
         // }
-        // self.selection_fix();
+        self.selection_fix();
         Ok(())
     }
 
@@ -1143,11 +1146,11 @@ impl UiApp<'_> {
     pub(crate) fn update_table_state(&mut self) {
         self.table_state.select(Some(self.current_selection));
 
-        // for uuid in self.marked.clone() {
-        //     if self.tag_by_uuid(uuid).is_none() {
-        //         self.marked.remove(&uuid);
-        //     }
-        // }
+        for id in self.marked.clone() {
+            if self.path_by_id(id).is_none() {
+                self.marked.remove(&id);
+            }
+        }
 
         if self.marked.is_empty() {
             self.table_state.single_selection();
@@ -1155,9 +1158,9 @@ impl UiApp<'_> {
 
         self.table_state.clear();
 
-        // for uuid in &self.marked {
-        //     self.table_state.mark(self.tag_index_by_uuid(*uuid));
-        // }
+        for id in &self.marked {
+            self.table_state.mark(self.path_idx_by_id(*id));
+        }
     }
 
     /// Save command history to a file
@@ -1171,29 +1174,8 @@ impl UiApp<'_> {
         self.config.ui.colored_ui
     }
 
-    /// Get the `TagRegistry`'s last modification time
-    fn get_registry_mtime(&self) -> Result<SystemTime> {
-        fs::metadata(self.registry.path.clone())
-            .map(|m| m.modified().ok())?
-            .ok_or_else(|| anyhow!("Unable to get tag registry modified time"))
-    }
-
-    /// Determine whether the `TagRegistry` has been modified since the screen
-    /// was drawn
-    pub(crate) fn changed_since(&mut self, prev: Option<SystemTime>) -> Result<bool> {
-        if let Some(prev) = prev {
-            let mtime = self.get_registry_mtime()?;
-            if mtime > prev {
-                Ok(true)
-            } else {
-                let now = SystemTime::now();
-                let max_delta = Duration::from_secs(60);
-                Ok(now.duration_since(prev)? > max_delta)
-            }
-        } else {
-            Ok(true)
-        }
-    }
+    // ####################### MOVEMENT #######################
+    //
 
     pub(crate) fn previous_report(&mut self) {
         if self.registry.tags.is_empty() {
@@ -1339,6 +1321,9 @@ impl UiApp<'_> {
         }
     }
 
+    // ####################### SELECTION #######################
+    //
+
     /// Fix selection of any errors that may arrise
     pub(crate) fn selection_fix(&mut self) {
         // if let (Some(t), Some(uuid)) = (self.tag_current(),
@@ -1448,8 +1433,11 @@ impl UiApp<'_> {
         widths
     }
 
+    // ####################### STYLE #######################
+    //
+
     /// Returns a `Text` object of every styled `Tag`
-    fn styled_text_for_tags<'a>(&self, entry: &[String]) -> Text<'a> {
+    fn styled_text_for_tags(&self, entry: &[String]) -> Text<'a> {
         let mut row = vec![];
 
         let path = entry[0].clone();
@@ -1534,20 +1522,97 @@ impl UiApp<'_> {
     }
 
     /// Return a styled `Span` based on user configuration
-    fn set_header_style<'a, const COLOR: [u8; 3]>(&self, text: &'a str) -> Span<'a> {
-        Span::styled(text, self.colored_style::<COLOR>())
+    fn set_header_style<const COLOR: [u8; 3]>(&self, text: &'a str, modif: Modifier) -> Span<'a> {
+        Span::styled(text, self.colored_style::<COLOR>(modif))
     }
 
     /// Return a `Style` depending on user configuration
-    fn colored_style<const COLOR: [u8; 3]>(&self) -> Style {
+    fn colored_style<const COLOR: [u8; 3]>(&self, modif: Modifier) -> Style {
         if self.is_colored() {
             Style::default()
-                .add_modifier(Modifier::BOLD)
+                .add_modifier(modif)
                 .fg(Color::Rgb(COLOR[0], COLOR[1], COLOR[2]))
         } else {
             Style::default()
         }
     }
+
+    // INFO: Double const. Not used because can't use match statements
+    // fn set_header_style<'a, const COLOR: [u8; 3], const MOD: Modifier>(
+    //     &self,
+    //     text: &'a str,
+    // ) -> Span<'a> {
+    //     Span::styled(text, self.colored_style::<COLOR, MOD>())
+    // }
+    //
+    // /// Return a `Style` depending on user configuration
+    // fn colored_style<const COLOR: [u8; 3], const MOD: Modifier>(&self) -> Style {
+    //     if self.is_colored() {
+    //         Style::default()
+    //             .add_modifier(MOD)
+    //             .fg(Color::Rgb(COLOR[0], COLOR[1], COLOR[2]))
+    //     } else {
+    //         Style::default()
+    //     }
+    // }
+
+    // #################### REGISTRY ####################
+    //
+
+    /// Get the `TagRegistry`'s last modification time
+    fn get_registry_mtime(&self) -> Result<SystemTime> {
+        fs::metadata(self.registry.path.clone())
+            .map(|m| m.modified().ok())?
+            .ok_or_else(|| anyhow!("Unable to get tag registry modified time"))
+    }
+
+    /// Determine whether the `TagRegistry` has been modified since the screen
+    /// was drawn
+    pub(crate) fn changed_since(&mut self, prev: Option<SystemTime>) -> Result<bool> {
+        if let Some(prev) = prev {
+            let mtime = self.get_registry_mtime()?;
+            if mtime > prev {
+                Ok(true)
+            } else {
+                let now = SystemTime::now();
+                let max_delta = Duration::from_secs(60);
+                Ok(now.duration_since(prev)? > max_delta)
+            }
+        } else {
+            Ok(true)
+        }
+    }
+
+    /// Import the paths from the registry
+    pub(crate) fn import_paths(&mut self) {
+        let entries = self.get_full_tag_hash();
+        let mut paths = vec![];
+
+        for entry in entries {
+            paths.push(entry.0);
+        }
+
+        self.registry_paths = paths;
+    }
+
+    fn path_by_id(&self, id: EntryId) -> Option<&EntryData> {
+        self.registry.get_entry(id)
+
+        // let paths = &self.registry_paths;
+        // let m = tasks.iter().find(|t| *t.uuid() == uuid);
+        // m.cloned()
+    }
+
+    fn path_idx_by_id(&self, id: EntryId) -> Option<usize> {
+        let paths = &self.registry_paths;
+
+        paths
+            .iter()
+            .position(|p| self.registry.find_entry(p).unwrap_or_default() == id)
+    }
+
+    // #################### COMPLETIONS ####################
+    //
 
     /// Update items in the completion list
     pub(crate) fn update_completion_list(&mut self) {

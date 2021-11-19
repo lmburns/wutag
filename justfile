@@ -119,11 +119,10 @@ d-merged:
 cliff:
   git cliff --unreleased --strip all
 
-# git cliff --tag {{TAG}} > CHANGELOG.md
-
 # create and sign/verify tag
 sign-tag TAG:
-  git commit -m "chore(release): prepare for {{TAG}}"
+  git cliff --tag {{TAG}} > CHANGELOG.md
+  git add -A && git commit -m "chore(release): prepare for {{TAG}}"
   git tag -sa {{TAG}} -m "Release {{TAG}}"
   git tag -v {{TAG}}
 

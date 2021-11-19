@@ -34,9 +34,9 @@ conventional_commits = true
 
 # regex for parsing and grouping commits
 commit_parsers = [
-  { message = "^(feat|added|new): *", group = "Added" },
-  { message = "^*: Add*", group = "Added" },
-  { message = "^*: Support*", group = "Added" },
+  { message = "^(feat.*|added|new): .*", group = "Added" },
+  { message = "^.*: Add.*", group = "Added" },
+  { message = "^.*: Support*", group = "Added" },
   { message = "^fix: *", group = "Fixed" },
   { message = "^*: Fix*", group = "Fixed" },
   { message = "^*: Remove*", group = "Removed" },
@@ -48,7 +48,7 @@ commit_parsers = [
   { message = "^test: *", group = "Fixed" },
   { message = "^(chore|misc): *", group = "Miscellaneous Tasks" },
   { message = "^chore\\(release\\): prepare for", skip = true },
-  { message = "^*", group = "Changed" },
+  # { message = ".*", group = "Changed" },
 ]
 # filter out the commits that are not matched by commit parsers
 filter_commits = false

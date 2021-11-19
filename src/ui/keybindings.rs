@@ -1,3 +1,4 @@
+#![allow(clippy::non_ascii_literal)]
 //! Keybindings for help menu within TUI
 
 use once_cell::sync::Lazy;
@@ -8,7 +9,7 @@ use tui::{
     widgets::ListItem,
 };
 
-use super::ui_app::{DARK_BLUE, GREEN};
+use super::ui_app::{GREEN, MAGENTA, PINK, YELLOW};
 
 /// Representation of a keybinding
 #[derive(Debug, Clone, Copy)]
@@ -63,27 +64,39 @@ impl<'a> Keybinding<'a> {
 
     /// Returns [`Keybinding`] as a [`ListItem`]
     pub(crate) fn as_list_item(&self, colored: bool, highlighted: bool) -> ListItem<'a> {
+        // .fg(Color::Reset)
+        // Current selection
         let highlight_style = if highlighted {
-            Style::default().fg(Color::Reset)
+            Style::default()
+                .fg(Color::Rgb(PINK[0], PINK[1], PINK[2]))
+                .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(Color::Rgb(GREEN[0], GREEN[1], GREEN[2]))
+            Style::default().fg(Color::Rgb(MAGENTA[0], MAGENTA[1], MAGENTA[2]))
         };
+
         ListItem::new(if colored {
             Text::from(vec![
                 Spans::from(self.key.split(',').fold(Vec::new(), |mut keys, key| {
                     keys.push(Span::styled("[", highlight_style));
                     keys.push(Span::styled(
                         key,
-                        Style::default()
-                            .fg(Color::Rgb(DARK_BLUE[0], DARK_BLUE[1], DARK_BLUE[2]))
-                            .add_modifier(Modifier::BOLD),
+                        if highlighted {
+                            Style::default()
+                                .fg(Color::Rgb(YELLOW[0], YELLOW[1], YELLOW[2]))
+                                .add_modifier(Modifier::BOLD)
+                        } else {
+                            Style::default()
+                                .fg(Color::Rgb(YELLOW[0], YELLOW[1], YELLOW[2]))
+                                .add_modifier(Modifier::DIM)
+                                .add_modifier(Modifier::BOLD)
+                        },
                     ));
                     keys.push(Span::styled("] ", highlight_style));
                     keys
                 })),
                 // └─
                 Spans::from(vec![
-                    Span::styled(" \u{2514}\u{2500}", Style::default().fg(Color::DarkGray)),
+                    Span::styled(" └─", Style::default().fg(Color::DarkGray)),
                     Span::styled(self.action, highlight_style),
                 ]),
                 Spans::default(),

@@ -14,8 +14,7 @@ pub(crate) mod view;
 // TODO: imply tags
 // TODO: rename tags
 // TODO: merge tags
-// TODO: tag values
-// TODO: search or/and
+// TODO: tag value attributes
 
 use uses::{
     env, parse_color, parse_color_cli_table, registry, ui, wutag_error, wutag_fatal, Color,

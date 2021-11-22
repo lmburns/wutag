@@ -158,13 +158,10 @@ impl TagRegistry {
 
         let data = fs::read(path).context("failed to read saved registry")?;
         serde_yaml::from_slice(&data).context("failed to deserialize tag registry")
-
-        // serde_cbor::from_slice(&data).context("")
     }
 
     /// Saves the registry serialized to the path from which it was loaded.
     pub(crate) fn save(&self) -> Result<()> {
-        // let serialized = serde_cbor::to_vec(&self).context("")?;
         let serialized = serde_yaml::to_vec(&self).context("failed to serialize tag registry")?;
 
         fs::write(&self.path, &serialized).context("failed to save registry")

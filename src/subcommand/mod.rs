@@ -47,12 +47,8 @@ pub(crate) struct App {
     pub(crate) encrypt: EncryptConfig,
 }
 
-// TODO: Move this? Where should it be at?
-// This must be moved out of the `impl` for the `App` so that way it can be
-// accessed outside of the `App` struct, which requires that every field of the
-// `UiApp` be thread safe, and it is not
-
 impl App {
+    /// Run the application
     pub(crate) fn run(opts: Opts, config: &Config) -> Result<()> {
         let mut app = Self::new(&opts, config.clone())?;
         log::trace!("CONFIGURATION FILE: {:#?}", config);
@@ -62,6 +58,7 @@ impl App {
         Ok(())
     }
 
+    /// Create a new instance of the application
     pub(crate) fn new(opts: &Opts, config: Config) -> Result<App> {
         let base_dir = if let Some(base_dir) = &opts.dir {
             if base_dir.display().to_string() == "." {

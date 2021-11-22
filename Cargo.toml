@@ -66,6 +66,7 @@ thiserror = "1.0.26"
 toml = "0.5.8"
 itertools = "0.10.1"
 strip-ansi-escapes = "0.1.1"
+indexmap = { version = "1.7.0", features = ["serde-1"] }
 
 # TODO: use or remove
 termion = "1.5.5"

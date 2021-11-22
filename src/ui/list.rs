@@ -1,7 +1,9 @@
+// Taken from `gpg-tui`
+
 use tui::widgets::ListState;
 
 /// List widget with an internally controlled state
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct StatefulList<T> {
     /// Items that make up the `StatefulList`
     pub(crate) items: Vec<T>,

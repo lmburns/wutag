@@ -1,17 +1,15 @@
-// TODO: Handles errors when saving file
-
 use super::{
     uses::{
         bold_entry, clear_tags, contained_path, create_temp_path, fmt_path, fmt_tag, fs,
         glob_builder, osstr_to_bytes, process, raw_local_path, reg_ok, regex_builder, ternary,
-        wutag_error, wutag_fatal, wutag_info, Arc, ArgSettings, Args, BTreeMap, Colorize, Cow,
-        DirEntryExt, EntryData, IntoParallelRefIterator, Lexiclean, OsStr, ParallelIterator,
-        PathBuf, Tag, Write, DEFAULT_EDITOR,
+        wutag_error, wutag_fatal, wutag_info, Arc, ArgSettings, Args, BTreeMap, Captures, Colorize,
+        Cow, DirEntryExt, EntryData, IntoParallelRefIterator, Lexiclean, OsStr, ParallelIterator,
+        PathBuf, Regex, Tag, Write, DEFAULT_EDITOR,
     },
     App,
 };
 
-#[derive(Args, Debug, Clone, PartialEq)]
+#[derive(Args, Debug, Clone, PartialEq, Default)]
 pub(crate) struct ViewOpts {
     /// Open tags in selected edtor (use only with vi, vim, neovim)
     #[clap(
@@ -164,9 +162,12 @@ impl App {
         // Opts needs to overwrite config, which is why it's matched first
         let match_format = |format: &String| -> String {
             match format.as_str() {
-                "toml" => toml::to_string(&map).expect("Unable to convert toml"),
-                "json" => serde_json::to_string_pretty(&map).expect("Unable to convert to json"),
-                "yaml" | "yml" => serde_yaml::to_string(&map).expect("Unable to convert to yaml"),
+                "toml" => toml::to_string(&map)
+                    .unwrap_or_else(|e| wutag_fatal!("serialization to toml failed: {}", e)),
+                "json" => serde_json::to_string_pretty(&map)
+                    .unwrap_or_else(|e| wutag_fatal!("serialization to json failed: {}", e)),
+                "yaml" | "yml" => serde_yaml::to_string(&map)
+                    .unwrap_or_else(|e| wutag_fatal!("serialization to yaml failed: {}", e)),
                 _ => unreachable!(),
             }
         };
@@ -213,19 +214,60 @@ impl App {
             .status()
             .expect("could not spawn editor");
 
+        // Used to help highlight errors for whatever reason
+        let re = Regex::new(r"^(\b[[:word:].]+\b): (.*)$").unwrap();
+        let color_file = |e: String| -> String {
+            let cloned = e.clone();
+            let string = if re.is_match(&cloned) {
+                re.replace(&cloned, |caps: &Captures| {
+                    format!(
+                        "{}: {}",
+                        caps.get(1).map_or(String::from(""), |m| m
+                            .as_str()
+                            .red()
+                            .bold()
+                            .to_string()),
+                        caps.get(2)
+                            .map_or(String::from(""), |m| m.as_str().to_string())
+                    )
+                })
+            } else {
+                Cow::from(e)
+            };
+            String::from(string)
+        };
+
         let serialized_format = |format: &String| -> BTreeMap<String, Vec<String>> {
             match format.as_str() {
                 "toml" =>
                     toml::from_slice(&fs::read(&tmp_path).expect("failed to read tagged file"))
-                        .expect("failed to deserialize tag file"),
+                        .unwrap_or_else(|e| {
+                            wutag_fatal!(
+                                "toml deserialization failed:\n\t{} {}",
+                                "+".red().bold(),
+                                color_file(e.to_string())
+                            )
+                        }),
                 "json" => serde_json::from_slice(
                     &fs::read(&tmp_path).expect("failed to read tagged file"),
                 )
-                .expect("failed to deserialize tag file"),
+                .unwrap_or_else(|e| {
+                    wutag_fatal!(
+                        "json deserialization failed:\n\t{} {}",
+                        "+".red().bold(),
+                        color_file(e.to_string())
+                    )
+                }),
                 "yaml" | "yml" => serde_yaml::from_slice(
                     &fs::read(&tmp_path).expect("failed to read tagged file"),
                 )
-                .expect("failed to deserialize tag file"),
+                .unwrap_or_else(|e| {
+                    wutag_fatal!(
+                        "yaml deserialization failed:\n\t{} {}",
+                        "+".red().bold(),
+                        color_file(e.to_string())
+                    )
+                }),
                 _ => unreachable!(),
             }
         };

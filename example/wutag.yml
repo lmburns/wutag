@@ -50,29 +50,29 @@ keys:
   preview: { Char: P }
 
 # Options for keys include (copy is used to show structure of every example):
-  # copy: { Char: x } -- Any single character
-  # copy: { Alt: x }  -- Alt + any single character
-  # copy: { Ctrl: x } -- Ctrl + any single character
-  # copy: { F: 1 }    -- Function key + any digit
-  # copy: Backspace
-  # copy: CtrlBackspace
-  # copy: AltBackspace
-  # copy: Left
-  # copy: Right
-  # copy: Up
-  # copy: Down
-  # copy: Home
-  # copy: End
-  # copy: PageUp
-  # copy: PageDown
-  # copy: Tab
-  # copy: BackTab
-  # copy: Insert
-  # copy: Delete
-  # copy: CtrlDelete
-  # copy: AltDelete
-  # copy: Esc
-  # copy: Null
+# copy: { Char: x } -- Any single character
+# copy: { Alt: x }  -- Alt + any single character
+# copy: { Ctrl: x } -- Ctrl + any single character
+# copy: { F: 1 }    -- Function key + any digit
+# copy: Backspace
+# copy: CtrlBackspace
+# copy: AltBackspace
+# copy: Left
+# copy: Right
+# copy: Up
+# copy: Down
+# copy: Home
+# copy: End
+# copy: PageUp
+# copy: PageDown
+# copy: Tab
+# copy: BackTab
+# copy: Insert
+# copy: Delete
+# copy: CtrlDelete
+# copy: AltDelete
+# copy: Esc
+# copy: Null
 
 ##############
 # TUI settings
@@ -86,6 +86,20 @@ tui:
   tick_rate: 250
   # Command that lists files on startup
   startup_cmd: "--global list files --with-tags"
+  # Whether some colors should flash
+  flashy: true
+  # Whether to use the builtin (standard) variable mappings should be implemented
+  default_alias: true
+  # Hash of mappings to be replaced in path strings
+  # Environment variables can be used on the right side (they'll be expanded)
+  # The order in which they are added matters.
+  # E.g., - $XDG_CONFIG_HOME: /home/user/.config
+  #       - $HOME           : /home
+  # The longer one needs to be listed first or the shorter one may never be implemented
+  # What this does is replace every occurence of /home with %HOME in the strings
+  shorten_hash:
+    ZDOTDIR: $ZDOTDIR
+    HOME: $HOME
 
   # Whether tags should be bold
   tags_bold: true
@@ -124,9 +138,9 @@ tui:
 encryption:
   # Public GPG key to encrypt the database with
   # Can be in these formats:
-    # - E93ACCAAAEB024788C106EDEC011CBEF6628B679 (long fingerprint)
-    # - C011CBEF6628B679                         (short fingerprint)
-    # - email@email.com                          (email)
+  # - E93ACCAAAEB024788C106EDEC011CBEF6628B679 (long fingerprint)
+  # - C011CBEF6628B679                         (short fingerprint)
+  # - email@email.com                          (email)
   public_key: "GPG_KEY_FINGERPRINT"
   # Whether or not to actually encrypt the database
   to_encrypt: false

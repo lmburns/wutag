@@ -20,8 +20,8 @@ set edit:completion:arg-completer[wutag] = [@words]{
         &'wutag'= {
             cand -d 'Specify starting path for filesystem traversal'
             cand --dir 'Specify starting path for filesystem traversal'
-            cand -m 'Increase maximum recursion depth from 2'
-            cand --max-depth 'Increase maximum recursion depth from 2'
+            cand -m 'Set maximum depth to recurse into'
+            cand --max-depth 'Set maximum depth to recurse into'
             cand -R 'Specify a different registry to use'
             cand --registry 'Specify a different registry to use'
             cand -c 'When to colorize output'

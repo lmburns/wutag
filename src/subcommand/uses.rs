@@ -10,7 +10,10 @@ pub(crate) use colored::{Color, Colorize};
 pub(crate) use crossbeam_channel as channel;
 pub(crate) use lexiclean::Lexiclean;
 pub(crate) use rayon::prelude::*;
-pub(crate) use regex::bytes::{RegexSet, RegexSetBuilder};
+pub(crate) use regex::{
+    bytes::{RegexSet, RegexSetBuilder},
+    Captures, Regex,
+};
 
 pub(crate) use std::{
     borrow::Cow,

@@ -1,9 +1,8 @@
 #![allow(unused)]
-// TODO: selection highlight
 
-//! This is taken from `taskwarrior-tui` and provides a `Table` with custom
-//! modifications that are similar to the default
-//! [Table](tui::widgets::table::Table)
+//! This is partially taken from `taskwarrior-tui` and provides a `Table` with
+//! custom modifications that are similar to the default
+//! [Table](tui::widgets::table::Table). I've added several other features
 
 use cassowary::{
     strength::{MEDIUM, REQUIRED, WEAK},

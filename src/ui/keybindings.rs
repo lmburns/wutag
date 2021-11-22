@@ -1,35 +1,54 @@
 #![allow(clippy::non_ascii_literal)]
 //! Keybindings for help menu within TUI
 
+// Keybinding {
+//     key:         "hjkl,arrows,pgkeys",
+//     action:      "navigate",
+//     description: r#"
+//     Scrolls the current widget or selects the next/previous tab.
+//     M-<key>: scroll the table rows
+//     C-<key>,pgup,pgdown: scroll to top/bottom
+//     :scroll (row) up/down/left/right <amount>
+//     "#,
+
+use crate::config::KeyConfig;
 use once_cell::sync::Lazy;
-use std::fmt;
+use std::{collections::HashMap, fmt};
 use tui::{
     style::{Color, Modifier, Style},
     text::{Span, Spans, Text},
     widgets::ListItem,
 };
 
-use super::ui_app::{GREEN, MAGENTA, PINK, YELLOW};
+use super::{
+    event::Key,
+    ui_app::{GREEN, MAGENTA, PINK, YELLOW},
+};
+
+// Would be string slices, but I haven't figured out how to convert an enum
+// value to a string slice. An error is given about temporary variables being
+// referenced at the same time their being dropped at the end of the function.
+// It would make it much easier if they could be slices
 
 /// Representation of a keybinding
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct Keybinding<'a> {
+#[derive(Debug, Clone, Default)]
+pub(crate) struct Keybinding {
     /// Keybinding
-    key:                    &'a str,
+    pub(crate) key:         String,
     /// Action that the keybinding executes
-    action:                 &'a str,
+    pub(crate) action:      String,
     /// Description of the keybinding that is shown in the help screen
-    pub(crate) description: &'a str,
+    pub(crate) description: String,
 }
 
-impl fmt::Display for Keybinding<'_> {
+impl fmt::Display for Keybinding {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}",
             // └─
             format!(
-                "{}\n \u{2514}\u{2500}{}\n ",
+                "{}\n └─{}\n ",
                 self.key
                     .split(',')
                     .fold(String::new(), |acc, v| format!("{}[{}] ", acc, v)),
@@ -39,9 +58,9 @@ impl fmt::Display for Keybinding<'_> {
     }
 }
 
-impl<'a> Keybinding<'a> {
+impl Keybinding {
     /// Build an instance of [`Keybinding`]
-    pub(crate) fn new(key: &'a str, action: &'a str, description: &'a str) -> Self {
+    pub(crate) fn new(key: String, action: String, description: String) -> Self {
         Self {
             key,
             action,
@@ -50,8 +69,9 @@ impl<'a> Keybinding<'a> {
     }
 
     /// Return description of a keybinding
-    pub(crate) fn get_description_text(&self, command_style: Style) -> Text<'a> {
+    pub(crate) fn get_description_text(&self, command_style: Style) -> Text {
         let mut lines = Vec::new();
+
         for line in self.description.lines().map(|v| format!("{}\n", v.trim())) {
             lines.push(if line.starts_with(':') {
                 Spans::from(Span::styled(line, command_style))
@@ -63,9 +83,10 @@ impl<'a> Keybinding<'a> {
     }
 
     /// Returns [`Keybinding`] as a [`ListItem`]
-    pub(crate) fn as_list_item(&self, colored: bool, highlighted: bool) -> ListItem<'a> {
+    pub(crate) fn as_list_item(&self, colored: bool, highlighted: bool) -> ListItem {
         // .fg(Color::Reset)
         // Current selection
+
         let highlight_style = if highlighted {
             Style::default()
                 .fg(Color::Rgb(PINK[0], PINK[1], PINK[2]))
@@ -97,7 +118,7 @@ impl<'a> Keybinding<'a> {
                 // └─
                 Spans::from(vec![
                     Span::styled(" └─", Style::default().fg(Color::DarkGray)),
-                    Span::styled(self.action, highlight_style),
+                    Span::styled(self.action.clone(), highlight_style),
                 ]),
                 Spans::default(),
             ])
@@ -106,111 +127,3 @@ impl<'a> Keybinding<'a> {
         })
     }
 }
-
-/// Collection of all possible keybindings found in the `wutag` TUI
-pub(crate) static KEYBINDINGS: Lazy<&[Keybinding]> = Lazy::new(|| {
-    &[
-        Keybinding {
-            key:         "?",
-            action:      "show help",
-            description: r#"
-            Show this help menu
-            "#,
-        },
-        Keybinding {
-            key:         "esc,q",
-            action:      "exit",
-            description: r#"
-            Exit the program
-            "#,
-        },
-        Keybinding {
-            key:         "testing,key",
-            action:      "exit",
-            description: r#"
-            Exit the program
-            "#,
-        },
-        Keybinding {
-            key:         "testing,again",
-            action:      "exit",
-            description: r#"
-            Exit the program
-            "#,
-        },
-        Keybinding {
-            key:         "testing,even",
-            action:      "exit",
-            description: r#"
-            Exit the program
-            "#,
-        },
-        Keybinding {
-            key:         "haha",
-            action:      "exit",
-            description: r#"
-            Exit the program
-            "#,
-        },
-        Keybinding {
-            key:         "more",
-            action:      "exit",
-            description: r#"
-            Exit the program
-            "#,
-        },
-        Keybinding {
-            key:         "lol",
-            action:      "exit",
-            description: r#"
-            Exit the program
-            "#,
-        },
-        Keybinding {
-            key:         "long",
-            action:      "exit",
-            description: r#"
-            Exit the program
-            "#,
-        },
-        Keybinding {
-            key:         "again",
-            action:      "exit",
-            description: r#"
-            Exit the program
-            "#,
-        },
-        Keybinding {
-            key:         "abc",
-            action:      "exit",
-            description: r#"
-            Exit the program
-            "#,
-        },
-        Keybinding {
-            key:         "further",
-            action:      "exit",
-            description: r#"
-            Exit the program
-            "#,
-        },
-        Keybinding {
-            key:         "bottom",
-            action:      "exit",
-            description: r#"
-            Exit the program
-            :ok test
-            "#,
-        },
-        Keybinding {
-            key:         "hjkl,arrows,pgkeys",
-            action:      "navigate",
-            description: r#"
-            Scrolls the current widget or selects the next/previous tab.
-            M-<key>: scroll the table rows
-            C-<key>,pgup,pgdown: scroll to top/bottom
-            :scroll (row) up/down/left/right <amount>
-            "#,
-        },
-    ]
-});

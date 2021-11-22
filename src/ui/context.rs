@@ -2,7 +2,7 @@
 #![allow(unused)]
 
 use crate::registry::TagRegistry;
-use std::{fmt, path::PathBuf};
+use std::{env, fmt, path::PathBuf};
 
 /// Context of the current application (only used within the TUI)
 #[derive(Debug, Clone)]
@@ -21,7 +21,7 @@ impl Context {
     /// Create a new instance of `Context`
     pub(crate) fn new(registry: TagRegistry) -> Self {
         Self {
-            current_dir:      std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+            current_dir:      env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             current_registry: registry.path,
         }
     }

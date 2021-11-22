@@ -22,8 +22,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
         'wutag' {
             [CompletionResult]::new('-d', 'd', [CompletionResultType]::ParameterName, 'Specify starting path for filesystem traversal')
             [CompletionResult]::new('--dir', 'dir', [CompletionResultType]::ParameterName, 'Specify starting path for filesystem traversal')
-            [CompletionResult]::new('-m', 'm', [CompletionResultType]::ParameterName, 'Increase maximum recursion depth from 2')
-            [CompletionResult]::new('--max-depth', 'max-depth', [CompletionResultType]::ParameterName, 'Increase maximum recursion depth from 2')
+            [CompletionResult]::new('-m', 'm', [CompletionResultType]::ParameterName, 'Set maximum depth to recurse into')
+            [CompletionResult]::new('--max-depth', 'max-depth', [CompletionResultType]::ParameterName, 'Set maximum depth to recurse into')
             [CompletionResult]::new('-R', 'R', [CompletionResultType]::ParameterName, 'Specify a different registry to use')
             [CompletionResult]::new('--registry', 'registry', [CompletionResultType]::ParameterName, 'Specify a different registry to use')
             [CompletionResult]::new('-c', 'c', [CompletionResultType]::ParameterName, 'When to colorize output')

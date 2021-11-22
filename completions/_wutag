@@ -17,8 +17,8 @@ _wutag() {
     _arguments "${_arguments_options[@]}" \
 '-d+[Specify starting path for filesystem traversal]:dir:_files -/' \
 '--dir=[Specify starting path for filesystem traversal]:dir:_files -/' \
-'-m+[Increase maximum recursion depth from 2]:num: ' \
-'--max-depth=[Increase maximum recursion depth from 2]:num: ' \
+'-m+[Set maximum depth to recurse into]:num: ' \
+'--max-depth=[Set maximum depth to recurse into]:num: ' \
 '-R+[Specify a different registry to use]:reg:_files' \
 '--registry=[Specify a different registry to use]:reg:_files' \
 '-c+[When to colorize output]:when:(never auto always)' \

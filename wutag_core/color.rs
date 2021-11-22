@@ -195,7 +195,6 @@ pub fn parse_color_tui<S: AsRef<str>>(color: S) -> Result<tui::Color> {
     if let Some(color) = result {
         // hex
         if let Some((r, g, b)) = parse_hex(color) {
-            println!("PARSED COLOR FUN");
             return Ok(tui::Color::Rgb(r, g, b));
         }
     }

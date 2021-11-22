@@ -1,16 +1,16 @@
 #![allow(unused)]
-pub(crate) mod event;
-// pub(crate) mod style;
 pub(crate) mod command;
 pub(crate) mod completion;
 pub(crate) mod context;
+pub(crate) mod event;
 pub(crate) mod history;
 pub(crate) mod keybindings;
 pub(crate) mod list;
+pub(crate) mod mtui;
 pub(crate) mod table;
 pub(crate) mod ui_app;
 
-pub(crate) use event::{Event, EventConfig, Events};
+pub(crate) use event::{Event, EventConfig, EventHandler};
 pub(crate) use ui_app::AppMode;
 
 use crate::{config::Config, registry::TagRegistry, subcommand::App};
@@ -36,6 +36,15 @@ pub(crate) enum Error {
     /// Failure to start UI
     #[error("failed to start UI: {0}")]
     UiStartFailure(#[source] anyhow::Error),
+    /// Failure to stop UI
+    #[error("failed to stop UI: {0}")]
+    UiStopFailure(#[source] anyhow::Error),
+    /// Failure to render/draw UI
+    #[error("failed to render UI: {0}")]
+    UiRender(#[source] anyhow::Error),
+    /// Failure to pause UI
+    #[error("failed to pause UI: {0}")]
+    UiPause(#[source] anyhow::Error),
     /// Failure to receive next item from channel
     #[error("failed receive from the crossbeam_channel: {0}")]
     Recv(#[source] crossbeam_channel::RecvError),
@@ -45,6 +54,9 @@ pub(crate) enum Error {
     /// Failure from input of UI
     #[error("failure handling UI input: {0}")]
     InputHandling(#[source] anyhow::Error),
+    /// Failure to setup terminal
+    #[error("failure setting up terminal: {0}")]
+    TerminalSetup(#[source] io::Error),
     /// Custom string as error
     #[error("{0}")]
     Custom(String),
@@ -82,20 +94,22 @@ pub(crate) fn start_ui(cli_app: &App, config: Config, registry: TagRegistry) -> 
     }));
 
     let mut app = ui_app::UiApp::new(config, registry).map_err(Error::UiStartFailure)?;
-    let mut terminal = setup_terminal();
-    app.render(cli_app, &mut terminal).unwrap();
+    let backend = CrosstermBackend::new(io::stdout());
+    let terminal = Terminal::new(backend).map_err(Error::TerminalSetup)?;
 
-    let events = Events::with_config(EventConfig {
-        tick_rate: Duration::from_millis(app.config.ui.tick_rate),
-    });
+    let events = EventHandler::new(EventConfig::new(app.config.ui.tick_rate));
+    let mut tui = mtui::Tui::new(terminal, events);
+    tui.enter_tui_mode().map_err(Error::UiStartFailure)?;
 
+    let mut toggle_pause = false;
     loop {
-        app.render(cli_app, &mut terminal).unwrap();
-        match events.next().map_err(Error::Recv)? {
+        tui.render(cli_app, &mut app).map_err(Error::UiRender)?;
+        match tui.events.next().map_err(Error::Recv)? {
             Event::Input(input) => {
-                // TODO: Allow editing of files
                 if input == app.config.keys.edit && app.mode == AppMode::List {
-                    events.leave_tui_mode(&mut terminal);
+                    // tui.leave_tui_mode().map_err(Error::UiStopFailure)?;
+                    tui.toggle_pause().map_err(Error::UiPause)?;
+                    toggle_pause = true;
                 }
 
                 let res = app.handle_input(input);
@@ -103,22 +117,29 @@ pub(crate) fn start_ui(cli_app: &App, config: Config, registry: TagRegistry) -> 
                 if (input == app.config.keys.edit && app.mode == AppMode::List)
                     || app.mode == AppMode::Error
                 {
-                    events.enter_tui_mode(&mut terminal);
+                    // tui.enter_tui_mode().map_err(Error::UiStartFailure)?;
+                    tui.toggle_pause().map_err(Error::UiPause)?;
+                    toggle_pause = false;
+                }
+
+                if toggle_pause {
+                    tui.toggle_pause().map_err(Error::UiPause)?;
                 }
 
                 if let Err(e) = res {
-                    destruct_terminal();
+                    tui.leave_tui_mode();
                     return Err(Error::InputHandling(e));
                 }
             },
             Event::Tick =>
                 if let Err(e) = app.update(false) {
-                    destruct_terminal();
+                    tui.leave_tui_mode().map_err(Error::UiStopFailure)?;
                     return Err(Error::Updating(e));
                 },
         }
+
         if app.should_quit {
-            destruct_terminal();
+            tui.leave_tui_mode().map_err(Error::UiStopFailure)?;
             break;
         }
     }

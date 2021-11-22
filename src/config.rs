@@ -1,8 +1,12 @@
 #![allow(unused)]
 use anyhow::{anyhow, Context, Result};
 use colored::Colorize;
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::{
+    borrow::Cow,
+    env,
+    ffi::OsString,
     fs,
     io::Write,
     path::{Path, PathBuf},
@@ -62,16 +66,27 @@ pub(crate) struct EncryptConfig {
 pub(crate) struct UiConfig {
     /// Whether the UI is colored
     #[serde(alias = "colored-ui")]
-    pub(crate) colored_ui:  bool,
+    pub(crate) colored_ui:    bool,
     /// TODO: ??
-    pub(crate) looping:     bool,
+    pub(crate) looping:       bool,
     /// Command to run on startup to display files
     #[serde(alias = "startup-cmd", alias = "startup-command")]
-    pub(crate) startup_cmd: Option<String>,
+    pub(crate) startup_cmd:   Option<String>,
     /// Refresh rate of application
     #[serde(alias = "tick-rate")]
-    pub(crate) tick_rate:   u64,
+    pub(crate) tick_rate:     u64,
+    /// Whether some colors should flash
+    #[serde(alias = "flash")]
+    pub(crate) flashy:        bool,
+    /// Map /home/user to $HOME
+    #[serde(alias = "default-shorten")]
+    pub(crate) default_alias: bool,
+    /// Hash of these mappings /home/user to $HOME
+    #[serde(alias = "shorten-hash")]
+    pub(crate) alias_hash:    IndexMap<String, String>,
 
+    // #[serde(skip)]
+    // pub(crate) default_alias_hash: IndexMap<String, String>,
     /// Whether tags should be displayed as bold
     #[serde(alias = "tags-bold", alias = "bold-tags")]
     pub(crate) tags_bold:        bool,
@@ -117,7 +132,7 @@ pub(crate) struct UiConfig {
 }
 
 /// UI Key configuration
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case", default)]
 pub(crate) struct KeyConfig {
     pub(crate) quit:         Key,
@@ -182,6 +197,9 @@ impl Default for UiConfig {
         Self {
             colored_ui:          true,
             looping:             true,
+            flashy:              true,
+            default_alias:       true,
+            alias_hash:          IndexMap::new(),
             tick_rate:           250_u64,
             startup_cmd:         Some(String::from("--global list files --with-tags")),
             tags_bold:           true,
@@ -278,6 +296,189 @@ impl KeyConfig {
                 )
             ))
         }
+    }
+
+    /// Return the field name as a string for generating keybindings help within
+    /// the TUI
+    pub(crate) fn fieldname(&self, other: Key) -> String {
+        match other {
+            s if s == self.quit => "quit",
+            s if s == self.up => "up",
+            s if s == self.down => "down",
+            s if s == self.go_to_top => "go to top",
+            s if s == self.go_to_bottom => "go to bottom",
+            s if s == self.page_up => "page up",
+            s if s == self.page_down => "page down",
+            s if s == self.select_all => "select all",
+            s if s == self.select => "select",
+            s if s == self.refresh => "refresh",
+            s if s == self.help => "help",
+            s if s == self.add => "add",
+            s if s == self.clear => "clear",
+            s if s == self.remove => "remove",
+            s if s == self.edit => "edit",
+            s if s == self.search => "search",
+            s if s == self.copy => "copy",
+            s if s == self.preview => "preview",
+            _ => unreachable!(),
+        }
+        .to_string()
+    }
+}
+
+impl UiConfig {
+    /// Create the default alias hash. `IndexMap` is needed to keep track of the
+    /// order the user adds the variables. If one variable is `$XDG_CONFIG_HOME`
+    /// which is `$HOME/.config`, and `$HOME` is also a variable, the longer and
+    /// more specific variable should replace parts of the path first.
+    ///
+    /// This also adds the user's custom aliases from the configuration file
+    pub(crate) fn build_alias_hash(&mut self) -> IndexMap<String, String> {
+        if self.alias_hash.is_empty() && !self.default_alias {
+            return IndexMap::new();
+        }
+
+        let mut alias_hash = IndexMap::new();
+
+        for var in self.alias_hash.keys() {
+            alias_hash.insert(
+                PathBuf::from(
+                    shellexpand::full(self.alias_hash.get(var).unwrap())
+                        .unwrap_or_else(|_| {
+                            Cow::from(
+                                shellexpand::LookupError {
+                                    var_name: "UNKNOWN_ENVIRONMENT_VARIABLE".into(),
+                                    cause:    env::VarError::NotPresent,
+                                }
+                                .to_string(),
+                            )
+                        })
+                        .to_string(),
+                )
+                .display()
+                .to_string(),
+                format!("%{}", var),
+            );
+        }
+
+        // The unwrap INVALID_ is used here since these will get inserted into the hash
+        // anyway, if for whatever reason a distribution does not have this directory,
+        // therefore it should never get registered because the path will never
+        // register. It would be better to have this than an error be thrown crashing
+        // the program
+        if self.default_alias {
+            // Used to insert the default directory given by `dirs`
+            let insert_default =
+                |hash: &mut IndexMap<String, String>, dir: Option<PathBuf>, name: &str| {
+                    hash.insert(
+                        dir.unwrap_or_else(|| {
+                            PathBuf::from(format!("INVALID_{}_DIR", name.replace("DIR", "")))
+                        })
+                        .display()
+                        .to_string(),
+                        format!("%{}", name),
+                    )
+                };
+
+            // Used for alternative folders for `macOS`. Use XDG specs instead
+            let alt_dirs = |path: Option<PathBuf>, join: &str, var: &str| -> String {
+                // Test whether the XDG variable is set. If not join with the `join`
+                #[cfg(target_os = "macos")]
+                let dir_og = std::env::var_os(format!("XDG_{}", var))
+                    .map(PathBuf::from)
+                    .filter(|p| p.is_absolute())
+                    .or_else(|| dirs::home_dir().map(|d| d.join(join)))
+                    .context(format!("Invalid {} directory", var));
+
+                #[cfg(not(target_os = "macos"))]
+                let dir_og = path;
+
+                dir_og
+                    .unwrap_or_else(|| {
+                        PathBuf::from(format!("INVALID_{}_DIR", join.to_uppercase()))
+                    })
+                    .display()
+                    .to_string()
+            };
+
+            let insert_alt = |hash: &mut IndexMap<String, String>,
+                              dir: Option<PathBuf>,
+                              join: &str,
+                              name: &str| {
+                hash.insert(alt_dirs(dir, join, name), format!("%{}", name));
+            };
+
+            // For example:
+            //      - linux: XDG_MUSIC_DIR - /home/alice/Music
+            //      - macos: $HOME/Music   - /Users/alice/Music
+            // They're in the same spot so `insert_default` is used
+            insert_default(&mut alias_hash, dirs::audio_dir(), "MUSIC_DIR");
+
+            // For example:
+            //      - linux: XDG_CACHE_DIR          - /home/alice/.cache
+            //      - macos: $HOME/Library/Caches   - /Users/alice/Library/Caches
+            // They're not in the same spot, so join `$HOME` with `.cache` on `macOS`
+            insert_alt(&mut alias_hash, dirs::cache_dir(), ".cache", "CACHE_HOME");
+
+            insert_alt(
+                &mut alias_hash,
+                dirs::config_dir(),
+                ".config",
+                "CONFIG_HOME",
+            );
+
+            insert_alt(
+                &mut alias_hash,
+                dirs::data_dir(),
+                ".local/share",
+                "DATA_HOME",
+            );
+
+            insert_default(&mut alias_hash, dirs::desktop_dir(), "DESKTOP");
+            insert_default(&mut alias_hash, dirs::document_dir(), "DOCUMENTS");
+            insert_default(&mut alias_hash, dirs::download_dir(), "DOWNLOADS");
+
+            // Not set on `macOS` at all
+            insert_alt(
+                &mut alias_hash,
+                dirs::executable_dir(),
+                ".local/bin",
+                "BIN_HOME",
+            );
+
+            insert_default(&mut alias_hash, dirs::font_dir(), "FONTS_DIR");
+            insert_default(&mut alias_hash, dirs::picture_dir(), "PICTURES");
+            insert_default(&mut alias_hash, dirs::public_dir(), "PUBLIC_DIR");
+
+            // Not set on `macOS` at all
+            insert_alt(
+                &mut alias_hash,
+                dirs::template_dir(),
+                "Templates",
+                "TEMPLATE_DIR",
+            );
+
+            insert_default(&mut alias_hash, dirs::video_dir(), "VIDEO_DIR");
+
+            // Lastly, do `$HOME` so all others will be replaced first
+            insert_default(&mut alias_hash, dirs::home_dir(), "HOME");
+
+            // Closure needs to be altered to fit something not in $HOME
+            // directory insert_alt(
+            //     &mut alias_hash,
+            //     dirs::runtime_dir(),
+            //     env::var_os("TMPDIR")
+            //         .unwrap_or_else(|| OsString::from("/tmp"))
+            //         .to_str()
+            //         .unwrap()
+            //         .to_string(),
+            //     "RUNTIME_DIR",
+            // );
+        }
+
+        alias_hash
+
+        // self.default_alias_hash = alias_hash;
     }
 }
 

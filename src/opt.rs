@@ -3,7 +3,7 @@ use clap::{crate_version, AppSettings, ArgSettings, Parser, Subcommand, ValueHin
 use std::{env, fs, path::PathBuf};
 
 use crate::{
-    consts::{AFTER_HELP, APP_ABOUT, APP_AUTHORS, FILE_TYPE, OVERRIDE_HELP},
+    consts::{AFTER_HELP, APP_ABOUT, APP_AUTHORS, DEFAULT_EDITOR, FILE_TYPE, OVERRIDE_HELP},
     subcommand::{
         clear::ClearOpts,
         cp::CpOpts,
@@ -56,7 +56,7 @@ pub(crate) struct Opts {
         take a pattern as a positional argument"
     )]
     pub(crate) dir:              Option<PathBuf>,
-    /// Increase maximum recursion depth from 2
+    /// Set maximum depth to recurse into
     #[clap(
         long, short,
         value_name = "num",
@@ -192,6 +192,20 @@ impl Opts {
                 cmd: Command::default(),
                 ..Self::default()
             }
+        }
+    }
+
+    /// Options for viewing a file within the TUI
+    pub(crate) fn view_args(pattern: &str) -> Self {
+        Self {
+            global: true,
+            regex: true,
+            cmd: Command::View(ViewOpts {
+                editor: DEFAULT_EDITOR.to_string(),
+                pattern: Some(pattern.to_string()),
+                ..ViewOpts::default()
+            }),
+            ..Self::default()
         }
     }
 }

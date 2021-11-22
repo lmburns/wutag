@@ -1,6 +1,6 @@
 
 complete -c wutag -n "__fish_use_subcommand" -s d -l dir -d 'Specify starting path for filesystem traversal' -r -f -a "(__fish_complete_directories)"
-complete -c wutag -n "__fish_use_subcommand" -s m -l max-depth -d 'Increase maximum recursion depth from 2' -r
+complete -c wutag -n "__fish_use_subcommand" -s m -l max-depth -d 'Set maximum depth to recurse into' -r
 complete -c wutag -n "__fish_use_subcommand" -s R -l registry -d 'Specify a different registry to use' -r -F
 complete -c wutag -n "__fish_use_subcommand" -s c -l color -d 'When to colorize output' -r -f -a "{never	,auto	,always	}"
 complete -c wutag -n "__fish_use_subcommand" -s t -l type -d 'File-type(s) to filter by: f|file, d|directory, l|symlink, e|empty' -r

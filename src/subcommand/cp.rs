@@ -3,8 +3,8 @@
 use super::{
     uses::{
         err, fmt_err, fmt_path, fmt_tag, glob_builder, list_tags, osstr_to_bytes, parse_path,
-        reg_ok, regex_builder, wutag_error, Arc, Args, Colorize, Cow, DirEntryExt, EntryData,
-        OsStr, PathBuf, ValueHint,
+        reg_ok, regex_builder, wutag_error, wutag_fatal, Arc, Args, Colorize, Cow, DirEntryExt,
+        EntryData, OsStr, PathBuf, Result, ValueHint,
     },
     App,
 };
@@ -35,7 +35,7 @@ pub(crate) struct CpOpts {
 }
 
 impl App {
-    pub(crate) fn cp(&mut self, opts: &CpOpts) {
+    pub(crate) fn cp(&mut self, opts: &CpOpts) -> Result<()> {
         log::debug!("CpOpts: {:#?}", opts);
         log::debug!("Using registry: {}", self.registry.path.display());
 
@@ -72,7 +72,7 @@ impl App {
                 }
 
                 if re.is_match(&search_bytes) {
-                    println!("MATCH: {}", entry.path().display());
+                    // println!("MATCH: {}", entry.path().display());
                     let entry_path = &PathBuf::from(entry.path());
                     match list_tags(entry.path()) {
                         Ok(tags) =>
@@ -80,10 +80,12 @@ impl App {
                                 if let Err(e) = entry_path.tag(tag) {
                                     err!('\t', e, entry);
                                 } else {
-                                    let entry = EntryData::new(entry.path());
+                                    let entry = EntryData::new(entry.path())?;
                                     let id = self.registry.add_or_update_entry(entry);
                                     self.registry.tag_entry(tag, id);
-                                    println!("\t{} {}", "+".bold().green(), fmt_tag(tag));
+                                    if !self.quiet {
+                                        println!("\t{} {}", "+".bold().green(), fmt_tag(tag));
+                                    }
                                 }
                             },
                         Err(e) => wutag_error!(
@@ -107,18 +109,29 @@ impl App {
                         &Arc::new(re),
                         &Arc::new(self.clone()),
                         |entry: &ignore::DirEntry| {
-                            println!(
-                                "{}:",
-                                fmt_path(entry.path(), self.base_color, self.ls_colors)
-                            );
+                            if !self.quiet {
+                                println!(
+                                    "{}:",
+                                    fmt_path(entry.path(), self.base_color, self.ls_colors)
+                                );
+                            }
                             for tag in &tags {
                                 if let Err(e) = entry.tag(tag) {
                                     err!('\t', e, entry);
                                 } else {
-                                    let entry = EntryData::new(entry.path());
+                                    let entry = if let Ok(data) = EntryData::new(entry.path()) {
+                                        data
+                                    } else {
+                                        wutag_fatal!(
+                                            "unable to create new entry: {}",
+                                            entry.path().display()
+                                        );
+                                    };
                                     let id = self.registry.add_or_update_entry(entry);
                                     self.registry.tag_entry(tag, id);
-                                    println!("\t{} {}", "+".bold().green(), fmt_tag(tag));
+                                    if !self.quiet {
+                                        println!("\t{} {}", "+".bold().green(), fmt_tag(tag));
+                                    }
                                 }
                             }
                         },
@@ -133,5 +146,7 @@ impl App {
                 ),
             }
         }
+
+        Ok(())
     }
 }

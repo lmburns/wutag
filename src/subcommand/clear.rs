@@ -1,19 +1,15 @@
 use super::{
     uses::{
-        clear_tags, err, fmt_err, fmt_ok, fmt_path, fs, glob_builder, has_tags, osstr_to_bytes,
-        reg_ok, regex_builder, wutag_fatal, Arc, Args, Colorize, Cow, DirEntryExt, OsStr,
+        clear_tags, err, fmt_err, fmt_ok, fmt_path, glob_builder, has_tags, osstr_to_bytes, reg_ok,
+        regex_builder, Arc, Args, Colorize, Cow, DirEntryExt, OsStr,
     },
     App,
 };
 
 #[derive(Args, Debug, Clone, PartialEq)]
 pub(crate) struct ClearOpts {
-    // Opts::into_app().get_matches_from(env::args_os()).is_present("global")
-    /// Clear all files from registry that no longer exist (requires --global)
-    #[clap(long, short)]
-    pub(crate) non_existent: bool,
     /// A glob pattern like "*.png".
-    pub(crate) pattern:      String,
+    pub(crate) pattern: String,
 }
 
 impl App {
@@ -49,48 +45,28 @@ impl App {
 
                 if re.is_match(search_bytes) {
                     self.registry.clear_entry(id);
-                    if opts.non_existent && fs::metadata(entry.path()).is_err() {
-                        println!(
-                            "{}\n\t{} {}",
-                            fmt_path(entry.path(), self.base_color, self.ls_colors),
-                            fmt_ok("cleared"),
-                            "old entry".magenta().bold()
-                        );
-                    } else {
-                        match has_tags(entry.path()) {
-                            Ok(has_tags) =>
-                                if has_tags {
-                                    println!(
-                                        "{}:",
-                                        fmt_path(entry.path(), self.base_color, self.ls_colors)
-                                    );
-                                    if let Err(e) = clear_tags(entry.path()) {
-                                        err!('\t', e, entry);
-                                    } else {
-                                        println!("\t{}", fmt_ok("cleared"));
-                                    }
-                                },
-                            Err(e) => {
-                                err!(e, entry);
+                    match has_tags(entry.path()) {
+                        Ok(has_tags) =>
+                            if has_tags && !self.quiet {
+                                println!(
+                                    "{}:",
+                                    fmt_path(entry.path(), self.base_color, self.ls_colors)
+                                );
+                                if let Err(e) = clear_tags(entry.path()) {
+                                    err!('\t', e, entry);
+                                } else if !self.quiet {
+                                    println!("\t{}", fmt_ok("cleared"));
+                                }
                             },
-                        }
+                        Err(e) => {
+                            err!(e, entry);
+                        },
                     }
                 }
             }
             log::debug!("Saving registry...");
             self.save_registry();
         } else {
-            // The parser for clap is great, though I've not figured out a way to get
-            // options of a subcommand to communicate with options of the main
-            // binary
-            if opts.non_existent && !self.global {
-                wutag_fatal!(
-                    "{} requires {}",
-                    "--non-existent".green(),
-                    "--global".green()
-                );
-            }
-
             reg_ok(
                 &Arc::new(re),
                 &Arc::new(self.clone()),
@@ -101,14 +77,14 @@ impl App {
 
                     match entry.has_tags() {
                         Ok(has_tags) =>
-                            if has_tags {
+                            if has_tags && !self.quiet {
                                 println!(
                                     "{}:",
                                     fmt_path(entry.path(), self.base_color, self.ls_colors)
                                 );
                                 if let Err(e) = entry.clear_tags() {
                                     err!('\t', e, entry);
-                                } else {
+                                } else if !self.quiet {
                                     println!("\t{}", fmt_ok("cleared"));
                                 }
                             },

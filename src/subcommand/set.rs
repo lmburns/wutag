@@ -1,14 +1,16 @@
 use super::{
     uses::{
         bold_entry, collect_stdin_paths, err, fmt_err, fmt_path, fmt_tag, glob_builder,
-        parse_color, reg_ok, regex_builder, wutag_error, Arc, Args, Colorize, DirEntryExt,
-        EntryData, IntoParallelRefIterator, ParallelIterator, Tag, ValueHint, DEFAULT_COLOR,
+        parse_color, reg_ok, regex_builder, wutag_error, wutag_fatal, Arc, Args, Colorize,
+        DirEntryExt, EntryData, IntoParallelRefIterator, ParallelIterator, Result, Tag, ValueHint,
+        DEFAULT_COLOR,
     },
     App,
 };
 
 #[derive(Args, Clone, Debug, PartialEq)]
 pub(crate) struct SetOpts {
+    // TODO: Implement/remove
     /// Do not show errors that tag already exists
     #[clap(name = "quiet", long, short = 'q')]
     quiet:              bool,
@@ -35,7 +37,7 @@ pub(crate) struct SetOpts {
 }
 
 impl App {
-    pub(crate) fn set(&mut self, opts: &SetOpts) {
+    pub(crate) fn set(&mut self, opts: &SetOpts) -> Result<()> {
         log::debug!("SetOpts: {:#?}", opts);
         log::debug!("Using registry: {}", self.registry.path.display());
 
@@ -78,7 +80,9 @@ impl App {
         if (opts.stdin || atty::isnt(atty::Stream::Stdin)) && atty::is(atty::Stream::Stdout) {
             log::debug!("Using STDIN");
             for entry in &collect_stdin_paths(&self.base_dir) {
-                println!("{}:", fmt_path(entry, self.base_color, self.ls_colors));
+                if !self.quiet {
+                    println!("{}:", fmt_path(entry, self.base_color, self.ls_colors));
+                }
 
                 for tag in &tags {
                     if opts.clear {
@@ -109,23 +113,29 @@ impl App {
                         }
                     } else {
                         log::debug!("Setting tag for new entry: {}", entry.display());
-                        let entry = EntryData::new(entry);
+                        let entry = EntryData::new(entry)?;
                         let id = self.registry.add_or_update_entry(entry);
                         self.registry.tag_entry(tag, id);
-                        print!("\t{} {}", "+".bold().green(), fmt_tag(tag));
+                        if !self.quiet {
+                            print!("\t{} {}", "+".bold().green(), fmt_tag(tag));
+                        }
                     }
                 }
-                println!();
+                if !self.quiet {
+                    println!();
+                }
             }
         } else {
             reg_ok(
                 &Arc::new(re),
                 &Arc::new(self.clone()),
                 |entry: &ignore::DirEntry| {
-                    println!(
-                        "{}:",
-                        fmt_path(entry.path(), self.base_color, self.ls_colors)
-                    );
+                    if !self.quiet {
+                        println!(
+                            "{}:",
+                            fmt_path(entry.path(), self.base_color, self.ls_colors)
+                        );
+                    }
                     for tag in &tags {
                         if opts.clear {
                             log::debug!(
@@ -151,18 +161,27 @@ impl App {
                         if let Err(e) = entry.tag(tag) {
                             log::debug!("Error setting tag for: {}", entry.path().display());
                             // TODO: Make this skip printing path too
-                            if !opts.quiet {
+                            if !self.quiet {
                                 err!('\t', e, entry);
                             }
                         } else {
                             log::debug!("Setting tag for new entry: {}", entry.path().display());
-                            let entry = EntryData::new(entry.path());
+                            let entry = if let Ok(data) = EntryData::new(entry.path()) {
+                                data
+                            } else {
+                                wutag_fatal!(
+                                    "unable to create new entry: {}",
+                                    entry.path().display()
+                                );
+                            };
                             let id = self.registry.add_or_update_entry(entry);
                             self.registry.tag_entry(tag, id);
                             print!("\t{} {}", "+".bold().green(), fmt_tag(tag));
                         }
                     }
-                    println!();
+                    if !self.quiet {
+                        println!();
+                    }
                     // log::debug!("Saving registry...");
                     // self.save_registry();
                 },
@@ -170,5 +189,7 @@ impl App {
         }
         log::debug!("Saving registry...");
         self.save_registry();
+
+        Ok(())
     }
 }

@@ -65,18 +65,22 @@ impl App {
                             if search.is_some() {
                                 // println!("SEARCH: {:?} REAL: {:?}", search, realtag);
                                 self.registry.untag_by_name(search.unwrap(), id);
-                                println!(
-                                    "{}:",
-                                    fmt_path(entry.path(), self.base_color, self.ls_colors)
-                                );
+                                if !self.quiet {
+                                    println!(
+                                        "{}:",
+                                        fmt_path(entry.path(), self.base_color, self.ls_colors)
+                                    );
+                                }
 
                                 if let Err(e) = realtag.remove_from(entry.path()) {
                                     err!('\t', e, entry);
-                                } else {
+                                } else if !self.quiet {
                                     print!("\t{} {}", "X".bold().red(), fmt_tag(realtag));
                                 }
 
-                                println!();
+                                if !self.quiet {
+                                    println!();
+                                }
                             }
                         });
                 }
@@ -105,10 +109,12 @@ impl App {
                         return;
                     }
 
-                    println!(
-                        "{}:",
-                        fmt_path(entry.path(), self.base_color, self.ls_colors)
-                    );
+                    if !self.quiet {
+                        println!(
+                            "{}:",
+                            fmt_path(entry.path(), self.base_color, self.ls_colors)
+                        );
+                    }
                     for tag in tags {
                         let tag = match tag {
                             Ok(tag) => tag,
@@ -123,7 +129,9 @@ impl App {
                             print!("\t{} {}", "X".bold().red(), fmt_tag(&tag));
                         }
                     }
-                    println!();
+                    if !self.quiet {
+                        println!();
+                    }
                     log::debug!("Saving registry...");
                     self.save_registry();
                 },

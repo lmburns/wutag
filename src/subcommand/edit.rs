@@ -86,13 +86,15 @@ impl App {
             update_color!(&opts.tag, *col);
         }
 
-        print_stdout(
-            table
-                .table()
-                .border(Border::builder().build())
-                .separator(Separator::builder().build()),
-        )
-        .expect("unable to print table");
+        if !self.quiet {
+            print_stdout(
+                table
+                    .table()
+                    .border(Border::builder().build())
+                    .separator(Separator::builder().build()),
+            )
+            .expect("unable to print table");
+        }
 
         log::debug!("Saving registry...");
         self.save_registry();

@@ -162,12 +162,7 @@ pub(crate) fn modify_temp_ignore<P: AsRef<Path>>(
     let path = path.as_ref().to_path_buf();
 
     let expand_err = |s: &str, e: io::Error| -> Error {
-        Error::IOError(format!(
-            "problem when {} {}: {}",
-            s.to_string(),
-            path.display(),
-            e
-        ))
+        Error::IOError(format!("problem when {} {}: {}", s, path.display(), e))
     };
 
     match res {

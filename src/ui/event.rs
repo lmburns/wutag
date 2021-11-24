@@ -1,11 +1,16 @@
 #![allow(unused)]
+
+//! Handles all input events. More keys are created to offer the user more
+//! options in their configuration file. E.g., Alt + <key> or Ctrl + <key>
+
+// TODO: Add mouse buttons and scrolling
+
 use crossterm::{
     cursor::{Hide, Show},
     event::{self, DisableMouseCapture, EnableMouseCapture, MouseEvent},
     execute,
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
-
 use std::{
     fmt,
     io::{self, Write},

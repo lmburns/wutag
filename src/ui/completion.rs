@@ -1,3 +1,8 @@
+//! Completion menu popup within the command prompt
+
+// Credit: idea and outline came from `kdheepak/taskwarrior-tui`
+//  * Using their work to help me learn how to code a TUI
+
 use std::{error::Error, fmt, io};
 use tui::{
     layout::{Constraint, Corner, Direction, Layout},
@@ -61,8 +66,6 @@ impl Completer for CompletionHelper {
                     // Options such as --dir <dir>
                     let replacement = if cand.contains(' ') {
                         cand[pos..].split(' ').collect::<Vec<&str>>()[0].to_string()
-                    } else if cand.contains('<') || cand.contains('>') {
-                        " ".to_string()
                     } else {
                         cand[pos..].to_string()
                     };
@@ -152,6 +155,8 @@ impl CompletionList {
         if !self.helper.candidates.contains(&item) {
             self.helper.candidates.push(item);
         }
+
+        self.helper.candidates.sort();
     }
 
     /// Get the next item in the completion list

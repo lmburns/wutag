@@ -36,15 +36,17 @@ _wutag() {
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '-i[Case insensitively search]' \
-'--case_insensitive[Case insensitively search]' \
+'--case-insensitive[Case insensitively search]' \
 '-s[Case sensitively search]' \
-'--case_sensitive[Case sensitively search]' \
+'--case-sensitive[Case sensitively search]' \
 '-r[Search with a regular expressions]' \
 '--regex[Search with a regular expressions]' \
 '-g[Apply operation to all tags and files instead of locally]' \
 '--global[Apply operation to all tags and files instead of locally]' \
 '(-c --color)-l[Respect '\''LS_COLORS'\'' environment variable when coloring the output]' \
 '(-c --color)--ls-colors[Respect '\''LS_COLORS'\'' environment variable when coloring the output]' \
+'-q[Do not display any output for any command]' \
+'--quiet[Do not display any output for any command]' \
 ":: :_wutag_commands" \
 "*::: :->wutag" \
 && ret=0
@@ -142,8 +144,6 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (clear)
 _arguments "${_arguments_options[@]}" \
-'-n[Clear all files from registry that no longer exist (requires --global)]' \
-'--non-existent[Clear all files from registry that no longer exist (requires --global)]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
@@ -229,6 +229,24 @@ _arguments "${_arguments_options[@]}" \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
 && ret=0
 ;;
+(repair)
+_arguments "${_arguments_options[@]}" \
+'-m+[Manually set the file'\''s new location]:MANUAL:_files:MANUAL:_files' \
+'--manual=[Manually set the file'\''s new location]:MANUAL:_files:MANUAL:_files' \
+'-u+[Update the hashsum of all files, including unmodified files]: : ' \
+'--unmodified=[Update the hashsum of all files, including unmodified files]: : ' \
+'-d[Do not actually update the registry]' \
+'--dry-run[Do not actually update the registry]' \
+'-R[Remove files from the registry that no longer exist on the system]' \
+'--remove[Remove files from the registry that no longer exist on the system]' \
+'-r[Restrict the repairing to the current directory, or the path given with -d]' \
+'--restrict[Restrict the repairing to the current directory, or the path given with -d]' \
+'-h[Print help information]' \
+'--help[Print help information]' \
+'*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
+'*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
+&& ret=0
+;;
 (print-completions)
 _arguments "${_arguments_options[@]}" \
 '--shell=[Shell to print completions. Available shells are: bash, elvish, fish, powershell, zsh]:SHELL:(bash zsh powershell elvish fish)' \
@@ -274,9 +292,10 @@ _wutag_commands() {
 'view:View the results in an editor (optional pattern)' \
 'edit:Edits a tag'\''s color' \
 'info:Display information about the wutag environment' \
+'repair:Repair broken/missing/modified files in the registry' \
 'print-completions:Prints completions for the specified shell to dir or stdout' \
 'clean-cache:Clean the cached tag registry' \
-'ui:Open a TUI to manage tags, requires results from a `search`, or `list`' \
+'ui:Open a TUI to manage tags' \
     )
     _describe -t commands 'wutag commands' commands "$@"
 }

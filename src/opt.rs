@@ -11,6 +11,7 @@ use crate::{
         info::InfoOpts,
         list::{ListObject, ListOpts},
         print_completions::CompletionsOpts,
+        repair::RepairOpts,
         rm::RmOpts,
         search::SearchOpts,
         set::SetOpts,
@@ -81,7 +82,8 @@ pub(crate) struct Opts {
     /// Case insensitively search
     #[clap(
         name = "case_insensitive",
-        long, short = 'i',
+        long = "case-insensitive",
+        short = 'i',
         overrides_with_all = &["case_sensitive", "case_insensitive"],
         long_about = "\
         Turn the glob into a case insensitive one (default: case insensitive). Overrides \
@@ -93,7 +95,8 @@ pub(crate) struct Opts {
     /// Case sensitively search
     #[clap(
         name = "case_sensitive",
-        long, short = 's',
+        long = "case-sensitive",
+        short = 's',
         overrides_with_all = &["case_sensitive", "case_insensitive"],
         long_about = "\
         Turn the glob into a case sensitive one (default: case sensitive). Overrides \
@@ -176,6 +179,15 @@ pub(crate) struct Opts {
     )]
     /// Exclude results that match pattern
     pub(crate) exclude:          Option<Vec<String>>,
+    /// Do not display any output for any command
+    #[clap(
+        name = "quiet",
+        long = "quiet",
+        short = 'q',
+        long_about = "Do not display any output for any command. Used within the TUI but made \
+                      available to users"
+    )]
+    pub(crate) quiet:            bool,
     #[clap(subcommand)]
     pub(crate) cmd:              Command,
 }
@@ -195,7 +207,8 @@ impl Opts {
         }
     }
 
-    /// Options for viewing a file within the TUI
+    /// Options for viewing a file within the TUI (edit command in TUI, view
+    /// command on CLI)
     pub(crate) fn view_args(pattern: &str) -> Self {
         Self {
             global: true,
@@ -234,24 +247,34 @@ impl Default for Command {
 //     })
 // }
 
+// For subcommand inference and aliases to coexist, the subcommand inferences
+// must be listed as aliases
+
 #[derive(Subcommand, Debug, Clone, PartialEq)]
 pub(crate) enum Command {
     /// Lists all available tags or files.
     #[clap(
         aliases = &["ls", "l", "li", "lis"],
-        override_usage = "wutag [FLAG/OPTIONS] list [FLAG/OPTIONS] <SUBCOMMAND> [FLAG/OPTIONS]"
+        override_usage = "wutag [FLAG/OPTIONS] list [FLAG/OPTIONS] <SUBCOMMAND> [FLAG/OPTIONS]",
+        long_about = "\
+            List all tagged files or tags under current directory if the global option \
+            is not present, else list all tagged files or tags in the registry. Alias: ls"
     )]
     List(ListOpts),
     /// Set tag(s) on files that match the given pattern
     #[clap(
         aliases = &["set", "tag"],
-        override_usage = "wutag [FLAG/OPTIONS] set [FLAG/OPTIONS] <pattern> <tag>"
+        override_usage = "wutag [FLAG/OPTIONS] set [FLAG/OPTIONS] <pattern> <tag>",
+        long_about = "Set tag(s) on files that match a given pattern. Alias: tag"
     )]
     Set(SetOpts),
     /// Remove tag(s) from the files that match the provided pattern
     #[clap(
-        aliases = &["remove", "r"],
-        override_usage = "wutag [FLAG/OPTIONS] rm <pattern> <tag>"
+        aliases = &["remove", "r", "del", "delete"],
+        override_usage = "wutag [FLAG/OPTIONS] rm <pattern> <tag>",
+        long_about = "\
+            Remove tag(s) from the files that match the provided pattern. \
+            Aliases: remove, del, delete"
     )]
     Rm(RmOpts),
     /// Clears all tags of the files that match the provided pattern
@@ -267,23 +290,34 @@ pub(crate) enum Command {
     #[clap(override_usage = "wutag [FLAG/OPTIONS] view [FLAG/OPTIONS] -p [<pattern>]")]
     View(ViewOpts),
     /// Edits a tag's color
-    #[clap(override_usage = "wutag edit --color <color> <tag>")]
+    #[clap(override_usage = "wutag edit [FLAG/OPTIONS] <tag>")]
     Edit(EditOpts),
     /// Display information about the wutag environment
     Info(InfoOpts),
+    /// Repair broken/missing/modified files in the registry
+    #[clap(
+        aliases = &["fix", "rep", "repa", "repai"],
+        override_usage = "wutag [FLAG/OPTIONS] repair [FLAG/OPTIONS]",
+        long_about = "\
+        Repair broken file paths or update the file's hash in the registry. \
+        Alias: fix"
+    )]
+    Repair(RepairOpts),
     /// Prints completions for the specified shell to dir or stdout
     #[clap(
         display_order = 1000,
-        override_usage = "wutag print-completions --shell <shell>"
+        override_usage = "wutag print-completions --shell <shell> [FLAG/OPTIONS]"
     )]
     PrintCompletions(CompletionsOpts),
     /// Clean the cached tag registry
     #[clap(override_usage = "wutag [FLAG/OPTIONS] clean-cache")]
     CleanCache,
-    /// Open a TUI to manage tags, requires results from a `search`, or `list`
+    /// Open a TUI to manage tags
     #[clap(
         aliases = &["tui"],
-        override_usage = "wutag [FLAG/OPTIONS] ui"
+        override_usage = "wutag [FLAG/OPTIONS] ui",
+        long_about = "\
+        Start the TUI to manage the registry interactively. Alias: tui"
     )]
     Ui,
 }

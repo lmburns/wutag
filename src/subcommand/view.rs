@@ -4,7 +4,7 @@ use super::{
         glob_builder, osstr_to_bytes, process, raw_local_path, reg_ok, regex_builder, ternary,
         wutag_error, wutag_fatal, wutag_info, Arc, ArgSettings, Args, BTreeMap, Captures, Colorize,
         Cow, DirEntryExt, EntryData, IntoParallelRefIterator, Lexiclean, OsStr, ParallelIterator,
-        PathBuf, Regex, Tag, Write, DEFAULT_EDITOR,
+        PathBuf, Regex, Result, Tag, Write, DEFAULT_EDITOR,
     },
     App,
 };
@@ -57,7 +57,7 @@ pub(crate) struct ViewOpts {
 }
 
 impl App {
-    pub(crate) fn view(&mut self, opts: &ViewOpts) {
+    pub(crate) fn view(&mut self, opts: &ViewOpts) -> Result<()> {
         log::debug!("ViewOpts: {:#?}", opts);
         log::debug!("Using registry: {}", self.registry.path.display());
         let pat = if let Some(pattern) = &opts.pattern {
@@ -333,7 +333,9 @@ impl App {
                     self.registry.clear_entry(id);
                 }
 
-                println!("{}:", fmt_path(entry, self.base_color, self.ls_colors));
+                if !self.quiet {
+                    println!("{}:", fmt_path(entry, self.base_color, self.ls_colors));
+                }
 
                 match entry.has_tags() {
                     Ok(has_tags) =>
@@ -348,7 +350,8 @@ impl App {
                     },
                 }
 
-                tags.par_iter()
+                let tags = tags
+                    .par_iter()
                     .map(|t| {
                         if let Some(t) = self.registry.get_tag(t) {
                             log::debug!("Got tag: {:?}", t);
@@ -358,21 +361,25 @@ impl App {
                             Tag::random(t, &self.colors)
                         }
                     })
-                    .collect::<Vec<_>>()
-                    .iter()
-                    .for_each(|tag| {
-                        if let Err(e) = entry.tag(tag) {
-                            wutag_error!("{} {}", e, bold_entry!(entry));
-                        } else {
-                            let entry = EntryData::new(entry);
-                            let id = self.registry.add_or_update_entry(entry);
-                            self.registry.tag_entry(tag, id);
-                            println!("\t{} {}", "+".bold().green(), fmt_tag(tag));
+                    .collect::<Vec<_>>();
+
+                for tag in tags {
+                    if let Err(e) = entry.tag(&tag) {
+                        wutag_error!("{} {}", e, bold_entry!(entry));
+                    } else {
+                        let entry = EntryData::new(entry)?;
+                        let id = self.registry.add_or_update_entry(entry);
+                        self.registry.tag_entry(&tag, id);
+                        if !self.quiet {
+                            println!("\t{} {}", "+".bold().green(), fmt_tag(&tag));
                         }
-                    });
+                    }
+                }
             }
         }
         log::debug!("Saving registry...");
         self.save_registry();
+
+        Ok(())
     }
 }

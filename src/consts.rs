@@ -101,9 +101,7 @@ pub(crate) static EXEC_EXPL: Lazy<String> = Lazy::new(|| {
     format!(
         "{}\n  An example of using this is:\n  \t {}wutag -g search <tag> -x {{..}} set {{/}} \
          <tag2>{}",
-        EXEC_BATCH_EXPL.to_string(),
-        BRCYAN,
-        RES
+        *EXEC_BATCH_EXPL, BRCYAN, RES
     )
 });
 
@@ -134,7 +132,20 @@ pub(crate) static APP_AUTHORS: Lazy<String> = Lazy::new(|| format!(
 
 /// Editor to use when viewing tags
 pub(crate) static DEFAULT_EDITOR: Lazy<String> = Lazy::new(|| {
-    env::var("EDITOR").unwrap_or_else(|_| env::var("VISUAL").unwrap_or_else(|_| "vi".to_string()))
+    env::var("EDITOR").unwrap_or_else(|_| {
+        env::var("VISUAL").unwrap_or_else(|_| {
+            {
+                if which::which("nvim").is_ok() {
+                    "nvim"
+                } else if which::which("vim").is_ok() {
+                    "vim"
+                } else {
+                    "vi"
+                }
+            }
+            .to_string()
+        })
+    })
 });
 
 #[cfg(feature = "encrypt-gpgme")]

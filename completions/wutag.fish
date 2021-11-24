@@ -9,11 +9,12 @@ complete -c wutag -n "__fish_use_subcommand" -s E -l exclude -d 'Exclude results
 complete -c wutag -n "__fish_use_subcommand" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_use_subcommand" -s V -l version -d 'Print version information'
 complete -c wutag -n "__fish_use_subcommand" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
-complete -c wutag -n "__fish_use_subcommand" -s i -l case_insensitive -d 'Case insensitively search'
-complete -c wutag -n "__fish_use_subcommand" -s s -l case_sensitive -d 'Case sensitively search'
+complete -c wutag -n "__fish_use_subcommand" -s i -l case-insensitive -d 'Case insensitively search'
+complete -c wutag -n "__fish_use_subcommand" -s s -l case-sensitive -d 'Case sensitively search'
 complete -c wutag -n "__fish_use_subcommand" -s r -l regex -d 'Search with a regular expressions'
 complete -c wutag -n "__fish_use_subcommand" -s g -l global -d 'Apply operation to all tags and files instead of locally'
 complete -c wutag -n "__fish_use_subcommand" -s l -l ls-colors -d 'Respect \'LS_COLORS\' environment variable when coloring the output'
+complete -c wutag -n "__fish_use_subcommand" -s q -l quiet -d 'Do not display any output for any command'
 complete -c wutag -n "__fish_use_subcommand" -f -a "list" -d 'Lists all available tags or files'
 complete -c wutag -n "__fish_use_subcommand" -f -a "set" -d 'Set tag(s) on files that match the given pattern'
 complete -c wutag -n "__fish_use_subcommand" -f -a "rm" -d 'Remove tag(s) from the files that match the provided pattern'
@@ -23,9 +24,10 @@ complete -c wutag -n "__fish_use_subcommand" -f -a "cp" -d 'Copies tags from the
 complete -c wutag -n "__fish_use_subcommand" -f -a "view" -d 'View the results in an editor (optional pattern)'
 complete -c wutag -n "__fish_use_subcommand" -f -a "edit" -d 'Edits a tag\'s color'
 complete -c wutag -n "__fish_use_subcommand" -f -a "info" -d 'Display information about the wutag environment'
+complete -c wutag -n "__fish_use_subcommand" -f -a "repair" -d 'Repair broken/missing/modified files in the registry'
 complete -c wutag -n "__fish_use_subcommand" -f -a "print-completions" -d 'Prints completions for the specified shell to dir or stdout'
 complete -c wutag -n "__fish_use_subcommand" -f -a "clean-cache" -d 'Clean the cached tag registry'
-complete -c wutag -n "__fish_use_subcommand" -f -a "ui" -d 'Open a TUI to manage tags, requires results from a `search`, or `list`'
+complete -c wutag -n "__fish_use_subcommand" -f -a "ui" -d 'Open a TUI to manage tags'
 complete -c wutag -n "__fish_seen_subcommand_from list; and not __fish_seen_subcommand_from tags; and not __fish_seen_subcommand_from files" -s r -l raw -d 'If provided output will be raw so that it can be easily piped to other commands'
 complete -c wutag -n "__fish_seen_subcommand_from list; and not __fish_seen_subcommand_from tags; and not __fish_seen_subcommand_from files" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from list; and not __fish_seen_subcommand_from tags; and not __fish_seen_subcommand_from files" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
@@ -54,7 +56,6 @@ complete -c wutag -n "__fish_seen_subcommand_from set" -s h -l help -d 'Print he
 complete -c wutag -n "__fish_seen_subcommand_from set" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
-complete -c wutag -n "__fish_seen_subcommand_from clear" -s n -l non-existent -d 'Clear all files from registry that no longer exist (requires --global)'
 complete -c wutag -n "__fish_seen_subcommand_from clear" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from clear" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from search" -s x -l exec -d 'Execute a command on each individual file' -r -f -a "(__fish_complete_command)"
@@ -84,6 +85,13 @@ complete -c wutag -n "__fish_seen_subcommand_from edit" -s v -l verbose -d 'Disp
 complete -c wutag -n "__fish_seen_subcommand_from info" -s r -l raw -d 'TO BE IMPLEMENTED Do not use color in output'
 complete -c wutag -n "__fish_seen_subcommand_from info" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from info" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
+complete -c wutag -n "__fish_seen_subcommand_from repair" -s m -l manual -d 'Manually set the file\'s new location' -r -F
+complete -c wutag -n "__fish_seen_subcommand_from repair" -s u -l unmodified -d 'Update the hashsum of all files, including unmodified files' -r
+complete -c wutag -n "__fish_seen_subcommand_from repair" -s d -l dry-run -d 'Do not actually update the registry'
+complete -c wutag -n "__fish_seen_subcommand_from repair" -s R -l remove -d 'Remove files from the registry that no longer exist on the system'
+complete -c wutag -n "__fish_seen_subcommand_from repair" -s r -l restrict -d 'Restrict the repairing to the current directory, or the path given with -d'
+complete -c wutag -n "__fish_seen_subcommand_from repair" -s h -l help -d 'Print help information'
+complete -c wutag -n "__fish_seen_subcommand_from repair" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from print-completions" -l shell -d 'Shell to print completions. Available shells are: bash, elvish, fish, powershell, zsh' -r -f -a "{bash	,zsh	,powershell	,elvish	,fish	}"
 complete -c wutag -n "__fish_seen_subcommand_from print-completions" -s d -l dir -d 'Directory to output completions to' -r -f -a "(__fish_complete_directories)"
 complete -c wutag -n "__fish_seen_subcommand_from print-completions" -s h -l help -d 'Print help information'

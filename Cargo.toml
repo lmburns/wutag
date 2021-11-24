@@ -2,10 +2,9 @@
 name = "wutag"
 description = "Tag files and manage them with color"
 version = "0.7.1"
-authors = [
-  "wojciechkepka <wojtek.kepka@protonmail.com>",
-  "Lucas Burns <lmb@lmburns.com>",
-]
+# wojciechkepka <wojtek.kepka@protonmail.com> is the original
+# Fork has been modified so much that everything except from `wutag_core` is different
+authors = ["Lucas Burns <lmb@lmburns.com>"]
 edition = "2018"
 repository = "https://github.com/lmburns/wutag"
 categories = ["command-line-utilities", "filesystem", "tagging"]
@@ -35,6 +34,8 @@ ui = [
 [dependencies]
 # Used for lscolors
 ansi_term = "0.12.1"
+ansi-to-tui = "0.4.1"
+strip-ansi-escapes = "0.1.1"
 anyhow = "1.0.43"
 atty = "0.2.14"
 base64 = "0.13.0"
@@ -65,16 +66,15 @@ shellexpand = "2.1.0"
 thiserror = "1.0.26"
 toml = "0.5.8"
 itertools = "0.10.1"
-strip-ansi-escapes = "0.1.1"
 indexmap = { version = "1.7.0", features = ["serde-1"] }
 
 # TODO: use or remove
 termion = "1.5.5"
 rusqlite = "0.26.1"
-notify-rust = "4.0"
+notify-rust = { version = "4.0", default-features = false, features = ["z"] }
 
 # TODO: add formatted option
-cli-table = "0.4.6"
+cli-table = { version = "0.4.6", default-features = false }
 
 # ADD to TUI?
 crossterm = { version = "0.20.0", default-features = false }
@@ -92,6 +92,8 @@ better-panic = { version = "0.2.0", optional = true }
 gpgme = { version = "0.10.0", optional = true }
 secstr = { version = "0.4.0", optional = true }
 zeroize = { version = "1.4.3", optional = true }
+which = "4.2.2"
+blake3 = "1.2.0"
 
 [dev-dependencies]
 predicates = "2.0.1"

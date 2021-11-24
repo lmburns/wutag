@@ -1,9 +1,13 @@
-// Taken from `gpg-tui`
+//! Provides a more detailed list to preview the keybindings in the `Help`
+//! (Other) tab of the TUI
+
+// Credit: idea and outline came from `orhun/gpg-tui`
+//  * Using his work to help me learn how to code a TUI
 
 use tui::widgets::ListState;
 
 /// List widget with an internally controlled state
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub(crate) struct StatefulList<T> {
     /// Items that make up the `StatefulList`
     pub(crate) items: Vec<T>,

@@ -1,3 +1,13 @@
+//! `mtui` = My Tui
+//! Meta structure that holds:
+//!     * the terminal where the user activity is occuring
+//!     * the event signals
+//!     * an internal state on whether the application is paused
+//!         * This is used for leaving the TUI for the editor
+
+// Credit: idea and outline came from `orhun/gpg-tui`
+//  * Using his work to help me learn how to code a TUI
+
 use anyhow::{Context, Result};
 use crossterm::{
     cursor::{Hide, Show},

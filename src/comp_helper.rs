@@ -45,6 +45,11 @@ _wutag__print-completions_commands() {
     local commands; commands=()
     _describe -t commands 'wutag print-completions commands' commands \"$@\"
 }
+(( $+functions[_wutag__repair_commands] )) ||
+_wutag__repair_commands() {
+    local commands; commands=()
+    _describe -t commands 'wutag repair commands' commands \"$@\"
+}
 (( $+functions[_wutag__rm_commands] )) ||
 _wutag__rm_commands() {
     local commands; commands=()

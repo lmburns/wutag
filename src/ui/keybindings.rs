@@ -43,17 +43,14 @@ pub(crate) struct Keybinding {
 
 impl fmt::Display for Keybinding {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // └─
         write!(
             f,
-            "{}",
-            // └─
-            format!(
-                "{}\n └─{}\n ",
-                self.key
-                    .split(',')
-                    .fold(String::new(), |acc, v| format!("{}[{}] ", acc, v)),
-                self.action
-            )
+            "{}\n └─{}\n ",
+            self.key
+                .split(',')
+                .fold(String::new(), |acc, v| format!("{}[{}] ", acc, v)),
+            self.action
         )
     }
 }

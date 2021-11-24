@@ -9,13 +9,19 @@
 
 // RUN_ONCE.get_or_init(|| super::notify("made it", None));
 
-// TODO: ListItem
-// TODO: Local path
-// TODO: Keybindings read from configuration file
+// TODO: Tags update on edit
+// TODO: Resize preview window
+// TODO: Use error mode
+// TODO: Encryption of database when leaving TUI
 
-// TODO: Command prompt in HelpMenu
-// TODO: :exit :help
+// TODO: Change some hard coded colors
 
+// TODO: Command prompt in HelpMenu (?)
+// TODO: :exit :help commands
+
+// TODO: Use config if history is enabled
+
+use ansi_to_tui::ansi_to_text;
 use anyhow::{anyhow, Context, Result};
 use clap::IntoApp;
 use colored::{ColoredString, Colorize};
@@ -56,6 +62,8 @@ use wutag_core::{
 };
 
 use super::{
+    banner::Banner,
+    command::{self, Command as TuiCommand},
     completion::{self, CompletionList},
     event::Key,
     history::HistoryContext,
@@ -132,8 +140,10 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 /// UI aspect of this App
 #[derive(Debug)]
 pub(crate) struct UiApp {
-    pub(crate) command:                 LineBuffer,
+    pub(crate) command:                 TuiCommand,
+    pub(crate) command_buffer:          LineBuffer,
     pub(crate) command_history_context: HistoryContext,
+    pub(crate) command_keybindings:     StatefulList<Keybinding>,
     pub(crate) completion_list:         CompletionList,
     pub(crate) completion_show:         bool,
     pub(crate) config:                  Config,
@@ -141,7 +151,9 @@ pub(crate) struct UiApp {
     pub(crate) current_context_command: String,
     pub(crate) current_directory:       String,
     pub(crate) current_selection:       usize,
+    // TODO: Use or delete
     pub(crate) current_selection_id:    Option<EntryId>,
+    // TODO: Use or delete
     pub(crate) current_selection_path:  Option<PathBuf>,
     pub(crate) dirty:                   bool,
     pub(crate) error:                   String,
@@ -154,7 +166,7 @@ pub(crate) struct UiApp {
     pub(crate) marked:                  HashSet<EntryId>,
     pub(crate) mode:                    AppMode,
     pub(crate) paths_color:             Color,
-    pub(crate) preview_file:            bool, // TODO: Show a file preview
+    pub(crate) preview_file:            bool,
     pub(crate) preview_height:          u16,
     pub(crate) preview_scroll:          u16,
     pub(crate) registry:                TagRegistry,
@@ -171,16 +183,18 @@ pub(crate) struct UiApp {
 pub(crate) enum AppMode {
     List,
     Error,
-    Help,
     Command,
-    /* Remove,
-     * Set,
-     * Clear,
-     * Search,
-     * Cp,
-     * Edit,
-     * View,
-     * Clear */
+    /// Help menu for all other keybindings
+    Help,
+    /// Command buffer help
+    HelpPopup, /* Remove,
+                * Set,
+                * Clear,
+                * Search,
+                * Cp,
+                * Edit,
+                * View,
+                * Clear */
 }
 
 impl fmt::Display for AppMode {
@@ -189,6 +203,7 @@ impl fmt::Display for AppMode {
             AppMode::List => write!(f, "List"),
             AppMode::Error => write!(f, "Error"),
             AppMode::Help => write!(f, "Help"),
+            AppMode::HelpPopup => write!(f, "Help Popup"),
             AppMode::Command => write!(f, "Command"),
         }
     }
@@ -212,13 +227,17 @@ impl UiApp {
         });
 
         let cwd = env::current_dir()
-            .unwrap_or_else(|_| PathBuf::from(".").lexiclean())
+            .unwrap_or_else(|_| {
+                PathBuf::from(env::var("PWD").unwrap_or_else(|_| ".".to_string())).lexiclean()
+            })
             .display()
             .to_string();
 
         let mut uiapp = Self {
-            command:                 LineBuffer::with_capacity(MAX_LINE),
-            command_history_context: HistoryContext::new("command.history")?,
+            command:                 TuiCommand::None,
+            command_buffer:          LineBuffer::with_capacity(MAX_LINE),
+            command_history_context: HistoryContext::new(&c.ui.history_filepath)?,
+            command_keybindings:     StatefulList::default(),
             completion_list:         CompletionList::with_items(vec![]),
             completion_show:         false,
             config:                  c.clone(),
@@ -251,17 +270,16 @@ impl UiApp {
         };
 
         for ch in c.ui.startup_cmd.unwrap_or_default().chars() {
-            uiapp.command.insert(ch, 1);
+            uiapp.command_buffer.insert(ch, 1);
         }
 
         uiapp.get_context();
         uiapp.import_paths();
         uiapp.get_keybindings();
+        uiapp.get_command_keybindings();
         uiapp.config.ui.build_alias_hash();
         uiapp.update(true)?;
         uiapp.command_history_context.load()?;
-
-        // uiapp.get_keybindings();
 
         Ok(uiapp)
     }
@@ -269,8 +287,116 @@ impl UiApp {
     // ####################### GET INFO #######################
     //
 
+    /// Generate the keybindings popup help display (for the command prompt)
+    fn get_command_keybindings(&mut self) {
+        let keybindings = vec![
+            Keybinding::new(
+                "Up,Down".to_string(),
+                "cycle completion/history".to_string(),
+                "Cycle through completions if they're showing, else cycle through history"
+                    .to_string(),
+            ),
+            Keybinding::new(
+                "Escape".to_string(),
+                "close completion/prompt".to_string(),
+                "Close the completion window or return to tag table".to_string(),
+            ),
+            Keybinding::new(
+                "Enter".to_string(),
+                "Select completion/enter command".to_string(),
+                "Select a completion or enter command and return to tag table".to_string(),
+            ),
+            Keybinding::new(
+                "Tab,C-n".to_string(),
+                "Show completions/cycle completions".to_string(),
+                "Will show completions if none are showing, else cycle forward through them"
+                    .to_string(),
+            ),
+            Keybinding::new(
+                "BackTab,C-p".to_string(),
+                "cycle completions".to_string(),
+                "Cycle backward through completions".to_string(),
+            ),
+            Keybinding::new(
+                "C-r".to_string(),
+                "startup command".to_string(),
+                "Clear line and reset to startup command".to_string(),
+            ),
+            Keybinding::new(
+                "C-f,Right".to_string(),
+                "move forward".to_string(),
+                "Move forward a character".to_string(),
+            ),
+            Keybinding::new(
+                "C-b,Left".to_string(),
+                "move backward".to_string(),
+                "Move backward a character".to_string(),
+            ),
+            Keybinding::new(
+                "C-h,Backspace".to_string(),
+                "backspace".to_string(),
+                "Delete the character behind the cursor".to_string(),
+            ),
+            Keybinding::new(
+                "C-d,Delete".to_string(),
+                "delete".to_string(),
+                "Delete the character in front of the cursor".to_string(),
+            ),
+            Keybinding::new(
+                "C-a,Home".to_string(),
+                "move home".to_string(),
+                "Move cursor to the start of the line".to_string(),
+            ),
+            Keybinding::new(
+                "C-e,End".to_string(),
+                "move end".to_string(),
+                "Move cursor to the end of the line".to_string(),
+            ),
+            Keybinding::new(
+                "C-k".to_string(),
+                "kill line".to_string(),
+                "Kill the text from point to the end of the line".to_string(),
+            ),
+            Keybinding::new(
+                "C-u".to_string(),
+                "discard line".to_string(),
+                "Kill backward from point to the beginning of the line".to_string(),
+            ),
+            Keybinding::new(
+                "C-w,M-Backspace,C-Backspace".to_string(),
+                "delete previous word".to_string(),
+                "Delete the previous word, maintaining the cursor at the start of the current word"
+                    .to_string(),
+            ),
+            Keybinding::new(
+                "M-d,M-Delete,C-Delete".to_string(),
+                "delete word".to_string(),
+                "Kill from the cursor to the end of the current word, or, if between words, to \
+                 the end of the next word"
+                    .to_string(),
+            ),
+            Keybinding::new(
+                "M-f".to_string(),
+                "move to next word".to_string(),
+                "Moves the cursor to the end of next word".to_string(),
+            ),
+            Keybinding::new(
+                "M-b".to_string(),
+                "move to previous word".to_string(),
+                "Moves the cursor to the beginning of previous word".to_string(),
+            ),
+            Keybinding::new(
+                "M-t".to_string(),
+                "transpose word".to_string(),
+                "Transpose two words".to_string(),
+            ),
+        ];
+
+        self.command_keybindings = StatefulList::with_items(keybindings);
+    }
+
     /// Generate the keybindings help display
-    pub(crate) fn get_keybindings(&mut self) {
+    fn get_keybindings(&mut self) {
         let keys = self.config.keys;
         let gen_key = |key: Key, alt: Option<&str>, desc: &str| -> Keybinding {
             if let Some(alt) = alt {
@@ -285,15 +411,21 @@ impl UiApp {
         };
 
         let keybindings = vec![
-            gen_key(
-                keys.help,
-                None,
-                "Show the help menu/Return to main screen\n:help",
-            ),
             Keybinding::new(
                 ":".to_string(),
                 "command prompt".to_string(),
                 "Enter a command in the prompt".to_string(),
+            ),
+            Keybinding::new(
+                "M-.".to_string(),
+                "command prompt help menu".to_string(),
+                "Show the help menu for the command prompt. Must be in the command prompt"
+                    .to_string(),
+            ),
+            gen_key(
+                keys.help,
+                None,
+                "Show the help menu / Return to main screen\n:help",
             ),
             gen_key(keys.quit, Some("C-c"), "Exit the program\n:exit"),
             gen_key(keys.up, Some("Up"), "Move up"),
@@ -313,6 +445,7 @@ impl UiApp {
             gen_key(keys.clear, None, "Clear tag(s) from file(s)\n:clear"),
             gen_key(keys.remove, None, "Remove tag(s) from file(s)\n:remove"),
             gen_key(keys.edit, None, "Edit tag(s) on file(s)\n:edit"),
+            gen_key(keys.view, None, "View tag(s) on file(s) in editor\n:view"),
             gen_key(keys.search, None, "Search for tag(s) or file(s)\n:search"),
             gen_key(
                 keys.copy,
@@ -330,11 +463,13 @@ impl UiApp {
     pub(crate) fn get_context(&mut self) {
         self.current_context = format!(
             r#"
-            Current directory: {}
-            Current registry: {}
+            Current directory:    {}
+            Current registry:     {}
+            Current history file: {}
             "#,
             self.alias_replace(&self.current_directory),
-            self.alias_replace(&self.registry.path.display().to_string())
+            self.alias_replace(&self.registry.path.display().to_string()),
+            self.alias_replace(&self.command_history_context.config().display().to_string())
         );
     }
 
@@ -358,8 +493,11 @@ impl UiApp {
         self.terminal_height = rect.height;
         // Use for whenever (if ever) a new mode is added
         match self.mode {
-            AppMode::List | AppMode::Error | AppMode::Help | AppMode::Command =>
-                self.draw_tag(app, f),
+            AppMode::List
+            | AppMode::Error
+            | AppMode::Help
+            | AppMode::HelpPopup
+            | AppMode::Command => self.draw_tag(app, f),
         }
     }
 
@@ -377,8 +515,31 @@ impl UiApp {
         );
     }
 
+    /// Draw the help popup used for the command prompt keybindings
+    fn draw_help_popup(
+        &mut self,
+        f: &mut Frame<impl Backend>,
+        percent_x: u16,
+        percent_y: u16,
+        title: Vec<Span>,
+        keybindings: StatefulList<Keybinding>,
+    ) {
+        let rect = centered_rect(percent_x, percent_y, f.size());
+        self.draw_help(f, rect, title, keybindings);
+    }
+
+    // TODO: Doesn't start on first item in list and resizes to match highlight
+    // symbol
+
     /// Draw help menu showing user-defined/default keybindings
-    pub(crate) fn draw_help(&mut self, f: &mut Frame<impl Backend>, rect: Rect, title: Vec<Span>) {
+    #[allow(clippy::needless_pass_by_value)]
+    fn draw_help(
+        &mut self,
+        f: &mut Frame<impl Backend>,
+        rect: Rect,
+        title: Vec<Span>,
+        keybindings: StatefulList<Keybinding>,
+    ) {
         f.render_widget(Clear, rect);
         f.render_widget(
             Block::default()
@@ -392,23 +553,23 @@ impl UiApp {
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
             .margin(1)
-            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+            .constraints([Constraint::Percentage(40), Constraint::Percentage(60)].as_ref())
             .split(rect);
 
-        let description = self
-            .keybindings
+        let description = keybindings
             .selected()
             .map(|s| {
-                s.get_description_text(
-                    Style::default()
-                        .fg(Color::Rgb(DARK_BLUE[0], DARK_BLUE[1], DARK_BLUE[2]))
-                        .add_modifier(Modifier::ITALIC),
-                )
+                let style = Style::default().add_modifier(Modifier::ITALIC);
+                s.get_description_text(if self.is_colored() {
+                    style.fg(Color::Rgb(DARK_BLUE[0], DARK_BLUE[1], DARK_BLUE[2]))
+                } else {
+                    style
+                })
             })
             .unwrap_or_default();
 
         let description_height = u16::try_from(
-            self.keybindings
+            keybindings
                 .selected()
                 .map(|s| s.description.lines().count())
                 .unwrap_or_default(),
@@ -435,7 +596,7 @@ impl UiApp {
                 .split(chunks[0]);
 
             let list = List::new(
-                self.keybindings
+                keybindings
                     .items
                     .iter()
                     .enumerate()
@@ -452,17 +613,22 @@ impl UiApp {
                     .borders(Borders::RIGHT)
                     .border_style(Style::default().fg(Color::DarkGray)),
             )
-            .style(Style::default().fg(self.paths_color))
+            .style(if self.is_colored() {
+                Style::default().fg(self.paths_color)
+            } else {
+                Style::default()
+            })
             .highlight_style(if self.is_colored() {
                 Style::default().add_modifier(Modifier::BOLD)
             } else {
                 Style::default()
                     .fg(Color::Reset)
                     .add_modifier(Modifier::BOLD)
-            });
+            })
+            .highlight_symbol(&self.config.ui.selection_indicator);
 
             // Clone is necessary to now borrow self as mutable and immutable
-            f.render_stateful_widget(list, chunks[0], &mut self.keybindings.state.clone());
+            f.render_stateful_widget(list, chunks[0], &mut keybindings.state.clone());
 
             f.render_widget(
                 Paragraph::new(description.clone())
@@ -473,10 +639,12 @@ impl UiApp {
                     )
                     .style(
                         Style::default()
-                            .fg(if self.config.ui.flashy {
+                            .fg(if self.config.ui.flashy && self.is_colored() {
                                 self.gen_random_color()
-                            } else {
+                            } else if self.is_colored() {
                                 Color::Magenta
+                            } else {
+                                Color::Reset
                             })
                             .add_modifier(Modifier::BOLD),
                     )
@@ -506,9 +674,32 @@ impl UiApp {
                 )
                 .split(chunks[1]);
 
+            let banner = Banner::get(chunks[0]);
+
             f.render_widget(
                 Paragraph::new(if self.is_colored() {
-                    self.styled_context(Color::Cyan)
+                    styled_context(&banner, Color::Magenta, self)
+                } else {
+                    Text::raw(banner)
+                })
+                .block(
+                    Block::default()
+                        .borders(Borders::BOTTOM)
+                        .border_style(Style::default().fg(Color::DarkGray)),
+                )
+                .style(if self.is_colored() {
+                    Style::default().fg(self.paths_color)
+                } else {
+                    Style::default()
+                })
+                .alignment(Alignment::Left)
+                .wrap(Wrap { trim: false }),
+                chunks[0],
+            );
+
+            f.render_widget(
+                Paragraph::new(if self.is_colored() {
+                    styled_context(&self.current_context, Color::Cyan, self)
                 } else {
                     Text::raw(&self.current_context)
                 })
@@ -517,7 +708,11 @@ impl UiApp {
                         .borders(Borders::NONE)
                         .border_style(Style::default().fg(Color::DarkGray)),
                 )
-                .style(Style::default().fg(self.paths_color))
+                .style(if self.is_colored() {
+                    Style::default().fg(self.paths_color)
+                } else {
+                    Style::default()
+                })
                 .alignment(Alignment::Left)
                 .wrap(Wrap { trim: true }),
                 chunks[1],
@@ -545,20 +740,24 @@ impl UiApp {
                 }
             };
 
+            // FIX: Issues of returning value referencing function
+            // Would be nice to use function above for this
             vec![
                 app.set_header_style::<PINK>("Wutag", match_mode(AppMode::List)),
                 app.set_header_style::<FG>("|", Modifier::SLOW_BLINK),
                 app.set_header_style::<PINK>("Other", match_mode(AppMode::Help)),
                 Span::from("──("),
                 app.set_header_style::<FG>("Mode: ", Modifier::DIM),
-                // FIX: Issues of returning value referencing function
-                // Would be nice to use function above for this
-                Span::styled(
-                    mode,
-                    Style::default()
-                        .add_modifier(Modifier::BOLD)
-                        .fg(Color::Rgb(ORANGE[0], ORANGE[1], ORANGE[2])),
-                ),
+                if app.is_colored() {
+                    Span::styled(
+                        mode,
+                        Style::default()
+                            .add_modifier(Modifier::BOLD)
+                            .fg(Color::Rgb(ORANGE[0], ORANGE[1], ORANGE[2])),
+                    )
+                } else {
+                    Span::from(mode)
+                },
                 Span::from(")"),
             ]
         };
@@ -569,11 +768,16 @@ impl UiApp {
             .constraints([Constraint::Min(0), Constraint::Length(3)].as_ref())
             .split(rect);
 
-        // TODO: switch logic (implement file preview)
         if self.preview_file {
             let split_layout = Layout::default()
                 .direction(Direction::Vertical)
-                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+                .constraints(
+                    [
+                        Constraint::Percentage(100 - self.config.ui.preview_height),
+                        Constraint::Percentage(self.preview_height),
+                    ]
+                    .as_ref(),
+                )
                 .split(chunks[0]);
 
             self.preview_height = split_layout[1].height;
@@ -635,38 +839,60 @@ impl UiApp {
             AppMode::List => self.draw_command(
                 f,
                 chunks[1],
-                self.command.as_str(),
+                self.command_buffer.as_str(),
                 self.set_header_style::<PINK>("Command Prompt", Modifier::DIM),
-                self.get_position(&self.command),
+                self.get_position(&self.command_buffer),
                 false,
             ),
             AppMode::Command => {
-                let position = self.get_position(&self.command);
+                let position = self.get_position(&self.command_buffer);
                 if self.completion_show {
                     self.draw_completion_popup(f, chunks[1], position);
                 }
                 self.draw_command(
                     f,
                     chunks[1],
-                    self.command.as_str(),
+                    self.command_buffer.as_str(),
                     self.set_header_style::<PINK>("Command Prompt", Modifier::BOLD),
                     position,
                     true,
                 );
             },
-            AppMode::Error =>
-                self.draw_command(f, chunks[1], self.error.as_str(), "Error", 0, false),
             AppMode::Help => {
                 self.draw_command(
                     f,
                     chunks[1],
-                    self.command.as_str(),
+                    self.command_buffer.as_str(),
                     self.set_header_style::<PINK>("Command Prompt", Modifier::BOLD),
-                    self.get_position(&self.command),
+                    self.get_position(&self.command_buffer),
                     false,
                 );
-                self.draw_help(f, chunks[0], set_title(self, self.mode.to_string()));
+                self.draw_help(
+                    f,
+                    chunks[0],
+                    set_title(self, self.mode.to_string()),
+                    self.keybindings.clone(),
+                );
             },
+            AppMode::HelpPopup => {
+                self.draw_command(
+                    f,
+                    chunks[1],
+                    self.command_buffer.as_str(),
+                    self.set_header_style::<PINK>("Command Prompt", Modifier::BOLD),
+                    self.get_position(&self.command_buffer),
+                    false,
+                );
+                self.draw_help_popup(
+                    f,
+                    80,
+                    90,
+                    vec![self.set_header_style::<PINK>("Command Help", Modifier::BOLD)],
+                    self.command_keybindings.clone(),
+                );
+            },
+            AppMode::Error =>
+                self.draw_command(f, chunks[1], self.error.as_str(), "Error", 0, false),
         }
     }
 
@@ -705,10 +931,7 @@ impl UiApp {
         f.render_widget(p, rect);
     }
 
-    // .alignment(Alignment::Left)
-    // .wrap(Wrap { trim: false })
-
-    /// TODO: Draw a file preview
+    /// TODO: Speed up scrolling
     fn draw_preview(&mut self, f: &mut Frame<impl Backend>, rect: Rect) {
         if self.registry.entries.is_empty() {
             f.render_widget(
@@ -722,31 +945,89 @@ impl UiApp {
         }
 
         let selected = self.selected();
-        // TODO: fix
-        let path = self
-            .current_selection_path
-            .clone()
-            .unwrap_or_else(|| PathBuf::from("."));
+        let path = self.registry_paths[selected].clone();
 
-        // let data = match self.task_details.get(&task_uuid) {
-        //     Some(s) => s.clone(),
-        //     None => "Loading task details ...".to_string(),
-        // };
-        // self.task_details_scroll = std::cmp::min(
-        //     (data.lines().count() as u16)
-        //         .saturating_sub(rect.height)
-        //         .saturating_add(2),
-        //     self.task_details_scroll,
-        // );
+        let mut cmd = if which::which("bat").is_ok() {
+            let mut bat = process::Command::new("bat");
+            bat.arg("--paging=never");
+            bat.arg("--style=numbers");
+            bat.arg(format!("--terminal-width={}", self.terminal_width - 2));
+            bat.arg("--color=always");
+            bat
+        } else {
+            process::Command::new("cat")
+        };
 
-        let p = Paragraph::new(Text::from("File Preview"))
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .border_type(BorderType::Rounded)
-                    .title(format!("Entry: {}", path.display())),
-            )
-            .scroll((self.preview_scroll, 0));
+        // This may not be needed since no pager is being opened
+        cmd.env("LESSCHARSET", "utf-8");
+        cmd.arg(path.display().to_string());
+
+        let output = cmd.output();
+        let preview = match output {
+            Ok(out) =>
+                if out.status.success() {
+                    String::from_utf8_lossy(&out.stdout).to_string()
+                } else {
+                    format!("Error: {}", String::from_utf8_lossy(&out.stderr))
+                },
+            Err(e) => {
+                format!("Error: {}", e)
+            },
+        };
+
+        // Rect height = 20
+        // Bat preview lines = 18
+        self.preview_scroll = std::cmp::min(
+            (preview.lines().count() as u16)
+                .saturating_sub(rect.height)
+                .saturating_add(2),
+            self.preview_scroll,
+        );
+
+        let current_line = self
+            .preview_scroll
+            .saturating_add(rect.height)
+            .saturating_sub(2)
+            .to_string();
+        let num_lines = preview.lines().count().to_string();
+
+        let mut defstyle = Style::default();
+        let title = if self.is_colored() {
+            vec![
+                self.set_header_style::<PINK>("Entry", Modifier::BOLD),
+                Span::from(": "),
+                Span::styled(
+                    path.display().to_string(),
+                    defstyle.fg(Color::Rgb(ORANGE[0], ORANGE[1], ORANGE[2])),
+                ),
+                Span::from("──("),
+                self.set_header_style::<GREEN>(&current_line, Modifier::BOLD),
+                Span::from("/"),
+                self.set_header_style::<GREEN>(&num_lines, Modifier::BOLD),
+                Span::from(")"),
+            ]
+        } else {
+            vec![Span::from(format!(
+                "Entry: {}──({}/{})",
+                path.display(),
+                &current_line,
+                &num_lines
+            ))]
+        };
+
+        let p = Paragraph::new(
+            ansi_to_text(preview.as_bytes().iter().map(Clone::clone)).unwrap_or_else(|_| {
+                Text::from("Error: there was an error parsing ansi escape sequences")
+            }),
+        )
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
+                .title(Spans::from(title)),
+        )
+        .scroll((self.preview_scroll, 0));
+
         f.render_widget(p, rect);
     }
 
@@ -842,6 +1123,11 @@ impl UiApp {
             .map(|i| Constraint::Length((*i).try_into().unwrap_or(maximum_column_width)))
             .collect();
 
+        let mut header_style = Style::default().add_modifier(Modifier::BOLD);
+        if self.config.ui.header_underline {
+            header_style = header_style.add_modifier(Modifier::UNDERLINED);
+        }
+
         let table = Table::new(header, rows)
             .block(
                 Block::default()
@@ -852,12 +1138,9 @@ impl UiApp {
                     .title_alignment(Alignment::Left),
             )
             .header_style(if self.is_colored() {
-                Style::default()
-                    .fg(Color::Rgb(DARK_PINK[0], DARK_PINK[1], DARK_PINK[2]))
-                    .add_modifier(Modifier::BOLD)
-                    .add_modifier(Modifier::UNDERLINED)
+                header_style.fg(Color::Rgb(DARK_PINK[0], DARK_PINK[1], DARK_PINK[2]))
             } else {
-                Style::default().add_modifier(Modifier::BOLD)
+                header_style
             })
             .header_alignment(
                 // Seems unncessary to have to convert from string
@@ -972,12 +1255,18 @@ impl UiApp {
                     self.mode = AppMode::Command;
                     self.command_history_context.last();
                     self.update_completion_list();
-                } else if input == self.config.keys.edit {
-                    match self.tag_edit2() {
+                } else if input == self.config.keys.preview {
+                    self.preview_file = !self.preview_file;
+                } else if input == self.config.keys.preview_down {
+                    self.preview_scroll_down();
+                } else if input == self.config.keys.preview_up {
+                    self.preview_scroll_up();
+                } else if input == self.config.keys.view {
+                    match self.tag_edit() {
                         Ok(_) => self.update(true)?,
                         Err(e) => {
                             self.mode = AppMode::Error;
-                            self.error = e;
+                            self.error = e.to_string();
                         },
                     }
                 },
@@ -986,6 +1275,7 @@ impl UiApp {
                     self.should_quit = true;
                 } else if input == self.config.keys.quit
                     || input == self.config.keys.help
+                    || input == Key::Char('h')
                     || input == Key::Esc
                 {
                     self.mode = AppMode::List;
@@ -994,31 +1284,58 @@ impl UiApp {
                 } else if input == Key::Up || input == self.config.keys.up {
                     self.keybindings.previous();
                 },
+            AppMode::HelpPopup =>
+                if input == Key::Ctrl('c') {
+                    self.should_quit = true;
+                } else if input == self.config.keys.quit
+                    || input == Key::Alt('.')
+                    || input == Key::Char('h')
+                    || input == Key::Esc
+                {
+                    self.mode = AppMode::Command;
+                } else if input == Key::Down || input == self.config.keys.down {
+                    self.command_keybindings.next();
+                } else if input == Key::Up || input == self.config.keys.up {
+                    self.command_keybindings.previous();
+                },
+            // TODO: Confirm that all work
             AppMode::Command => match input {
+                Key::Alt('.') => {
+                    self.mode = AppMode::HelpPopup;
+                },
                 Key::Esc =>
                     if self.completion_show {
                         self.completion_show = false;
                         self.completion_list.unselect();
                     } else {
+                        // self.command_history_context
+                        //     .add(self.command_buffer.as_str());
+                        self.command_buffer.update("", 0);
+                        // self.update(true)?;
                         self.mode = AppMode::List;
-                        self.command_history_context.add(self.command.as_str());
-                        self.update(true)?;
                     },
                 Key::Char('\n') => {
                     if self.completion_show {
                         self.completion_show = false;
                         if let Some(sel) = self.completion_list.selected() {
-                            let (before, after) =
-                                self.command.as_str().split_at(self.command.pos());
+                            let (before, after) = self
+                                .command_buffer
+                                .as_str()
+                                .split_at(self.command_buffer.pos());
                             let f = format!("{}{}{}", before, sel, after);
-                            self.command.update(&f, self.command.pos() + sel.len());
+                            self.command_buffer
+                                .update(&f, self.command_buffer.pos() + sel.len());
                         }
                         self.completion_list.unselect();
                         self.dirty = true;
                     } else {
                         // TODO: add error
+                        // TODO: Run commands here
                         self.mode = AppMode::List;
-                        self.command_history_context.add(self.command.as_str());
+                        self.command_history_context
+                            .add(self.command_buffer.as_str());
+                        // command::handle_command(&self);
+                        self.command_buffer.update("", 0);
                         self.update(true)?;
                     }
                 },
@@ -1026,24 +1343,24 @@ impl UiApp {
                     if self.completion_show && !self.completion_list.is_empty() {
                         self.completion_list.previous();
                     } else if let Some(s) = self.command_history_context.history_search(
-                        &self.command.as_str()[..self.command.pos()],
+                        &self.command_buffer.as_str()[..self.command_buffer.pos()],
                         HistoryDirection::Reverse,
                     ) {
-                        let p = self.command.pos();
-                        self.command.update("", 0);
-                        self.command.update(&s, std::cmp::min(p, s.len()));
+                        let p = self.command_buffer.pos();
+                        self.command_buffer.update("", 0);
+                        self.command_buffer.update(&s, std::cmp::min(p, s.len()));
                         self.dirty = true;
                     },
                 Key::Down =>
                     if self.completion_show && !self.completion_list.is_empty() {
                         self.completion_list.next();
                     } else if let Some(s) = self.command_history_context.history_search(
-                        &self.command.as_str()[..self.command.pos()],
+                        &self.command_buffer.as_str()[..self.command_buffer.pos()],
                         HistoryDirection::Forward,
                     ) {
-                        let p = self.command.pos();
-                        self.command.update("", 0);
-                        self.command.update(&s, std::cmp::min(p, s.len()));
+                        let p = self.command_buffer.pos();
+                        self.command_buffer.update("", 0);
+                        self.command_buffer.update(&s, std::cmp::min(p, s.len()));
                         self.dirty = true;
                     },
                 Key::Tab | Key::Ctrl('n') =>
@@ -1060,7 +1377,7 @@ impl UiApp {
                     }
                 },
                 Key::Ctrl('r') => {
-                    self.command.update("", 0);
+                    self.command_buffer.update("", 0);
                     for c in self
                         .config
                         .clone()
@@ -1069,13 +1386,13 @@ impl UiApp {
                         .unwrap_or_default()
                         .chars()
                     {
-                        self.command.insert(c, 1);
+                        self.command_buffer.insert(c, 1);
                     }
                     self.update_completion_matching();
                     self.dirty = true;
                 },
                 _ => {
-                    handle_movement(&mut self.command, input);
+                    handle_movement(&mut self.command_buffer, input);
                     // self.check_command_status()?;
                     // self.update_completion_list();
                     self.complist();
@@ -1099,8 +1416,26 @@ impl UiApp {
         Ok(())
     }
 
-    /// Use this `alias_hash` from the configuration file to replace the
-    /// mappings in the strings
+    /// # About
+    /// Offers the user an option I discovered when using `zinit` (a `zsh`
+    /// package manager). Paths can sometimes be very long and many files can be
+    /// tagged in the same folder. Since usually we visit the same n number of
+    /// folders, this allows for the shortening of certain paths (in a hash) to
+    /// a custom variable.
+    /// -
+    // Many default mappings come included with the crate.
+    /// The defaults are the usual `XDG` specs that are found on most Linux
+    /// distributions, and many `macOS` users also have them set.
+    ///
+    /// For example:
+    ///     * The environment variable `$XDG_CONFIG_HOME` maps to
+    ///       `/home/user/.config`. The default mapping is `%CONFIG_HOME` for
+    ///       that variable (what I've inserted into the alias hash)
+    ///     * So a path of `/home/user/.config/zsh` results in
+    ///       `/%CONFIG_HOME/zsh`
+    ///
+    /// This function replaces the occurences of the hash mapping in the given
+    /// path
     pub(crate) fn alias_replace(&self, replace: &str) -> String {
         let alias_hash = self.config.ui.clone().build_alias_hash();
         let re = Regex::new(
@@ -1181,14 +1516,17 @@ impl UiApp {
         widths
     }
 
+    // TODO: set correct functions
     /// Refresh the application state
     pub(crate) fn update(&mut self, force: bool) -> Result<()> {
         if force || self.dirty || self.changed_since(self.last_export).unwrap_or(true) {
+            super::notify("updatin", None);
             self.last_export = Some(SystemTime::now());
             self.import_paths();
             self.get_context();
             self.dirty = false;
             self.save_history()?;
+            // self.current_selection = 0;
         }
 
         self.cursor_fix();
@@ -1232,6 +1570,7 @@ impl UiApp {
     // ####################### MOVEMENT #######################
     //
 
+    // TODO: Use or delete
     pub(crate) fn previous_report(&mut self) {
         if self.registry.tags.is_empty() {
             return;
@@ -1367,6 +1706,20 @@ impl UiApp {
         self.select(i);
         self.current_selection = i;
         self.current_selection_id = None;
+    }
+
+    /// Scroll the preview up
+    fn preview_scroll_up(&mut self) {
+        self.preview_scroll = self
+            .preview_scroll
+            .saturating_sub(self.config.ui.preview_scroll_lines);
+    }
+
+    /// Scroll the preview down
+    fn preview_scroll_down(&mut self) {
+        self.preview_scroll = self
+            .preview_scroll
+            .saturating_add(self.config.ui.preview_scroll_lines);
     }
 
     /// Fix cursor position under any errors that may arise
@@ -1508,36 +1861,6 @@ impl UiApp {
             .unwrap()
     }
 
-    /// Return styled text for the context in the help menu
-    fn styled_context(&self, color: Color) -> Text<'_> {
-        Text::from(
-            self.current_context
-                .lines()
-                .map(|v| {
-                    let mut values = v.trim().split(':').collect::<Vec<&str>>();
-                    Spans::from(if values.len() >= 2 {
-                        vec![
-                            Span::styled(values[0], Style::default().fg(Color::Reset)),
-                            Span::styled(":", Style::default().fg(Color::DarkGray)),
-                            Span::styled(
-                                values.drain(1..).collect::<Vec<&str>>().join(":"),
-                                Style::default()
-                                    .fg(if self.config.ui.flashy {
-                                        self.gen_random_color()
-                                    } else {
-                                        color
-                                    })
-                                    .add_modifier(Modifier::BOLD),
-                            ),
-                        ]
-                    } else {
-                        vec![Span::styled(v, Style::default().fg(Color::Reset))]
-                    })
-                })
-                .collect::<Vec<Spans>>(),
-        )
-    }
-
     /// Returns a `Text` object of every styled `Tag`
     fn styled_text_for_tags<'a>(&self, entry: &[String]) -> Text<'a> {
         let mut row = vec![];
@@ -1632,6 +1955,19 @@ impl UiApp {
         Span::styled(text, self.colored_style::<COLOR>(modif))
     }
 
+    // Would use this instead, however it requires two generic argumens when used
+    /// Return a styled `Span` based on user configuration
+    fn set_header_style_alt<'a, const COLOR: [u8; 3], T>(
+        &self,
+        text: &'a T,
+        modif: Modifier,
+    ) -> Span<'a>
+    where
+        T: AsRef<str>,
+    {
+        Span::styled(text.as_ref(), self.colored_style::<COLOR>(modif))
+    }
+
     /// Return a `Style` depending on user configuration
     fn colored_style<const COLOR: [u8; 3]>(&self, modif: Modifier) -> Style {
         if self.is_colored() {
@@ -1667,7 +2003,7 @@ impl UiApp {
 
     /// Get the `TagRegistry`'s last modification time
     fn get_registry_mtime(&self) -> Result<SystemTime> {
-        fs::metadata(self.registry.path.clone())
+        fs::metadata(&self.registry.path)
             .map(|m| m.modified().ok())?
             .ok_or_else(|| anyhow!("Unable to get tag registry modified time"))
     }
@@ -1720,13 +2056,14 @@ impl UiApp {
     // #################### COMPLETIONS ####################
     //
 
-    /// Update items in the completion list
+    /// Update items in the completion list. This is ran when the command prompt
+    /// is first invoked
     pub(crate) fn update_completion_list(&mut self) {
         self.completion_list.clear();
 
-        // let i = completion::get_word_under_cursor(self.command.as_str(),
-        // self.command.pos()); let input =
-        // self.command.as_str()[i..self.command.pos()].to_string();
+        // let i = completion::get_word_under_cursor(self.command_buffer.as_str(),
+        // self.command_buffer.pos()); let input =
+        // self.command_buffer.as_str()[i..self.command_buffer.pos()].to_string();
 
         if self.mode == AppMode::Command {
             let app = Opts::into_app();
@@ -1738,90 +2075,191 @@ impl UiApp {
                         // if input == item.to_string() {
                         //     self.completion_list.clear();
                         // }
-                        self.completion_list.insert(format!("{}", item));
+                        self.completion_list.insert(format!("upcomp {}", item));
                     },
                 }
             }
         }
     }
 
+    // TODO: Add possible support for ls-colors
     /// Generate the completion list
     pub(crate) fn complist(&mut self) {
-        let i = completion::get_word_under_cursor(self.command.as_str(), self.command.pos());
-        let input = self.command.as_str()[i..self.command.pos()].to_string();
+        let i = completion::get_word_under_cursor(
+            self.command_buffer.as_str(),
+            self.command_buffer.pos(),
+        );
+        let input = self.command_buffer.as_str()[i..self.command_buffer.pos()].to_string();
+
         #[allow(clippy::needless_collect)] // ???
-        let full_cmd = self.command.as_str().split(' ').collect::<Vec<_>>();
+        let full_cmd = self
+            .command_buffer
+            .as_str()
+            .split_whitespace()
+            .collect::<Vec<_>>();
+        let curr_cmd = if full_cmd.len() > 1 && full_cmd.last().unwrap_or(&"") == &"" {
+            full_cmd.iter().rev().take(2).collect::<Vec<&&str>>()[1]
+        } else {
+            full_cmd.last().unwrap_or(&"")
+        };
 
         if self.mode == AppMode::Command {
             let app = Opts::into_app();
 
-            // Length equaling one here represents an empty command prompt
-            if full_cmd.len() == 1 {
+            // Opts:
+            //   --dir <dir>
+            //   --max-depth <num>
+            //   --registry <reg>
+            //   --color <when>
+            //   --type <filetype>
+            //   --ext <extension>
+            //   --exclude <pattern>
+            // let global_opts = app.get_opts().collect::<Vec<_>>();
+
+            // Subcommands:
+            //   - list
+            //   - set
+            //   - rm
+            //   - clear
+            //   - search
+            //   - cp
+            //   - view
+            //   - edit
+            //   - info
+            //   - print-completions
+            //   - clean-cache
+            //   - ui
+            let subcommands = app.get_subcommands().collect::<Vec<_>>();
+            // Args:
+            //   --help
+            //   --version
+            //   --verbose
+            //   --color <when>
+            //   --dir <dir>
+            //   --ls-colors
+            //   --max-depth <num>
+            //   --registry <reg>
+            //   --case-sensitive
+            //   --case-insensitive
+            //   --regex
+            //   --global
+            //   --type <filetype>
+            //   --ext <extension>
+            //   --exclude <pattern>
+            let global_args = app.get_arguments().collect::<Vec<_>>();
+
+            // A size of 1 represents empty here
+            if full_cmd.len() <= 1 {
                 self.completion_list.clear();
-                for item in app.get_subcommands() {
-                    match item.to_string().as_str() {
-                        "print-completions" | "ui" => {},
-                        _ => {
-                            // if input == item.to_string() {
-                            //     self.completion_list.clear();
-                            // }
-                            self.completion_list.insert(format!("{}", item));
+            }
+
+            super::notify(
+                "compl",
+                Some(&format!(
+                    "len: {}, cmd: {}, input: {}, --: {}",
+                    full_cmd.len(),
+                    curr_cmd,
+                    input,
+                    full_cmd
+                        .iter()
+                        .all(|cmd| cmd.starts_with("--") || cmd.is_empty())
+                )),
+            );
+
+            let match_args = |sub: &clap::App, completion_list: &mut CompletionList| {
+                for arg in sub.get_arguments() {
+                    match arg.to_string().as_str() {
+                        "--help" | "--version" | "--color" | "--ls-colors" | "--verbose" => {},
+                        a =>
+                            if a != *curr_cmd {
+                                completion_list.insert(a.to_string());
+                            },
+                    }
+                }
+            };
+
+            // Insertion: If the beginning of command, or --options are given before
+            // subcommand
+            if full_cmd.len() <= 1
+                || full_cmd
+                    .iter()
+                    .all(|cmd| cmd.starts_with("--") || cmd.is_empty())
+            {
+                for arg in global_args {
+                    match arg.to_string().as_str() {
+                        "--help" | "--version" | "--color" | "--ls-colors" | "--verbose" => {},
+                        a => {
+                            // self.completion_list.insert(format!("a: {}", a));
+
+                            if a != *curr_cmd {
+                                self.completion_list.insert(a.to_string());
+                            }
                         },
                     }
                 }
-                for item in app.get_arguments() {
-                    match item.to_string().as_str() {
-                        "--help" | "--version" | "--verbose" | "--ls-colors" => {},
-                        _ => self.completion_list.insert(format!("{}", item)),
+                for sub in &subcommands {
+                    match sub.to_string().as_str() {
+                        "info" | "print-completions" | "clean-cache" | "ui" => {},
+                        s => {
+                            // self.completion_list.insert(format!("sub: {}", s));
+                            self.completion_list.insert(s.to_string());
+                        },
                     }
                 }
+                // Special commands not found within the CLI application
+                for other in ["@help", "@quit", "@refresh", "@preview"] {
+                    // self.completion_list.insert(format!("other: {}", other));
+                    self.completion_list.insert(other.to_string());
+                }
             } else {
-                self.completion_list
-                    .insert(format!("len2: {}", full_cmd.len()));
-                for item in app.get_subcommands() {
-                    // if item.to_string() == input {
-                    if self.command.as_str().contains(&item.to_string()) {
-                        for flag in item.get_opts() {
-                            self.completion_list.insert(format!("{}", flag));
+                self.completion_list.clear();
+                super::notify("hit other", None);
+                for sub in subcommands {
+                    if sub.to_string() == *curr_cmd {
+                        super::notify("matching curr", None);
+                        if sub.to_string() == "list" {
+                            for sub2 in sub.get_subcommands() {
+                                self.completion_list.insert(sub2.to_string());
+                                // List has subcommands (files, tags)
+                                match_args(sub2, &mut self.completion_list);
+                            }
                         }
+                        match_args(sub, &mut self.completion_list);
                     }
                 }
             }
-
-            // if app.get_subcommands().any(|sub| sub.to_string() == input) {
-            //     self.completion_list.clear();
-            //     self.completion_list.insert(format!("sub: {}", input));
-            // }
         }
     }
 
-    /// Update input being fed into the completion list. This function will
-    /// refresh the completion menu, narrowing down the matches or removing them
-    /// completely if no match is found.
+    /// Update input being fed into the completion list. This is used to push
+    /// the current input to the completion list
     pub(crate) fn update_completion_matching(&mut self) {
         if self.mode == AppMode::Command {
-            let i = completion::get_word_under_cursor(self.command.as_str(), self.command.pos());
-            let input = self.command.as_str()[i..self.command.pos()].to_string();
+            let i = completion::get_word_under_cursor(
+                self.command_buffer.as_str(),
+                self.command_buffer.pos(),
+            );
+            let input = self.command_buffer.as_str()[i..self.command_buffer.pos()].to_string();
 
-            // if input == item.to_string() {
-            //     // self.completion_list.clear();
-            //     for flag in item.get_arguments() {
-            //         self.completion_list.insert(format!("{} zz", flag));
-            //     }
-            // },
-            //
             self.completion_list.input(input);
         }
     }
 
     /// Check for the status of currently typed command
     pub(crate) fn check_command_status(&mut self) -> Result<()> {
-        let i = completion::get_word_under_cursor(self.command.as_str(), self.command.pos());
-        let input = self.command.as_str()[i..self.command.pos()].to_string();
+        let i = completion::get_word_under_cursor(
+            self.command_buffer.as_str(),
+            self.command_buffer.pos(),
+        );
+        let input = self.command_buffer.as_str()[i..self.command_buffer.pos()].to_string();
 
-        let full_cmd = self.command.as_str().split(' ').collect::<Vec<&str>>();
+        let full_cmd = self
+            .command_buffer
+            .as_str()
+            .split(' ')
+            .collect::<Vec<&str>>();
         self.completion_list
-            .insert(format!("cmd: {}", self.command.as_str()));
+            .insert(format!("cmd: {}", self.command_buffer.as_str()));
 
         let cmd = process::Command::new("wutag")
             .args(full_cmd)
@@ -1862,7 +2300,9 @@ impl UiApp {
     // #################### ACTIONS ####################
     //
 
-    pub(crate) fn tag_edit2(&mut self) -> Result<(), String> {
+    /// Alternative to the below function. Instead of using the application from
+    /// within, call the binary. This is for debugging purposes only
+    fn tag_edit2(&mut self) -> Result<(), String> {
         if self.registry.entries.is_empty() {
             return Ok(());
         }
@@ -1916,7 +2356,7 @@ impl UiApp {
         res
     }
 
-    /// Edit the current tag(s) in an editor
+    /// Action: Edit the current tag(s) in an editor
     pub(crate) fn tag_edit(&mut self) -> Result<()> {
         if self.registry.entries.is_empty() {
             return Ok(());
@@ -1926,7 +2366,8 @@ impl UiApp {
             .registry
             .find_entry(&self.registry_paths[selected])
             .unwrap_or_default();
-        let tags = self.registry.list_entry_tags(id).unwrap_or_default();
+
+        // let tags = self.registry.list_entry_tags(id).unwrap_or_default();
 
         let viewargs = Opts::view_args(&self.registry_paths[selected].display().to_string());
         App::run(viewargs, &self.config).map_err(Error::Edit)?;
@@ -1937,6 +2378,8 @@ impl UiApp {
         Ok(())
     }
 }
+
+// TODO: Add help menu for this
 
 // Handle cursor movement of the command prompt (`LineBuffer`)
 pub(crate) fn handle_movement(linebuffer: &mut LineBuffer, input: Key) {
@@ -1985,4 +2428,35 @@ pub(crate) fn handle_movement(linebuffer: &mut LineBuffer, input: Key) {
         },
         _ => {},
     }
+}
+
+/// Return styled text for the context in the help menu
+fn styled_context<'a>(text: &'a str, color: Color, app: &UiApp) -> Text<'a> {
+    Text::from(
+        text.lines()
+            .map(|v| {
+                let mut values = v.trim().split(':').collect::<Vec<&str>>();
+                Spans::from(if values.len() >= 2 {
+                    vec![
+                        Span::styled(values[0], Style::default().fg(Color::Reset)),
+                        Span::styled(":", Style::default().fg(Color::DarkGray)),
+                        Span::styled(
+                            values.drain(1..).collect::<Vec<&str>>().join(":"),
+                            Style::default()
+                                .fg(if app.config.ui.flashy && app.is_colored() {
+                                    app.gen_random_color()
+                                } else if app.is_colored() {
+                                    color
+                                } else {
+                                    Color::Reset
+                                })
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                    ]
+                } else {
+                    vec![Span::styled(v, Style::default().fg(Color::Reset))]
+                })
+            })
+            .collect::<Vec<Spans>>(),
+    )
 }

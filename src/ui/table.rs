@@ -1,8 +1,16 @@
 #![allow(unused)]
 
-//! This is partially taken from `taskwarrior-tui` and provides a `Table` with
-//! custom modifications that are similar to the default
-//! [Table](tui::widgets::table::Table). I've added several other features
+//! Generate the main table seen within the TUI that shows the file paths and
+//! tags. This is used to iterate over Row, Cell, Spans, and Span to get the
+//! styles for each individual tag as they're seen on the regular TUI. This part
+//! of the module also allows for some additional features that the default
+//! `Table` from `tui` doesn't have.
+//!
+//! This includes header alignment, highlighted marker, highlighted non-marker,
+//! column spacing, etc
+
+// Credit: idea and outline came from `kdheepak/taskwarrior-tui`
+//  * Using their work to help me learn how to code a TUI
 
 use cassowary::{
     strength::{MEDIUM, REQUIRED, WEAK},
@@ -113,8 +121,8 @@ impl TableState {
 //     StyledData(D, Style),
 // }
 
-#[derive(Debug, Clone, PartialEq, Default)]
 #[allow(single_use_lifetimes)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct Cell<'a> {
     content: Text<'a>,
     style:   Style,
@@ -157,17 +165,9 @@ pub(crate) struct Row<'a> {
     bottom_margin: u16,
 }
 
-// impl<'a> Iterator for Row<'a> {
-//     type Item = Cell<'a>;
-//
-//     fn next(&mut self) -> Option<Self::Item> {
-//         self.cells.iter().next().map(|s| *s)
-//     }
-// }
-
 impl<'a> Row<'a> {
-    /// Creates a new [`Row`] from an iterator where items can be converted to a
-    /// [`Cell`].
+    /// Creates a new `Row` from an iterator where items can be converted to a
+    /// `Cell`
     pub(crate) fn new<T>(cells: T) -> Self
     where
         T: IntoIterator,
@@ -182,7 +182,7 @@ impl<'a> Row<'a> {
     }
 
     /// Set the fixed height of the [`Row`]. Any [`Cell`] whose content has more
-    /// lines than this height will see its content truncated.
+    /// lines than this height will see its content truncated
     pub(crate) const fn height(mut self, height: u16) -> Self {
         self.height = height;
         self
@@ -190,19 +190,19 @@ impl<'a> Row<'a> {
 
     /// Set the [`Style`] of the entire row. This [`Style`] can be overriden by
     /// the [`Style`] of a any individual [`Cell`] or event by their
-    /// [`Text`] content.
+    /// [`Text`] content
     pub(crate) const fn style(mut self, style: Style) -> Self {
         self.style = style;
         self
     }
 
-    /// Set the bottom margin. By default, the bottom margin is `0`.
+    /// Set the bottom margin. By default, the bottom margin is `0`
     pub(crate) const fn bottom_margin(mut self, margin: u16) -> Self {
         self.bottom_margin = margin;
         self
     }
 
-    /// Returns the total height of the row.
+    /// Returns the total height of the row
     const fn total_height(&self) -> u16 {
         self.height.saturating_add(self.bottom_margin)
     }
@@ -326,7 +326,7 @@ where
         self
     }
 
-    /// TODO:
+    /// TODO: ??
     pub(crate) fn widths(mut self, widths: &'a [Constraint]) -> Self {
         let between_0_and_100 = |&w| match w {
             Constraint::Percentage(p) => p <= 100,
@@ -340,7 +340,7 @@ where
         self
     }
 
-    /// Change rows of the table
+    /// Change/set rows of the table
     pub(crate) fn rows<R>(mut self, rows: R) -> Self
     where
         R: IntoIterator<Item = Row<'a>>,
@@ -349,20 +349,20 @@ where
         self
     }
 
-    /// Change overall table style
+    /// Change/set overall table style
     pub(crate) fn style(mut self, style: Style) -> Self {
         self.style = style;
         self
     }
 
-    /// Change symbol that indicates item is selected
+    /// Change/set symbol that indicates item is selected
     pub(crate) fn mark_symbol(mut self, mark_symbol: &'a str) -> Self {
         self.mark_symbol = Some(mark_symbol);
         self
     }
 
     // TODO: check
-    /// Change highlight symbol, used to indicate that item is selected in
+    /// Change/set highlight symbol, used to indicate that item is selected in
     /// multi-selection mode
     pub(crate) fn unmark_symbol(mut self, unmark_symbol: &'a str) -> Self {
         self.unmark_symbol = Some(unmark_symbol);
@@ -370,7 +370,7 @@ where
     }
 
     // TODO: check
-    /// Change highlight symbol, used to indicate that item is selected in
+    /// Change/set highlight symbol, used to indicate that item is selected in
     /// multi-selection mode
     pub(crate) fn mark_highlight_symbol(mut self, mark_highlight_symbol: &'a str) -> Self {
         self.mark_highlight_symbol = Some(mark_highlight_symbol);
@@ -378,37 +378,37 @@ where
     }
 
     // TODO: check
-    /// Change highlight symbol, used to indicate that item is not selected
+    /// Change/set highlight symbol, used to indicate that item is not selected
     pub(crate) fn unmark_highlight_symbol(mut self, unmark_highlight_symbol: &'a str) -> Self {
         self.unmark_highlight_symbol = Some(unmark_highlight_symbol);
         self
     }
 
-    /// Change highlight of the tags
+    /// Change/set highlight of the tags
     pub(crate) fn highlight_tags(mut self, highlight_tags: bool) -> Self {
         self.highlight_tags = highlight_tags;
         self
     }
 
-    /// Change highlight symbol, used to indicate that item is selected
+    /// Change/set highlight symbol, used to indicate that item is selected
     pub(crate) fn highlight_symbol(mut self, highlight_symbol: &'a str) -> Self {
         self.highlight_symbol = Some(highlight_symbol);
         self
     }
 
-    /// Change highlight style when item is selected
+    /// Change/set highlight style when item is selected
     pub(crate) fn highlight_style(mut self, highlight_style: Style) -> Self {
         self.highlight_style = highlight_style;
         self
     }
 
-    /// Change space between columns of data (filename and tags)
+    /// Change/set space between columns of data (filename and tags)
     pub(crate) fn column_spacing(mut self, spacing: u16) -> Self {
         self.column_spacing = spacing;
         self
     }
 
-    /// Change size of vertical gap between the header and the data
+    /// Change/set size of vertical gap between the header and the data
     pub(crate) fn header_gap(mut self, gap: u16) -> Self {
         self.header_gap = gap;
         self
@@ -533,6 +533,8 @@ where
             (None, self.style)
         };
 
+        // Perhaps increasing the spacing between highlight symbol and the line when
+        // using this particular UTF character would be good. There isn't much space
         // •
         let highlight_symbol = match state.mode {
             TableSelection::Multiple => {

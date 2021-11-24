@@ -33,11 +33,11 @@ Increase maximum recursion depth of filesystem traversal to specified value (def
 .IP
 Specify a different registry to use
 .HP
-\fB\-i\fR, \fB\-\-case_insensitive\fR
+\fB\-i\fR, \fB\-\-case\-insensitive\fR
 .IP
 Turn the glob into a case insensitive one (default: case insensitive). Overrides \fB\-\-casesensitive\fR, and becomes case\-sensitive if a search is performed with an uppercasecharacter. Only applies to subcommands that take a pattern as a positional argument.
 .HP
-\fB\-s\fR, \fB\-\-case_sensitive\fR
+\fB\-s\fR, \fB\-\-case\-sensitive\fR
 .IP
 Turn the glob into a case sensitive one (default: case sensitive). Overrides \fB\-\-caseinsensitive\fR. Only applies to subcommands that take a pattern as a positional argument.
 .HP
@@ -102,6 +102,11 @@ Can be used multiple times: e.g., \fB\-e\fR rs \fB\-e\fR go.
 Specify a pattern to exclude from the results. Can be used multiple times: e.g., \fB\-E\fR
 path/here \fB\-E\fR path/there.
 .HP
+\fB\-q\fR, \fB\-\-quiet\fR
+.IP
+Do not display any output for any command. Used within the TUI but made available to
+users
+.HP
 \fB\-h\fR, \fB\-\-help\fR
 .IP
 Print help information
@@ -147,13 +152,17 @@ info
 .IP
 Display information about the wutag environment
 .IP
+repair
+.IP
+Repair broken/missing/modified files in the registry
+.IP
 clean\-cache
 .IP
 Clean the cached tag registry
 .IP
 ui
 .IP
-Open a TUI to manage tags, requires results from a `search`, or `list`
+Open a TUI to manage tags
 .IP
 print\-completions
 .IP

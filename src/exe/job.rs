@@ -130,7 +130,7 @@ pub(crate) fn receiver(
                             );
                         }
 
-                        if opts.only_files {
+                        if opts.only_files && !app.quiet {
                             println!();
                         } else {
                             let tags = app
@@ -148,9 +148,9 @@ pub(crate) fn receiver(
                                 .collect::<Vec<_>>()
                                 .join(" ");
 
-                            if opts.garrulous {
+                            if opts.garrulous && !app.quiet {
                                 println!("\t{}", tags);
-                            } else {
+                            } else if !app.quiet {
                                 println!(": {}", tags);
                             }
                         }

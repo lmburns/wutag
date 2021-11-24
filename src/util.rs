@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use chrono::{DateTime, Local};
 use colored::{Color, ColoredString, Colorize};
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
 use lexiclean::Lexiclean;
@@ -13,6 +14,7 @@ use std::{
     io::{self, BufRead, BufReader, Cursor, Write},
     path::{Path, PathBuf},
     sync::{Arc, Once},
+    time::SystemTime,
 };
 
 use clap_generate::{generate, Generator};
@@ -194,6 +196,12 @@ pub(crate) fn collect_stdin_paths(base: &Path) -> Vec<PathBuf> {
         })
         .map(|p| base.join(p))
         .collect::<Vec<_>>()
+}
+
+/// Convert a `SystemTime` to a [`DateTime`](chrono::DateTime)
+pub(crate) fn systemtime_to_datetime(t: SystemTime) -> String {
+    let dt: DateTime<Local> = t.into();
+    dt.format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
 /// Print completions to `stdout` or to a file

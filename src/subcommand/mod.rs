@@ -5,12 +5,16 @@ pub(crate) mod edit;
 pub(crate) mod info;
 pub(crate) mod list;
 pub(crate) mod print_completions;
+pub(crate) mod repair;
 pub(crate) mod rm;
 pub(crate) mod search;
 pub(crate) mod set;
 pub(crate) mod uses;
 pub(crate) mod view;
 
+// TODO: Virtual filesystem
+// TODO: Repair database
+// TODO: Finish info command
 // TODO: imply tags
 // TODO: rename tags
 // TODO: merge tags
@@ -40,6 +44,7 @@ pub(crate) struct App {
     pub(crate) ignores:          Option<Vec<String>>,
     pub(crate) ls_colors:        bool,
     pub(crate) max_depth:        Option<usize>,
+    pub(crate) quiet:            bool,
     pub(crate) pat_regex:        bool,
     pub(crate) registry:         TagRegistry,
 
@@ -53,7 +58,7 @@ impl App {
         let mut app = Self::new(&opts, config.clone())?;
         log::trace!("CONFIGURATION FILE: {:#?}", config);
         log::trace!("CONFIGURATION RESULT: {:#?}", app);
-        app.run_command(opts, config);
+        app.run_command(opts, config)?;
 
         Ok(())
     }
@@ -190,6 +195,7 @@ impl App {
                 config.max_depth
             },
             pat_regex: opts.regex,
+            quiet: opts.quiet,
             registry,
 
             #[cfg(any(feature = "encrypt-gpgme"))]
@@ -205,7 +211,7 @@ impl App {
     }
 
     /// Run the subcommand from the command-line
-    pub(crate) fn run_command(&mut self, opts: Opts, config: &Config) {
+    pub(crate) fn run_command(&mut self, opts: Opts, config: &Config) -> Result<()> {
         if self.color_when == "never" {
             colored::control::SHOULD_COLORIZE.set_override(false);
         } else if self.color_when == "always" {
@@ -215,15 +221,16 @@ impl App {
         match opts.cmd {
             Command::CleanCache => self.clean_cache(),
             Command::Clear(ref opts) => self.clear(opts),
-            Command::Cp(ref opts) => self.cp(opts),
+            Command::Cp(ref opts) => self.cp(opts)?,
             Command::Edit(ref opts) => self.edit(opts),
             Command::Info(ref opts) => self.info(opts),
             Command::List(ref opts) => self.list(opts),
             Command::PrintCompletions(ref opts) => self.print_completions(opts),
+            Command::Repair(ref opts) => self.repair(opts)?,
             Command::Rm(ref opts) => self.rm(opts),
             Command::Search(ref opts) => self.search(opts),
-            Command::Set(opts) => self.set(&opts),
-            Command::View(ref opts) => self.view(opts),
+            Command::Set(opts) => self.set(&opts)?,
+            Command::View(ref opts) => self.view(opts)?,
             Command::Ui => {
                 better_panic::install();
                 if let Err(e) = ui::start_ui(
@@ -240,6 +247,8 @@ impl App {
 
         #[cfg(feature = "encrypt-gpgme")]
         self.handle_encryption();
+
+        Ok(())
     }
 
     /// Encryption command to run after every subcommand

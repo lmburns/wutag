@@ -31,23 +31,29 @@ format: yaml
 ############################
 keys:
   quit: { Char: q }
+  help: { Char: "?" }
+  refresh: { Char: r }
+  preview: { Char: P }
+
   up: { Char: k }
   down: { Char: j }
   go_to_top: { Char: g }
   go_to_bottom: { Char: G }
   page_up: { Char: K }
   page_down: { Char: J }
+  preview_up: { Ctrl: u }
+  preview_down: { Ctrl: d }
   select: { Char: v }
   select_all: { Char: V }
-  refresh: { Char: r }
-  help: { Char: "?" }
+
   add: { Char: a }
+  set: { Char: s }
   clear: { Char: D }
   remove: { Char: x }
   edit: { Char: e }
+  view: { Char: o }
   search: { Char: / }
   copy: { Char: y }
-  preview: { Char: P }
 
 # Options for keys include (copy is used to show structure of every example):
 # copy: { Char: x } -- Any single character
@@ -80,14 +86,22 @@ keys:
 tui:
   # Toggle color on/off
   colored_ui: true
-  # ??
+  # Whether the list should wrap back around to opposite side when reaching end
   looping: true
   # Refresh rate of the TUI
   tick_rate: 250
-  # Command that lists files on startup
-  startup_cmd: "--global list files --with-tags"
+  # Enable/disable history
+  history: true
+  # History file path (environment variables and ~ can be used)
+  history_filepath: ${HOME}/.config/wutag/command.history
+  # Number of lines preview_{up,down} should scroll
+  preview_scroll_lines: 2
+  # Height of preview window (out of 100)
+  preview_height: 60
   # Whether some colors should flash
   flashy: true
+  # Command that lists files on startup
+  startup_cmd: "--global list files --with-tags"
   # Whether to use the builtin (standard) variable mappings should be implemented
   default_alias: true
   # Hash of mappings to be replaced in path strings
@@ -130,6 +144,8 @@ tui:
 
   # Alignment of header (left, center, right)
   header_alignment: center
+  # Underline the headers
+  header_underline: true
 
 #####################
 # Encryption settings

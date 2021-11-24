@@ -26,9 +26,10 @@ use wutag_core::tag::Tag;
 use std::{
     borrow::Cow,
     collections::BTreeMap,
-    env, fs,
+    env, fs, io,
     path::{Path, PathBuf},
     sync::atomic::{AtomicBool, Ordering},
+    time::SystemTime,
 };
 
 /// Name of registry file
@@ -40,23 +41,120 @@ static KEY_INFO: Lazy<AtomicBool> = Lazy::new(|| AtomicBool::new(true));
 static ENCRYPTION: OnceCell<Result<()>> = OnceCell::new();
 
 /// Representation of a tagged file
-#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub(crate) struct EntryData {
     /// Path of the file entry with tags
-    path: PathBuf,
+    path:    PathBuf,
+    /// Blake3 hashsum of the file
+    hash:    String,
+    /// File modification time
+    modtime: SystemTime,
+}
+
+impl Default for EntryData {
+    fn default() -> Self {
+        Self {
+            path:    PathBuf::new(),
+            hash:    String::new(),
+            modtime: SystemTime::now(),
+        }
+    }
 }
 
 impl EntryData {
     /// Generate a new `EntryData` instance
-    pub(crate) fn new<P: AsRef<Path>>(path: P) -> Self {
-        Self {
-            path: path.as_ref().to_path_buf(),
+    pub(crate) fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let path = path.as_ref();
+
+        let mut file = fs::File::open(&path)
+            .unwrap_or_else(|_| wutag_fatal!("unable to open the new entry: {}", path.display()));
+        let mut hasher = blake3::Hasher::new();
+
+        io::copy(&mut file, &mut hasher)?;
+
+        let modtime = if let Some(modified) = fs::metadata(&path)
+            .map(|m| m.modified().ok())
+            .with_context(|| format!("failed to get {} modification time", path.display()))?
+        {
+            modified
+        } else {
+            SystemTime::now()
+        };
+
+        Ok(Self {
+            path: path.to_path_buf(),
+            hash: hasher.finalize().to_string(),
+            modtime,
+        })
+    }
+
+    /// Check whether the file has been modified since it was added to the
+    /// registry
+    pub(crate) fn changed_since(&self) -> Result<bool> {
+        let prev = self.modtime();
+        let modtime = self.get_current_modtime()?;
+
+        if modtime > *prev {
+            Ok(true)
+        } else {
+            Ok(false)
         }
+    }
+
+    /// Recalculate the file's hash
+    pub(crate) fn recalculate_hash(&mut self) -> Result<()> {
+        let mut hasher = blake3::Hasher::new();
+
+        if let Ok(mut file) = fs::File::open(&self.path) {
+            io::copy(&mut file, &mut hasher)?;
+        }
+
+        self.hash = hasher.finalize().to_string();
+
+        Ok(())
+    }
+
+    /// Get the current file's modification time. May differ from the registry
+    pub(crate) fn get_current_modtime(&self) -> Result<SystemTime> {
+        Ok(fs::metadata(&self.path())
+            .map(|m| m.modified().ok())?
+            .with_context(|| format!("failed to get {} modification time", self.path().display()))
+            .unwrap_or_else(|_| SystemTime::now()))
+    }
+
+    /// Update the file's modification time in the registry
+    #[allow(dead_code)]
+    pub(crate) fn update_modtime(&mut self) -> Result<()> {
+        self.modtime = self.get_current_modtime()?;
+
+        Ok(())
+    }
+
+    /// Update the file's modification time in the registry if it has changed
+    /// since it was added to the registry. This is used to not have to
+    /// calculate the current modification time twice within the `repair`
+    /// subcommand
+    #[allow(dead_code)]
+    pub(crate) fn update_modtime_if_changed(&mut self) -> Result<()> {
+        let prev = self.modtime();
+        let modtime = self.get_current_modtime()?;
+
+        if modtime > *prev {
+            self.modtime = modtime;
+            self.recalculate_hash()?;
+        }
+
+        Ok(())
     }
 
     /// Return the path of the `EntryData` instance
     pub(crate) fn path(&self) -> &Path {
         &self.path
+    }
+
+    /// Return the modification time
+    pub(crate) fn modtime(&self) -> &SystemTime {
+        &self.modtime
     }
 }
 
@@ -173,6 +271,21 @@ impl TagRegistry {
         self.entries.clear();
     }
 
+    /// Updates the entry's modificiation time and hash, based on the EntryId
+    pub(crate) fn repair_registry(&mut self, id: EntryId) -> Result<()> {
+        let e = self
+            .entries
+            .get_mut(&id)
+            .unwrap_or_else(|| wutag_fatal!("failure to get immutable reference of registry"));
+
+        e.update_modtime()?;
+        e.recalculate_hash()?;
+
+        // *e = entry;
+
+        Ok(())
+    }
+
     /// Updates the entry or adds it if it is not present.
     pub(crate) fn add_or_update_entry(&mut self, entry: EntryData) -> EntryId {
         let pos = self
@@ -181,19 +294,24 @@ impl TagRegistry {
             .map(|(idx, _)| *idx);
 
         if let Some(pos) = pos {
-            let e = self
-                .entries
-                .get_mut(&pos)
-                .unwrap_or_else(|| wutag_fatal!("failure to get immutable reference: {}", pos));
+            let e = self.entries.get_mut(&pos).unwrap_or_else(|| {
+                wutag_fatal!(
+                    "failure to get immutable reference of registry: {}",
+                    entry.path().display()
+                )
+            });
+
             *e = entry;
             pos
         } else {
             let timestamp = chrono::Utc::now().timestamp_nanos();
-            let timestamp = if timestamp < 0 {
-                timestamp.abs() as usize
-            } else {
-                timestamp as usize
-            };
+            let timestamp = {
+                if timestamp < 0 {
+                    timestamp.abs()
+                } else {
+                    timestamp
+                }
+            } as usize;
             self.entries.insert(timestamp, entry);
             timestamp
         }
@@ -719,9 +837,9 @@ mod tests {
     use colored::Color::{Black, Red};
 
     #[test]
-    fn adds_and_tags_entry() {
+    fn adds_and_tags_entry() -> Result<()> {
         let path = PathBuf::from("/tmp");
-        let entry = EntryData::new(path.clone());
+        let entry = EntryData::new(path.clone())?;
         let mut registry = TagRegistry::default();
         registry.add_or_update_entry(entry.clone());
         let id = registry.find_entry(&path).unwrap();
@@ -742,15 +860,17 @@ mod tests {
         assert_eq!(registry.untag_entry(&tag, id), None);
         assert_eq!(registry.untag_entry(&second, id), Some(entry));
         assert_eq!(registry.list_entry_tags(id), None);
+
+        Ok(())
     }
 
     #[test]
-    fn adds_multiple_entries() {
+    fn adds_multiple_entries() -> Result<()> {
         let mut registry = TagRegistry::default();
 
-        let entry = EntryData::new("/tmp");
+        let entry = EntryData::new("/tmp")?;
         let fst_id = registry.add_or_update_entry(entry.clone());
-        let snd_entry = EntryData::new("/tmp/123");
+        let snd_entry = EntryData::new("/tmp/123")?;
         let snd_id = registry.add_or_update_entry(snd_entry.clone());
 
         assert_eq!(registry.list_entries().count(), 2);
@@ -758,11 +878,13 @@ mod tests {
         let entries: Vec<_> = registry.list_entries_and_ids().collect();
         assert!(entries.contains(&(&fst_id, &entry)));
         assert!(entries.contains(&(&snd_id, &snd_entry)));
+
+        Ok(())
     }
 
     #[test]
-    fn updates_tag_color() {
-        let entry = EntryData::new("/tmp");
+    fn updates_tag_color() -> Result<()> {
+        let entry = EntryData::new("/tmp")?;
 
         let mut registry = TagRegistry::default();
         let id = registry.add_or_update_entry(entry);
@@ -772,11 +894,13 @@ mod tests {
         assert!(registry.tag_entry(&tag, id).is_none());
         assert!(registry.update_tag_color("test", Red));
         assert_eq!(registry.list_tags().next().unwrap().color(), &Red);
+
+        Ok(())
     }
 
     #[test]
-    fn removes_an_entry_when_no_tags_left() {
-        let entry = EntryData::new("/tmp");
+    fn removes_an_entry_when_no_tags_left() -> Result<()> {
+        let entry = EntryData::new("/tmp")?;
 
         let mut registry = TagRegistry::default();
         let id = registry.add_or_update_entry(entry.clone());
@@ -809,16 +933,18 @@ mod tests {
         registry.clear_entry(id);
         assert_eq!(registry.list_entries().count(), 0);
         assert!(registry.tags.is_empty());
+
+        Ok(())
     }
 
     #[test]
-    fn lists_entry_tags() {
+    fn lists_entry_tags() -> Result<()> {
         let mut registry = TagRegistry::default();
 
         let tag1 = Tag::new("src", Black);
         let tag2 = Tag::new("code", Red);
 
-        let entry = EntryData::new("/tmp");
+        let entry = EntryData::new("/tmp")?;
 
         let id = registry.add_or_update_entry(entry);
         registry.tag_entry(&tag1, id);
@@ -828,19 +954,21 @@ mod tests {
         assert_eq!(tags.len(), 2);
         assert!(tags.contains(&&tag1));
         assert!(tags.contains(&&tag2));
+
+        Ok(())
     }
 
     #[test]
-    fn lists_entries_with_tags() {
+    fn lists_entries_with_tags() -> Result<()> {
         let mut registry = TagRegistry::default();
 
         let tag1 = Tag::new("src", Black);
         let tag2 = Tag::new("code", Red);
 
-        let entry = EntryData::new("/tmp");
-        let entry1 = EntryData::new("/tmp/1");
-        let entry2 = EntryData::new("/tmp/2");
-        let entry3 = EntryData::new("/tmp/3");
+        let entry = EntryData::new("/tmp")?;
+        let entry1 = EntryData::new("/tmp/1")?;
+        let entry2 = EntryData::new("/tmp/2")?;
+        let entry3 = EntryData::new("/tmp/3")?;
 
         let id = registry.add_or_update_entry(entry);
         let id1 = registry.add_or_update_entry(entry1);
@@ -869,17 +997,19 @@ mod tests {
         assert!(entries.contains(&id1));
         assert!(entries.contains(&id2));
         assert!(entries.contains(&id3));
+
+        Ok(())
     }
 
     #[test]
-    fn saves_and_loads() {
+    fn saves_and_loads() -> Result<()> {
         let tmp_dir = tempfile::tempdir().unwrap();
         let registry_path = tmp_dir.path().join("wutag.registry");
 
         let mut registry = TagRegistry::new(&registry_path);
 
         let tag = Tag::new("src", Black);
-        let entry = EntryData::new("/tmp");
+        let entry = EntryData::new("/tmp")?;
 
         let id = registry.add_or_update_entry(entry.clone());
         registry.tag_entry(&tag, id);
@@ -893,5 +1023,7 @@ mod tests {
         assert_eq!(got_id, &id);
         assert_eq!(got_entry, &entry);
         assert_eq!(registry.list_entries_with_tags(vec![tag.name()]), vec![id]);
+
+        Ok(())
     }
 }

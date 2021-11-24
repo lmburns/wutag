@@ -1,7 +1,7 @@
 #![allow(unused)]
+pub(crate) mod banner;
 pub(crate) mod command;
 pub(crate) mod completion;
-pub(crate) mod context;
 pub(crate) mod event;
 pub(crate) mod history;
 pub(crate) mod keybindings;
@@ -88,9 +88,9 @@ pub(crate) fn dump_and_exit<F: FnOnce() + Send>(f: F) {
 
 /// Start the UI interface
 pub(crate) fn start_ui(cli_app: &App, config: Config, registry: TagRegistry) -> Result<(), Error> {
-    panic::set_hook(Box::new(|info| {
+    panic::set_hook(Box::new(|panic_info| {
         destruct_terminal();
-        better_panic::Settings::auto().create_panic_handler()(info);
+        better_panic::Settings::auto().create_panic_handler()(panic_info);
     }));
 
     let mut app = ui_app::UiApp::new(config, registry).map_err(Error::UiStartFailure)?;
@@ -106,7 +106,7 @@ pub(crate) fn start_ui(cli_app: &App, config: Config, registry: TagRegistry) -> 
         tui.render(cli_app, &mut app).map_err(Error::UiRender)?;
         match tui.events.next().map_err(Error::Recv)? {
             Event::Input(input) => {
-                if input == app.config.keys.edit && app.mode == AppMode::List {
+                if input == app.config.keys.view && app.mode == AppMode::List {
                     // tui.leave_tui_mode().map_err(Error::UiStopFailure)?;
                     tui.toggle_pause().map_err(Error::UiPause)?;
                     toggle_pause = true;
@@ -114,7 +114,7 @@ pub(crate) fn start_ui(cli_app: &App, config: Config, registry: TagRegistry) -> 
 
                 let res = app.handle_input(input);
 
-                if (input == app.config.keys.edit && app.mode == AppMode::List)
+                if (input == app.config.keys.view && app.mode == AppMode::List)
                     || app.mode == AppMode::Error
                 {
                     // tui.enter_tui_mode().map_err(Error::UiStartFailure)?;

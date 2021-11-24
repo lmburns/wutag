@@ -44,6 +44,7 @@ pub(crate) use crate::{
     util::{
         collect_stdin_paths, fmt_err, fmt_local_path, fmt_ok, fmt_path, fmt_tag, gen_completions,
         glob_builder, parse_path, raw_local_path, reg_ok, regex_builder, replace,
+        systemtime_to_datetime,
     },
     wutag_error, wutag_fatal, wutag_info,
 };

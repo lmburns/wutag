@@ -1,5 +1,4 @@
 // TODO: list files relative to directory as an option
-// TODO: add sorting option by tag etc
 
 use super::{
     uses::{

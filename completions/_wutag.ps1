@@ -41,15 +41,17 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
             [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
             [CompletionResult]::new('-i', 'i', [CompletionResultType]::ParameterName, 'Case insensitively search')
-            [CompletionResult]::new('--case_insensitive', 'case_insensitive', [CompletionResultType]::ParameterName, 'Case insensitively search')
+            [CompletionResult]::new('--case-insensitive', 'case-insensitive', [CompletionResultType]::ParameterName, 'Case insensitively search')
             [CompletionResult]::new('-s', 's', [CompletionResultType]::ParameterName, 'Case sensitively search')
-            [CompletionResult]::new('--case_sensitive', 'case_sensitive', [CompletionResultType]::ParameterName, 'Case sensitively search')
+            [CompletionResult]::new('--case-sensitive', 'case-sensitive', [CompletionResultType]::ParameterName, 'Case sensitively search')
             [CompletionResult]::new('-r', 'r', [CompletionResultType]::ParameterName, 'Search with a regular expressions')
             [CompletionResult]::new('--regex', 'regex', [CompletionResultType]::ParameterName, 'Search with a regular expressions')
             [CompletionResult]::new('-g', 'g', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
             [CompletionResult]::new('--global', 'global', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
             [CompletionResult]::new('-l', 'l', [CompletionResultType]::ParameterName, 'Respect ''LS_COLORS'' environment variable when coloring the output')
             [CompletionResult]::new('--ls-colors', 'ls-colors', [CompletionResultType]::ParameterName, 'Respect ''LS_COLORS'' environment variable when coloring the output')
+            [CompletionResult]::new('-q', 'q', [CompletionResultType]::ParameterName, 'Do not display any output for any command')
+            [CompletionResult]::new('--quiet', 'quiet', [CompletionResultType]::ParameterName, 'Do not display any output for any command')
             [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'Lists all available tags or files')
             [CompletionResult]::new('set', 'set', [CompletionResultType]::ParameterValue, 'Set tag(s) on files that match the given pattern')
             [CompletionResult]::new('rm', 'rm', [CompletionResultType]::ParameterValue, 'Remove tag(s) from the files that match the provided pattern')
@@ -59,9 +61,10 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('view', 'view', [CompletionResultType]::ParameterValue, 'View the results in an editor (optional pattern)')
             [CompletionResult]::new('edit', 'edit', [CompletionResultType]::ParameterValue, 'Edits a tag''s color')
             [CompletionResult]::new('info', 'info', [CompletionResultType]::ParameterValue, 'Display information about the wutag environment')
+            [CompletionResult]::new('repair', 'repair', [CompletionResultType]::ParameterValue, 'Repair broken/missing/modified files in the registry')
             [CompletionResult]::new('print-completions', 'print-completions', [CompletionResultType]::ParameterValue, 'Prints completions for the specified shell to dir or stdout')
             [CompletionResult]::new('clean-cache', 'clean-cache', [CompletionResultType]::ParameterValue, 'Clean the cached tag registry')
-            [CompletionResult]::new('ui', 'ui', [CompletionResultType]::ParameterValue, 'Open a TUI to manage tags, requires results from a `search`, or `list`')
+            [CompletionResult]::new('ui', 'ui', [CompletionResultType]::ParameterValue, 'Open a TUI to manage tags')
             break
         }
         'wutag;list' {
@@ -132,8 +135,6 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             break
         }
         'wutag;clear' {
-            [CompletionResult]::new('-n', 'n', [CompletionResultType]::ParameterName, 'Clear all files from registry that no longer exist (requires --global)')
-            [CompletionResult]::new('--non-existent', 'non-existent', [CompletionResultType]::ParameterName, 'Clear all files from registry that no longer exist (requires --global)')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
@@ -203,6 +204,23 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
         'wutag;info' {
             [CompletionResult]::new('-r', 'r', [CompletionResultType]::ParameterName, 'TO BE IMPLEMENTED Do not use color in output')
             [CompletionResult]::new('--raw', 'raw', [CompletionResultType]::ParameterName, 'TO BE IMPLEMENTED Do not use color in output')
+            [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
+            [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
+            [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            break
+        }
+        'wutag;repair' {
+            [CompletionResult]::new('-m', 'm', [CompletionResultType]::ParameterName, 'Manually set the file''s new location')
+            [CompletionResult]::new('--manual', 'manual', [CompletionResultType]::ParameterName, 'Manually set the file''s new location')
+            [CompletionResult]::new('-u', 'u', [CompletionResultType]::ParameterName, 'Update the hashsum of all files, including unmodified files')
+            [CompletionResult]::new('--unmodified', 'unmodified', [CompletionResultType]::ParameterName, 'Update the hashsum of all files, including unmodified files')
+            [CompletionResult]::new('-d', 'd', [CompletionResultType]::ParameterName, 'Do not actually update the registry')
+            [CompletionResult]::new('--dry-run', 'dry-run', [CompletionResultType]::ParameterName, 'Do not actually update the registry')
+            [CompletionResult]::new('-R', 'R', [CompletionResultType]::ParameterName, 'Remove files from the registry that no longer exist on the system')
+            [CompletionResult]::new('--remove', 'remove', [CompletionResultType]::ParameterName, 'Remove files from the registry that no longer exist on the system')
+            [CompletionResult]::new('-r', 'r', [CompletionResultType]::ParameterName, 'Restrict the repairing to the current directory, or the path given with -d')
+            [CompletionResult]::new('--restrict', 'restrict', [CompletionResultType]::ParameterName, 'Restrict the repairing to the current directory, or the path given with -d')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')

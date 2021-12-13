@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local};
 use colored::{Color, ColoredString, Colorize};
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
@@ -13,6 +13,7 @@ use std::{
     fs,
     io::{self, BufRead, BufReader, Cursor, Write},
     path::{Path, PathBuf},
+    process::Command,
     sync::{Arc, Once},
     time::SystemTime,
 };
@@ -73,6 +74,7 @@ pub(crate) fn initialize_logging(args: &Opts) {
     });
 }
 
+/// Parse a path for arguments. The path must exist
 pub(crate) fn parse_path<P: AsRef<Path>>(path: P) -> Result<(), String> {
     fs::metadata(path)
         .map_err(|_| "must be a valid path")
@@ -80,14 +82,17 @@ pub(crate) fn parse_path<P: AsRef<Path>>(path: P) -> Result<(), String> {
         .map_err(ToString::to_string)
 }
 
+/// Format one style of an error message
 pub(crate) fn fmt_err<E: Display>(err: E) -> String {
     format!("{} {}", "ERROR:".red().bold(), format!("{}", err).white())
 }
 
+/// Format an `OK` message
 pub(crate) fn fmt_ok<S: AsRef<str>>(msg: S) -> String {
     format!("{} {}", "OK".green().bold(), msg.as_ref().white())
 }
 
+/// Format the colored/non-colored output of a path
 pub(crate) fn fmt_path<P: AsRef<Path>>(path: P, base_color: Color, ls_colors: bool) -> String {
     // ls_colors implies forced coloring
     if ls_colors {
@@ -211,6 +216,36 @@ pub(crate) fn gen_completions<G: Generator>(
     cursor: &mut Cursor<Vec<u8>>,
 ) {
     generate(gen, app, APP_NAME, cursor);
+}
+
+/// Test the output status of a command
+#[allow(dead_code)]
+pub(crate) fn command_status(cmd: &str, args: &[&str]) -> Result<(i32, String)> {
+    use regex::Regex as RegEx;
+    let patt = RegEx::new(r"(?i)error").context("failure to create regex")?;
+
+    match Command::new(cmd).args(args).output() {
+        Ok(output) =>
+            if output.status.success() {
+                let s = String::from_utf8(output.stdout)
+                    .context("failed to convert command output to UTF-8")?
+                    .trim_end()
+                    .to_string();
+
+                if patt.is_match(&s) {
+                    return Ok((1_i32, s));
+                }
+
+                Ok((output.status.code().unwrap_or(-1), s))
+            } else {
+                let s = String::from_utf8(output.stderr)
+                    .context("failed to convert command output to UTF-8")?
+                    .trim_end()
+                    .to_string();
+                Ok((output.status.code().unwrap_or(-1), s))
+            },
+        Err(e) => Err(anyhow!(e.to_string())),
+    }
 }
 
 /// Build a glob with [`GlobBuilder`](globset::GlobBuilder) and return a string

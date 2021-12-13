@@ -121,12 +121,6 @@ pub(crate) fn context(config: &EncryptConfig) -> Result<Context, Error> {
             return Ok(Context::from(Box::new(
                 backend::gpgme::context::context(config).map_err(|e| Error::Context(e.into()))?,
             )));
-            // #[cfg(feature = "encrypt-gnupg-bin")]
-            // return Ok(Context::from(Box::new(
-            //     backend::gnupg_bin::context::context(config)
-            //         .map_err(Error::Context)?,
-            // )));
-            // #[cfg(feature = "encrypt-age")]
         },
     }
 

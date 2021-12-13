@@ -21,9 +21,9 @@ pub(crate) enum ListObject {
         #[clap(
             long = "unique",
             short = 'u',
-            long_about = "When using -cu, unique combinations of tags on files will be displayed. \
-                          When using -1u, unique individual tags will be displayed and counted. \
-                          When using -1cu, unique individual tags will be displayed one per line"
+            long_help = "When using -cu, unique combinations of tags on files will be displayed. \
+                         When using -1u, unique individual tags will be displayed and counted. \
+                         When using -1cu, unique individual tags will be displayed one per line"
         )]
         unique: bool,
 
@@ -35,10 +35,10 @@ pub(crate) enum ListObject {
         #[clap(
             long = "one-per-line",
             short = '1',
-            long_about = "Display one tag per line. Usually tags are displayed as unique \
-                          combinations to individual files. That is, if a file is is unique by \
-                          having two tags, those two tags will be displayed together and be \
-                          counted as one"
+            long_help = "Display one tag per line. Usually tags are displayed as unique \
+                         combinations to individual files. That is, if a file is is unique by \
+                         having two tags, those two tags will be displayed together and be \
+                         counted as one"
         )]
         one_per_line: bool,
 
@@ -47,9 +47,9 @@ pub(crate) enum ListObject {
             long,
             short,
             conflicts_with = "no-count",
-            long_about = "\
+            long_help = "\
             Use a border around the perimeter of the formatted tags, as well as in-between the \
-                          lines."
+                         lines."
         )]
         border: bool,
     },
@@ -64,7 +64,7 @@ pub(crate) enum ListObject {
             short,
             conflicts_with = "garrulous",
             requires = "with_tags",
-            long_about = "Format the tags and files output into columns. Requires '--with-tags'"
+            long_help = "Format the tags and files output into columns. Requires '--with-tags'"
         )]
         formatted: bool,
         /// Use border separators when formatting output
@@ -72,9 +72,9 @@ pub(crate) enum ListObject {
             long,
             short,
             requires = "formatted",
-            long_about = "\
+            long_help = "\
             Use a border around the perimeter of the formatted output, as well as in-between the \
-                          lines."
+                         lines."
         )]
         border:    bool,
         /// Display tags and files on separate lines

@@ -153,12 +153,12 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (search)
 _arguments "${_arguments_options[@]}" \
-'(-X --exec-batch)-x+[Execute a command on each individual file]:cmd:_command_names -e' \
-'(-X --exec-batch)--exec=[Execute a command on each individual file]:cmd:_command_names -e' \
-'(-x --exec)-X+[Execute a command on the batch of matching files]:cmd:_command_names -e' \
-'(-x --exec)--exec-batch=[Execute a command on the batch of matching files]:cmd:_command_names -e' \
-'-t+[Search just by tags or along with a tag(s)]:tags:_wutag_tags' \
-'--tags=[Search just by tags or along with a tag(s)]:tags:_wutag_tags' \
+'(-X --exec-batch)*-x+[Execute a command on each individual file]:cmd:_command_names -e' \
+'(-X --exec-batch)*--exec=[Execute a command on each individual file]:cmd:_command_names -e' \
+'(-x --exec)*-X+[Execute a command on the batch of matching files]:cmd:_command_names -e' \
+'(-x --exec)*--exec-batch=[Execute a command on the batch of matching files]:cmd:_command_names -e' \
+'*-t+[Search just by tags or along with a tag(s)]:tags:_wutag_tags' \
+'*--tags=[Search just by tags or along with a tag(s)]:tags:_wutag_tags' \
 '-r[No colored output. Should be detected automatically on pipe]' \
 '--raw[No colored output. Should be detected automatically on pipe]' \
 '-f[Display only files in the search results]' \
@@ -194,8 +194,8 @@ _arguments "${_arguments_options[@]}" \
 '--editor=[Open tags in selected edtor (use only with vi, vim, neovim)]:editor: ' \
 '-f+[Format of file to view results (toml, yaml, json)]:format:(toml yaml yml json)' \
 '--format=[Format of file to view results (toml, yaml, json)]:format:(toml yaml yml json)' \
-'-t+[Search with a tag as a filter]:tags: ' \
-'--tags=[Search with a tag as a filter]:tags: ' \
+'*-t+[Search with a tag as a filter]:tags: ' \
+'*--tags=[Search with a tag as a filter]:tags: ' \
 '-p+[Pattern to search for and open result in editor]:pattern: ' \
 '--pattern=[Pattern to search for and open result in editor]:pattern: ' \
 '-a[]' \
@@ -231,8 +231,8 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (repair)
 _arguments "${_arguments_options[@]}" \
-'-m+[Manually set the file'\''s new location]:MANUAL:_files:MANUAL:_files' \
-'--manual=[Manually set the file'\''s new location]:MANUAL:_files:MANUAL:_files' \
+'*-m+[Manually set the file'\''s new location]:MANUAL:_files:MANUAL:_files' \
+'*--manual=[Manually set the file'\''s new location]:MANUAL:_files:MANUAL:_files' \
 '-u+[Update the hashsum of all files, including unmodified files]: : ' \
 '--unmodified=[Update the hashsum of all files, including unmodified files]: : ' \
 '-d[Do not actually update the registry]' \

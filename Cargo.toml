@@ -40,8 +40,8 @@ anyhow = "1.0.43"
 atty = "0.2.14"
 base64 = "0.13.0"
 chrono = { version = "0.4.19", features = ["serde"] }
-clap = "3.0.0-beta.5"
-clap_generate = "3.0.0-beta.5"
+clap = { version = "3.0.0-rc.3", features = ["derive", "default", "cargo", "wrap_help", "env"] }
+clap_generate = "3.0.0-rc.3"
 colored = { git = "https://github.com/wojciechkepka/colored", branch = "master", features = ["serde"] }
 crossbeam-channel = "0.5.1"
 crossbeam-utils = "0.8.5"
@@ -69,8 +69,8 @@ itertools = "0.10.1"
 indexmap = { version = "1.7.0", features = ["serde-1"] }
 
 # TODO: use or remove
-termion = "1.5.5"
-rusqlite = "0.26.1"
+# termion = "1.5.5"
+# rusqlite = "0.26.1"
 notify-rust = { version = "4.0", default-features = false, features = ["z"] }
 
 # TODO: add formatted option

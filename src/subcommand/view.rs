@@ -1,3 +1,5 @@
+// TODO: Prevent clearing of file beforehand to keep previous tag colors
+
 use super::{
     uses::{
         bold_entry, clear_tags, contained_path, create_temp_path, fmt_path, fmt_tag, fs,
@@ -29,7 +31,7 @@ pub(crate) struct ViewOpts {
         long, short = 'f',
         possible_values = &["toml", "yaml", "yml", "json"],
         setting = ArgSettings::HidePossibleValues,
-        long_about = "\
+        long_help = "\
         Format of the file viewed in the editor with the matching search results.\
         The possible values are: 'toml', 'yaml|yml', 'json'."
     )]
@@ -39,9 +41,9 @@ pub(crate) struct ViewOpts {
         name = "tags",
         long,
         short,
-        long_about = "\
+        long_help = "\
         Limit search results even further by using a tag as a filter. Can search just for tags by \
-                      not using '--pattern'"
+                     not using '--pattern'"
     )]
     pub(crate) tags:    Vec<String>,
     /// Pattern to search for and open result in editor
@@ -49,9 +51,9 @@ pub(crate) struct ViewOpts {
         name = "pattern",
         long,
         short = 'p',
-        long_about = "\
+        long_help = "\
         This pattern is optional. If no pattern is given, all files that have a tag will be shown \
-                      in the editor. Otherwise, the results that match the pattern will be shown."
+                     in the editor. Otherwise, the results that match the pattern will be shown."
     )]
     pub(crate) pattern: Option<String>,
 }

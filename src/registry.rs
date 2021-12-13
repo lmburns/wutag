@@ -1,6 +1,8 @@
 // #![allow(dead_code)]
 
 // TODO: look into using an actual database
+// TODO: Add file modifications
+// TODO: Add history of modifications
 
 use crate::{
     config::EncryptConfig,
@@ -72,14 +74,10 @@ impl EntryData {
 
         io::copy(&mut file, &mut hasher)?;
 
-        let modtime = if let Some(modified) = fs::metadata(&path)
+        let modtime = fs::metadata(&path)
             .map(|m| m.modified().ok())
             .with_context(|| format!("failed to get {} modification time", path.display()))?
-        {
-            modified
-        } else {
-            SystemTime::now()
-        };
+            .unwrap_or_else(SystemTime::now);
 
         Ok(Self {
             path: path.to_path_buf(),
@@ -571,6 +569,17 @@ impl TagRegistry {
                     .map(ToOwned::to_owned)
                     .collect::<Vec<_>>(),
             );
+            // crate::ui::notify(
+            //     &format!("{}", data.path().display()),
+            //     Some(&format!(
+            //         "{:?}",
+            //         self.list_entry_tags(*id)
+            //             .unwrap_or_default()
+            //             .iter()
+            //             .map(|t| t.name())
+            //             .collect::<Vec<_>>()
+            //     )),
+            // );
         }
 
         path_tags
@@ -688,7 +697,7 @@ Use an (1) email, (2) short fingerprint, or (3) full fingerprint"#,
                             .any(|email| email.trim().to_uppercase() == public)
                     })
             }) {
-                // Run this only once since it will be ran be encrypting it back as well
+                // Run this only once since it will be encrypting it back as well
                 if KEY_INFO.load(Ordering::Relaxed) {
                     log::info!("found matching key: {}", found);
                     KEY_INFO.store(false, Ordering::Relaxed);

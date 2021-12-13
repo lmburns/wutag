@@ -114,9 +114,7 @@ pub(crate) fn start_ui(cli_app: &App, config: Config, registry: TagRegistry) -> 
 
                 let res = app.handle_input(input);
 
-                if (input == app.config.keys.view && app.mode == AppMode::List)
-                    || app.mode == AppMode::Error
-                {
+                if (input == app.config.keys.view && app.mode == AppMode::List) {
                     // tui.enter_tui_mode().map_err(Error::UiStartFailure)?;
                     tui.toggle_pause().map_err(Error::UiPause)?;
                     toggle_pause = false;

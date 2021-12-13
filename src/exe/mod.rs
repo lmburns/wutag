@@ -203,7 +203,7 @@ impl CommandTemplate {
         cmd.stdout(Stdio::inherit());
         cmd.stderr(Stdio::inherit());
 
-        let mut paths: Vec<_> = paths.collect();
+        let mut paths = paths.collect::<Vec<_>>();
         let mut has_path = false;
 
         for arg in &self.args[1..] {

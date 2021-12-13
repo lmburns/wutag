@@ -71,8 +71,7 @@ impl App {
             _ => println!(),
         }
 
-        let mut out = script.trim().to_owned();
-        out.push('\n');
+        let out = format!("{}\n", script.trim());
 
         if let Some(dir) = &opts.dir {
             let filename = match opts.shell {

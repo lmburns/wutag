@@ -24,8 +24,8 @@ pub(crate) struct EditOpts {
         long,
         short,
         required_unless_present = "color",
-        long_about = "Rename a tag. If both color and rename are present, the rename is carried \
-                      out first"
+        long_help = "Rename a tag. If both color and rename are present, the rename is carried \
+                     out first"
     )]
     /// New name to replace tag with
     pub(crate) rename: Option<String>,

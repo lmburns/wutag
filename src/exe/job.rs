@@ -214,13 +214,6 @@ pub(crate) fn sender(
 
                 if re.is_match(&search_bytes) {
                     // Additional tag search
-                    // !(opts.tags.is_empty() || opts.only_all && opts.all &&
-                    // app.registry.entry_has_any_tags(id, &opts.tags))
-
-                    // only !all !has_only
-                    // !only all !has_all
-                    // !only !all !has_any
-
                     if !opts.tags.is_empty()
                         && ((opts.only_all
                             && !opts.all
@@ -231,13 +224,6 @@ pub(crate) fn sender(
                             || (!opts.only_all
                                 && !opts.all
                                 && !app.registry.entry_has_any_tags(id, &opts.tags)))
-                    {
-                        continue;
-                    }
-
-                    if !opts.tags.is_empty()
-                        && opts.all
-                        && !app.registry.entry_has_all_tags(id, &opts.tags)
                     {
                         continue;
                     }

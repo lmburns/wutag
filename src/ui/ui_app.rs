@@ -25,6 +25,7 @@ use ansi_to_tui::ansi_to_text;
 use anyhow::{anyhow, Context, Result};
 use clap::IntoApp;
 use colored::{ColoredString, Colorize};
+use itertools::Itertools;
 use lexiclean::Lexiclean;
 use rand::seq::SliceRandom;
 use std::{
@@ -35,6 +36,8 @@ use std::{
     path::{Path, PathBuf},
     process,
     str::FromStr,
+    sync::Arc,
+    thread,
     time::{Duration, SystemTime},
 };
 use thiserror::Error;
@@ -140,46 +143,76 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 /// UI aspect of this App
 #[derive(Debug)]
 pub(crate) struct UiApp {
+    /// Current command being ran
     pub(crate) command:                 TuiCommand,
+    /// The buffer where text is typed for the command
     pub(crate) command_buffer:          LineBuffer,
+    /// Command history information
     pub(crate) command_history_context: HistoryContext,
+    /// Keybindings list for command prompt
     pub(crate) command_keybindings:     StatefulList<Keybinding>,
+    /// The current items to show for completions
     pub(crate) completion_list:         CompletionList,
+    /// Whether the completion list should be shwon
     pub(crate) completion_show:         bool,
+    /// The user configuration options
     pub(crate) config:                  Config,
+    /// Current information about the CWD, current registry, etc
     pub(crate) current_context:         String,
+    /// TODO: Current information about command that has just been ran
     pub(crate) current_context_command: String,
+    /// The current directory the user is in
     pub(crate) current_directory:       String,
+    /// The item currently selected
     pub(crate) current_selection:       usize,
-    // TODO: Use or delete
+    // TODO: USE/DEL - The ID of the current selection in the registry
     pub(crate) current_selection_id:    Option<EntryId>,
-    // TODO: Use or delete
+    // TODO: USE/DEL - The path of the current selection
     pub(crate) current_selection_path:  Option<PathBuf>,
+    /// Whether things have been changed before an update call
     pub(crate) dirty:                   bool,
+    /// Current error message, if any
     pub(crate) error:                   String,
+    /// Details on the current selection's file
     pub(crate) file_details:            HashMap<EntryId, String>, // TODO: Show a stat command
-    pub(crate) history_status:          Option<String>,
+    /// Keybindings for the overall UI interface
     pub(crate) keybindings:             StatefulList<Keybinding>,
-    pub(crate) last_export:             Option<SystemTime>,
+    /// Last time the registry was imported
+    pub(crate) last_import:             Option<SystemTime>,
+    /// Height of the current table
     pub(crate) list_height:             u16,
+    /// State of the current list
     pub(crate) list_state:              ListState,
+    /// Hash of the currently marked items
     pub(crate) marked:                  HashSet<EntryId>,
+    /// Current mode of the application
     pub(crate) mode:                    AppMode,
+    /// The color to use to colorize the paths
     pub(crate) paths_color:             Color,
+    /// Whether file preview mode should be enabled
     pub(crate) preview_file:            bool,
+    /// The height of the preview window
     pub(crate) preview_height:          u16,
+    /// The amount a single scroll action moves the screen
     pub(crate) preview_scroll:          u16,
+    /// The current `TagRegistry`
     pub(crate) registry:                TagRegistry,
-    pub(crate) registry_paths:          Vec<PathBuf>,
+    /// TODO: USE/DEL - The map of file paths as strings to their `Tag`s
+    pub(crate) registry_map:            BTreeMap<String, Vec<Tag>>,
+    /// A vector of vectors containing paths and tags found in the registry
+    pub(crate) registry_paths:          Vec<Vec<String>>,
+    /// Whether the application should quit
     pub(crate) should_quit:             bool,
+    /// The state of the table displaying tags and files
     pub(crate) table_state:             TableState,
+    /// The current height of the terminal
     pub(crate) terminal_height:         u16,
+    /// The current width of the terminal
     pub(crate) terminal_width:          u16,
 }
 
 /// Mode that application is in
 #[derive(Debug, PartialEq, Clone, Copy)]
-#[allow(single_use_lifetimes)]
 pub(crate) enum AppMode {
     List,
     Error,
@@ -250,9 +283,8 @@ impl UiApp {
             dirty:                   false,
             error:                   String::from(""),
             file_details:            HashMap::new(),
-            history_status:          None,
             keybindings:             StatefulList::default(),
-            last_export:             None,
+            last_import:             None,
             list_height:             0,
             list_state:              state,
             marked:                  HashSet::new(),
@@ -262,7 +294,8 @@ impl UiApp {
             preview_height:          0,
             preview_scroll:          0,
             registry:                reg,
-            registry_paths:          Vec::new(),
+            registry_map:            BTreeMap::new(),
+            registry_paths:          vec![Vec::new()],
             should_quit:             false,
             table_state:             TableState::default(),
             terminal_height:         h,
@@ -274,7 +307,7 @@ impl UiApp {
         }
 
         uiapp.get_context();
-        uiapp.import_paths();
+        uiapp.import_registry();
         uiapp.get_keybindings();
         uiapp.get_command_keybindings();
         uiapp.config.ui.build_alias_hash();
@@ -502,6 +535,7 @@ impl UiApp {
     }
 
     /// Draw startup screen to debug
+    #[allow(dead_code)]
     pub(crate) fn draw_debug(&mut self, f: &mut Frame<impl Backend>) {
         let area = centered_rect(50, 50, f.size());
         f.render_widget(Clear, area);
@@ -560,11 +594,11 @@ impl UiApp {
             .selected()
             .map(|s| {
                 let style = Style::default().add_modifier(Modifier::ITALIC);
-                s.get_description_text(if self.is_colored() {
-                    style.fg(Color::Rgb(DARK_BLUE[0], DARK_BLUE[1], DARK_BLUE[2]))
-                } else {
-                    style
-                })
+                s.get_description_text(
+                    self.is_colored()
+                        .then(|| style.fg(Color::Rgb(DARK_BLUE[0], DARK_BLUE[1], DARK_BLUE[2])))
+                        .unwrap_or(style),
+                )
             })
             .unwrap_or_default();
 
@@ -613,18 +647,20 @@ impl UiApp {
                     .borders(Borders::RIGHT)
                     .border_style(Style::default().fg(Color::DarkGray)),
             )
-            .style(if self.is_colored() {
-                Style::default().fg(self.paths_color)
-            } else {
-                Style::default()
-            })
-            .highlight_style(if self.is_colored() {
-                Style::default().add_modifier(Modifier::BOLD)
-            } else {
-                Style::default()
-                    .fg(Color::Reset)
-                    .add_modifier(Modifier::BOLD)
-            })
+            .style(
+                self.is_colored()
+                    .then(|| Style::default().fg(self.paths_color))
+                    .unwrap_or_default(),
+            )
+            .highlight_style(
+                self.is_colored()
+                    .then(|| Style::default().add_modifier(Modifier::BOLD))
+                    .unwrap_or_else(|| {
+                        Style::default()
+                            .fg(Color::Reset)
+                            .add_modifier(Modifier::BOLD)
+                    }),
+            )
             .highlight_symbol(&self.config.ui.selection_indicator);
 
             // Clone is necessary to now borrow self as mutable and immutable
@@ -677,42 +713,42 @@ impl UiApp {
             let banner = Banner::get(chunks[0]);
 
             f.render_widget(
-                Paragraph::new(if self.is_colored() {
-                    styled_context(&banner, Color::Magenta, self)
-                } else {
-                    Text::raw(banner)
-                })
+                Paragraph::new(
+                    self.is_colored()
+                        .then(|| styled_context(&banner, Color::Magenta, self))
+                        .unwrap_or_else(|| Text::raw(&banner)),
+                )
                 .block(
                     Block::default()
                         .borders(Borders::BOTTOM)
                         .border_style(Style::default().fg(Color::DarkGray)),
                 )
-                .style(if self.is_colored() {
-                    Style::default().fg(self.paths_color)
-                } else {
-                    Style::default()
-                })
+                .style(
+                    self.is_colored()
+                        .then(|| Style::default().fg(self.paths_color))
+                        .unwrap_or_default(),
+                )
                 .alignment(Alignment::Left)
                 .wrap(Wrap { trim: false }),
                 chunks[0],
             );
 
             f.render_widget(
-                Paragraph::new(if self.is_colored() {
-                    styled_context(&self.current_context, Color::Cyan, self)
-                } else {
-                    Text::raw(&self.current_context)
-                })
+                Paragraph::new(
+                    self.is_colored()
+                        .then(|| styled_context(&self.current_context, Color::Cyan, self))
+                        .unwrap_or_else(|| Text::raw(&self.current_context)),
+                )
                 .block(
                     Block::default()
                         .borders(Borders::NONE)
                         .border_style(Style::default().fg(Color::DarkGray)),
                 )
-                .style(if self.is_colored() {
-                    Style::default().fg(self.paths_color)
-                } else {
-                    Style::default()
-                })
+                .style(
+                    self.is_colored()
+                        .then(|| Style::default().fg(self.paths_color))
+                        .unwrap_or_default(),
+                )
                 .alignment(Alignment::Left)
                 .wrap(Wrap { trim: true }),
                 chunks[1],
@@ -945,7 +981,7 @@ impl UiApp {
         }
 
         let selected = self.selected();
-        let path = self.registry_paths[selected].clone();
+        let path = self.registry_paths[selected][0].clone();
 
         let mut cmd = if which::which("bat").is_ok() {
             let mut bat = process::Command::new("bat");
@@ -960,7 +996,7 @@ impl UiApp {
 
         // This may not be needed since no pager is being opened
         cmd.env("LESSCHARSET", "utf-8");
-        cmd.arg(path.display().to_string());
+        cmd.arg(&path);
 
         let output = cmd.output();
         let preview = match output {
@@ -997,7 +1033,7 @@ impl UiApp {
                 self.set_header_style::<PINK>("Entry", Modifier::BOLD),
                 Span::from(": "),
                 Span::styled(
-                    path.display().to_string(),
+                    path,
                     defstyle.fg(Color::Rgb(ORANGE[0], ORANGE[1], ORANGE[2])),
                 ),
                 Span::from("──("),
@@ -1009,9 +1045,7 @@ impl UiApp {
         } else {
             vec![Span::from(format!(
                 "Entry: {}──({}/{})",
-                path.display(),
-                &current_line,
-                &num_lines
+                path, &current_line, &num_lines
             ))]
         };
 
@@ -1033,13 +1067,12 @@ impl UiApp {
 
     /// Draw the tag table (filepaths tags)
     fn draw_table(&mut self, app: &App, f: &mut Frame<impl Backend>, rect: Rect, title: Vec<Span>) {
-        let entries = self.get_full_tag_hash();
         let headers = vec!["Filename", "Tag(s)"]
             .iter()
             .map(ToString::to_string)
             .collect::<Vec<_>>();
 
-        if entries.is_empty() {
+        if self.registry_paths.is_empty() {
             // TODO: test this
 
             f.render_widget(
@@ -1052,19 +1085,8 @@ impl UiApp {
             return;
         }
 
-        let entries_name = entries.iter().fold(Vec::new(), |mut acc, (k, v)| {
-            acc.push(vec![
-                k.display().to_string(),
-                v.iter()
-                    .map(|tag| tag.name().to_string())
-                    .collect::<Vec<String>>()
-                    .join(" "),
-            ]);
-            acc
-        });
-
         let maximum_column_width = rect.width;
-        let widths = self.calculate_widths(&entries_name, &headers, maximum_column_width);
+        let widths = self.calculate_widths(&self.registry_paths, &headers, maximum_column_width);
 
         // for (idx, header) in headers.iter().enumerate() {
         //     if header == "Tag(s)" {
@@ -1078,7 +1100,7 @@ impl UiApp {
         let mut hl_style = Style::default();
         let mut mods = Modifier::empty();
 
-        for (idx, entry) in entries_name.iter().enumerate() {
+        for (idx, entry) in self.registry_paths.clone().iter().enumerate() {
             let style = if self.is_colored() {
                 if self.config.ui.paths_bold {
                     Style::default()
@@ -1137,11 +1159,11 @@ impl UiApp {
                     .title(Spans::from(title))
                     .title_alignment(Alignment::Left),
             )
-            .header_style(if self.is_colored() {
-                header_style.fg(Color::Rgb(DARK_PINK[0], DARK_PINK[1], DARK_PINK[2]))
-            } else {
-                header_style
-            })
+            .header_style(
+                self.is_colored()
+                    .then(|| header_style.fg(Color::Rgb(DARK_PINK[0], DARK_PINK[1], DARK_PINK[2])))
+                    .unwrap_or(header_style),
+            )
             .header_alignment(
                 // Seems unncessary to have to convert from string
                 Alignment::from(
@@ -1401,15 +1423,6 @@ impl UiApp {
                 },
             },
             AppMode::Error => self.mode = AppMode::List,
-            /* } else if input == self.config.keys.go_to_bottom || input == Key::End {
-             *     self.move_to_bottom();
-             * } else if input == self.config.keys.go_to_top || input == Key::Home {
-             *     self.move_to_top();
-             * } else if input == Key::PageDown || input == self.config.keys.page_down {
-             *     self.move_to_next_page();
-             * } else if input == Key::PageUp || input == self.config.keys.page_up {
-             *     self.move_to_previous_page();
-             * }, */
         }
 
         self.update_table_state();
@@ -1519,10 +1532,9 @@ impl UiApp {
     // TODO: set correct functions
     /// Refresh the application state
     pub(crate) fn update(&mut self, force: bool) -> Result<()> {
-        if force || self.dirty || self.changed_since(self.last_export).unwrap_or(true) {
+        if force || self.dirty || self.changed_since(self.last_import).unwrap_or(true) {
             super::notify("updatin", None);
-            self.last_export = Some(SystemTime::now());
-            self.import_paths();
+            self.last_import = Some(SystemTime::now());
             self.get_context();
             self.dirty = false;
             self.save_history()?;
@@ -1531,6 +1543,7 @@ impl UiApp {
 
         self.cursor_fix();
         self.update_table_state();
+        self.import_registry();
         self.selection_fix();
         Ok(())
     }
@@ -1735,8 +1748,8 @@ impl UiApp {
     /// Get position of cursor on screen
     pub(crate) fn get_position(&self, buf: &LineBuffer) -> usize {
         let mut position = 0;
-        for (i, (i_, g)) in buf.as_str().grapheme_indices(true).enumerate() {
-            if i_ == buf.pos() {
+        for (idx, (i, g)) in buf.as_str().grapheme_indices(true).enumerate() {
+            if i == buf.pos() {
                 break;
             }
             position += g.width();
@@ -1748,7 +1761,7 @@ impl UiApp {
     pub(crate) fn toggle_mark(&mut self) {
         if !self.registry.tags.is_empty() {
             let selected = self.current_selection;
-            if let Some(id) = self.registry.find_entry(&self.registry_paths[selected]) {
+            if let Some(id) = self.registry.find_entry(&self.registry_paths[selected][0]) {
                 if !self.marked.insert(id) {
                     self.marked.remove(&id);
                 }
@@ -1758,8 +1771,8 @@ impl UiApp {
 
     /// Toggle mark on every item in registry
     pub(crate) fn toggle_mark_all(&mut self) {
-        for path in &self.registry_paths {
-            if let Some(id) = self.registry.find_entry(&path) {
+        for path_tags in &self.registry_paths {
+            if let Some(id) = self.registry.find_entry(&path_tags[0]) {
                 if !self.marked.insert(id) {
                     self.marked.remove(&id);
                 }
@@ -1767,7 +1780,7 @@ impl UiApp {
         }
     }
 
-    /// Fix selection of any errors that may arrise
+    /// Fix selection of any errors that may arise
     pub(crate) fn selection_fix(&mut self) {
         // if let (Some(t), Some(uuid)) = (self.tag_current(),
         // self.current_selection_id) {     if t.uuid() != &uuid {
@@ -2010,7 +2023,7 @@ impl UiApp {
 
     /// Determine whether the `TagRegistry` has been modified since the screen
     /// was drawn
-    pub(crate) fn changed_since(&mut self, prev: Option<SystemTime>) -> Result<bool> {
+    fn changed_since(&mut self, prev: Option<SystemTime>) -> Result<bool> {
         if let Some(prev) = prev {
             let mtime = self.get_registry_mtime()?;
             if mtime > prev {
@@ -2026,16 +2039,49 @@ impl UiApp {
     }
 
     /// Import the paths from the registry
-    pub(crate) fn import_paths(&mut self) {
+    #[allow(clippy::unnecessary_wraps)]
+    pub(crate) fn import_registry(&mut self) -> Result<()> {
         let entries = self.get_full_tag_hash();
-        let mut paths = vec![];
 
-        for entry in entries {
-            paths.push(entry.0);
+        if entries.is_empty() {
+            return Ok(());
         }
 
-        self.registry_paths = paths;
+        let entries_name = entries.iter().fold(Vec::new(), |mut acc, (k, v)| {
+            // super::notify(format!("{} len {}", k.display(), v.len()), None);
+            acc.push(vec![
+                k.display().to_string(),
+                v.iter()
+                    .map(|tag| tag.name().to_string())
+                    .collect::<Vec<String>>()
+                    .join(" "),
+            ]);
+            acc
+        });
+
+        // let selected = self.current_selection;
+        // if selected >= self.tasks.len() {
+        //     return Ok(());
+        // }
+
+        super::notify("before", Some(entries_name.get(0).unwrap().get(1).unwrap()))?;
+
+        self.registry_paths = entries_name.clone();
+
+        super::notify("after", Some(entries_name.get(0).unwrap().get(1).unwrap()))?;
+        Ok(())
     }
+
+    // pub(crate) fn import_paths(&mut self) {
+    //     let entries = self.get_full_tag_hash();
+    //     let mut paths = vec![];
+    //
+    //     for entry in entries {
+    //         paths.push(entry.0);
+    //     }
+    //
+    //     self.registry_paths = paths;
+    // }
 
     fn path_by_id(&self, id: EntryId) -> Option<&EntryData> {
         self.registry.get_entry(id)
@@ -2046,11 +2092,11 @@ impl UiApp {
     }
 
     fn path_idx_by_id(&self, id: EntryId) -> Option<usize> {
-        let paths = &self.registry_paths;
+        let path_tags = &self.registry_paths;
 
-        paths
+        path_tags
             .iter()
-            .position(|p| self.registry.find_entry(p).unwrap_or_default() == id)
+            .position(|p| self.registry.find_entry(&p[0]).unwrap_or_default() == id)
     }
 
     // #################### COMPLETIONS ####################
@@ -2128,6 +2174,7 @@ impl UiApp {
             //   - info
             //   - print-completions
             //   - clean-cache
+            //   - repair
             //   - ui
             let subcommands = app.get_subcommands().collect::<Vec<_>>();
             // Args:
@@ -2153,18 +2200,18 @@ impl UiApp {
                 self.completion_list.clear();
             }
 
-            super::notify(
-                "compl",
-                Some(&format!(
-                    "len: {}, cmd: {}, input: {}, --: {}",
-                    full_cmd.len(),
-                    curr_cmd,
-                    input,
-                    full_cmd
-                        .iter()
-                        .all(|cmd| cmd.starts_with("--") || cmd.is_empty())
-                )),
-            );
+            // super::notify(
+            //     "compl",
+            //     Some(&format!(
+            //         "len: {}, cmd: {}, input: {}, --: {}",
+            //         full_cmd.len(),
+            //         curr_cmd,
+            //         input,
+            //         full_cmd
+            //             .iter()
+            //             .all(|cmd| cmd.starts_with("--") || cmd.is_empty())
+            //     )),
+            // );
 
             let match_args = |sub: &clap::App, completion_list: &mut CompletionList| {
                 for arg in sub.get_arguments() {
@@ -2197,6 +2244,7 @@ impl UiApp {
                         },
                     }
                 }
+                // TODO: possibly add repair
                 for sub in &subcommands {
                     match sub.to_string().as_str() {
                         "info" | "print-completions" | "clean-cache" | "ui" => {},
@@ -2213,10 +2261,9 @@ impl UiApp {
                 }
             } else {
                 self.completion_list.clear();
-                super::notify("hit other", None);
                 for sub in subcommands {
                     if sub.to_string() == *curr_cmd {
-                        super::notify("matching curr", None);
+                        // List has its own subcommands
                         if sub.to_string() == "list" {
                             for sub2 in sub.get_subcommands() {
                                 self.completion_list.insert(sub2.to_string());
@@ -2309,7 +2356,7 @@ impl UiApp {
         let selected = self.current_selection;
         let id = self
             .registry
-            .find_entry(&self.registry_paths[selected])
+            .find_entry(&self.registry_paths[selected][0])
             .unwrap_or_default();
         let tags = self.registry.list_entry_tags(id).unwrap_or_default();
 
@@ -2317,7 +2364,7 @@ impl UiApp {
             .arg("-gr")
             .arg("view")
             .arg("-p")
-            .arg(&self.registry_paths[selected].display().to_string())
+            .arg(&self.registry_paths[selected][0])
             .spawn();
 
         let res = match res {
@@ -2332,26 +2379,25 @@ impl UiApp {
                         } else {
                             Err(format!(
                                 "viewing file {} failed. {}{}",
-                                self.registry_paths[selected].display(),
+                                self.registry_paths[selected][0],
                                 String::from_utf8_lossy(&output.stdout),
                                 String::from_utf8_lossy(&output.stderr),
                             ))
                         },
                     Err(err) => Err(format!(
                         "Cannot run view for {}. {}",
-                        self.registry_paths[selected].display(),
-                        err
+                        self.registry_paths[selected][0], err
                     )),
                 }
             },
             _ => Err(format!(
                 "Cannot start `view` for `{}`",
-                self.registry_paths[selected].display()
+                self.registry_paths[selected][0]
             )),
         };
 
         self.current_selection_id = Some(id);
-        self.current_selection_path = Some(self.registry_paths[selected].clone());
+        self.current_selection_path = Some(PathBuf::from(self.registry_paths[selected][0].clone()));
 
         res
     }
@@ -2364,16 +2410,16 @@ impl UiApp {
         let selected = self.current_selection;
         let id = self
             .registry
-            .find_entry(&self.registry_paths[selected])
+            .find_entry(&self.registry_paths[selected][0])
             .unwrap_or_default();
 
         // let tags = self.registry.list_entry_tags(id).unwrap_or_default();
 
-        let viewargs = Opts::view_args(&self.registry_paths[selected].display().to_string());
+        let viewargs = Opts::view_args(&self.registry_paths[selected][0]);
         App::run(viewargs, &self.config).map_err(Error::Edit)?;
 
         self.current_selection_id = Some(id);
-        self.current_selection_path = Some(self.registry_paths[selected].clone());
+        self.current_selection_path = Some(PathBuf::from(self.registry_paths[selected][0].clone()));
 
         Ok(())
     }

@@ -32,7 +32,7 @@ use crate::{
     color = clap::ColorChoice::Auto,
     global_setting = AppSettings::DisableHelpSubcommand,        // Disables help (use -h)
     global_setting = AppSettings::DeriveDisplayOrder,           // Display in order listed here
-    global_setting = AppSettings::HidePossibleValuesInHelp,
+    global_setting = AppSettings::HidePossibleValues,
     global_setting = AppSettings::InferSubcommands,             // l, li, lis == list
     // global_setting = AppSettings::InferLongArgs,             // Same as above but for args
     // global_setting = AppSettings::UnifiedHelpMessage,     // Options/Flags together
@@ -51,7 +51,7 @@ pub(crate) struct Opts {
                             .map_err(|_| "must be a valid path")
                             .map(|_| ())
                             .map_err(|e| e.to_string()),
-        long_about = "\
+        long_help = "\
         When specified, the program will look for files starting from the provided \
         path, otherwise default to current working directory. Only applies to subcommands that \
         take a pattern as a positional argument"
@@ -65,7 +65,7 @@ pub(crate) struct Opts {
                             .map_err(|_| "must be a number")
                             .map(|_| ())
                             .map_err(|e| e.to_string()),
-        long_about = "\
+        long_help = "\
         Increase maximum recursion depth of filesystem traversal to specified value (default: 2). \
                       Only applies to subcommands that take a pattern as a positional argument."
     )]
@@ -85,7 +85,7 @@ pub(crate) struct Opts {
         long = "case-insensitive",
         short = 'i',
         overrides_with_all = &["case_sensitive", "case_insensitive"],
-        long_about = "\
+        long_help = "\
         Turn the glob into a case insensitive one (default: case insensitive). Overrides \
         --case-sensitive, and becomes case-sensitive if a search is performed with an \
         uppercase-character. Only applies to subcommands that take a pattern as a positional \
@@ -98,7 +98,7 @@ pub(crate) struct Opts {
         long = "case-sensitive",
         short = 's',
         overrides_with_all = &["case_sensitive", "case_insensitive"],
-        long_about = "\
+        long_help = "\
         Turn the glob into a case sensitive one (default: case sensitive). Overrides \
         --case-insensitive. Only applies to subcommands that take a pattern as a positional \
         argument."
@@ -108,9 +108,9 @@ pub(crate) struct Opts {
     #[clap(
         long,
         short = 'r',
-        long_about = "\
+        long_help = "\
         Search for files using a regular expressions instead of a glob. Only applies to \
-                      subcommands that take a pattern as a positional argument."
+                     subcommands that take a pattern as a positional argument."
     )]
     pub(crate) regex:            bool,
     /// Apply operation to all tags and files instead of locally
@@ -118,10 +118,10 @@ pub(crate) struct Opts {
         name = "global",
         long,
         short,
-        long_about = "\
+        long_help = "\
         Apply operation to files that are already tagged instead of traversing into local \
-                      directories or directories specified with '-d|--dir'. Only applies to \
-                      'search', 'list', 'rm', and 'clear'."
+                     directories or directories specified with '-d|--dir'. Only applies to \
+                     'search', 'list', 'rm', and 'clear'."
     )]
     pub(crate) global:           bool,
     /// Respect 'LS_COLORS' environment variable when coloring the output
@@ -132,7 +132,7 @@ pub(crate) struct Opts {
         name = "color", long = "color", short = 'c',
         value_name = "when",
         possible_values = &["never", "auto", "always"],
-        long_about = "\
+        long_help = "\
         When to colorize output (usually meant for piping). Valid values are: always, \
         auto, never. The always selection only applies to the path as of now."
     )]
@@ -145,7 +145,7 @@ pub(crate) struct Opts {
         multiple_occurrences = true,
         takes_value = true,
         value_name = "filetype",
-        long_about = FILE_TYPE.as_ref(),
+        long_help = FILE_TYPE.as_ref(),
     )]
     pub(crate) file_type:        Option<Vec<String>>,
     #[clap(
@@ -156,7 +156,7 @@ pub(crate) struct Opts {
         multiple_occurrences = true,
         takes_value = true,
         value_name = "extension",
-        long_about = "\
+        long_help = "\
         Specify file extensions to match against (can be used multiple times) instead of using the \
                       glob '*.{rs,go}' or the regex '.*.(rs|go)'. Used like: 'wutag -e rs set '*' \
                       <tag>'. Can be used multiple times: e.g., -e rs -e go.
@@ -172,7 +172,7 @@ pub(crate) struct Opts {
         value_name = "pattern",
         value_hint = ValueHint::DirPath,
         // conflicts_with = "global",
-        long_about = "\
+        long_help = "\
         Specify a pattern to exclude from the results. Can be used multiple times: e.g., \
         -E path/here -E path/there.
         "
@@ -184,8 +184,8 @@ pub(crate) struct Opts {
         name = "quiet",
         long = "quiet",
         short = 'q',
-        long_about = "Do not display any output for any command. Used within the TUI but made \
-                      available to users"
+        long_help = "Do not display any output for any command. Used within the TUI but made \
+                     available to users"
     )]
     pub(crate) quiet:            bool,
     #[clap(subcommand)]
@@ -209,6 +209,7 @@ impl Opts {
 
     /// Options for viewing a file within the TUI (edit command in TUI, view
     /// command on CLI)
+    #[cfg(feature = "ui")]
     pub(crate) fn view_args(pattern: &str) -> Self {
         Self {
             global: true,

@@ -12,9 +12,9 @@ pub(crate) struct SearchOpts {
     #[clap(
         long = "raw",
         short = 'r',
-        long_about = "No colored output. Should be detected automatically on a pipe following \
-                      this command. This can also be controlled by the 'NO_COLOR' environment \
-                      variable, or the flag '--color={never,auto}'"
+        long_help = "No colored output. Should be detected automatically on a pipe following this \
+                     command. This can also be controlled by the 'NO_COLOR' environment variable, \
+                     or the flag '--color={never,auto}'"
     )]
     pub(crate) raw: bool,
 
@@ -33,7 +33,7 @@ pub(crate) struct SearchOpts {
         value_terminator = ";",
         allow_hyphen_values = true,
         conflicts_with = "exec-batch",
-        long_about = EXEC_EXPL.as_ref(),
+        long_help = EXEC_EXPL.as_ref(),
         value_hint = ValueHint::CommandName,
     )]
     pub(crate) execute:       Option<Vec<String>>,
@@ -47,7 +47,7 @@ pub(crate) struct SearchOpts {
         value_terminator = ";",
         allow_hyphen_values = true,
         conflicts_with = "exec",
-        long_about = EXEC_BATCH_EXPL.as_ref(),
+        long_help = EXEC_BATCH_EXPL.as_ref(),
         value_hint = ValueHint::CommandName,
     )]
     pub(crate) execute_batch: Option<Vec<String>>,
@@ -62,8 +62,8 @@ pub(crate) struct SearchOpts {
         long,
         short = 'a',
         requires = "tags",
-        long_about = "The files that result must contain all matching tags. The default behavior \
-                      is if the file contains any tag"
+        long_help = "The files that result must contain all matching tags. The default behavior \
+                     is if the file contains any tag"
     )]
     pub(crate) all: bool,
 
@@ -74,8 +74,8 @@ pub(crate) struct SearchOpts {
         short = 'A',
         conflicts_with = "all",
         requires = "tags",
-        long_about = "The files that result must contain all matching tags and only those \
-                      matching tags"
+        long_help = "The files that result must contain all matching tags and only those matching \
+                     tags"
     )]
     pub(crate) only_all: bool,
 
@@ -84,9 +84,9 @@ pub(crate) struct SearchOpts {
         name = "tags",
         long,
         short,
-        long_about = "\
+        long_help = "\
         Limit search results even further by using a tag. To search just by tags use 'wutag search \
-                      '*' --tag <tag>'
+                     '*' --tag <tag>'
         "
     )]
     pub(crate) tags: Vec<String>,

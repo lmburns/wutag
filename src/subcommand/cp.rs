@@ -16,10 +16,10 @@ pub(crate) struct CpOpts {
         short = 'G',
         long = "glob",
         takes_value = false,
-        long_about = "Use a glob to match the input path instead of matching files in the local \
-                      directory. This argument doesn't do anything, and is a placeholder. If the \
-                      global option is used, pattern matching is turned on and file-matching is \
-                      no longer used"
+        long_help = "Use a glob to match the input path instead of matching files in the local \
+                     directory. This argument doesn't do anything, and is a placeholder. If the \
+                     global option is used, pattern matching is turned on and file-matching is no \
+                     longer used"
     )]
     pub(crate) glob:       bool,
     /// Path to the file from which to copy tags from

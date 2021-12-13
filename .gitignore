@@ -4,4 +4,5 @@ Cargo.lock
 .idea
 /extra
 exec/
+count/
 rusty-tags.vi

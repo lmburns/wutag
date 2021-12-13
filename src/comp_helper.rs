@@ -108,10 +108,10 @@ _wutag_tags() {
         r#"':tag -- The tag to edit:_wutag_tags' \"#,
     ),
     (
-        r#"'-t+[Search just by tags or along with a tag(s)]:tags: ' \
-'--tags=[Search just by tags or along with a tag(s)]:tags: ' \"#,
-        r#"'-t+[Search just by tags or along with a tag(s)]:tags:_wutag_tags' \
-'--tags=[Search just by tags or along with a tag(s)]:tags:_wutag_tags' \"#,
+        r#"'*-t+[Search just by tags or along with a tag(s)]:tags: ' \
+'*--tags=[Search just by tags or along with a tag(s)]:tags: ' \"#,
+        r#"'*-t+[Search just by tags or along with a tag(s)]:tags:_wutag_tags' \
+'*--tags=[Search just by tags or along with a tag(s)]:tags:_wutag_tags' \"#,
     ),
     (r#"(list)"#, r#"(list|ls)"#),
     (r#"(list)"#, r#"(list|ls)"#),

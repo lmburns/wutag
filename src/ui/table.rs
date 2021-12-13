@@ -361,7 +361,6 @@ where
         self
     }
 
-    // TODO: check
     /// Change/set highlight symbol, used to indicate that item is selected in
     /// multi-selection mode
     pub(crate) fn unmark_symbol(mut self, unmark_symbol: &'a str) -> Self {
@@ -369,7 +368,6 @@ where
         self
     }
 
-    // TODO: check
     /// Change/set highlight symbol, used to indicate that item is selected in
     /// multi-selection mode
     pub(crate) fn mark_highlight_symbol(mut self, mark_highlight_symbol: &'a str) -> Self {
@@ -377,7 +375,6 @@ where
         self
     }
 
-    // TODO: check
     /// Change/set highlight symbol, used to indicate that item is not selected
     pub(crate) fn unmark_highlight_symbol(mut self, unmark_highlight_symbol: &'a str) -> Self {
         self.unmark_highlight_symbol = Some(unmark_highlight_symbol);

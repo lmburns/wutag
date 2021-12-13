@@ -10,7 +10,7 @@ _wutag() {
     for i in ${COMP_WORDS[@]}
     do
         case "${i}" in
-            wutag)
+            "$1")
                 cmd="wutag"
                 ;;
             clean-cache)

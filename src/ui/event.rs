@@ -112,7 +112,7 @@ impl EventConfig {
 impl Default for EventConfig {
     fn default() -> Self {
         Self {
-            tick_rate: Duration::from_micros(16666),
+            tick_rate: Duration::from_micros(16555),
         }
     }
 }
@@ -201,7 +201,7 @@ impl EventHandler {
                                 };
                                 tx.send(Event::Input(key))
                                     .expect("failed to send key event");
-                                std::thread::sleep(Duration::from_millis(1));
+                                thread::sleep(Duration::from_millis(1));
                             },
                             _ => {
                                 tx.send(Event::Tick).expect("failed to send tick event");

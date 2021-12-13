@@ -273,6 +273,8 @@ impl Default for UiConfig {
     }
 }
 
+// TODO: allow specifying configuration file
+
 impl Config {
     /// Loads Config from provided `path` by appending
     /// [`CONFIG_FILE`]'s name to it and serializing the file into `Config`

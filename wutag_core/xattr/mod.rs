@@ -1,6 +1,8 @@
 //! Safe and os-agnostic(TODO) wrappers for manipulating extra attributes
+
 #[cfg(unix)]
 mod unix;
+
 #[cfg(windows)]
 mod windows;
 
@@ -9,6 +11,7 @@ use unix::{
     get_xattr as _get_xattr, list_xattrs as _list_xattrs, remove_xattr as _remove_xattr,
     set_xattr as _set_xattr,
 };
+
 #[cfg(windows)]
 pub use windows::{
     get_xattr as _get_xattr, list_xattrs as _list_xattrs, remove_xattr as _remove_xattr,
@@ -18,12 +21,14 @@ pub use windows::{
 use crate::Result;
 use std::path::Path;
 
+/// Extended attribute representation
 pub struct Xattr {
     key: String,
     val: String,
 }
 
 impl Xattr {
+    /// Create a new `Xattr`
     pub fn new<K, V>(key: K, val: V) -> Self
     where
         K: Into<String>,
@@ -35,10 +40,12 @@ impl Xattr {
         }
     }
 
+    /// Return the `key` of the `Xattr`
     pub fn key(&self) -> &str {
         &self.key
     }
 
+    /// Return the `val` of the `Xattr`
     pub fn val(&self) -> &str {
         &self.val
     }
@@ -50,6 +57,7 @@ impl From<(String, String)> for Xattr {
     }
 }
 
+/// Set an extended attribute
 pub fn set_xattr<P, S>(path: P, name: S, value: S) -> Result<()>
 where
     P: AsRef<Path>,
@@ -58,6 +66,7 @@ where
     _set_xattr(path, name, value)
 }
 
+/// Get an extended attribute
 pub fn get_xattr<P, S>(path: P, name: S) -> Result<String>
 where
     P: AsRef<Path>,
@@ -66,6 +75,7 @@ where
     _get_xattr(path, name)
 }
 
+/// List extended attribute(s)
 pub fn list_xattrs<P>(path: P) -> Result<Vec<Xattr>>
 where
     P: AsRef<Path>,
@@ -73,6 +83,7 @@ where
     _list_xattrs(path).map(|attrs| attrs.into_iter().map(From::from).collect())
 }
 
+/// Remove an extended attribute
 pub fn remove_xattr<P, S>(path: P, name: S) -> Result<()>
 where
     P: AsRef<Path>,

@@ -1,3 +1,5 @@
+//! Utility functions to execute on files or having to do with the `filesystem`
+
 use std::{
     borrow::Cow,
     env,
@@ -16,6 +18,7 @@ use thiserror::Error;
 use crate::wutag_error;
 
 /// FileTypes to filter against when searching (taken from `fd`)
+#[allow(clippy::missing_docs_in_private_items)]
 #[derive(Debug, Clone, Default)]
 pub(crate) struct FileTypes {
     pub(crate) files:            bool,
@@ -29,20 +32,30 @@ pub(crate) struct FileTypes {
     pub(crate) empty_only:       bool,
 }
 
+/// Errors used within the `filesystem` module
 #[derive(Debug, Error)]
 pub(crate) enum Error {
+    /// Missing metadata
     #[error("No metadata exists for {0}")]
     Metadata(String),
+
+    /// General `io` error
     #[error("IO Error: {0}")]
     IOError(String),
 }
 
+/// Shorter `typedef` for a `Result`
 pub(crate) type FileInfoResult<T> = Result<T, Error>;
 
+/// Used to determine extra information about a `File`
 pub(crate) trait FileInfo {
+    /// Return the [`Path`](std::path::Path)
     fn path(&self) -> &Path;
+    /// Return the [`FileType`](std::fs::FileType)
     fn file_type(&self) -> Option<fs::FileType>;
+    /// Return the [`Metadata`](std::fs::Metadata)
     fn meta(&self) -> FileInfoResult<Metadata>;
+    /// Is the file an executable?
     fn is_executable(&self) -> bool;
 }
 
@@ -75,7 +88,7 @@ impl FileInfo for &Path {
     }
 
     fn file_type(&self) -> Option<fs::FileType> {
-        let metadata = fs::metadata(self.path()).unwrap();
+        let metadata = fs::metadata(self.path()).expect("failed to determine file's metadata");
         Some(metadata.file_type())
     }
 
@@ -120,6 +133,7 @@ impl FileTypes {
 }
 
 /// Check whether the file is empty
+#[allow(clippy::filetype_is_file)]
 pub(crate) fn is_empty(entry: &impl FileInfo) -> bool {
     if let Some(file_type) = entry.file_type() {
         if file_type.is_dir() {
@@ -221,10 +235,11 @@ pub(crate) fn delete_file<P: AsRef<Path>>(file: P) {
 
 /// Determine whether file (path) contains path and if so, return true
 pub(crate) fn contained_path<P: AsRef<Path>>(file: P, path: P) -> bool {
-    file.as_ref()
-        .display()
-        .to_string()
-        .contains(path.as_ref().to_str().unwrap())
+    file.as_ref().display().to_string().contains(
+        path.as_ref()
+            .to_str()
+            .expect("failed to convert path to str"),
+    )
 }
 
 /// Convert an OsStr to bytes for RegexBuilder

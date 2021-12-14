@@ -1,3 +1,5 @@
+//! Configuration file options for the user
+
 #![allow(unused)]
 
 // TODO: Check for duplicate keys in configuration file
@@ -20,8 +22,10 @@ use tui::layout::Alignment;
 use crate::{ui::event::Key, wutag_fatal};
 use wutag_core::color::TuiColor;
 
+/// Configuration file name
 const CONFIG_FILE: &str = "wutag.yml";
 
+/// Configuration file options
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(rename_all = "snake_case", default)]
 pub(crate) struct Config {
@@ -82,7 +86,8 @@ pub(crate) struct UiConfig {
     /// Whether the UI is colored
     #[serde(alias = "colored-ui")]
     pub(crate) colored_ui:           bool,
-    // Whether the list should wrap back around to opposite side when reaching end
+    /// Whether the list should wrap back around to opposite side when reaching
+    /// end
     pub(crate) looping:              bool,
     /// Refresh rate of application
     #[serde(alias = "tick-rate")]
@@ -163,38 +168,60 @@ pub(crate) struct UiConfig {
 #[serde(rename_all = "snake_case", default)]
 pub(crate) struct KeyConfig {
     // == General ==
+    /// Quit the application
     pub(crate) quit:    Key,
+    /// Get overall help
     pub(crate) help:    Key,
+    /// Refresh application
     pub(crate) refresh: Key,
+    /// Preview a file
     pub(crate) preview: Key,
 
     // == Movement ==
+    /// Move up
     pub(crate) up:           Key,
+    /// Move down
     pub(crate) down:         Key,
+    /// Go to the top
     #[serde(alias = "go-to-top", alias = "goto-top")]
     pub(crate) go_to_top:    Key,
+    /// Go to the bottom
     #[serde(alias = "go-to-bottom", alias = "goto-bottom")]
     pub(crate) go_to_bottom: Key,
+    /// Scroll a page up
     #[serde(alias = "page-up")]
     pub(crate) page_up:      Key,
+    /// Scroll a page down
     #[serde(alias = "page-down")]
     pub(crate) page_down:    Key,
+    /// Select all items in the list
     #[serde(alias = "select-all")]
     pub(crate) select_all:   Key,
+    /// Select one item in the list
     pub(crate) select:       Key,
     #[serde(alias = "preview-down")]
+    /// Move the preview window down
     pub(crate) preview_down: Key,
     #[serde(alias = "preview-down")]
+    /// Move the preview window up
     pub(crate) preview_up:   Key,
 
     // == Actions to tags ==
+    /// Add a tag to the database
     pub(crate) add:    Key,
+    /// Set tag(s) on a file
     pub(crate) set:    Key,
+    /// Clear all tags from a file
     pub(crate) clear:  Key,
+    /// Remove tag(s) from a file
     pub(crate) remove: Key,
+    /// Edit tag attributes
     pub(crate) edit:   Key,
+    /// View the tag in an `$EDITOR`
     pub(crate) view:   Key,
+    /// Search for tags
     pub(crate) search: Key,
+    /// Copy attributes of one tag to another
     pub(crate) copy:   Key,
     /* pub(crate) modify:  Key,
      * pub(crate) undo:    Key,
@@ -364,7 +391,7 @@ impl KeyConfig {
             s if s == self.copy => "copy",
             _ => unreachable!(),
         }
-        .to_string()
+        .to_owned()
     }
 }
 
@@ -527,6 +554,7 @@ impl UiConfig {
 
 /// Wrapper around [`Alignment`](tui::layout::Alignment) to provide
 /// serialization for the user configuration
+#[allow(clippy::missing_docs_in_private_items)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub(crate) enum HeaderAlignment {
     Left,

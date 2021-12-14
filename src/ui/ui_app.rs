@@ -78,7 +78,7 @@ use super::{
 use crate::{
     config::{Config, HeaderAlignment},
     opt::{Command, Opts},
-    registry::{EntryData, EntryId, TagRegistry},
+    oregistry::{EntryData, EntryId, TagRegistry},
     subcommand::App,
     wutag_fatal,
 };

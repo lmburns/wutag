@@ -9,15 +9,22 @@ use colored::Color::{
 use once_cell::sync::Lazy;
 use std::env;
 
-// ANSI excape characters for coloring output
+/// Yellow ANSI escape sequence
 pub(crate) const YELLOW: &str = "\x1b[0;33m";
+/// Green ANSI escape sequence
 pub(crate) const GREEN: &str = "\x1b[0;32m";
+/// Bright Cyan ANSI escape sequence
 pub(crate) const BRCYAN: &str = "\x1b[38;5;14m";
+/// Bright Green ANSI escape sequence
 pub(crate) const BRGREEN: &str = "\x1b[38;5;10m";
+/// Bright Red ANSI escape sequence
 pub(crate) const BRRED: &str = "\x1b[38;5;9m";
+/// Bold Red ANSI escape sequence
 pub(crate) const BRED: &str = "\x1b[01;38;5;1m";
+/// Restore ANSI escape sequence
 pub(crate) const RES: &str = "\x1b[0m";
 
+/// The app name to use for `clap`
 pub(crate) const APP_NAME: &str = "wutag";
 
 /// Default base color for printing files
@@ -67,7 +74,7 @@ pub(crate) static FILE_TYPE: Lazy<String> = Lazy::new(|| {
         'F' or 'fifo':       fifo\n  \
         'x' or 'executable': executable\n \
         'e' or 'empty':      file or directory with 0 size"
-    .to_string()
+    .to_owned()
 });
 
 /// Colorized message to explain the -X flag to execute commands on tagged files
@@ -143,20 +150,23 @@ pub(crate) static DEFAULT_EDITOR: Lazy<String> = Lazy::new(|| {
                     "vi"
                 }
             }
-            .to_string()
+            .to_owned()
         })
     })
 });
 
+/// Encryption-specific constants
+#[allow(clippy::unwrap_used)]
 #[cfg(feature = "encrypt-gpgme")]
 pub(crate) mod encrypt {
     use super::{env, Lazy};
+
     /// The umask of the registry file
     pub(crate) static REGISTRY_UMASK: Lazy<u32> = Lazy::new(|| {
         u32::from_str_radix(
             &env::var("WUTAG_REGISTRY_UMASK").unwrap_or_else(|_| "077".to_owned()),
             8,
         )
-        .expect("umask is not a valid octal")
+        .unwrap_or_else(|_| u32::from_str_radix("077", 8).unwrap())
     });
 }

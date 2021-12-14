@@ -21,8 +21,8 @@ pub(crate) mod view;
 // TODO: tag value attributes
 
 use uses::{
-    env, parse_color, parse_color_cli_table, registry, ui, wutag_error, wutag_fatal, Color,
-    Colorize, Command, Config, Context, EncryptConfig, FileTypes, Opts, PathBuf, RegexSet,
+    env, oregistry as registry, parse_color, parse_color_cli_table, ui, wutag_error, wutag_fatal,
+    Color, Colorize, Command, Config, Context, EncryptConfig, FileTypes, Opts, PathBuf, RegexSet,
     RegexSetBuilder, Result, Stream, TagRegistry, DEFAULT_BASE_COLOR, DEFAULT_BORDER_COLOR,
     DEFAULT_COLORS,
 };
@@ -110,15 +110,14 @@ impl App {
 
         let format = if let Some(format_) = config.format {
             {
-                match format_.as_ref() {
-                    f @ ("toml" | "yaml" | "yml" | "json") => f,
-                    _ => {
-                        wutag_error!(
-                            "invalid format found as your configuration. Valid values: toml, \
-                             yaml, yml, json. Using the default: toml"
-                        );
-                        "toml"
-                    },
+                if let f @ ("toml" | "yaml" | "yml" | "json") = format_.as_ref() {
+                    f
+                } else {
+                    wutag_error!(
+                        "invalid format found as your configuration. Valid values: toml, yaml, \
+                         yml, json. Using the default: toml"
+                    );
+                    "toml"
                 }
             }
             .to_string()

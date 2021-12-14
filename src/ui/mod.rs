@@ -13,7 +13,7 @@ pub(crate) mod ui_app;
 pub(crate) use event::{Event, EventConfig, EventHandler};
 pub(crate) use ui_app::AppMode;
 
-use crate::{config::Config, registry::TagRegistry, subcommand::App};
+use crate::{config::Config, oregistry::TagRegistry, subcommand::App};
 use anyhow::Result;
 use crossterm::{
     cursor,

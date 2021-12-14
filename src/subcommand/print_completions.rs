@@ -1,6 +1,7 @@
 use super::{
     uses::{
-        comp_helper, fs, gen_completions, io, replace, Args, Colorize, PathBuf, ValueHint, Write,
+        comp_helper, fs, gen_completions, io, replace, wutag_info, Args, Colorize, PathBuf,
+        ValueHint, Write,
     },
     App,
 };
@@ -84,7 +85,7 @@ impl App {
             };
             let outdir = &dir.join(filename).lexiclean();
             fs::write(outdir, out).expect("failed to write completion script");
-            println!(
+            wutag_info!(
                 "{} completions were printed to {}",
                 opts.shell,
                 bold_entry!(outdir)

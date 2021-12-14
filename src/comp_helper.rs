@@ -1,5 +1,8 @@
+//! Replace items in completion output
+
 // TODO: Make replacements global
 
+/// Replace parts of completion script to allow for tag completion
 pub(crate) const ZSH_COMPLETION_REP: &[(&str, &str)] = &[
     (
         "(( $+functions[_wutag__clean-cache_commands] )) ||

@@ -2,8 +2,7 @@ use super::{
     uses::{
         bold_entry, collect_stdin_paths, err, fmt_err, fmt_path, fmt_tag, glob_builder,
         parse_color, reg_ok, regex_builder, wutag_error, wutag_fatal, Arc, Args, Colorize,
-        DirEntryExt, EntryData, IntoParallelRefIterator, ParallelIterator, Result, Tag, ValueHint,
-        DEFAULT_COLOR,
+        DirEntryExt, EntryData, Result, Tag, ValueHint, DEFAULT_COLOR,
     },
     App,
 };
@@ -49,7 +48,7 @@ impl App {
         }
 
         let tags = tags
-            .par_iter()
+            .iter()
             .map(|t| {
                 if let Some(t) = self.registry.get_tag(t) {
                     t.clone()

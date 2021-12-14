@@ -68,8 +68,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             break
         }
         'wutag;list' {
-            [CompletionResult]::new('-r', 'r', [CompletionResultType]::ParameterName, 'If provided output will be raw so that it can be easily piped to other commands')
-            [CompletionResult]::new('--raw', 'raw', [CompletionResultType]::ParameterName, 'If provided output will be raw so that it can be easily piped to other commands')
+            [CompletionResult]::new('-r', 'r', [CompletionResultType]::ParameterName, 'Output will be raw so that it can be easily piped to other commands')
+            [CompletionResult]::new('--raw', 'raw', [CompletionResultType]::ParameterName, 'Output will be raw so that it can be easily piped to other commands')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')

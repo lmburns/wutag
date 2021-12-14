@@ -1,3 +1,5 @@
+//! Execute a command on a result from a `search`
+
 mod command;
 pub(crate) mod exits;
 pub(crate) mod input;
@@ -41,11 +43,14 @@ pub(crate) enum ExecutionMode {
 /// command and execute it.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct CommandTemplate {
+    /// Arguments to the command
     args: Vec<ArgumentTemplate>,
+    /// `Batch` or `OneByOne`
     mode: ExecutionMode,
 }
 
 impl CommandTemplate {
+    /// Create a new `CommandTemplate`
     pub(crate) fn new<I, S>(input: I) -> CommandTemplate
     where
         I: IntoIterator<Item = S>,
@@ -54,6 +59,7 @@ impl CommandTemplate {
         Self::build(input, ExecutionMode::OneByOne)
     }
 
+    /// Create a new batch `CommandTemplate`
     pub(crate) fn new_batch<I, S>(input: I) -> Result<CommandTemplate>
     where
         I: IntoIterator<Item = S>,
@@ -71,13 +77,17 @@ impl CommandTemplate {
         Ok(cmd)
     }
 
+    /// Build the `CommandTemplate`
     fn build<I, S>(input: I, mode: ExecutionMode) -> CommandTemplate
     where
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
-        static PLACEHOLDER_PATTERN: Lazy<Regex> =
-            Lazy::new(|| Regex::new(r"\{(/?\.?.?|//|@?[srxc]?)\}").unwrap());
+        /// Regular expression to match `Token` patterns
+        static PLACEHOLDER_PATTERN: Lazy<Regex> = Lazy::new(|| {
+            Regex::new(r"\{(/?\.?.?|//|@?[srxc]?)\}")
+                .expect("failed to build regex for `CommandTemplate`")
+        });
 
         let mut args = Vec::new();
         let mut has_placeholder = false;

@@ -2,13 +2,15 @@
 
 use super::{
     uses::{
-        contained_path, fmt_local_path, fmt_path, fmt_tag, global_opts, print_stdout,
-        raw_local_path, ternary, Args, Border, Cell, ColorChoice, Colorize, HashMap, Justify,
-        Separator, Style, Subcommand, Table,
+        contained_path, fmt_local_path, fmt_path, fmt_tag, global_opts, raw_local_path, ternary,
+        Args, ColorChoice, Colorize, HashMap, Subcommand,
     },
     App,
 };
 use itertools::Itertools;
+
+#[cfg(feature = "prettify")]
+use super::uses::{print_stdout, Border, Cell, Justify, Separator, Style, Table};
 
 #[derive(Subcommand, Debug, Clone, PartialEq)]
 pub(crate) enum ListObject {
@@ -57,7 +59,9 @@ pub(crate) enum ListObject {
         /// Display tags along with the files
         #[clap(name = "with_tags", long = "with-tags", short = 't')]
         with_tags: bool,
+
         /// Format the tags and files output into columns
+        #[cfg(feature = "prettify")]
         #[clap(
             name = "formatted",
             long = "format",
@@ -67,6 +71,7 @@ pub(crate) enum ListObject {
             long_help = "Format the tags and files output into columns. Requires '--with-tags'"
         )]
         formatted: bool,
+
         /// Use border separators when formatting output
         #[clap(
             long,
@@ -76,7 +81,8 @@ pub(crate) enum ListObject {
             Use a border around the perimeter of the formatted output, as well as in-between the \
                          lines."
         )]
-        border:    bool,
+        border: bool,
+
         /// Display tags and files on separate lines
         #[clap(
             name = "garrulous",
@@ -91,10 +97,10 @@ pub(crate) enum ListObject {
 
 #[derive(Args, Debug, Clone, PartialEq)]
 pub(crate) struct ListOpts {
-    /// The object to list. Valid values are: 'tags', 'files'.
+    /// Object to list: 'tags', 'files'.
     #[clap(subcommand)]
     pub(crate) object: ListObject,
-    /// If provided output will be raw so that it can be easily piped to other
+    /// Output will be raw so that it can be easily piped to other
     /// commands
     #[clap(long, short)]
     pub(crate) raw:    bool,
@@ -188,6 +194,7 @@ impl App {
                         println!();
                     }
                 }
+
                 if formatted {
                     print_stdout(ternary!(
                         border,

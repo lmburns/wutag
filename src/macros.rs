@@ -1,3 +1,5 @@
+//! Macros that are used in more than one file
+
 /// Format errors
 #[macro_export]
 macro_rules! err {

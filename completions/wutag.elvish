@@ -65,8 +65,8 @@ set edit:completion:arg-completer[wutag] = [@words]{
             cand ui 'Open a TUI to manage tags'
         }
         &'wutag;list'= {
-            cand -r 'If provided output will be raw so that it can be easily piped to other commands'
-            cand --raw 'If provided output will be raw so that it can be easily piped to other commands'
+            cand -r 'Output will be raw so that it can be easily piped to other commands'
+            cand --raw 'Output will be raw so that it can be easily piped to other commands'
             cand -h 'Print help information'
             cand --help 'Print help information'
             cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'

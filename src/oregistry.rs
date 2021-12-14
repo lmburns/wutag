@@ -1,38 +1,37 @@
-// #![allow(dead_code)]
+#![allow(dead_code, unused)]
 
 // TODO: look into using an actual database
-// TODO: Add file modifications
-// TODO: Add history of modifications
+// TODO: Add history of tag modifications
 
 use crate::{
     config::EncryptConfig,
+    consts::encrypt::REGISTRY_UMASK,
     encryption::{util, InnerCtx, Plaintext, Recipients},
     filesystem::contained_path,
     opt::Opts,
+    util::prompt,
     wutag_error, wutag_fatal, wutag_info,
 };
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use colored::{Color, Colorize};
 use once_cell::sync::{Lazy, OnceCell};
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use shellexpand::LookupError;
-use wutag_core::tag::Tag;
-
-// use rusqlite::{
-//     self as rsq, params,
-//     types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput},
-//     Connection,
-// };
+use thiserror::Error;
 
 use std::{
     borrow::Cow,
     collections::BTreeMap,
+    convert::{TryFrom, TryInto},
     env, fs, io,
+    os::unix::fs::{MetadataExt, PermissionsExt},
     path::{Path, PathBuf},
     sync::atomic::{AtomicBool, Ordering},
     time::SystemTime,
 };
+use wutag_core::tag::Tag;
+
+// ================== Old Registry ==================
 
 /// Name of registry file
 const REGISTRY_FILE: &str = "wutag.registry";
@@ -315,8 +314,9 @@ impl TagRegistry {
         }
     }
 
+    /// Return a mutable vector of `EntryId`s
     fn mut_tag_entries(&mut self, tag: &Tag) -> &mut Vec<EntryId> {
-        let exists = self.tags.par_iter().find_any(|(t, _)| t == &tag);
+        let exists = self.tags.iter().find(|(t, _)| t == &tag);
 
         if exists.is_none() {
             self.tags.insert(tag.clone(), Vec::new());
@@ -330,7 +330,7 @@ impl TagRegistry {
     pub(crate) fn tag_entry(&mut self, tag: &Tag, entry: EntryId) -> Option<EntryId> {
         let entries = self.mut_tag_entries(tag);
 
-        if let Some(entry) = entries.par_iter().find_any(|&e| *e == entry) {
+        if let Some(entry) = entries.iter().find(|&e| *e == entry) {
             return Some(*entry);
         }
         entries.push(entry);
@@ -338,6 +338,8 @@ impl TagRegistry {
         None
     }
 
+    /// Remove tags from the registry if there are no entries associated with
+    /// that `Tag`
     fn clean_tag_if_no_entries(&mut self, tag: &Tag) {
         let remove = if let Some(entries) = self.tags.get(tag) {
             entries.is_empty()
@@ -355,7 +357,7 @@ impl TagRegistry {
     pub(crate) fn untag_entry(&mut self, tag: &Tag, entry: EntryId) -> Option<EntryData> {
         let entries = self.mut_tag_entries(tag);
 
-        if let Some(pos) = entries.par_iter().position_first(|e| *e == entry) {
+        if let Some(pos) = entries.iter().position(|e| *e == entry) {
             let entry = entries.remove(pos);
 
             self.clean_tag_if_no_entries(tag);
@@ -394,7 +396,7 @@ impl TagRegistry {
         self.entries.remove(&entry);
     }
 
-    /// Finds the entry by a `path`. Returns the id of the entry if found.
+    /// Finds the entry by a `path`. Returns the id of the entry if found
     pub(crate) fn find_entry<P: AsRef<Path>>(&self, path: P) -> Option<EntryId> {
         self.entries
             .iter()
@@ -402,7 +404,7 @@ impl TagRegistry {
             .map(|(idx, _)| *idx)
     }
 
-    /// Lists tags of the `entry` if such entry exists.
+    /// Lists tags of the `entry` if such entry exists
     pub(crate) fn list_entry_tags(&self, entry: EntryId) -> Option<Vec<&Tag>> {
         let tags = self
             .tags
@@ -440,11 +442,16 @@ impl TagRegistry {
     }
 
     /// Check if the file entry has all and only all specified tags
+    ///
+    /// # For example
+    /// If `file1` has `a`, `b`, and `c` as tags, this function
+    /// will return true if `file1` is tested for `a`, `b`, and `c`. False,
+    /// otherwise
     pub(crate) fn entry_has_only_all_tags(&self, id: EntryId, tags: &[String]) -> bool {
         use std::collections::HashSet;
 
         let entry_tags = self.list_entry_tags(id).unwrap_or_else(Vec::new);
-        let entry_hash: HashSet<String> = entry_tags.iter().map(|e| e.name().to_string()).collect();
+        let entry_hash: HashSet<String> = entry_tags.iter().map(|e| e.name().to_owned()).collect();
         let inp_hash: HashSet<String> = tags.iter().cloned().collect();
 
         let diff: HashSet<_> = entry_hash.symmetric_difference(&inp_hash).collect();
@@ -452,7 +459,13 @@ impl TagRegistry {
         diff.is_empty()
     }
 
-    /// Check if the file entry has all specific tags
+    /// Check if the file entry has all specific tags. The `Entry` may contain
+    /// other tags as well.
+    ///
+    /// # For example
+    /// If `file1` has `a`, `b`, and `c` as tags, this function
+    /// will return true if `file1` is tested for `a`, and `b`, `a` and `c`, `b`
+    /// and `c`, or all three
     pub(crate) fn entry_has_all_tags(&self, id: EntryId, tags: &[String]) -> bool {
         let entry_tags = self.list_entry_tags(id).unwrap_or_else(Vec::new);
 
@@ -462,6 +475,10 @@ impl TagRegistry {
     }
 
     /// Check if the file entry has any specific tags
+    ///
+    /// # For example
+    /// If `file1` has `a`, `b`, and `c` as tags, this function
+    /// will return true if `file1` is tested for `a`, or `b`, or `c`
     pub(crate) fn entry_has_any_tags(&self, id: EntryId, tags: &[String]) -> bool {
         let entry_tags = self.list_entry_tags(id).unwrap_or_else(Vec::new);
 
@@ -470,7 +487,7 @@ impl TagRegistry {
             .any(|t| tags.iter().any(|inp| inp == t.name()))
     }
 
-    /// Returns entries that have all of the `tags`.
+    /// Returns entries that have all of the `Tag`s
     #[allow(dead_code)]
     pub(crate) fn list_entries_with_tags<T, S>(&self, tags: T) -> Vec<EntryId>
     where
@@ -494,7 +511,7 @@ impl TagRegistry {
         entries
     }
 
-    /// Return a vector of `PathBuf`'s that have a specific tag or tags
+    /// Return a vector of `PathBuf`'s that have a specific tag(s)
     #[allow(dead_code)]
     pub(crate) fn list_entries_paths<T, S>(
         &self,
@@ -534,8 +551,8 @@ impl TagRegistry {
     }
 
     /// Return the conceptualized data structure that all these functions
-    /// correspond to. i.e., a hashmap of the file's path corresponding to a
-    /// vector of the tag *names* as strings
+    /// act on. i.e., a `BTreeMap` of the file path corresponding to a
+    /// `Vec` of the `Tag` *names* as strings
     pub(crate) fn list_all_paths_and_tags_as_strings(&self) -> BTreeMap<PathBuf, Vec<String>> {
         let mut path_tags = BTreeMap::new();
 
@@ -554,8 +571,8 @@ impl TagRegistry {
     }
 
     /// Return the conceptualized data structure that all these functions
-    /// correspond to. i.e., a hashmap of the file's path corresponding to a
-    /// vector of the `Tag`s
+    /// act on to. i.e., a `BTreeMap` of the file path corresponding to a
+    /// `Vec` of the `Tag`s
     pub(crate) fn list_all_paths_and_tags(&self) -> BTreeMap<PathBuf, Vec<Tag>> {
         let mut path_tags = BTreeMap::new();
 
@@ -585,39 +602,39 @@ impl TagRegistry {
         path_tags
     }
 
-    /// Lists ids of all entries present in the registry.
+    /// Lists ids of all entries present in the registry
     pub(crate) fn list_entries_ids(&self) -> impl Iterator<Item = &EntryId> {
         self.entries.keys()
     }
 
-    /// Lists data of all entries present in the registry.
+    /// Lists data of all entries present in the registry
     #[allow(dead_code)]
     pub(crate) fn list_entries(&self) -> impl Iterator<Item = &EntryData> {
         self.entries.values()
     }
 
-    /// Lists ids and data of all entries present in the registry.
+    /// Lists ids and data of all entries present in the registry
     pub(crate) fn list_entries_and_ids(&self) -> impl Iterator<Item = (&EntryId, &EntryData)> {
         self.entries.iter()
     }
 
-    /// Lists available tags.
+    /// Lists available tags
     pub(crate) fn list_tags(&self) -> impl Iterator<Item = &Tag> {
         self.tags.keys()
     }
 
-    /// Returns data of the entry with `id` if such entry exists.
+    /// Returns data of the entry with `id` if such entry exists
     pub(crate) fn get_entry(&self, id: EntryId) -> Option<&EntryData> {
         self.entries.get(&id)
     }
 
-    /// Returns the tag with the name `tag` if it exists.
+    /// Returns the tag with the name `tag` if it exists
     pub(crate) fn get_tag<T: AsRef<str>>(&self, tag: T) -> Option<&Tag> {
         self.tags.keys().find(|t| t.name() == tag.as_ref())
     }
 
     /// Updates the color of the `tag`. Returns `true` if the tag was found and
-    /// updated and `false` otherwise.
+    /// updated and `false` otherwise
     pub(crate) fn update_tag_color<T: AsRef<str>>(&mut self, tag: T, color: Color) -> bool {
         if let Some(mut t) = self.tags.keys().find(|t| t.name() == tag.as_ref()).cloned() {
             let data = self
@@ -633,7 +650,7 @@ impl TagRegistry {
         }
     }
 
-    /// Update / rename the name of the tag
+    /// Update/rename the name of the tag
     pub(crate) fn update_tag_name<T: AsRef<str>>(&mut self, tag: T, rename: T) -> bool {
         if let Some(mut t) = self.tags.keys().find(|t| t.name() == tag.as_ref()).cloned() {
             let data = self
@@ -649,7 +666,10 @@ impl TagRegistry {
         }
     }
 
-    /// Encrypt or decrypt the registry
+    /// Requires the feature `encrypt-gpgme`.
+    ///
+    /// This function will decrypt the `Registry` if the file is encrypted, and
+    /// will encrypt the `Registry` if the file is decrypted
     #[cfg(feature = "encrypt-gpgme")]
     pub(crate) fn crypt_registry<P: AsRef<Path>>(
         path: P,
@@ -753,6 +773,11 @@ Use an (1) email, (2) short fingerprint, or (3) full fingerprint"#,
     }
 }
 
+// TODO: Find another way to determine if file is encrypted
+
+/// Check whether the file is encrypted by reading the file to a string and
+/// checking for `PGP` markers. Requires that the file is encrypted with the
+/// `ascii` setting and not binary
 #[cfg(feature = "encrypt-gpgme")]
 pub(crate) fn is_encrypted<P: AsRef<Path>>(path: P) -> bool {
     let path = path.as_ref();

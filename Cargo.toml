@@ -1,12 +1,15 @@
-[package]
-name = "wutag"
-description = "Tag files and manage them with color"
-version = "0.7.1"
 # wojciechkepka <wojtek.kepka@protonmail.com> is the original
 # Fork has been modified so much that everything except from `wutag_core` is different
+
+[package]
+name = "wutag"
+version = "0.7.1"
+description = "Tag files and manage them with color"
+license = "MIT"
 authors = ["Lucas Burns <lmb@lmburns.com>"]
 edition = "2018"
 repository = "https://github.com/lmburns/wutag"
+homepage = "https://git.lmburns.com/wutag"
 categories = ["command-line-utilities", "filesystem", "tagging"]
 keywords = ["cli", "shell", "utility", "tag", "files"]
 readme = "README.md"
@@ -16,13 +19,14 @@ name = "wutag_core"
 path = "wutag_core/lib.rs"
 
 [features]
-default = ["encrypt-gpgme", "ui"]
+default = ["encrypt-gpgme", "ui", "yaml-backend", "prettify"]
 
 _encrypt-gpg = []
-
 encrypt-gpgme = ["gpgme", "secstr", "zeroize"]
+
 ui = [
   "tui",
+  "crossterm",
   "rustyline",
   "rustyline-derive",
   "unicode-segmentation",
@@ -31,56 +35,84 @@ ui = [
   "better-panic",
 ]
 
+yaml-backend = ["serde_yaml"]
+toml-backend = ["toml"]
+
+prettify = ["cli-table"]
+
+# json-backend = ["serde_json"]
+
 [dependencies]
 # Used for lscolors
 ansi_term = "0.12.1"
 ansi-to-tui = "0.4.1"
 strip-ansi-escapes = "0.1.1"
-anyhow = "1.0.43"
-atty = "0.2.14"
-base64 = "0.13.0"
-chrono = { version = "0.4.19", features = ["serde"] }
-clap = { version = "3.0.0-rc.3", features = ["derive", "default", "cargo", "wrap_help", "env"] }
-clap_generate = "3.0.0-rc.3"
 colored = { git = "https://github.com/wojciechkepka/colored", branch = "master", features = ["serde"] }
+lscolors = "0.7.1"
+
+anyhow = "1.0.43"
+thiserror = "1.0.26"
+
+shellexpand = "2.1.0"
+dirs = "3.0.2"
+
+# Mime information
+mime = "0.3.16"
+xdg-mime = "0.3.3"
+mime-db = "1.3.0" # TODO: USE/DEL
+
 crossbeam-channel = "0.5.1"
 crossbeam-utils = "0.8.5"
-dirs = "3.0.2"
-env_logger = "0.9.0"
+# rayon = "1.5.1"
+
+# Paths and patterns
 globset = "0.4.8"
+regex = "1.5.4"
 ignore = "0.4.18"
 lexiclean = "0.0.1"
-libc = "0.2.100"
+
+# Logging
+env_logger = "0.9.0"
 log = "0.4.14"
-lscolors = "0.7.1"
+
+# System information
+atty = "0.2.14"
+libc = "0.2.100"
 num_cpus = "1.13.0"
 once_cell = "1.8.0"
+
+# Hashing
+base64 = "0.13.0"
+blake3 = "1.2.0"
+chrono = { version = "0.4.19", features = ["serde"] }
+
+# Command-line
+clap = { version = "3.0.0-rc.4", features = ["derive", "default", "cargo", "wrap_help", "env"] }
+clap_generate = "3.0.0-rc.4"
+
+# Tools
+which = "4.2.2"
 rand = "0.8.4"
-rayon = "1.5.1"
-regex = "1.5.4"
-serde = { version = "1.0.129", features = ["derive"] }
-serde_cbor = "0.11.2"
-serde_json = "1.0.66"
-serde_yaml = "0.8.19"
-shellexpand = "2.1.0"
-thiserror = "1.0.26"
-toml = "0.5.8"
-itertools = "0.10.1"
+itertools = "0.10.1" # TODO: USE/DEL
 indexmap = { version = "1.7.0", features = ["serde-1"] }
 
-# TODO: use or remove
-# termion = "1.5.5"
-# rusqlite = "0.26.1"
-notify-rust = { version = "4.0", default-features = false, features = ["z"] }
+# Option: (default = serde_yaml) -- Serialization
+serde = { version = "1.0.129", features = ["derive"] }
+# serde_json = { version = "1.0.66", optional = true }
+serde_yaml = { version = "0.8.19", optional = true }
+toml = { version = "0.5.8", optional = true }
+serde_json = "1.0.66"
+serde_cbor = "0.11.2" # TODO: Find way not to use this
 
-# TODO: add formatted option
-cli-table = { version = "0.4.6", default-features = false }
+notify-rust = { version = "4.0", default-features = false, features = ["z"] } # TODO: USE/DEL
+rusqlite = { version = "0.26", features = ["bundled"] }
 
-# ADD to TUI?
-crossterm = { version = "0.20.0", default-features = false }
+# Option: (default) -- Formatting output
+cli-table = { version = "0.4.6", default-features = false, optional = true }
 
-# Default feature - tui
+# Option: (default) -- TUI
 tui = { version = "0.16.0", features = ["crossterm"], optional = true }
+crossterm = { version = "0.20.0", default-features = false, optional = true }
 rustyline = { version = "9.0.0", optional = true }
 rustyline-derive = { version = "0.5.0", optional = true }
 unicode-segmentation = { version = "1.8.0", optional = true }
@@ -88,12 +120,10 @@ unicode-width = { version = "0.1.9", optional = true }
 cassowary = { version = "0.3.0", optional = true }
 better-panic = { version = "0.2.0", optional = true }
 
-# Default feature - encryption
+# Option: (default) -- Encryption
 gpgme = { version = "0.10.0", optional = true }
 secstr = { version = "0.4.0", optional = true }
 zeroize = { version = "1.4.3", optional = true }
-which = "4.2.2"
-blake3 = "1.2.0"
 
 [dev-dependencies]
 predicates = "2.0.1"

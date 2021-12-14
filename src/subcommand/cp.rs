@@ -1,3 +1,6 @@
+//! Copy attributes of one tag to another
+
+// TODO: Add mv option
 // TODO: Add global option to cp
 
 use super::{

@@ -41,6 +41,7 @@ pub fn color_from_fg_str(s: &str) -> Option<Color> {
 }
 
 /// Parses a [Color](tui::style::Color) from a foreground color string
+#[cfg(feature = "ui")]
 pub fn color_tui_from_fg_str(s: &str) -> Option<tui::Color> {
     match s {
         "30" => Some(tui::Color::Black),
@@ -139,6 +140,7 @@ pub fn parse_color<S: AsRef<str>>(color: S) -> Result<Color> {
 /// starts with `0x` or `#` or without any prefix the color will be treated as
 /// hex color notation so any colors like `0x1f1f1f` or `#ABBA12` or `121212`
 /// are valid.
+#[cfg(feature = "prettify")]
 pub fn parse_color_cli_table<S: AsRef<str>>(color: S) -> Result<cli_table::Color> {
     let color = color.as_ref();
     macro_rules! if_6 {
@@ -172,6 +174,7 @@ pub fn parse_color_cli_table<S: AsRef<str>>(color: S) -> Result<cli_table::Color
 /// starts with `0x` or `#` or without any prefix the color will be treated as
 /// hex color notation so any colors like `0x1f1f1f` or `#ABBA12` or `121212`
 /// are valid.
+#[cfg(feature = "ui")]
 pub fn parse_color_tui<S: AsRef<str>>(color: S) -> Result<tui::Color> {
     let color = color.as_ref();
     macro_rules! if_6 {
@@ -201,15 +204,16 @@ pub fn parse_color_tui<S: AsRef<str>>(color: S) -> Result<tui::Color> {
     Err(Error::InvalidColor(color.to_string()))
 }
 
-/// Wrapper for tui widget colors
+/// Wrapper for [`tui`] widget colors
+#[cfg(feature = "ui")]
 #[derive(Clone, Copy, Debug)]
 pub struct TuiColor {
-    /// Inner tui widget color type
+    /// Inner [`tui`](tui) widget color type
     inner: tui::Color,
 }
 
 impl TuiColor {
-    /// Returns the underlying [`TuiColor`] type
+    /// Returns the underlying [`Color`] type
     ///
     /// [`Color`](tui::style::Color)
     pub fn get(self) -> tui::Color {

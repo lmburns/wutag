@@ -9,8 +9,8 @@ use thiserror::Error;
 /// Prefix used to identify extra attributes added by wutag on files
 pub const WUTAG_NAMESPACE: &str = "user.wutag";
 
+/// Default error used throughout this `wutag_core`
 #[derive(Debug, Error)]
-/// Default error used throughout this crate
 pub enum Error {
     #[error("tag {0} already exists")]
     TagExists(ColoredString),

@@ -5,8 +5,8 @@ use super::{
         bold_entry, clear_tags, contained_path, create_temp_path, fmt_path, fmt_tag, fs,
         glob_builder, osstr_to_bytes, process, raw_local_path, reg_ok, regex_builder, ternary,
         wutag_error, wutag_fatal, wutag_info, Arc, ArgSettings, Args, BTreeMap, Captures, Colorize,
-        Cow, DirEntryExt, EntryData, IntoParallelRefIterator, Lexiclean, OsStr, ParallelIterator,
-        PathBuf, Regex, Result, Tag, Write, DEFAULT_EDITOR,
+        Cow, DirEntryExt, EntryData, Lexiclean, OsStr, PathBuf, Regex, Result, Tag, Write,
+        DEFAULT_EDITOR,
     },
     App,
 };
@@ -59,6 +59,7 @@ pub(crate) struct ViewOpts {
 }
 
 impl App {
+    /// View tags within an `$EDITOR`
     pub(crate) fn view(&mut self, opts: &ViewOpts) -> Result<()> {
         log::debug!("ViewOpts: {:#?}", opts);
         log::debug!("Using registry: {}", self.registry.path.display());
@@ -164,10 +165,12 @@ impl App {
         // Opts needs to overwrite config, which is why it's matched first
         let match_format = |format: &String| -> String {
             match format.as_str() {
+                #[cfg(feature = "toml-backend")]
                 "toml" => toml::to_string(&map)
                     .unwrap_or_else(|e| wutag_fatal!("serialization to toml failed: {}", e)),
                 "json" => serde_json::to_string_pretty(&map)
                     .unwrap_or_else(|e| wutag_fatal!("serialization to json failed: {}", e)),
+                #[cfg(feature = "yaml-backend")]
                 "yaml" | "yml" => serde_yaml::to_string(&map)
                     .unwrap_or_else(|e| wutag_fatal!("serialization to yaml failed: {}", e)),
                 _ => unreachable!(),
@@ -182,14 +185,23 @@ impl App {
 
         let mut tmp_path = PathBuf::from(create_temp_path());
 
+        #[allow(clippy::match_same_arms)]
         tmp_path.set_extension(if let Some(format) = &opts.format {
             match format.as_str() {
-                f @ ("toml" | "yaml" | "yml" | "json") => f.to_string(),
+                #[cfg(feature = "toml-backend")]
+                f @ "toml" => f.to_owned(),
+                #[cfg(feature = "yaml-backend")]
+                f @ ("yaml" | "yml") => f.to_owned(),
+                f @ "json" => f.to_owned(),
                 _ => unreachable!(),
             }
         } else {
             match self.format.as_str() {
-                f @ ("toml" | "yaml" | "yml" | "json") => f.to_string(),
+                #[cfg(feature = "toml-backend")]
+                f @ "toml" => f.to_owned(),
+                #[cfg(feature = "yaml-backend")]
+                f @ ("yaml" | "yml") => f.to_owned(),
+                f @ "json" => f.to_owned(),
                 _ => unreachable!(),
             }
         });
@@ -241,6 +253,7 @@ impl App {
 
         let serialized_format = |format: &String| -> BTreeMap<String, Vec<String>> {
             match format.as_str() {
+                #[cfg(feature = "toml-backend")]
                 "toml" =>
                     toml::from_slice(&fs::read(&tmp_path).expect("failed to read tagged file"))
                         .unwrap_or_else(|e| {
@@ -260,6 +273,7 @@ impl App {
                         color_file(e.to_string())
                     )
                 }),
+                #[cfg(feature = "yaml-backend")]
                 "yaml" | "yml" => serde_yaml::from_slice(
                     &fs::read(&tmp_path).expect("failed to read tagged file"),
                 )
@@ -353,7 +367,7 @@ impl App {
                 }
 
                 let tags = tags
-                    .par_iter()
+                    .iter()
                     .map(|t| {
                         if let Some(t) = self.registry.get_tag(t) {
                             log::debug!("Got tag: {:?}", t);

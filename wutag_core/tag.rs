@@ -16,8 +16,10 @@ use crate::{
     Error, Result, WUTAG_NAMESPACE,
 };
 
+/// Default `Color` to use
 pub const DEFAULT_COLOR: Color = Color::BrightWhite;
 
+/// A representation of a `Tag`. Used to set `xattr` on files
 #[derive(Clone, Debug, Deserialize, Eq, Serialize)]
 pub struct Tag {
     name:  String,
@@ -145,14 +147,15 @@ impl Tag {
         self.name = name.as_ref().to_string();
     }
 
+    /// Custom implementation of `Hash`
     fn hash(&self) -> Result<String> {
         serde_cbor::to_vec(&self)
             .map(|tag| format!("{}.{}", WUTAG_NAMESPACE, base64::encode(tag)))
             .map_err(Error::from)
     }
 
-    /// Tags the file at the given `path` with this tag. If the tag exists
-    /// returns an error.
+    /// Tags the file at the given `path`. If the tag exists it returns an
+    /// `Error`.
     pub fn save_to<P>(&self, path: P) -> Result<()>
     where
         P: AsRef<Path>,
@@ -166,7 +169,7 @@ impl Tag {
     }
 
     /// Removes this tag from the file at the given `path`. If the tag doesn't
-    /// exists returns [Error::TagNotFound](wutag::Error::TagNotFound)
+    /// exist it returns [`Error::TagNotFound`](wutag::Error::TagNotFound)
     pub fn remove_from<P>(&self, path: P) -> Result<()>
     where
         P: AsRef<Path>,
@@ -209,6 +212,7 @@ impl PartialOrd for Tag {
     }
 }
 
+/// Get the `next` item or return an `Error`
 macro_rules! next_or_else {
     ($it:ident, $msg:expr) => {
         $it.next()
@@ -239,6 +243,7 @@ impl TryFrom<Xattr> for Tag {
     }
 }
 
+/// Return a `Tag` given a `path` and a tag as a `str`
 pub fn get_tag<P, T>(path: P, tag: T) -> Result<Tag>
 where
     P: AsRef<Path>,
@@ -310,7 +315,7 @@ where
 
 /// Checks whether the given path has any tags.
 ///
-/// Returns an Error if the list of tags couldn't be aquired.
+/// Returns an `Error` if the list of tags couldn't be aquired.
 pub fn has_tags<P>(path: P) -> Result<bool>
 where
     P: AsRef<Path>,

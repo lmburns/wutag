@@ -58,8 +58,8 @@ _wutag() {
         case $line[1] in
             (list|ls)
 _arguments "${_arguments_options[@]}" \
-'-r[If provided output will be raw so that it can be easily piped to other commands]' \
-'--raw[If provided output will be raw so that it can be easily piped to other commands]' \
+'-r[Output will be raw so that it can be easily piped to other commands]' \
+'--raw[Output will be raw so that it can be easily piped to other commands]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \

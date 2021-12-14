@@ -1,13 +1,20 @@
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local};
+use clap_generate::{generate, Generator};
 use colored::{Color, ColoredString, Colorize};
+use crossbeam_channel as channel;
+use crossbeam_utils::thread;
+use env_logger::fmt::Color as LogColor;
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
 use lexiclean::Lexiclean;
+use log::LevelFilter;
 use lscolors::{LsColors, Style};
+use mime::Mime;
 use once_cell::sync::Lazy;
 use regex::bytes::{Regex, RegexBuilder};
 use std::{
     borrow::Cow,
+    convert::TryFrom,
     ffi::{OsStr, OsString},
     fmt::Display,
     fs,
@@ -18,26 +25,49 @@ use std::{
     time::SystemTime,
 };
 
-use clap_generate::{generate, Generator};
-use crossbeam_channel as channel;
-use env_logger::fmt::Color as LogColor;
-use log::LevelFilter;
-
-// use crossbeam_channel::{Receiver, Sender};
-// use crossbeam_utils::thread;
-// use rayon::prelude::*;
-
 use crate::{
     consts::{APP_NAME, DEFAULT_MAX_DEPTH},
     filesystem::{create_temp_ignore, delete_file, osstr_to_bytes, write_temp_ignore},
     subcommand::App,
-    wutag_error, Opts,
+    wutag_error, wutag_fatal, Opts,
 };
 use wutag_core::tag::Tag;
 
+/// Run `initialize_logging` one time
 static ONCE: Once = Once::new();
-static UPPER_REG: Lazy<Regex> = Lazy::new(|| Regex::new(r"[[:upper:]]").unwrap());
+/// `Regex` to match uppercase characters
+static UPPER_REG: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"[[:upper:]]").expect("failed to create `[[:upper:]]` regex"));
 
+/// [`Mime`](mime::Mime) wrapper for custom methods
+#[derive(Debug, Clone, Hash, PartialOrd, Ord, PartialEq, Eq)]
+pub(crate) struct MimeType(pub(crate) Mime);
+
+impl TryFrom<&Path> for MimeType {
+    type Error = anyhow::Error;
+
+    fn try_from(path: &Path) -> Result<Self, Self::Error> {
+        let mime_db = xdg_mime::SharedMimeInfo::new();
+        let mut builder = mime_db.guess_mime_type();
+        let guess = builder
+            .path(path)
+            .metadata(
+                fs::metadata(path)
+                    .with_context(|| format!("failed to get metadata for: {}", path.display()))?,
+            )
+            .data(
+                &fs::read(path)
+                    .with_context(|| format!("failed to read file: {}", path.display()))?,
+            )
+            .guess();
+
+        let mime = guess.mime_type();
+
+        Ok(Self(mime.clone()))
+    }
+}
+
+/// Initialize logging for this crate
 pub(crate) fn initialize_logging(args: &Opts) {
     ONCE.call_once(|| {
         env_logger::Builder::new()
@@ -77,7 +107,7 @@ pub(crate) fn initialize_logging(args: &Opts) {
 /// Parse a path for arguments. The path must exist
 pub(crate) fn parse_path<P: AsRef<Path>>(path: P) -> Result<(), String> {
     fs::metadata(path)
-        .map_err(|_| "must be a valid path")
+        .map_err(|_e| "must be a valid path")
         .map(|_| ())
         .map_err(ToString::to_string)
 }
@@ -176,9 +206,9 @@ pub(crate) fn raw_local_path<P: AsRef<Path>>(path: P, local: P) -> String {
 }
 
 /// Modify completion output by using [comp_helper](crate::comp_helper)
-pub(crate) fn replace(haystack: &mut String, needle: &str, replacement: &str) -> Result<()> {
+pub(crate) fn replace(haystack: &mut String, needle: &str, repl: &str) -> Result<()> {
     if let Some(index) = haystack.find(needle) {
-        haystack.replace_range(index..index + needle.len(), replacement);
+        haystack.replace_range(index..index + needle.len(), repl);
         Ok(())
     } else {
         Err(anyhow!(
@@ -195,7 +225,7 @@ pub(crate) fn replace(haystack: &mut String, needle: &str, replacement: &str) ->
 pub(crate) fn collect_stdin_paths(base: &Path) -> Vec<PathBuf> {
     BufReader::new(io::stdin())
         .lines()
-        .map(|p| PathBuf::from(p.unwrap().as_str()).lexiclean())
+        .map(|p| PathBuf::from(p.expect("failed to get path from `stdin`").as_str()).lexiclean())
         .filter(|path| {
             fs::symlink_metadata(path).is_ok() || fs::symlink_metadata(base.join(path)).is_ok()
         })
@@ -207,6 +237,45 @@ pub(crate) fn collect_stdin_paths(base: &Path) -> Vec<PathBuf> {
 pub(crate) fn systemtime_to_datetime(t: SystemTime) -> String {
     let dt: DateTime<Local> = t.into();
     dt.format("%Y-%m-%d %H:%M:%S").to_string()
+}
+
+/// Create a simple yes/no prompt
+pub(crate) fn prompt<S: AsRef<str>, P: AsRef<Path>>(prompt: S, path: P) -> bool {
+    /// Macro to create a prompt
+    macro_rules! prompt {
+        ($dis:ident) => {
+            $dis!(
+                "{}\n\t- {} [{}/{}] ",
+                prompt.as_ref(),
+                path.as_ref().display().to_string().yellow().bold(),
+                "y".green().bold(),
+                "N".red().bold()
+            )
+        };
+    }
+
+    let prompt = {
+        prompt!(print);
+
+        if io::stdout().flush().is_err() {
+            prompt!(println);
+        }
+
+        let mut input = String::new();
+        let mut stdin = BufReader::new(io::stdin());
+
+        if let Err(e) = stdin.read_line(&mut input) {
+            wutag_fatal!("{}", e);
+        }
+
+        match input.to_ascii_lowercase().trim() {
+            "y" | "ye" | "1" => true,
+            "n" | "0" => false,
+            s => s.starts_with("yes") || s.starts_with("true"),
+        }
+    };
+
+    prompt
 }
 
 /// Print completions to `stdout` or to a file
@@ -230,19 +299,19 @@ pub(crate) fn command_status(cmd: &str, args: &[&str]) -> Result<(i32, String)> 
                 let s = String::from_utf8(output.stdout)
                     .context("failed to convert command output to UTF-8")?
                     .trim_end()
-                    .to_string();
+                    .to_owned();
 
                 if patt.is_match(&s) {
                     return Ok((1_i32, s));
                 }
 
-                Ok((output.status.code().unwrap_or(-1), s))
+                Ok((output.status.code().unwrap_or(-1_i32), s))
             } else {
                 let s = String::from_utf8(output.stderr)
                     .context("failed to convert command output to UTF-8")?
                     .trim_end()
-                    .to_string();
-                Ok((output.status.code().unwrap_or(-1), s))
+                    .to_owned();
+                Ok((output.status.code().unwrap_or(-1_i32), s))
             },
         Err(e) => Err(anyhow!(e.to_string())),
     }
@@ -305,7 +374,7 @@ pub(crate) fn reg_walker(app: &Arc<App>) -> Result<ignore::WalkParallel> {
 
     let overrides = override_builder
         .build()
-        .map_err(|_| anyhow!("Mismatch in exclude patterns"))?;
+        .map_err(|_e| anyhow!("Mismatch in exclude patterns"))?;
 
     // if app.ignores.is_some() &&
     // app.ignores.clone().unwrap_or_else(Vec::new).len() > 0 { }
@@ -347,12 +416,12 @@ pub(crate) fn reg_ok<F>(pattern: &Arc<Regex>, app: &Arc<App>, mut f: F)
 where
     F: FnMut(&ignore::DirEntry) + Send + Sync,
 {
-    let walker = reg_walker(app).unwrap();
+    let walker = reg_walker(app).expect("failed to get `reg_walker` result");
 
     // TODO: Look into order of execution
     // Scope here does not require ownership of all the variables, or the use of a
     // static ref Mutex to execute the closure
-    rayon::scope(|scope| {
+    thread::scope(|scope| {
         let (tx, rx) = channel::unbounded::<ignore::DirEntry>();
 
         scope.spawn(|_| {
@@ -429,7 +498,8 @@ where
                 })
             });
         });
-    });
+    })
+    .expect("failed to spawn thread");
 
     log::debug!(
         "Using regex with max_depth of: {}",

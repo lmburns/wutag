@@ -71,8 +71,8 @@ set edit:completion:arg-completer[wutag] = [@words]{
             cand --help 'Print help information'
             cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
             cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
-            cand tags 'tags'
-            cand files 'files'
+            cand tags 'List the `Tags` within the database'
+            cand files 'List the `Files` within the database'
         }
         &'wutag;list;tags'= {
             cand --version 'Print version information'

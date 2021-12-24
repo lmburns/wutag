@@ -23,20 +23,19 @@ pub(crate) enum Token {
 
 impl Display for Token {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match *self {
-            Token::Placeholder => f.write_str("{}")?,
-            Token::Basename => f.write_str("{/}")?,
-            Token::Parent => f.write_str("{//}")?,
-            Token::NoExt => f.write_str("{.}")?,
-            Token::BasenameNoExt => f.write_str("{/.}")?,
-            Token::Wutag => f.write_str("{..}")?,
-            Token::WutagColored => f.write_str("{@}")?,
-            Token::WutagSet => f.write_str("{@s}")?,
-            Token::WutagRemove => f.write_str("{@r}")?,
-            Token::WutagClear => f.write_str("{@x}")?,
-            Token::WutagCp => f.write_str("{@c}")?,
-            Token::Text(ref string) => f.write_str(string)?,
-        }
-        Ok(())
+        write!(f, "{}", match *self {
+            Token::Placeholder => "{}",
+            Token::Basename => "{/}",
+            Token::Parent => "{//}",
+            Token::NoExt => "{.}",
+            Token::BasenameNoExt => "{/.}",
+            Token::Wutag => "{..}",
+            Token::WutagColored => "{@}",
+            Token::WutagSet => "{@s}",
+            Token::WutagRemove => "{@r}",
+            Token::WutagClear => "{@x}",
+            Token::WutagCp => "{@c}",
+            Token::Text(ref s) => s,
+        })
     }
 }

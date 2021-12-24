@@ -67,7 +67,9 @@ pub(crate) fn setup_terminal() -> Terminal<CrosstermBackend<io::Stdout>> {
     terminal::enable_raw_mode().unwrap();
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen).unwrap();
+    execute!(io::stdout(), cursor::Hide).unwrap();
     execute!(stdout, Clear(ClearType::All)).unwrap();
+
     let backend = CrosstermBackend::new(stdout);
     Terminal::new(backend).unwrap()
 }
@@ -92,6 +94,9 @@ pub(crate) fn start_ui(cli_app: &App, config: Config, registry: TagRegistry) -> 
         destruct_terminal();
         better_panic::Settings::auto().create_panic_handler()(panic_info);
     }));
+
+    // TODO: Use one or the other here ^
+    scopeguard::defer!(destruct_terminal());
 
     let mut app = ui_app::UiApp::new(config, registry).map_err(Error::UiStartFailure)?;
     let backend = CrosstermBackend::new(io::stdout());

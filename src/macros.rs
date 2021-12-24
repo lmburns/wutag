@@ -43,6 +43,24 @@ macro_rules! global_opts {
     };
 }
 
+/// Create a simple method to a struct that returns the field name. This is to
+/// allow access to the field names without direct access. This _always_ returns
+/// a reference to the field. There are probably better ways of doing this
+#[macro_export]
+macro_rules! inner_immute {
+    // A placeholder here `$ref` which just implements a non-reference return-type
+    ($name:ident, $return:ty, $ref:tt) => {
+        pub(crate) const fn $name(&self) -> $return {
+            self.$name
+        }
+    };
+    ($name:ident, $return:ty) => {
+        pub(crate) const fn $name(&self) -> &$return {
+            &self.$name
+        }
+    };
+}
+
 /// Expand to an error message
 #[macro_export]
 macro_rules! wutag_error {
@@ -68,10 +86,53 @@ macro_rules! wutag_info {
     })
 }
 
+/// Custom `assert` message that allows for a more customized string with
+/// variables used in the formatted string. It does require the message to be a
+/// string literal like the standard library's `assert`
+#[macro_export]
+macro_rules! cassert {
+    ($left:expr , $right:expr) => ({
+        match (&($left), &($right)) {
+            (left_val, right_val) => {
+                if !(*left_val == *right_val) {
+                    wutag_fatal!("{}: `(left == right)` (left: `{:?}`, right: `{:?}`)",
+                        "assertion failed".red().bold(), left_val, right_val)
+                }
+            }
+        }
+    });
+    ($left:expr , $right:expr, $fmt:expr, $($arg:tt)*) => ({
+        match (&($left), &($right)) {
+            (left_val, right_val) => {
+                if !(*left_val == *right_val) {
+                    wutag_fatal!($fmt, $($arg)*)
+                }
+            }
+        }
+    });
+}
+
 /// Make a path display in bold letters
 #[macro_export]
 macro_rules! bold_entry {
     ($entry:ident) => {
         $entry.display().to_string().bold()
+    };
+}
+
+/// Initialize a [`Regex`] once
+#[macro_export]
+macro_rules! regex {
+    ($re:expr $(,)?) => {{
+        static RE: once_cell::sync::OnceCell<regex::Regex> = once_cell::sync::OnceCell::new();
+        RE.get_or_init(|| regex::Regex::new($re).unwrap())
+    }};
+}
+
+/// Convert [`PathBuf`] to [`String`]
+#[macro_export]
+macro_rules! path_str {
+    ($p:expr) => {
+        $p.to_string_lossy().to_string()
     };
 }

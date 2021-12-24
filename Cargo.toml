@@ -7,7 +7,7 @@ version = "0.7.1"
 description = "Tag files and manage them with color"
 license = "MIT"
 authors = ["Lucas Burns <lmb@lmburns.com>"]
-edition = "2018"
+edition = "2021"
 repository = "https://github.com/lmburns/wutag"
 homepage = "https://git.lmburns.com/wutag"
 categories = ["command-line-utilities", "filesystem", "tagging"]
@@ -47,14 +47,14 @@ prettify = ["cli-table"]
 ansi_term = "0.12.1"
 ansi-to-tui = "0.4.1"
 strip-ansi-escapes = "0.1.1"
-colored = { git = "https://github.com/wojciechkepka/colored", branch = "master", features = ["serde"] }
+colored = { git = "https://github.com/lmburns/colored", branch = "master", features = ["serde", "rusqlite-sql"] }
 lscolors = "0.7.1"
 
 anyhow = "1.0.43"
 thiserror = "1.0.26"
 
 shellexpand = "2.1.0"
-dirs = "3.0.2"
+directories = "4.0.1"
 
 # Mime information
 mime = "0.3.16"
@@ -85,16 +85,18 @@ once_cell = "1.8.0"
 base64 = "0.13.0"
 blake3 = "1.2.0"
 chrono = { version = "0.4.19", features = ["serde"] }
+uuid = { version = "0.8", features = ["v4", "serde"] }
 
 # Command-line
-clap = { version = "3.0.0-rc.4", features = ["derive", "default", "cargo", "wrap_help", "env"] }
-clap_generate = "3.0.0-rc.4"
+clap = { version = "3.0.0-rc.7", features = ["derive", "default", "cargo", "wrap_help", "env"] }
+clap_generate = "3.0.0-rc.7"
 
 # Tools
 which = "4.2.2"
 rand = "0.8.4"
 itertools = "0.10.1" # TODO: USE/DEL
 indexmap = { version = "1.7.0", features = ["serde-1"] }
+scopeguard = "1.1.0"
 
 # Option: (default = serde_yaml) -- Serialization
 serde = { version = "1.0.129", features = ["derive"] }
@@ -105,7 +107,7 @@ serde_json = "1.0.66"
 serde_cbor = "0.11.2" # TODO: Find way not to use this
 
 notify-rust = { version = "4.0", default-features = false, features = ["z"] } # TODO: USE/DEL
-rusqlite = { version = "0.26", features = ["bundled"] }
+rusqlite = { version = "0.26", features = ["bundled", "functions", "chrono", "serde_json", "collation", "uuid"] }
 
 # Option: (default) -- Formatting output
 cli-table = { version = "0.4.6", default-features = false, optional = true }
@@ -124,6 +126,8 @@ better-panic = { version = "0.2.0", optional = true }
 gpgme = { version = "0.10.0", optional = true }
 secstr = { version = "0.4.0", optional = true }
 zeroize = { version = "1.4.3", optional = true }
+serde_rusqlite = "0.29.0"
+bytes = "1.1.0"
 
 [dev-dependencies]
 predicates = "2.0.1"

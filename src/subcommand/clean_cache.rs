@@ -1,3 +1,5 @@
+//! `clean-cache` - Remove all paths that are found within the `Registry`
+
 use super::{
     uses::{prompt, wutag_error, wutag_info, Colorize},
     App,

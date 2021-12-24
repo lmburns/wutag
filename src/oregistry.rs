@@ -1,3 +1,5 @@
+//! Old implementation of the `Registry`
+
 #![allow(dead_code, unused)]
 
 // TODO: look into using an actual database
@@ -6,6 +8,7 @@
 use crate::{
     config::EncryptConfig,
     consts::encrypt::REGISTRY_UMASK,
+    directories::PROJECT_DIRS,
     encryption::{util, InnerCtx, Plaintext, Recipients},
     filesystem::contained_path,
     opt::Opts,
@@ -150,7 +153,7 @@ impl EntryData {
     }
 
     /// Return the modification time
-    pub(crate) fn modtime(&self) -> &SystemTime {
+    pub(crate) const fn modtime(&self) -> &SystemTime {
         &self.modtime
     }
 }
@@ -169,26 +172,14 @@ pub(crate) struct TagRegistry {
     pub(crate) tags:    BTreeMap<Tag, Vec<EntryId>>,
     /// Hash of the file id (`EntryId`) and the entries data (`EntryData`)
     pub(crate) entries: BTreeMap<EntryId, EntryData>,
-    /* /// The connection to the database
-     * pub(crate) connection: rsq::Connection, */
+    // /// The connection to the database
+    // pub(crate) connection: rsq::Connection,
 }
 
 impl Default for TagRegistry {
     fn default() -> Self {
         let state_file = {
-            #[cfg(target_os = "macos")]
-            let data_dir_og = env::var_os("XDG_DATA_HOME")
-                .map(PathBuf::from)
-                .filter(|p| p.is_absolute())
-                .or_else(|| dirs::home_dir().map(|d| d.join(".local").join("share")))
-                .context("Invalid data directory");
-
-            #[cfg(not(target_os = "macos"))]
-            let data_dir_og = dirs::data_local_dir();
-
-            let data_dir = data_dir_og
-                .map(|p| p.join("wutag"))
-                .expect("unable to join registry path");
+            let data_dir = PROJECT_DIRS.data_dir();
 
             if !data_dir.exists() {
                 fs::create_dir_all(&data_dir).unwrap_or_else(|_| {
@@ -341,13 +332,7 @@ impl TagRegistry {
     /// Remove tags from the registry if there are no entries associated with
     /// that `Tag`
     fn clean_tag_if_no_entries(&mut self, tag: &Tag) {
-        let remove = if let Some(entries) = self.tags.get(tag) {
-            entries.is_empty()
-        } else {
-            false
-        };
-
-        if remove {
+        if self.tags.get(tag).map_or(false, Vec::is_empty) {
             self.tags.remove(tag);
         }
     }
@@ -429,16 +414,14 @@ impl TagRegistry {
     pub(crate) fn entry_has_or_tags(&self, id: EntryId, tags: &[String]) -> bool {
         let pos = tags.iter().position(|t| t == "@o" || t == "or");
 
-        if let Some(p) = pos {
+        pos.map_or(false, |p| {
             if p == 0 || p == tags.len() - 1 {
                 false
             } else {
                 self.entry_has_any_tags(id, &[tags[p - 1].clone()])
                     || self.entry_has_any_tags(id, &[tags[p + 1].clone()])
             }
-        } else {
-            false
-        }
+        })
     }
 
     /// Check if the file entry has all and only all specified tags
@@ -734,7 +717,7 @@ Use an (1) email, (2) short fingerprint, or (3) full fingerprint"#,
                         .context("failure to decrypt registry")?;
 
                     // 2. Serialize the decrypted string to a registry
-                    let yaml: TagRegistry = serde_yaml::from_slice(plaintext.unsecure_ref())
+                    let yaml: Self = serde_yaml::from_slice(plaintext.unsecure_ref())
                         .context("failure to convert decrypted registry to TagRegistry")?;
 
                     // 3. Write the serialized structure to a file
@@ -746,7 +729,7 @@ Use an (1) email, (2) short fingerprint, or (3) full fingerprint"#,
                     // ## If the content is not encrypted
 
                     // 1. Serialize the unencrypted string to a registry
-                    let yaml: TagRegistry = serde_yaml::from_slice(
+                    let yaml: Self = serde_yaml::from_slice(
                         &fs::read(path).context("failed to read registry file")?,
                     )
                     .context("encrypted file is invalid UTF-8")?;

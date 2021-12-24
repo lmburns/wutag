@@ -97,6 +97,9 @@ pub(crate) struct SearchOpts {
 }
 
 impl App {
+    /// `search` subcommand
+    ///
+    /// Find files that match a given query
     pub(crate) fn search(&self, opts: &SearchOpts) {
         log::debug!("SearchOpts: {:#?}", opts);
         log::debug!("Using registry: {}", self.registry.path.display());
@@ -127,6 +130,6 @@ impl App {
 
         let rec = receiver(&app, &opts, command, rx);
         sender(&app, &opts, &re, tx);
-        rec.join().unwrap();
+        rec.join().expect("failed to join receiver `JoinHandle`");
     }
 }

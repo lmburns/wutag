@@ -9,6 +9,7 @@ use colored::Colorize;
 /// In the future there may be support for age encryption
 #[derive(Clone, PartialEq)]
 pub(crate) struct Recipients {
+    /// Inner vector of `Key`s
     keys: Vec<Key>,
 }
 

@@ -1,3 +1,5 @@
+//! Utility functions used throughout this crate
+
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local};
 use clap_generate::{generate, Generator};
@@ -9,12 +11,10 @@ use ignore::{overrides::OverrideBuilder, WalkBuilder};
 use lexiclean::Lexiclean;
 use log::LevelFilter;
 use lscolors::{LsColors, Style};
-use mime::Mime;
-use once_cell::sync::Lazy;
+use once_cell::sync::OnceCell;
 use regex::bytes::{Regex, RegexBuilder};
 use std::{
     borrow::Cow,
-    convert::TryFrom,
     ffi::{OsStr, OsString},
     fmt::Display,
     fs,
@@ -36,36 +36,7 @@ use wutag_core::tag::Tag;
 /// Run `initialize_logging` one time
 static ONCE: Once = Once::new();
 /// `Regex` to match uppercase characters
-static UPPER_REG: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"[[:upper:]]").expect("failed to create `[[:upper:]]` regex"));
-
-/// [`Mime`](mime::Mime) wrapper for custom methods
-#[derive(Debug, Clone, Hash, PartialOrd, Ord, PartialEq, Eq)]
-pub(crate) struct MimeType(pub(crate) Mime);
-
-impl TryFrom<&Path> for MimeType {
-    type Error = anyhow::Error;
-
-    fn try_from(path: &Path) -> Result<Self, Self::Error> {
-        let mime_db = xdg_mime::SharedMimeInfo::new();
-        let mut builder = mime_db.guess_mime_type();
-        let guess = builder
-            .path(path)
-            .metadata(
-                fs::metadata(path)
-                    .with_context(|| format!("failed to get metadata for: {}", path.display()))?,
-            )
-            .data(
-                &fs::read(path)
-                    .with_context(|| format!("failed to read file: {}", path.display()))?,
-            )
-            .guess();
-
-        let mime = guess.mime_type();
-
-        Ok(Self(mime.clone()))
-    }
-}
+static UPPER_REG: OnceCell<Regex> = OnceCell::new();
 
 /// Initialize logging for this crate
 pub(crate) fn initialize_logging(args: &Opts) {
@@ -233,7 +204,8 @@ pub(crate) fn collect_stdin_paths(base: &Path) -> Vec<PathBuf> {
         .collect::<Vec<_>>()
 }
 
-/// Convert a `SystemTime` to a [`DateTime`](chrono::DateTime)
+/// Convert a [`SystemTime`](std::time::SystemTime) to
+/// [`DateTime`](chrono::DateTime) for displaying purposes
 pub(crate) fn systemtime_to_datetime(t: SystemTime) -> String {
     let dt: DateTime<Local> = t.into();
     dt.format("%Y-%m-%d %H:%M:%S").to_string()
@@ -290,8 +262,8 @@ pub(crate) fn gen_completions<G: Generator>(
 /// Test the output status of a command
 #[allow(dead_code)]
 pub(crate) fn command_status(cmd: &str, args: &[&str]) -> Result<(i32, String)> {
-    use regex::Regex as RegEx;
-    let patt = RegEx::new(r"(?i)error").context("failure to create regex")?;
+    use regex::Regex as Regexp;
+    let patt = Regexp::new(r"(?i)error").context("failure to create regex")?;
 
     match Command::new(cmd).args(args).output() {
         Ok(output) =>
@@ -332,7 +304,9 @@ pub(crate) fn glob_builder(pattern: &str) -> String {
 /// be any valid Unicode character
 pub(crate) fn contains_upperchar(pattern: &str) -> bool {
     let cow_pat: Cow<OsStr> = Cow::Owned(OsString::from(pattern));
-    UPPER_REG.is_match(&osstr_to_bytes(cow_pat.as_ref()))
+    UPPER_REG
+        .get_or_init(|| Regex::new(r"[[:upper:]]").expect("failed to build upper Regex"))
+        .is_match(&osstr_to_bytes(cow_pat.as_ref()))
 }
 
 /// Build a regular expression with [`RegexBuilder`](regex::bytes::RegexBuilder)
@@ -409,6 +383,10 @@ pub(crate) fn reg_walker(app: &Arc<App>) -> Result<ignore::WalkParallel> {
     Ok(walker.build_parallel())
 }
 
+// Old method to use for `reg_ok` function
+// type FnMutThread = Box<dyn FnMut(&ignore::DirEntry) + Send>;
+// static FN: Lazy<Mutex<Option<FnMutThread>>> = Lazy::new(|| Mutex::new(None));
+
 /// Traverses directories using `ignore::WalkParallel`, sending matches across
 /// channels to make the process faster. Executes closure `f` on each matching
 /// entry
@@ -416,6 +394,11 @@ pub(crate) fn reg_ok<F>(pattern: &Arc<Regex>, app: &Arc<App>, mut f: F)
 where
     F: FnMut(&ignore::DirEntry) + Send + Sync,
 {
+    // *FN.lock().expect("broken lock in closure") = Some(Box::new(f));
+    // if let Some(ref mut handler) = *FN.lock().expect("poisoned lock") {
+    //     handler(&e)
+    // }
+
     let walker = reg_walker(app).expect("failed to get `reg_walker` result");
 
     // TODO: Look into order of execution

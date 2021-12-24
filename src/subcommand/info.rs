@@ -1,3 +1,5 @@
+//! `info` - Show information about the database and the `Tag`s in it
+
 // TODO: Entire subcommand
 
 #![allow(unused)]
@@ -9,6 +11,7 @@ use super::{
     App,
 };
 
+/// Arguments used for the `info` subcommand
 #[derive(Args, Debug, Clone, PartialEq)]
 pub(crate) struct InfoOpts {
     /// TO BE IMPLEMENTED
@@ -18,6 +21,7 @@ pub(crate) struct InfoOpts {
 }
 
 impl App {
+    /// Show information about the database
     pub(crate) fn info(&mut self, opts: &InfoOpts) {
         log::debug!("InfoOpts: {:#?}", opts);
         log::debug!("Using registry: {}", self.registry.path.display());

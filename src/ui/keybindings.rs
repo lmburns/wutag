@@ -22,7 +22,7 @@ use tui::{
 
 use super::{
     event::Key,
-    ui_app::{GREEN, MAGENTA, PINK, YELLOW},
+    ui_app::color::{GREEN, MAGENTA, PINK, YELLOW},
 };
 
 // Would be string slices, but I haven't figured out how to convert an enum
@@ -57,7 +57,7 @@ impl fmt::Display for Keybinding {
 
 impl Keybinding {
     /// Build an instance of [`Keybinding`]
-    pub(crate) fn new(key: String, action: String, description: String) -> Self {
+    pub(crate) const fn new(key: String, action: String, description: String) -> Self {
         Self {
             key,
             action,

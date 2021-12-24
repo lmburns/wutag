@@ -102,7 +102,7 @@ pub(crate) struct EventConfig {
 }
 
 impl EventConfig {
-    pub(crate) fn new(tick: u64) -> Self {
+    pub(crate) const fn new(tick: u64) -> Self {
         Self {
             tick_rate: Duration::from_millis(tick),
         }
@@ -149,7 +149,7 @@ impl EventHandler {
 
         let handle = {
             let tx = tx.clone();
-            let key_input_disabled = key_input_disabled.clone();
+            let key_input_disabled = Arc::clone(&key_input_disabled);
 
             thread::spawn(move || {
                 let mut last_tick = Instant::now();

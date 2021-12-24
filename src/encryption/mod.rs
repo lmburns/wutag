@@ -26,7 +26,7 @@ pub(crate) enum Proto {
 
 impl Proto {
     /// Get the protocol display name
-    pub(crate) fn name(&self) -> &str {
+    pub(crate) const fn name(&self) -> &str {
         match self {
             Self::Gpg => "GPG",
         }
@@ -46,7 +46,7 @@ pub(crate) struct EncryptConfig {
 
 impl EncryptConfig {
     /// Construct config with given protocol
-    pub(crate) fn from(proto: Proto) -> Self {
+    pub(crate) const fn from(proto: Proto) -> Self {
         Self {
             proto,
             gpg_tty: false,
@@ -67,7 +67,7 @@ pub(crate) enum Key {
 
 impl Key {
     /// Get type of protocol for `Key`
-    pub(crate) fn proto(&self) -> Proto {
+    pub(crate) const fn proto(&self) -> Proto {
         match self {
             // #[cfg(feature = "_encrypt-gpg")]
             Key::Gpg(_) => Proto::Gpg,
@@ -253,18 +253,23 @@ pub(crate) trait InnerCtx {
 /// General cryptography error
 #[derive(Debug, Error)]
 pub(crate) enum Error {
+    /// Unable to obtain `GPGME` context
     #[error("failed to obtain GPGME cryptography context")]
     Context(#[source] anyhow::Error),
 
-    #[error("failed to built context, protocol not supportd: {:?}", _0)]
+    /// Unsupported `GPGME` protocol
+    #[error("failed to build context, protocol not supported: {:?}", _0)]
     Unsupported(Proto),
 
+    /// Unable to write to a file
     #[error("failed to write to file")]
     WriteFile(#[source] std::io::Error),
 
+    /// Unable to read a file
     #[error("failed to read from file")]
     ReadFile(#[source] std::io::Error),
 
+    /// Fingerprint is unknown and not in the keychain
     #[error("fingerprint does not match public key in keychain")]
     #[allow(dead_code)]
     UnknownFingerprint,

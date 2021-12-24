@@ -1,3 +1,5 @@
+//! Subcommands found within the `wutag` crate
+
 pub(crate) mod clean_cache;
 pub(crate) mod clear;
 pub(crate) mod cp;
@@ -27,6 +29,8 @@ use uses::{
     DEFAULT_COLORS,
 };
 
+/// A structure that is built from a parsed `Config` and parsed `Opts`
+#[allow(clippy::missing_docs_in_private_items)]
 #[derive(Clone, Debug)]
 pub(crate) struct App {
     pub(crate) base_color:       Color,
@@ -64,7 +68,7 @@ impl App {
     }
 
     /// Create a new instance of the application
-    pub(crate) fn new(opts: &Opts, config: Config) -> Result<App> {
+    pub(crate) fn new(opts: &Opts, config: Config) -> Result<Self> {
         let base_dir = if let Some(base_dir) = &opts.dir {
             if base_dir.display().to_string() == "." {
                 std::env::current_dir().context("failed to determine current working directory")?
@@ -108,22 +112,23 @@ impl App {
                 },
         };
 
-        let format = if let Some(format_) = config.format {
-            {
-                if let f @ ("toml" | "yaml" | "yml" | "json") = format_.as_ref() {
-                    f
-                } else {
-                    wutag_error!(
-                        "invalid format found as your configuration. Valid values: toml, yaml, \
-                         yml, json. Using the default: toml"
-                    );
-                    "toml"
+        let format = config.format.map_or_else(
+            || "toml".to_owned(),
+            |format_| {
+                {
+                    if let f @ ("toml" | "yaml" | "yml" | "json") = format_.as_ref() {
+                        f
+                    } else {
+                        wutag_error!(
+                            "invalid format found as your configuration. Valid values: toml, \
+                             yaml, yml, json. Using the default: toml"
+                        );
+                        "toml"
+                    }
                 }
-            }
-            .to_string()
-        } else {
-            "toml".to_string()
-        };
+                .to_owned()
+            },
+        );
 
         let registry = registry::load_registry(opts, &config.encryption)?;
 
@@ -173,13 +178,13 @@ impl App {
         });
         log::debug!("FileTypes: {:#?}", file_types);
 
-        Ok(App {
+        Ok(Self {
             base_color,
             base_dir,
             border_color,
             case_insensitive: opts.case_insensitive,
             case_sensitive: opts.case_sensitive,
-            color_when: color_when.to_string(),
+            color_when: color_when.to_owned(),
             colors,
             exclude: excludes,
             extension: extensions,

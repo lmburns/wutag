@@ -1,8 +1,7 @@
-//! Copy attributes of one tag to another
+//! `cp` - Copy `Tag`s or a `Tag`'s color to another `Tag`
 
 // TODO: Add mv option
 // TODO: Add global option to cp
-
 use super::{
     uses::{
         err, fmt_err, fmt_path, fmt_tag, glob_builder, list_tags, osstr_to_bytes, parse_path,
@@ -12,6 +11,7 @@ use super::{
     App,
 };
 
+/// Arguments used for the `cp` subcommand
 #[derive(Args, Debug, Clone, PartialEq)]
 pub(crate) struct CpOpts {
     /// Use a glob to match files (must be global)
@@ -24,7 +24,8 @@ pub(crate) struct CpOpts {
                      global option is used, pattern matching is turned on and file-matching is no \
                      longer used"
     )]
-    pub(crate) glob:       bool,
+    pub(crate) glob: bool,
+
     /// Path to the file from which to copy tags from
     #[clap(
         value_name = "input_path",
@@ -32,12 +33,14 @@ pub(crate) struct CpOpts {
         // validator = |t| parse_path(t) // Would be nice to be aware of other options
     )]
     pub(crate) input_path: PathBuf,
+
     /// A glob pattern like "*.png".
     #[clap(value_name = "pattern")]
-    pub(crate) pattern:    String,
+    pub(crate) pattern: String,
 }
 
 impl App {
+    /// Copy `Tag`s or a `Tag`'s color to another `Tag`
     pub(crate) fn cp(&mut self, opts: &CpOpts) -> Result<()> {
         log::debug!("CpOpts: {:#?}", opts);
         log::debug!("Using registry: {}", self.registry.path.display());

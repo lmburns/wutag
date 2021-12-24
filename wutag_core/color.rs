@@ -5,7 +5,7 @@ use tui::style as tui;
 
 // TODO: Add underline and inverse options
 
-/// Parses a [Color](colored::Color) from a foreground color string
+/// Parses a [`Color`](colored::Color) from a foreground color string
 pub fn color_from_fg_str(s: &str) -> Option<Color> {
     match s {
         "30" => Some(Color::Black),
@@ -40,7 +40,7 @@ pub fn color_from_fg_str(s: &str) -> Option<Color> {
     }
 }
 
-/// Parses a [Color](tui::style::Color) from a foreground color string
+/// Parses a [`Color`](tui::Color) from a foreground color string
 #[cfg(feature = "ui")]
 pub fn color_tui_from_fg_str(s: &str) -> Option<tui::Color> {
     match s {
@@ -103,7 +103,7 @@ fn parse_hex(color: &str) -> Option<(u8, u8, u8)> {
     ))
 }
 
-/// Parses a [Color](colored::Color) from a String. If the provided string
+/// Parses a [`Color`](colored::Color) from a String. If the provided string
 /// starts with `0x` or `#` or without any prefix the color will be treated as
 /// hex color notation so any colors like `0x1f1f1f` or `#ABBA12` or `121212`
 /// are valid.
@@ -136,7 +136,7 @@ pub fn parse_color<S: AsRef<str>>(color: S) -> Result<Color> {
     Err(Error::InvalidColor(color.to_string()))
 }
 
-/// Parses a [Color](cli_table::Color) from a String. If the provided string
+/// Parses a [`Color`](cli_table::Color) from a String. If the provided string
 /// starts with `0x` or `#` or without any prefix the color will be treated as
 /// hex color notation so any colors like `0x1f1f1f` or `#ABBA12` or `121212`
 /// are valid.
@@ -170,7 +170,7 @@ pub fn parse_color_cli_table<S: AsRef<str>>(color: S) -> Result<cli_table::Color
     Err(Error::InvalidColor(color.to_string()))
 }
 
-/// Parses a [Color](tui::styles::Color) from a String. If the provided string
+/// Parses a [`Color`](tui::Color) from a String. If the provided string
 /// starts with `0x` or `#` or without any prefix the color will be treated as
 /// hex color notation so any colors like `0x1f1f1f` or `#ABBA12` or `121212`
 /// are valid.
@@ -208,14 +208,14 @@ pub fn parse_color_tui<S: AsRef<str>>(color: S) -> Result<tui::Color> {
 #[cfg(feature = "ui")]
 #[derive(Clone, Copy, Debug)]
 pub struct TuiColor {
-    /// Inner [`tui`](tui) widget color type
+    /// Inner [`tui`] widget color type
     inner: tui::Color,
 }
 
 impl TuiColor {
     /// Returns the underlying [`Color`] type
     ///
-    /// [`Color`](tui::style::Color)
+    /// [`Color`](tui::Color)
     pub fn get(self) -> tui::Color {
         self.inner
     }

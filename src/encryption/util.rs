@@ -1,9 +1,7 @@
 //! Common cryptography utilities
 
 use super::{prelude::*, Context, EncryptConfig, Key, Proto};
-use crate::wutag_fatal;
 use anyhow::Result;
-use colored::Colorize;
 use std::{
     env,
     path::{Path, PathBuf},
@@ -49,11 +47,12 @@ pub(crate) fn has_gpg_tty() -> bool {
 /// Returns `None` if not in a `TTY`. Always returns `None` if not Linux,
 /// FreeBSD or OpenBSD.
 pub(crate) fn get_tty() -> Option<PathBuf> {
+    /// Resolve a symblink but do not traverse deeper than `SYMLINK_MAX_DEPTH`
     fn resolve_symlink(path: &Path, depth: u8) -> Option<PathBuf> {
-        // Panic if we're getting too deep
-        if depth >= SYMLINK_MAX_DEPTH {
-            wutag_fatal!("failed to resolve symlink because it is too deep, possible loop?");
-        }
+        assert!(
+            !(depth >= SYMLINK_MAX_DEPTH),
+            "failed to resolve symlink because it is too deep, possible loop?"
+        );
 
         // Read symlink path, recursively find target
         match path.read_link() {
@@ -78,7 +77,7 @@ pub(crate) fn get_tty() -> Option<PathBuf> {
 }
 
 /// Construct crypto config, respect CLI arguments.
-pub(crate) fn config(tty: bool) -> EncryptConfig {
+pub(crate) const fn config(tty: bool) -> EncryptConfig {
     // Change if age gets introduced
     let mut encrypt_config = EncryptConfig::from(Proto::Gpg);
     encrypt_config.gpg_tty = tty;

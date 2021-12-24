@@ -25,36 +25,36 @@ pub(crate) enum Command {
     Refresh,
     /// Show help menu
     ShowHelp,
-    /* #### Movement ####
-     * /// Select next tab
-     * NextTab,
-     * /// Select previous tab
-     * PrevTab,
-     *
-     * // #### Actions on Tags ####
-     * /// Add tag to a file                (pattern, tag(s))
-     * Add(String, String),
-     * /// Set tag(s) on a file             (pattern, tag(s))
-     * Set(String, String),
-     * /// Clear tags on file               (pattern)
-     * Clear(String),
-     * /// Remove tags on file              (pattern, tag(s))
-     * Remove(String, String),
-     * /// Edit the files tags in an editor (pattern)
-     * Edit(String),
-     * /// Search for files that are tagged (pattern)
-     * Search(Option<String>),
-     * /// Copy tag(s) to another file      (path,pattern)
-     * Cp(String, String),
-     *
-     * // #### Meta/Other Actions ####
-     * /// List files and/or tags
-     * List(ListType),
-     * /// Preview file
-     * PreviewFile(bool),
-     *
-     * /// Confirm the execution of a command.
-     * Confirm(Box<Command>), */
+    // #### Movement ####
+    // /// Select next tab
+    // NextTab,
+    // /// Select previous tab
+    // PrevTab,
+    //
+    // // #### Actions on Tags ####
+    // /// Add tag to a file                (pattern, tag(s))
+    // Add(String, String),
+    // /// Set tag(s) on a file             (pattern, tag(s))
+    // Set(String, String),
+    // /// Clear tags on file               (pattern)
+    // Clear(String),
+    // /// Remove tags on file              (pattern, tag(s))
+    // Remove(String, String),
+    // /// Edit the files tags in an editor (pattern)
+    // Edit(String),
+    // /// Search for files that are tagged (pattern)
+    // Search(Option<String>),
+    // /// Copy tag(s) to another file      (path,pattern)
+    // Cp(String, String),
+    //
+    // // #### Meta/Other Actions ####
+    // /// List files and/or tags
+    // List(ListType),
+    // /// Preview file
+    // PreviewFile(bool),
+    //
+    // /// Confirm the execution of a command.
+    // Confirm(Box<Command>),
 }
 
 impl fmt::Display for Command {
@@ -90,10 +90,10 @@ impl FromStr for Command {
         let args = full_cmd.drain(1..).collect::<Vec<String>>();
 
         match command.as_str() {
-            "@help" => Ok(Command::ShowHelp),
-            "@quit" => Ok(Command::Quit),
-            "@refresh" => Ok(Command::Refresh),
-            "none" | "@none" => Ok(Command::None),
+            "@help" => Ok(Self::ShowHelp),
+            "@quit" => Ok(Self::Quit),
+            "@refresh" => Ok(Self::Refresh),
+            "none" | "@none" => Ok(Self::None),
             _ => Err(()),
         }
     }

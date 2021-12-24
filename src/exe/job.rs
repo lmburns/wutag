@@ -27,8 +27,12 @@ use crossbeam_utils::thread;
 use colored::Colorize;
 use regex::bytes::Regex;
 
+/// Result from a multi-threaded command
 pub(crate) enum WorkerResult {
+    /// Entry and its' id
     Entry((PathBuf, usize)),
+
+    /// An error
     #[allow(dead_code)] // Never constructed
     Error(std::io::Error),
 }
@@ -75,7 +79,7 @@ pub(crate) fn receiver(
                             let mut inner: Vec<ExitCode> = Vec::new();
 
                             loop {
-                                let lock = rx.lock().unwrap();
+                                let lock = rx.lock().expect("failed to lock receiver");
                                 let value: PathBuf = match lock.recv() {
                                     Ok(WorkerResult::Entry((entry, _id))) => entry,
                                     Ok(WorkerResult::Error(err)) => {
@@ -97,8 +101,8 @@ pub(crate) fn receiver(
                         .map(thread::ScopedJoinHandle::join)
                         .collect::<Result<_, _>>()
                 })
-                .unwrap()
-                .unwrap();
+                .expect("failed to unwrap scope thread")
+                .expect("failed to unwrap scope thread");
 
                 generalize_exitcodes(exits)
             }
@@ -230,10 +234,10 @@ pub(crate) fn sender(
 
                     tx_thread
                         .send(WorkerResult::Entry((entry.path().to_owned(), id)))
-                        .unwrap();
+                        .expect("failed to send result across threads");
                 }
             }
         });
     })
-    .unwrap();
+    .expect("failed to unwrap scope thread");
 }

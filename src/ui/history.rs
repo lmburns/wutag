@@ -68,7 +68,7 @@ impl HistoryContext {
     }
 
     /// Call to access config field of `HistoryContext`
-    pub(crate) fn config(&self) -> &PathBuf {
+    pub(crate) const fn config(&self) -> &PathBuf {
         &self.config
     }
 
@@ -91,12 +91,12 @@ impl HistoryContext {
     }
 
     /// Call to access history field of `HistoryContext`
-    pub(crate) fn history(&self) -> &History {
+    pub(crate) const fn history(&self) -> &History {
         &self.history
     }
 
     /// Call to access history index field of `HistoryContext`
-    pub(crate) fn history_index(&self) -> usize {
+    pub(crate) const fn history_index(&self) -> usize {
         self.history_index
     }
 

@@ -141,7 +141,7 @@ impl From<Key> for KeyId {
         Self(
             key.fingerprint()
                 .expect("GPGME key does not have fingerprint")
-                .to_string(),
+                .to_owned(),
             key.user_ids()
                 .map(|user| {
                     let mut parts = vec![];
@@ -185,12 +185,15 @@ fn fingerprints_to_keys(context: &mut Context, fingerprints: &[&str]) -> Result<
 /// [`GPGME`] library error
 #[derive(Debug, Error)]
 pub(crate) enum Error {
+    /// [`GPG`] encryption error
     #[error("failed to encrypt plaintext")]
     Encrypt(#[source] gpgme::Error),
 
+    /// [`GPG`] decryption error
     #[error("failed to decrypt ciphertext")]
     Decrypt(#[source] gpgme::Error),
 
+    /// Unknown [`GPG`] fingerprint
     #[error("fingerprint does not match public key in keychain")]
     UnknownFingerprint(#[source] gpgme::Error),
 }

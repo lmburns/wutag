@@ -38,8 +38,8 @@ _wutag__info_commands() {
 (( $+functions[_wutag__list_commands] )) ||
 _wutag__list_commands() {
     local commands; commands=(
-'tags:' \\
-'files:' \\
+'tags:List the `Tags` within the database' \\
+'files:List the `Files` within the database' \\
     )
     _describe -t commands 'wutag list commands' commands \"$@\"
 }

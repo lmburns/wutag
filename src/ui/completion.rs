@@ -216,11 +216,7 @@ impl CompletionList {
 
     /// Return the selected item in the completion list
     pub(crate) fn selected(&self) -> Option<String> {
-        if let Some(i) = self.state.selected() {
-            self.get(i)
-        } else {
-            None
-        }
+        self.state.selected().and_then(|i| self.get(i))
     }
 
     /// Test whether there are any candidates

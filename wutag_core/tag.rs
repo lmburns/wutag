@@ -169,7 +169,7 @@ impl Tag {
     }
 
     /// Removes this tag from the file at the given `path`. If the tag doesn't
-    /// exist it returns [`Error::TagNotFound`](wutag::Error::TagNotFound)
+    /// exist it returns [`Error::TagNotFound`](super::Error::TagNotFound)
     pub fn remove_from<P>(&self, path: P) -> Result<()>
     where
         P: AsRef<Path>,

@@ -23,8 +23,8 @@ impl Ciphertext {
 }
 
 impl From<Vec<u8>> for Ciphertext {
-    fn from(mut other: Vec<u8>) -> Ciphertext {
-        let into = Ciphertext(other.clone().into());
+    fn from(mut other: Vec<u8>) -> Self {
+        let into = Self(other.clone().into());
         other.zeroize();
         into
     }
@@ -57,18 +57,18 @@ impl Plaintext {
 }
 
 impl From<Vec<u8>> for Plaintext {
-    fn from(mut other: Vec<u8>) -> Plaintext {
+    fn from(mut other: Vec<u8>) -> Self {
         // Explicit zeroing of unsecure buffer required
-        let into = Plaintext(other.clone().into());
+        let into = Self(other.clone().into());
         other.zeroize();
         into
     }
 }
 
 impl From<String> for Plaintext {
-    fn from(mut other: String) -> Plaintext {
+    fn from(mut other: String) -> Self {
         // Explicit zeroing of unsecure buffer required
-        let into = Plaintext(other.as_bytes().into());
+        let into = Self(other.as_bytes().into());
         other.zeroize();
         into
     }

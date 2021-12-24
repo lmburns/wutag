@@ -1,3 +1,5 @@
+//! `clear` - Clear tags from a given path
+
 use super::{
     uses::{
         clear_tags, err, fmt_err, fmt_ok, fmt_path, glob_builder, has_tags, osstr_to_bytes, reg_ok,
@@ -6,6 +8,7 @@ use super::{
     App,
 };
 
+/// Arguments used for the `clear` subcommand
 #[derive(Args, Debug, Clone, PartialEq)]
 pub(crate) struct ClearOpts {
     /// A glob pattern like "*.png".
@@ -13,6 +16,7 @@ pub(crate) struct ClearOpts {
 }
 
 impl App {
+    /// Clear `Tag`s from a given path
     pub(crate) fn clear(&mut self, opts: &ClearOpts) {
         log::debug!("ClearOpts: {:#?}", opts);
         log::debug!("Using registry: {}", self.registry.path.display());

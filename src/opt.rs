@@ -19,8 +19,10 @@ use crate::{
     },
 };
 
-// INFO: The fully qualified path is needed after adding 'notify-rust' to
+// INFO: Fully qualified path is needed after adding 'notify-rust' to
 // dependencies
+
+/// Command-line options
 #[derive(Parser, Default, Clone, Debug, PartialEq)]
 #[clap(
     version = crate_version!(),
@@ -188,6 +190,7 @@ pub(crate) struct Opts {
                      available to users"
     )]
     pub(crate) quiet:            bool,
+    /// Subcommand
     #[clap(subcommand)]
     pub(crate) cmd:              Command,
 }
@@ -216,7 +219,7 @@ impl Opts {
             regex: true,
             cmd: Command::View(ViewOpts {
                 editor: DEFAULT_EDITOR.to_string(),
-                pattern: Some(pattern.to_string()),
+                pattern: Some(pattern.to_owned()),
                 ..ViewOpts::default()
             }),
             ..Self::default()
@@ -251,6 +254,7 @@ impl Default for Command {
 // For subcommand inference and aliases to coexist, the subcommand inferences
 // must be listed as aliases
 
+/// All subcommands
 #[derive(Subcommand, Debug, Clone, PartialEq)]
 pub(crate) enum Command {
     /// Lists all available tags or files.

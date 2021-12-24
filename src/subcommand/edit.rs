@@ -1,8 +1,11 @@
+//! `edit` - Edit a `Tag` by changing its `Color`
+
 use super::{
     uses::{fmt_tag, parse_color, print_stdout, Args, Border, Cell, Justify, Separator, Table},
     App,
 };
 
+/// Arguments used for the `edit` subcommand
 #[derive(Args, Debug, Clone, PartialEq)]
 pub(crate) struct EditOpts {
     /// Set the color of the tag to the specified color. Accepted values are hex
@@ -36,6 +39,7 @@ pub(crate) struct EditOpts {
 }
 
 impl App {
+    /// Edit a `Tag` by changing its color
     pub(crate) fn edit(&mut self, opts: &EditOpts) {
         log::debug!("EditOpts: {:#?}", opts);
         log::debug!("Using registry: {}", self.registry.path.display());
@@ -44,6 +48,7 @@ impl App {
 
         let color = &opts.color.as_ref().map(|c| parse_color(&c)).transpose();
 
+        /// Macro to update the `Tag`s color
         macro_rules! update_color {
             ($tag:expr, $color:expr) => {
                 let old_tag = self.registry.get_tag($tag).cloned();
@@ -72,7 +77,7 @@ impl App {
                     table.push(vec![
                         fmt_tag(old_tag).to_string().cell().justify(Justify::Right),
                         "==>".cell().justify(Justify::Center),
-                        fmt_tag(new_tag.unwrap())
+                        fmt_tag(new_tag.expect("failed to get `new_tag`"))
                             .to_string()
                             .cell()
                             .justify(Justify::Left),

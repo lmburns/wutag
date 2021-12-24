@@ -33,7 +33,7 @@ impl Key {
 
     /// Transform into generic key
     #[allow(dead_code)]
-    pub(crate) fn into_key(self) -> encryption::Key {
+    pub(crate) const fn into_key(self) -> encryption::Key {
         encryption::Key::Gpg(self)
     }
 }

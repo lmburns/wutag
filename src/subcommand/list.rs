@@ -1,3 +1,5 @@
+//! `list` - List `Tag`s or `File`s within the database
+
 // TODO: list files relative to directory as an option
 
 use super::{
@@ -12,8 +14,10 @@ use itertools::Itertools;
 #[cfg(feature = "prettify")]
 use super::uses::{print_stdout, Border, Cell, Justify, Separator, Style, Table};
 
+/// Subcommands used for the `list` subcommand
 #[derive(Subcommand, Debug, Clone, PartialEq)]
 pub(crate) enum ListObject {
+    /// List the `Tags` within the database
     Tags {
         /// Do not display tag count
         #[clap(name = "no-count", long = "no-count", short = 'c')]
@@ -55,6 +59,8 @@ pub(crate) enum ListObject {
         )]
         border: bool,
     },
+
+    /// List the `Files` within the database
     Files {
         /// Display tags along with the files
         #[clap(name = "with_tags", long = "with-tags", short = 't')]
@@ -95,6 +101,7 @@ pub(crate) enum ListObject {
     },
 }
 
+/// Arguments used for the `list` subcommand
 #[derive(Args, Debug, Clone, PartialEq)]
 pub(crate) struct ListOpts {
     /// Object to list: 'tags', 'files'.
@@ -107,6 +114,7 @@ pub(crate) struct ListOpts {
 }
 
 impl App {
+    /// List `Tags` or `Files` in the database
     pub(crate) fn list(&self, opts: &ListOpts) {
         log::debug!("ListOpts: {:#?}", opts);
         log::debug!("Using registry: {}", self.registry.path.display());
@@ -223,6 +231,7 @@ impl App {
                         continue;
                     }
 
+                    /// If the `raw` option is given, do not colorize
                     macro_rules! raw {
                         ($t:ident) => {
                             if opts.raw {
@@ -257,7 +266,7 @@ impl App {
                 let mut vec = utags
                     .iter()
                     .fold(HashMap::new(), |mut acc, t| {
-                        *acc.entry(t.clone()).or_insert(0) += 1;
+                        *acc.entry(t.clone()).or_insert(0_i32) += 1_i32;
                         acc
                     })
                     .iter()
@@ -291,6 +300,7 @@ impl App {
                         utags = utags
                             .iter()
                             .sorted_unstable_by(|a, b| {
+                                /// Strip ansi escape sequences from a string
                                 macro_rules! strip_ansi {
                                     ($cmp:ident) => {
                                         &String::from_utf8(

@@ -13,9 +13,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use crate::regex;
 use anyhow::{anyhow, Result};
-use once_cell::sync::Lazy;
-use regex::Regex;
 
 pub(crate) use self::{
     command::execute_command,
@@ -51,7 +50,7 @@ pub(crate) struct CommandTemplate {
 
 impl CommandTemplate {
     /// Create a new `CommandTemplate`
-    pub(crate) fn new<I, S>(input: I) -> CommandTemplate
+    pub(crate) fn new<I, S>(input: I) -> Self
     where
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
@@ -60,7 +59,7 @@ impl CommandTemplate {
     }
 
     /// Create a new batch `CommandTemplate`
-    pub(crate) fn new_batch<I, S>(input: I) -> Result<CommandTemplate>
+    pub(crate) fn new_batch<I, S>(input: I) -> Result<Self>
     where
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
@@ -78,19 +77,16 @@ impl CommandTemplate {
     }
 
     /// Build the `CommandTemplate`
-    fn build<I, S>(input: I, mode: ExecutionMode) -> CommandTemplate
+    fn build<I, S>(input: I, mode: ExecutionMode) -> Self
     where
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
-        /// Regular expression to match `Token` patterns
-        static PLACEHOLDER_PATTERN: Lazy<Regex> = Lazy::new(|| {
-            Regex::new(r"\{(/?\.?.?|//|@?[srxc]?)\}")
-                .expect("failed to build regex for `CommandTemplate`")
-        });
-
         let mut args = Vec::new();
         let mut has_placeholder = false;
+
+        // Regular expression to match `Token` patterns
+        let reg = regex!(r"\{(/?\.?.?|//|@?[srxc]?)\}");
 
         for arg in input {
             let arg = arg.as_ref();
@@ -98,7 +94,7 @@ impl CommandTemplate {
             let mut tokens = Vec::new();
             let mut start = 0;
 
-            for placeholder in PLACEHOLDER_PATTERN.find_iter(arg) {
+            for placeholder in reg.find_iter(arg) {
                 // Leading text before the placeholder.
                 if placeholder.start() > start {
                     tokens.push(Token::Text(arg[start..placeholder.start()].to_owned()));
@@ -144,13 +140,15 @@ impl CommandTemplate {
             args.push(ArgumentTemplate::Tokens(vec![Token::Placeholder]));
         }
 
-        CommandTemplate { args, mode }
+        Self { args, mode }
     }
 
+    /// Return the number of `Token`s within the command
     fn number_of_tokens(&self) -> usize {
         self.args.iter().filter(|arg| arg.has_tokens()).count()
     }
 
+    /// Split the first argument in the command
     fn split_first_arg(&self, input: impl AsRef<Path>) -> Vec<ArgumentTemplate> {
         let input = input.as_ref();
         let mut cloned_args = self.args.clone();
@@ -161,8 +159,7 @@ impl CommandTemplate {
         let mut new_args = self.args[0]
             .clone()
             .generate(input)
-            .to_str()
-            .unwrap()
+            .to_string_lossy()
             .split(' ')
             .map(String::from)
             .map(ArgumentTemplate::Text)
@@ -199,10 +196,12 @@ impl CommandTemplate {
         execute_command(cmd, out_perm)
     }
 
+    /// Is the command in batch mode?
     pub(crate) fn in_batch_mode(&self) -> bool {
         self.mode == ExecutionMode::Batch
     }
 
+    /// Generate the command and execute it if it is a `batch`
     pub(crate) fn generate_and_execute_batch<I>(&self, paths: I) -> ExitCode
     where
         I: Iterator<Item = PathBuf>,
@@ -250,7 +249,7 @@ enum ArgumentTemplate {
 }
 
 impl ArgumentTemplate {
-    pub(crate) fn has_tokens(&self) -> bool {
+    pub(crate) const fn has_tokens(&self) -> bool {
         matches!(self, ArgumentTemplate::Tokens(_))
     }
 

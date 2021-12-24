@@ -1,16 +1,16 @@
 //! Utility functions to execute on files or having to do with the `filesystem`
 
+use anyhow::Result;
+use rand::{distributions::Alphanumeric, Rng};
 use std::{
     borrow::Cow,
     env,
     ffi::OsStr,
     fs::{self, File, Metadata},
     io::{self, Write},
+    os::unix::fs::{FileTypeExt, PermissionsExt},
     path::{Path, PathBuf},
 };
-
-use rand::{distributions::Alphanumeric, Rng};
-use std::os::unix::fs::{FileTypeExt, PermissionsExt};
 
 use colored::Colorize;
 use thiserror::Error;
@@ -47,7 +47,8 @@ pub(crate) enum Error {
 /// Shorter `typedef` for a `Result`
 pub(crate) type FileInfoResult<T> = Result<T, Error>;
 
-/// Used to determine extra information about a `File`
+/// Used to gain extra information about a file. The path of the file can be a
+/// `Path` or a [`DirEntry`](ignore::DirEntry)
 pub(crate) trait FileInfo {
     /// Return the [`Path`](std::path::Path)
     fn path(&self) -> &Path;
@@ -109,7 +110,7 @@ impl FileInfo for &Path {
 impl FileTypes {
     /// File types that should be ignored based on CLI arguments
     pub(crate) fn should_ignore(&self, entry: &impl FileInfo) -> bool {
-        if let Some(ref entry_type) = entry.file_type() {
+        entry.file_type().as_ref().map_or(true, |entry_type| {
             (!self.files && entry_type.is_file())
                 || (!self.directories && entry_type.is_dir())
                 || (!self.symlinks && entry_type.is_symlink())
@@ -126,16 +127,14 @@ impl FileTypes {
                     || entry_type.is_char_device()
                     || entry_type.is_socket()
                     || entry_type.is_fifo())
-        } else {
-            true
-        }
+        })
     }
 }
 
 /// Check whether the file is empty
 #[allow(clippy::filetype_is_file)]
 pub(crate) fn is_empty(entry: &impl FileInfo) -> bool {
-    if let Some(file_type) = entry.file_type() {
+    entry.file_type().map_or(false, |file_type| {
         if file_type.is_dir() {
             if let Ok(mut entries) = fs::read_dir(entry.path()) {
                 entries.next().is_none()
@@ -147,9 +146,7 @@ pub(crate) fn is_empty(entry: &impl FileInfo) -> bool {
         } else {
             false
         }
-    } else {
-        false
-    }
+    })
 }
 
 /// Create a path to a temporary file
@@ -235,11 +232,10 @@ pub(crate) fn delete_file<P: AsRef<Path>>(file: P) {
 
 /// Determine whether file (path) contains path and if so, return true
 pub(crate) fn contained_path<P: AsRef<Path>>(file: P, path: P) -> bool {
-    file.as_ref().display().to_string().contains(
-        path.as_ref()
-            .to_str()
-            .expect("failed to convert path to str"),
-    )
+    file.as_ref()
+        .to_string_lossy()
+        .to_string()
+        .starts_with(&path.as_ref().to_string_lossy().to_string())
 }
 
 /// Convert an OsStr to bytes for RegexBuilder

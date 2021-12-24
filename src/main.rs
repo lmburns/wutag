@@ -4,8 +4,10 @@
 #![allow(incomplete_features)]
 #![deny(
     clippy::all,
+    // clippy::cargo,
     clippy::complexity,
     clippy::correctness,
+    clippy::nursery,
     clippy::pedantic,
     clippy::perf,
     // clippy::restriction,
@@ -60,10 +62,14 @@
     // Find this problem
     clippy::pattern_type_mismatch,
 
+    // ?
+    clippy::redundant_pub_crate,
+
     clippy::as_conversions,
     clippy::blanket_clippy_restriction_lints,
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,
+    clippy::cognitive_complexity,
     clippy::create_dir,
     clippy::doc_markdown,
     clippy::else_if_without_else,
@@ -76,18 +82,19 @@
     clippy::integer_arithmetic,
     clippy::integer_division,
     clippy::mod_module_files,
+    clippy::multiple_inherent_impl,
     clippy::separated_literal_suffix,
     clippy::shadow_reuse,
     clippy::shadow_same,
     clippy::shadow_unrelated,
     clippy::similar_names,
+    clippy::string_add,
     clippy::string_slice,
     clippy::struct_excessive_bools,
     clippy::too_many_lines,
     clippy::upper_case_acronyms,
     clippy::unreachable,
     clippy::unwrap_in_result
-    // clippy::string_add,
     // clippy::single_match_else,
 )]
 #![cfg_attr(
@@ -106,6 +113,7 @@
 mod comp_helper;
 mod config;
 mod consts;
+mod directories;
 #[cfg(feature = "encrypt-gpgme")]
 mod encryption;
 mod exe;

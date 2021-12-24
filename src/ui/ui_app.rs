@@ -21,6 +21,8 @@
 
 // TODO: Use config if history is enabled
 
+// TODO: Checkout skim fuzzy completion
+
 use ansi_to_tui::ansi_to_text;
 use anyhow::{anyhow, Context, Result};
 use clap::IntoApp;
@@ -79,26 +81,40 @@ use crate::{
     config::{Config, HeaderAlignment},
     opt::{Command, Opts},
     oregistry::{EntryData, EntryId, TagRegistry},
+    regex,
     subcommand::App,
     wutag_fatal,
 };
 
+/// Hold all colors used for the TUI in one module
+pub(crate) mod color {
+    /// A shorthand for `[u8; 3]`
+    pub(crate) type Rgb = [u8; 3];
+
+    macro_rules! def_color {
+        ($name:ident, $blk:expr) => {
+            pub(crate) const $name: Rgb = $blk;
+        };
+    }
+
+    def_color!(FG, [232, 192, 151]);
+    def_color!(FG2, [217, 174, 128]);
+    def_color!(PINK, [239, 29, 85]);
+    def_color!(DARK_PINK, [152, 103, 106]);
+    def_color!(DARK_PURPLE, [115, 62, 139]);
+    def_color!(MAGENTA, [160, 100, 105]);
+    def_color!(BLUE, [126, 178, 177]);
+    def_color!(DARK_BLUE, [76, 150, 168]);
+    def_color!(YELLOW, [255, 149, 0]);
+    def_color!(ORANGE, [255, 88, 19]);
+    def_color!(GREEN, [129, 156, 59]);
+    def_color!(BRIGHT_GREEN, [163, 185, 90]);
+}
+
+/// Run a command one time
 static RUN_ONCE: OnceCell<Result<()>> = OnceCell::new();
-
+/// Maximum length for a [`rustyline`] buffer
 const MAX_LINE: usize = 4096;
-
-pub(crate) const FG: [u8; 3] = [232, 192, 151];
-pub(crate) const FG2: [u8; 3] = [217, 174, 128];
-pub(crate) const PINK: [u8; 3] = [239, 29, 85];
-pub(crate) const DARK_PINK: [u8; 3] = [152, 103, 106];
-pub(crate) const DARK_PURPLE: [u8; 3] = [115, 62, 139];
-pub(crate) const MAGENTA: [u8; 3] = [160, 100, 105];
-pub(crate) const BLUE: [u8; 3] = [126, 178, 177];
-pub(crate) const DARK_BLUE: [u8; 3] = [76, 150, 168];
-pub(crate) const YELLOW: [u8; 3] = [255, 149, 0];
-pub(crate) const ORANGE: [u8; 3] = [255, 88, 19];
-pub(crate) const GREEN: [u8; 3] = [129, 156, 59];
-pub(crate) const BRIGHT_GREEN: [u8; 3] = [163, 185, 90];
 
 /// Errors used within the UI module of this crate
 #[derive(Debug, Error)]
@@ -107,6 +123,7 @@ pub(crate) enum Error {
     #[error("IO Error: {0}")]
     IOError(#[source] io::Error),
 
+    /// Error when viewing the tag file in an  `$EDITOR`
     #[error("failure to edit the current file: {0}")]
     Edit(#[from] anyhow::Error),
 }
@@ -165,9 +182,9 @@ pub(crate) struct UiApp {
     pub(crate) current_directory:       String,
     /// The item currently selected
     pub(crate) current_selection:       usize,
-    // TODO: USE/DEL - The ID of the current selection in the registry
+    /// TODO: USE/DEL - The ID of the current selection in the registry
     pub(crate) current_selection_id:    Option<EntryId>,
-    // TODO: USE/DEL - The path of the current selection
+    /// TODO: USE/DEL - The path of the current selection
     pub(crate) current_selection_path:  Option<PathBuf>,
     /// Whether things have been changed before an update call
     pub(crate) dirty:                   bool,
@@ -214,12 +231,15 @@ pub(crate) struct UiApp {
 /// Mode that application is in
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub(crate) enum AppMode {
+    /// File paths and tags are displayed
     List,
+    /// An error occurred
     Error,
+    /// Command prompt
     Command,
     /// Help menu for all other keybindings
     Help,
-    /// Command buffer help
+    /// Command buffer help popup
     HelpPopup, /* Remove,
                 * Set,
                 * Clear,
@@ -252,18 +272,16 @@ impl UiApp {
         }
 
         let parsed_color = parse_color_tui(c.clone().ui.paths_color).unwrap_or_else(|_| {
-            if let Some(color) = c.clone().base_color {
+            c.clone().base_color.map_or(Color::Blue, |color| {
                 parse_color_tui(color).unwrap_or(Color::Blue)
-            } else {
-                Color::Blue
-            }
+            })
         });
 
         let cwd = env::current_dir()
             .unwrap_or_else(|_| {
-                PathBuf::from(env::var("PWD").unwrap_or_else(|_| ".".to_string())).lexiclean()
+                PathBuf::from(env::var("PWD").unwrap_or_else(|_| ".".to_owned())).lexiclean()
             })
-            .display()
+            .to_string_lossy()
             .to_string();
 
         let mut uiapp = Self {
@@ -324,104 +342,104 @@ impl UiApp {
     fn get_command_keybindings(&mut self) {
         let keybindings = vec![
             Keybinding::new(
-                "Up,Down".to_string(),
-                "cycle completion/history".to_string(),
+                "Up,Down".to_owned(),
+                "cycle completion/history".to_owned(),
                 "Cycle through completions if they're showing, else cycle through history"
-                    .to_string(),
+                    .to_owned(),
             ),
             Keybinding::new(
-                "Escape".to_string(),
-                "close completion/prompt".to_string(),
-                "Close the completion window or return to tag table".to_string(),
+                "Escape".to_owned(),
+                "close completion/prompt".to_owned(),
+                "Close the completion window or return to tag table".to_owned(),
             ),
             Keybinding::new(
-                "Enter".to_string(),
-                "Select completion/enter command".to_string(),
-                "Select a completion or enter command and return to tag table".to_string(),
+                "Enter".to_owned(),
+                "Select completion/enter command".to_owned(),
+                "Select a completion or enter command and return to tag table".to_owned(),
             ),
             Keybinding::new(
-                "Tab,C-n".to_string(),
-                "Show completions/cycle completions".to_string(),
+                "Tab,C-n".to_owned(),
+                "Show completions/cycle completions".to_owned(),
                 "Will show completions if none are showing, else cycle forward through them"
-                    .to_string(),
+                    .to_owned(),
             ),
             Keybinding::new(
-                "BackTab,C-p".to_string(),
-                "cycle completions".to_string(),
-                "Cycle backward through completions".to_string(),
+                "BackTab,C-p".to_owned(),
+                "cycle completions".to_owned(),
+                "Cycle backward through completions".to_owned(),
             ),
             Keybinding::new(
-                "C-r".to_string(),
-                "startup command".to_string(),
-                "Clear line and reset to startup command".to_string(),
+                "C-r".to_owned(),
+                "startup command".to_owned(),
+                "Clear line and reset to startup command".to_owned(),
             ),
             Keybinding::new(
-                "C-f,Right".to_string(),
-                "move forward".to_string(),
-                "Move forward a character".to_string(),
+                "C-f,Right".to_owned(),
+                "move forward".to_owned(),
+                "Move forward a character".to_owned(),
             ),
             Keybinding::new(
-                "C-b,Left".to_string(),
-                "move backward".to_string(),
-                "Move backward a character".to_string(),
+                "C-b,Left".to_owned(),
+                "move backward".to_owned(),
+                "Move backward a character".to_owned(),
             ),
             Keybinding::new(
-                "C-h,Backspace".to_string(),
-                "backspace".to_string(),
-                "Delete the character behind the cursor".to_string(),
+                "C-h,Backspace".to_owned(),
+                "backspace".to_owned(),
+                "Delete the character behind the cursor".to_owned(),
             ),
             Keybinding::new(
-                "C-d,Delete".to_string(),
-                "delete".to_string(),
-                "Delete the character in front of the cursor".to_string(),
+                "C-d,Delete".to_owned(),
+                "delete".to_owned(),
+                "Delete the character in front of the cursor".to_owned(),
             ),
             Keybinding::new(
-                "C-a,Home".to_string(),
-                "move home".to_string(),
-                "Move cursor to the start of the line".to_string(),
+                "C-a,Home".to_owned(),
+                "move home".to_owned(),
+                "Move cursor to the start of the line".to_owned(),
             ),
             Keybinding::new(
-                "C-e,End".to_string(),
-                "move end".to_string(),
-                "Move cursor to the end of the line".to_string(),
+                "C-e,End".to_owned(),
+                "move end".to_owned(),
+                "Move cursor to the end of the line".to_owned(),
             ),
             Keybinding::new(
-                "C-k".to_string(),
-                "kill line".to_string(),
-                "Kill the text from point to the end of the line".to_string(),
+                "C-k".to_owned(),
+                "kill line".to_owned(),
+                "Kill the text from point to the end of the line".to_owned(),
             ),
             Keybinding::new(
-                "C-u".to_string(),
-                "discard line".to_string(),
-                "Kill backward from point to the beginning of the line".to_string(),
+                "C-u".to_owned(),
+                "discard line".to_owned(),
+                "Kill backward from point to the beginning of the line".to_owned(),
             ),
             Keybinding::new(
-                "C-w,M-Backspace,C-Backspace".to_string(),
-                "delete previous word".to_string(),
+                "C-w,M-Backspace,C-Backspace".to_owned(),
+                "delete previous word".to_owned(),
                 "Delete the previous word, maintaining the cursor at the start of the current word"
-                    .to_string(),
+                    .to_owned(),
             ),
             Keybinding::new(
-                "M-d,M-Delete,C-Delete".to_string(),
-                "delete word".to_string(),
+                "M-d,M-Delete,C-Delete".to_owned(),
+                "delete word".to_owned(),
                 "Kill from the cursor to the end of the current word, or, if between words, to \
                  the end of the next word"
-                    .to_string(),
+                    .to_owned(),
             ),
             Keybinding::new(
-                "M-f".to_string(),
-                "move to next word".to_string(),
-                "Moves the cursor to the end of next word".to_string(),
+                "M-f".to_owned(),
+                "move to next word".to_owned(),
+                "Moves the cursor to the end of next word".to_owned(),
             ),
             Keybinding::new(
-                "M-b".to_string(),
-                "move to previous word".to_string(),
-                "Moves the cursor to the beginning of previous word".to_string(),
+                "M-b".to_owned(),
+                "move to previous word".to_owned(),
+                "Moves the cursor to the beginning of previous word".to_owned(),
             ),
             Keybinding::new(
-                "M-t".to_string(),
-                "transpose word".to_string(),
-                "Transpose two words".to_string(),
+                "M-t".to_owned(),
+                "transpose word".to_owned(),
+                "Transpose two words".to_owned(),
             ),
         ];
 
@@ -432,28 +450,29 @@ impl UiApp {
     fn get_keybindings(&mut self) {
         let keys = self.config.keys;
         let gen_key = |key: Key, alt: Option<&str>, desc: &str| -> Keybinding {
-            if let Some(alt) = alt {
-                Keybinding::new(
-                    format!("{},{}", key.name(), alt),
-                    keys.fieldname(key),
-                    desc.to_string(),
-                )
-            } else {
-                Keybinding::new(key.name(), keys.fieldname(key), desc.to_string())
-            }
+            alt.map_or_else(
+                || Keybinding::new(key.name(), keys.fieldname(key), desc.to_owned()),
+                |alt| {
+                    Keybinding::new(
+                        format!("{},{}", key.name(), alt),
+                        keys.fieldname(key),
+                        desc.to_owned(),
+                    )
+                },
+            )
         };
 
         let keybindings = vec![
             Keybinding::new(
-                ":".to_string(),
-                "command prompt".to_string(),
-                "Enter a command in the prompt".to_string(),
+                ":".to_owned(),
+                "command prompt".to_owned(),
+                "Enter a command in the prompt".to_owned(),
             ),
             Keybinding::new(
-                "M-.".to_string(),
-                "command prompt help menu".to_string(),
+                "M-.".to_owned(),
+                "command prompt help menu".to_owned(),
                 "Show the help menu for the command prompt. Must be in the command prompt"
-                    .to_string(),
+                    .to_owned(),
             ),
             gen_key(
                 keys.help,
@@ -596,7 +615,13 @@ impl UiApp {
                 let style = Style::default().add_modifier(Modifier::ITALIC);
                 s.get_description_text(
                     self.is_colored()
-                        .then(|| style.fg(Color::Rgb(DARK_BLUE[0], DARK_BLUE[1], DARK_BLUE[2])))
+                        .then(|| {
+                            style.fg(Color::Rgb(
+                                color::DARK_BLUE[0],
+                                color::DARK_BLUE[1],
+                                color::DARK_BLUE[2],
+                            ))
+                        })
                         .unwrap_or(style),
                 )
             })
@@ -758,6 +783,7 @@ impl UiApp {
 
     /// Draw the startup screen
     pub(crate) fn draw_tag(&mut self, app: &App, f: &mut Frame<impl Backend>) {
+        use color::{FG, ORANGE, PINK};
         let rect = f.size();
 
         // Split screen
@@ -767,7 +793,7 @@ impl UiApp {
         // Old help
         // .constraints([Constraint::Min(rect.height - 1), Constraint::Min(1)].as_ref())
 
-        let set_title = |app: &UiApp, mode: String| -> Vec<Span> {
+        let set_title = |app: &Self, mode: String| -> Vec<Span> {
             let match_mode = |mode: AppMode| -> Modifier {
                 if app.mode == mode {
                     Modifier::BOLD
@@ -845,25 +871,25 @@ impl UiApp {
         // TODO: use
         // When selecting files, file_id is shown as files to modify
         let file_id = if self.registry.entries.is_empty() {
-            vec!["0".to_string()]
+            vec!["0".to_owned()]
         } else {
             match self.table_state.mode() {
                 TableSelection::Single => {
-                    vec!["SINGLE".to_string()]
+                    vec!["SINGLE".to_owned()]
                     // vec![self
                     //     .registry
                     //     .get_entry(selected)
                     //     .map_or(empty_path, |c| c.path().to_path_buf())
                     //     .display()
-                    //     .to_string()]
+                    //     .to_owned()]
                 },
                 TableSelection::Multiple => {
-                    vec!["MULTIPLE".to_string()]
+                    vec!["MULTIPLE".to_owned()]
                     // let mut tag_uuids = vec![];
                     // for uuid in &self.marked {
                     //     if let Some(entry) = self.tag_by_uuid(*uuid) {
                     //         tag_uuids.push(self.registry.
-                    // add_or_update_entry(entry).to_string());
+                    // add_or_update_entry(entry).to_owned());
                     //     }
                     // }
                     // tag_uuids
@@ -932,6 +958,7 @@ impl UiApp {
         }
     }
 
+    /// Draw the command prompt
     #[allow(single_use_lifetimes)]
     fn draw_command<'a, T>(
         &self,
@@ -960,15 +987,21 @@ impl UiApp {
                 Block::default()
                     .borders(Borders::ALL)
                     .border_type(BorderType::Rounded)
-                    .style(Style::default().fg(Color::Rgb(FG[0], FG[1], FG[2])))
+                    .style(Style::default().fg(Color::Rgb(
+                        color::FG[0],
+                        color::FG[1],
+                        color::FG[2],
+                    )))
                     .title(title.into()),
             )
             .scroll((0, ((position + 3) as u16).saturating_sub(rect.width)));
         f.render_widget(p, rect);
     }
 
+    /// Draw the file preview using `cat` or `bat`
     /// TODO: Speed up scrolling
     fn draw_preview(&mut self, f: &mut Frame<impl Backend>, rect: Rect) {
+        use color::{GREEN, ORANGE, PINK};
         if self.registry.entries.is_empty() {
             f.render_widget(
                 Block::default()
@@ -1067,6 +1100,7 @@ impl UiApp {
 
     /// Draw the tag table (filepaths tags)
     fn draw_table(&mut self, app: &App, f: &mut Frame<impl Backend>, rect: Rect, title: Vec<Span>) {
+        use color::{DARK_PINK, FG};
         let headers = vec!["Filename", "Tag(s)"]
             .iter()
             .map(ToString::to_string)
@@ -1150,6 +1184,7 @@ impl UiApp {
             header_style = header_style.add_modifier(Modifier::UNDERLINED);
         }
 
+        #[allow(clippy::unwrap_used)]
         let table = Table::new(header, rows)
             .block(
                 Block::default()
@@ -1166,6 +1201,7 @@ impl UiApp {
             )
             .header_alignment(
                 // Seems unncessary to have to convert from string
+                // Unwrap is okay because `Center` is a fallback if the alignment isn't recognized
                 Alignment::from(
                     HeaderAlignment::from_str(&self.config.ui.header_alignment).unwrap(),
                 ),
@@ -1200,7 +1236,11 @@ impl UiApp {
             .iter()
             .map(|p| {
                 let lines = vec![Spans::from(p.display.clone())];
-                ListItem::new(lines).style(Style::default().fg(Color::Rgb(FG[0], FG[1], FG[2])))
+                ListItem::new(lines).style(Style::default().fg(Color::Rgb(
+                    color::FG[0],
+                    color::FG[1],
+                    color::FG[2],
+                )))
             })
             .collect();
 
@@ -1210,11 +1250,11 @@ impl UiApp {
         let items = List::new(items)
             .block(Block::default().borders(Borders::NONE).title(""))
             .style(Style::default().fg(Color::Red))
-            .highlight_style(
-                Style::default()
-                    .add_modifier(Modifier::BOLD)
-                    .fg(Color::Rgb(ORANGE[0], ORANGE[1], ORANGE[2])),
-            )
+            .highlight_style(Style::default().add_modifier(Modifier::BOLD).fg(Color::Rgb(
+                color::ORANGE[0],
+                color::ORANGE[1],
+                color::ORANGE[2],
+            )))
             .highlight_symbol(&self.config.ui.selection_indicator);
 
         let area = f.size();
@@ -1243,7 +1283,8 @@ impl UiApp {
     // ####################### HELPER FUNCTIONS #######################
     //
 
-    #[allow(clippy::unnecessary_wraps)]
+    /// Handle all keyboard and mouse input to the TUI
+    #[allow(clippy::unnecessary_wraps, clippy::wildcard_enum_match_arm)]
     pub(crate) fn handle_input(&mut self, input: Key) -> Result<()> {
         match self.mode {
             AppMode::List =>
@@ -1451,21 +1492,18 @@ impl UiApp {
     /// path
     pub(crate) fn alias_replace(&self, replace: &str) -> String {
         let alias_hash = self.config.ui.clone().build_alias_hash();
-        let re = Regex::new(
-            format!(
-                r"({})",
-                alias_hash
-                    .keys()
-                    .map(Clone::clone)
-                    .collect::<Vec<String>>()
-                    .join("|")
-            )
-            .as_str(),
+        let reg = regex!(format!(
+            r"({})",
+            alias_hash
+                .keys()
+                .map(Clone::clone)
+                .collect::<Vec<String>>()
+                .join("|")
         )
-        .unwrap();
+        .as_str());
 
-        let new_path = if re.is_match(replace) {
-            re.replace(replace, |caps: &Captures| {
+        let new_path = if reg.is_match(replace) {
+            reg.replace(replace, |caps: &Captures| {
                 alias_hash.get(caps.get(1).unwrap().as_str()).unwrap()
             })
         } else {
@@ -1576,14 +1614,14 @@ impl UiApp {
     }
 
     /// Whether the TUI is in a colored state
-    pub(crate) fn is_colored(&self) -> bool {
+    pub(crate) const fn is_colored(&self) -> bool {
         self.config.ui.colored_ui
     }
 
     // ####################### MOVEMENT #######################
     //
 
-    // TODO: Use or delete
+    /// TODO: Use or delete
     pub(crate) fn previous_report(&mut self) {
         if self.registry.tags.is_empty() {
             return;
@@ -1838,16 +1876,19 @@ impl UiApp {
     // ####################### STYLE #######################
     //
 
-    // This actually wasn't the intent, I meant to choose a single color from the
-    // list of colors in the configuration file
-    /// Creates a flashing color
+    // TODO: Create atomic item that holds color
+
+    /// Creates a flashing color. This was not the original intent of the
+    /// function. It was meant to choose a random color from the configuration
+    /// file, but instead it flashes random colors. This is due to the tick sent
+    /// to the TUI that refreshes it every so often
     fn gen_random_color(&self) -> Color {
         let mut rng = rand::thread_rng();
         self.config
             .colors
             .clone()
             .map(|colors| {
-                parse_color_tui(colors.choose(&mut rng).unwrap_or(&"blue".to_string()))
+                parse_color_tui(colors.choose(&mut rng).unwrap_or(&"blue".to_owned()))
                     .unwrap_or_else(|_| {
                         [
                             Color::Red,
@@ -1871,7 +1912,7 @@ impl UiApp {
                         .unwrap_or(Color::Blue)
                     })
             })
-            .unwrap()
+            .expect("failed to `get_random_color`")
     }
 
     /// Returns a `Text` object of every styled `Tag`
@@ -1900,7 +1941,7 @@ impl UiApp {
             }
 
             style = style.add_modifier(modifiers);
-            colored.push(Span::styled(tag.clone().name().to_string(), style));
+            colored.push(Span::styled(tag.clone().name().to_owned(), style));
         }
 
         row.push(Spans::from(colored));
@@ -2050,9 +2091,9 @@ impl UiApp {
         let entries_name = entries.iter().fold(Vec::new(), |mut acc, (k, v)| {
             // super::notify(format!("{} len {}", k.display(), v.len()), None);
             acc.push(vec![
-                k.display().to_string(),
+                k.to_string_lossy().to_string(),
                 v.iter()
-                    .map(|tag| tag.name().to_string())
+                    .map(|tag| tag.name().to_owned())
                     .collect::<Vec<String>>()
                     .join(" "),
             ]);
@@ -2064,11 +2105,11 @@ impl UiApp {
         //     return Ok(());
         // }
 
-        super::notify("before", Some(entries_name.get(0).unwrap().get(1).unwrap()))?;
+        super::notify("before", Some(&entries_name[0][1]))?;
 
         self.registry_paths = entries_name.clone();
 
-        super::notify("after", Some(entries_name.get(0).unwrap().get(1).unwrap()))?;
+        super::notify("after", Some(&entries_name[0][1]))?;
         Ok(())
     }
 
@@ -2083,6 +2124,7 @@ impl UiApp {
     //     self.registry_paths = paths;
     // }
 
+    /// Sort path by `EntryId`
     fn path_by_id(&self, id: EntryId) -> Option<&EntryData> {
         self.registry.get_entry(id)
 
@@ -2091,6 +2133,7 @@ impl UiApp {
         // m.cloned()
     }
 
+    /// Return the index of the path by `EntryId`
     fn path_idx_by_id(&self, id: EntryId) -> Option<usize> {
         let path_tags = &self.registry_paths;
 
@@ -2219,7 +2262,7 @@ impl UiApp {
                         "--help" | "--version" | "--color" | "--ls-colors" | "--verbose" => {},
                         a =>
                             if a != *curr_cmd {
-                                completion_list.insert(a.to_string());
+                                completion_list.insert(a.to_owned());
                             },
                     }
                 }
@@ -2239,7 +2282,7 @@ impl UiApp {
                             // self.completion_list.insert(format!("a: {}", a));
 
                             if a != *curr_cmd {
-                                self.completion_list.insert(a.to_string());
+                                self.completion_list.insert(a.to_owned());
                             }
                         },
                     }
@@ -2250,14 +2293,14 @@ impl UiApp {
                         "info" | "print-completions" | "clean-cache" | "ui" => {},
                         s => {
                             // self.completion_list.insert(format!("sub: {}", s));
-                            self.completion_list.insert(s.to_string());
+                            self.completion_list.insert(s.to_owned());
                         },
                     }
                 }
                 // Special commands not found within the CLI application
                 for other in ["@help", "@quit", "@refresh", "@preview"] {
                     // self.completion_list.insert(format!("other: {}", other));
-                    self.completion_list.insert(other.to_string());
+                    self.completion_list.insert(other.to_owned());
                 }
             } else {
                 self.completion_list.clear();
@@ -2315,13 +2358,12 @@ impl UiApp {
 
         if !cmd.status.success() {
             self.completion_list
-                .insert("Fundamental error taking place".to_string());
+                .insert("Fundamental error taking place".to_owned());
 
-            let patt = Regex::new(r"error")?;
             #[allow(clippy::needless_collect)]
             let output = String::from_utf8(cmd.stdout.clone())?
                 .lines()
-                .filter(|line| patt.is_match(line))
+                .filter(|line| line.contains("error"))
                 .map(ToString::to_string)
                 .collect::<Vec<String>>();
 
@@ -2335,7 +2377,7 @@ impl UiApp {
 
             if !output.is_empty() {
                 self.completion_list
-                    .insert("Your command contains an error".to_string());
+                    .insert("Your command contains an error".to_owned());
             }
         }
 
@@ -2425,9 +2467,8 @@ impl UiApp {
     }
 }
 
-// TODO: Add help menu for this
-
-// Handle cursor movement of the command prompt (`LineBuffer`)
+/// Handle cursor movement of the command prompt (`LineBuffer`)
+#[allow(clippy::wildcard_enum_match_arm)]
 pub(crate) fn handle_movement(linebuffer: &mut LineBuffer, input: Key) {
     match input {
         Key::Ctrl('f') | Key::Right => {

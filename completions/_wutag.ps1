@@ -74,8 +74,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
             [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
-            [CompletionResult]::new('tags', 'tags', [CompletionResultType]::ParameterValue, 'tags')
-            [CompletionResult]::new('files', 'files', [CompletionResultType]::ParameterValue, 'files')
+            [CompletionResult]::new('tags', 'tags', [CompletionResultType]::ParameterValue, 'List the `Tags` within the database')
+            [CompletionResult]::new('files', 'files', [CompletionResultType]::ParameterValue, 'List the `Files` within the database')
             break
         }
         'wutag;list;tags' {

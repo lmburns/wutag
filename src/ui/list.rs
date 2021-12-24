@@ -17,12 +17,12 @@ pub(crate) struct StatefulList<T> {
 
 impl<T> StatefulList<T> {
     /// Build an instance of `StatefulList`
-    pub(crate) fn new(items: Vec<T>, state: ListState) -> StatefulList<T> {
+    pub(crate) fn new(items: Vec<T>, state: ListState) -> Self {
         Self { items, state }
     }
 
     /// Build a new `StatefulList` with specified items
-    pub(crate) fn with_items(items: Vec<T>) -> StatefulList<T> {
+    pub(crate) fn with_items(items: Vec<T>) -> Self {
         Self::new(items, ListState::default())
     }
 

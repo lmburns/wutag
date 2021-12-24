@@ -19,7 +19,7 @@ use std::{
 };
 use tui::layout::Alignment;
 
-use crate::{ui::event::Key, wutag_fatal};
+use crate::{directories::PROJECT_DIRS, inner_immute, ui::event::Key, wutag_fatal};
 use wutag_core::color::TuiColor;
 
 /// Configuration file name
@@ -29,23 +29,25 @@ const CONFIG_FILE: &str = "wutag.yml";
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(rename_all = "snake_case", default)]
 pub(crate) struct Config {
-    // TODO: Perhaps add these to a field of their own like cli or global
+    /// Follow a symlink to real file
+    #[serde(alias = "follow-symlinks")]
+    pub(crate) follow_symlinks: bool,
     /// Max depth a regex/glob with traverse
     #[serde(alias = "max-depth")]
-    pub(crate) max_depth:    Option<usize>,
+    pub(crate) max_depth:       Option<usize>,
     /// Base color that paths are displayed
     #[serde(alias = "base-color")]
-    pub(crate) base_color:   Option<String>,
+    pub(crate) base_color:      Option<String>,
     /// Border color used to display tags with border option
     #[serde(alias = "border-color")]
-    pub(crate) border_color: Option<String>,
+    pub(crate) border_color:    Option<String>,
     /// Array of colors to use as tags
-    pub(crate) colors:       Option<Vec<String>>,
+    pub(crate) colors:          Option<Vec<String>>,
     #[serde(alias = "ignore")]
     /// Array of file patterns to ignore tagging
-    pub(crate) ignores:      Option<Vec<String>>,
+    pub(crate) ignores:         Option<Vec<String>>,
     /// Format the file is in when using `view` subcommand
-    pub(crate) format:       Option<String>,
+    pub(crate) format:          Option<String>,
 
     /// Configuration dealing with keys
     #[cfg(feature = "ui")]
@@ -223,9 +225,34 @@ pub(crate) struct KeyConfig {
     pub(crate) search: Key,
     /// Copy attributes of one tag to another
     pub(crate) copy:   Key,
-    /* pub(crate) modify:  Key,
-     * pub(crate) undo:    Key,
-     * pub(crate) done:    Key, */
+    // pub(crate) modify:  Key,
+    // pub(crate) undo:    Key,
+    // pub(crate) done:    Key,
+}
+
+impl Config {
+    inner_immute!(follow_symlinks, bool, false);
+
+    inner_immute!(max_depth, Option<usize>, false);
+
+    inner_immute!(base_color, Option<String>);
+
+    inner_immute!(border_color, Option<String>);
+
+    inner_immute!(colors, Option<Vec<String>>);
+
+    inner_immute!(ignores, Option<Vec<String>>);
+
+    inner_immute!(format, Option<String>);
+
+    #[cfg(feature = "ui")]
+    inner_immute!(keys, KeyConfig);
+
+    #[cfg(feature = "ui")]
+    inner_immute!(ui, UiConfig);
+
+    #[cfg(feature = "encrypt-gpgme")]
+    inner_immute!(encryption, EncryptConfig);
 }
 
 impl Default for KeyConfig {
@@ -266,15 +293,10 @@ impl Default for UiConfig {
             looping:              true,
             flashy:               true,
             history:              true,
-            history_filepath:     get_config_path()
-                .unwrap_or_else(|_| {
-                    dirs::home_dir().map_or_else(
-                        || PathBuf::from(format!("{}/.config/wutag", env!("HOME"))),
-                        |p| p.join(".config").join("wutag"),
-                    )
-                })
+            history_filepath:     PROJECT_DIRS
+                .config_dir()
                 .join("command.history")
-                .display()
+                .to_string_lossy()
                 .to_string(),
             preview_scroll_lines: 1_u16,
             preview_height:       60_u16,
@@ -355,7 +377,7 @@ impl Config {
 
     /// Loads configuration file from the default location
     pub(crate) fn load_default_location() -> Result<Self> {
-        Self::load(get_config_path()?)
+        Self::load(PROJECT_DIRS.config_dir())
     }
 }
 
@@ -406,11 +428,11 @@ impl UiConfig {
     /// See [`alias_replace`](crate::ui::ui_app::UiApp::alias_replace) for more
     /// information on what this does and why I'm doing it
     pub(crate) fn build_alias_hash(&mut self) -> IndexMap<String, String> {
-        if self.alias_hash.is_empty() && !self.default_alias {
-            return IndexMap::new();
-        }
-
         let mut alias_hash = IndexMap::new();
+
+        if self.alias_hash.is_empty() && !self.default_alias {
+            return alias_hash;
+        }
 
         for var in self.alias_hash.keys() {
             alias_hash.insert(
@@ -433,119 +455,27 @@ impl UiConfig {
             );
         }
 
-        // The unwrap INVALID_ is used here since these will get inserted into the hash
-        // anyway, if for whatever reason a distribution does not have this directory,
-        // it should never get registered because the path will never be visitied to tag
-        // a file for it to register. It would be better to have this than an error
-        // thrown, causing the program to crash
         if self.default_alias {
-            // Used to insert the default directory given by `dirs`
-            let insert_default =
-                |hash: &mut IndexMap<String, String>, dir: Option<PathBuf>, name: &str| {
-                    hash.insert(
-                        dir.unwrap_or_else(|| {
-                            PathBuf::from(format!("INVALID_{}_DIR", name.replace("DIR", "")))
-                        })
-                        .display()
-                        .to_string(),
-                        format!("%{}", name),
-                    )
-                };
-
-            // Used for alternative folders on `macOS`. Use XDG specs instead
-            let alt_dirs = |path: Option<PathBuf>, join: &str, var: &str| -> String {
-                // Test whether the XDG variable is set. If not join with the `join`
-                #[cfg(target_os = "macos")]
-                let dir_og = std::env::var_os(format!("XDG_{}", var))
-                    .map(PathBuf::from)
-                    .filter(|p| p.is_absolute())
-                    .or_else(|| dirs::home_dir().map(|d| d.join(join)))
-                    .context(format!("Invalid {} directory", var));
-
-                #[cfg(not(target_os = "macos"))]
-                let dir_og = path;
-
-                dir_og
-                    .unwrap_or_else(|| {
-                        PathBuf::from(format!("INVALID_{}_DIR", join.to_uppercase()))
-                    })
-                    .display()
-                    .to_string()
+            let mut insert = |dir: PathBuf, name: &str| {
+                alias_hash.insert(dir.to_string_lossy().to_string(), format!("%{}", name));
             };
 
-            let insert_alt = |hash: &mut IndexMap<String, String>,
-                              dir: Option<PathBuf>,
-                              join: &str,
-                              name: &str| {
-                hash.insert(alt_dirs(dir, join, name), format!("%{}", name));
-            };
-
-            // For example:
-            //      - linux: XDG_MUSIC_DIR - /home/alice/Music
-            //      - macos: $HOME/Music   - /Users/alice/Music
-            // They're in the same spot so `insert_default` is used
-            insert_default(&mut alias_hash, dirs::audio_dir(), "MUSIC_DIR");
-
-            // For example:
-            //      - linux: XDG_CACHE_DIR          - /home/alice/.cache
-            //      - macos: $HOME/Library/Caches   - /Users/alice/Library/Caches
-            // They're not in the same spot, so join `$HOME` with `.cache` on `macOS`
-            insert_alt(&mut alias_hash, dirs::cache_dir(), ".cache", "CACHE_HOME");
-
-            insert_alt(
-                &mut alias_hash,
-                dirs::config_dir(),
-                ".config",
-                "CONFIG_HOME",
-            );
-
-            insert_alt(
-                &mut alias_hash,
-                dirs::data_dir(),
-                ".local/share",
-                "DATA_HOME",
-            );
-
-            insert_default(&mut alias_hash, dirs::desktop_dir(), "DESKTOP");
-            insert_default(&mut alias_hash, dirs::document_dir(), "DOCUMENTS");
-            insert_default(&mut alias_hash, dirs::download_dir(), "DOWNLOADS");
-
-            // Not set on `macOS` at all
-            insert_alt(
-                &mut alias_hash,
-                dirs::executable_dir(),
-                ".local/bin",
-                "BIN_HOME",
-            );
-
-            insert_default(&mut alias_hash, dirs::font_dir(), "FONTS_DIR");
-            insert_default(&mut alias_hash, dirs::picture_dir(), "PICTURES");
-            insert_default(&mut alias_hash, dirs::public_dir(), "PUBLIC_DIR");
-
-            // Not set on `macOS` at all
-            insert_alt(
-                &mut alias_hash,
-                dirs::template_dir(),
-                "Templates",
-                "TEMPLATE_DIR",
-            );
-
-            insert_default(&mut alias_hash, dirs::video_dir(), "VIDEO_DIR");
+            insert(PROJECT_DIRS.hash_audio_dir().to_path_buf(), "MUSIC_DIR");
+            insert(PROJECT_DIRS.hash_cache_dir().to_path_buf(), "CACHE_HOME");
+            insert(PROJECT_DIRS.hash_config_dir().to_path_buf(), "CONFIG_HOME");
+            insert(PROJECT_DIRS.hash_data_dir().to_path_buf(), "DATA_HOME");
+            insert(PROJECT_DIRS.hash_desktop_dir().to_path_buf(), "DESKTOP");
+            insert(PROJECT_DIRS.hash_document_dir().to_path_buf(), "DOCUMENTS");
+            insert(PROJECT_DIRS.hash_download_dir().to_path_buf(), "DOWNLOADS");
+            insert(PROJECT_DIRS.hash_executable_dir().to_path_buf(), "BIN_HOME");
+            insert(PROJECT_DIRS.hash_font_dir().to_path_buf(), "FONTS_DIR");
+            insert(PROJECT_DIRS.hash_picture_dir().to_path_buf(), "PICTURES");
+            insert(PROJECT_DIRS.hash_public_dir().to_path_buf(), "PUBLIC_DIR");
+            insert(PROJECT_DIRS.hash_template_dir().to_path_buf(), "TEMPLATES");
+            insert(PROJECT_DIRS.hash_video_dir().to_path_buf(), "VIDEO_DIR");
 
             // Lastly, do `$HOME` so all others will be replaced first
-            insert_default(&mut alias_hash, dirs::home_dir(), "HOME");
-
-            // Closure needs to be altered to fit something not in $HOME
-            // directory insert_alt(
-            //     &mut alias_hash,
-            //     dirs::runtime_dir(),
-            //     env::var_os("TMPDIR")
-            //         .unwrap_or_else(|| OsString::from("/tmp"))
-            //         .to_str()
-            //         .unwrap()
-            //         .to_string(),
-            //     "RUNTIME_DIR",
-            // );
+            insert(PROJECT_DIRS.home_dir().to_path_buf(), "HOME");
         }
 
         alias_hash
@@ -563,11 +493,11 @@ pub(crate) enum HeaderAlignment {
 }
 
 impl From<HeaderAlignment> for Alignment {
-    fn from(other: HeaderAlignment) -> Alignment {
+    fn from(other: HeaderAlignment) -> Self {
         match other {
-            HeaderAlignment::Left => Alignment::Left,
-            HeaderAlignment::Center => Alignment::Center,
-            HeaderAlignment::Right => Alignment::Right,
+            HeaderAlignment::Left => Self::Left,
+            HeaderAlignment::Center => Self::Center,
+            HeaderAlignment::Right => Self::Right,
         }
     }
 }
@@ -575,29 +505,11 @@ impl From<HeaderAlignment> for Alignment {
 impl FromStr for HeaderAlignment {
     type Err = ();
 
-    fn from_str(s: &str) -> Result<HeaderAlignment, Self::Err> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_ascii_lowercase().trim() {
-            "left" => Ok(HeaderAlignment::Left),
-            "right" => Ok(HeaderAlignment::Right),
-            _ => Ok(HeaderAlignment::Center),
+            "left" => Ok(Self::Left),
+            "right" => Ok(Self::Right),
+            _ => Ok(Self::Center),
         }
     }
-}
-
-/// Get the configuration file's dirname ($XDG_CONFIG_HOME/wutag) on both
-/// `macOS` and Linux
-pub(crate) fn get_config_path() -> Result<PathBuf> {
-    #[cfg(target_os = "macos")]
-    let conf_dir_og = std::env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .filter(|p| p.is_absolute())
-        .or_else(|| dirs::home_dir().map(|d| d.join(".config")))
-        .context("Invalid configuration directory");
-
-    #[cfg(not(target_os = "macos"))]
-    let conf_dir_og = dirs::config_dir();
-
-    conf_dir_og
-        .map(|p| p.join("wutag"))
-        .context("unable to join config path")
 }

@@ -47,8 +47,8 @@ pub(crate) struct TableState {
 }
 
 impl Default for TableState {
-    fn default() -> TableState {
-        TableState {
+    fn default() -> Self {
+        Self {
             offset:            0,
             current_selection: Some(0),
             marked:            HashSet::new(),
@@ -70,7 +70,7 @@ impl TableState {
         self.mode = TableSelection::Single;
     }
 
-    pub(crate) fn current_selection(&self) -> Option<usize> {
+    pub(crate) const fn current_selection(&self) -> Option<usize> {
         self.current_selection
     }
 
@@ -136,7 +136,7 @@ pub(crate) struct Cell<'a> {
 
 impl Cell<'_> {
     /// Set the `Style` of this cell.
-    pub(crate) fn style(mut self, style: Style) -> Self {
+    pub(crate) const fn style(mut self, style: Style) -> Self {
         self.style = style;
         self
     }

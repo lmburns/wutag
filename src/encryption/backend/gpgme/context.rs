@@ -43,6 +43,7 @@ pub(crate) struct Context {
 }
 
 impl Context {
+    /// Convert a `GpgmeContext` to a `Context`
     pub(crate) fn from(context: GpgmeContext) -> Self {
         Self { context }
     }
@@ -104,6 +105,7 @@ impl InnerCtx for Context {
 /// GPGME context error
 #[derive(Debug, Error)]
 pub(crate) enum Error {
+    /// Unable to obtain `GPGME` context
     #[error("failed to obtain GPGME cryptography context")]
     Context(#[source] gpgme::Error),
 }

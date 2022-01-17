@@ -58,7 +58,7 @@ impl App {
         }
 
         let buffer = cursor.into_inner();
-        let mut script = String::from_utf8(buffer).expect("Clap completion not UTF-8");
+        let mut script = String::from_utf8(buffer).expect("clap completion not UTF-8");
 
         // Replace Zsh completion output to make it better
         // I may work on other shells, but am very familiar with Zsh, so that is why it

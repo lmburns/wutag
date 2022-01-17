@@ -13,7 +13,7 @@ use std::{
     ops::Deref,
 };
 
-// =================== SqlBuilder =====================
+// ============================ SqlBuilder ============================
 
 /// Builder for an `SQL` query
 pub(crate) struct SqlBuilder {
@@ -121,7 +121,7 @@ impl fmt::Debug for SqlBuilder {
     }
 }
 
-// ====================== Sort ========================
+// ============================== Sort ===============================
 
 /// The method in which the files should be sorted in the database
 #[derive(Debug, Copy, Clone)]
@@ -136,6 +136,8 @@ pub(crate) enum Sort {
     CreationTime,
     /// Sort by the `File` `size`
     FileSize,
+    /// Do not sort the `File`s
+    None,
 }
 
 impl fmt::Display for Sort {
@@ -146,6 +148,7 @@ impl fmt::Display for Sort {
             Sort::ModificationTime => f.write_str("ORDER BY mtime, directory || '/' || name"),
             Sort::CreationTime => f.write_str("ORDER BY ctime, directory || '/' || name"),
             Sort::FileSize => f.write_str("ORDER BY size, directory || '/' || name"),
+            Sort::None => f.write_str(""),
         }
     }
 }

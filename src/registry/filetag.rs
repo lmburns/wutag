@@ -21,7 +21,6 @@
 //! ```
 
 use super::{
-    sqlbuilder::{Sort, SqlBuilder},
     types::{
         file::FileId,
         filetag::{FileTag, FileTags},
@@ -44,7 +43,6 @@ use rusqlite::{
 // ========================== FileTag Actions =========================
 
 impl Txn<'_> {
-    // ====================================================================
     // ============================ Retrieving ============================
     // ====================================================================
 
@@ -152,7 +150,6 @@ impl Txn<'_> {
         Ok(filetags.into())
     }
 
-    // ====================================================================
     // ============================= Modifying ============================
     // ====================================================================
 
@@ -170,7 +167,8 @@ impl Txn<'_> {
         Ok(ft.clone())
     }
 
-    /// Remove a `FileTag` from the database that matches the given `FileTag`
+    /// Remove a [`FileTag`] from the database that matches the given
+    /// [`FileTag`]
     pub(crate) fn delete_filetag(&self, ft: &FileTag) -> Result<(), Error> {
         let affected = self
             .execute(

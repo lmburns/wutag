@@ -49,6 +49,7 @@ pub(crate) struct Config {
     /// Format the file is in when using `view` subcommand
     pub(crate) format:          Option<String>,
 
+    // pub(crate) root_path: PathBuf,
     /// Configuration dealing with keys
     #[cfg(feature = "ui")]
     #[serde(rename = "keys", alias = "Keys")]

@@ -63,18 +63,26 @@ impl Implication {
     }
 }
 
-// impl TryFrom<&Row<'_>> for Implication {
-//     type Error = rsq::Error;
-//
-//     fn try_from(row: &Row) -> Result<Self, Self::Error> {
-//         Ok(Self {
-//             implying_tag: row.get("tag_id")?,
-//             implying_val: row.get("value_id")?,
-//             implied_tag:  row.get("implied_tag_id")?,
-//             implied_val:  row.get("implied_value_id")?,
-//         })
-//     }
-// }
+impl TryFrom<&Row<'_>> for Implication {
+    type Error = rsq::Error;
+
+    fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        Ok(Self {
+            implying_tag: Tag::new(
+                row.get("tag.id")?,
+                row.get::<_, String>("tag.name")?,
+                row.get::<_, String>("tag.color")?,
+            ),
+            implying_val: Value::new(row.get("value.id")?, row.get("value.name")?),
+            implied_tag:  Tag::new(
+                row.get(5)?,
+                row.get::<_, String>(6)?,
+                row.get::<_, String>(7)?,
+            ),
+            implied_val:  Value::new(row.get(8)?, row.get(9)?),
+        })
+    }
+}
 
 // =================== Implications ===================
 

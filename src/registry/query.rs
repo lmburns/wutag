@@ -4,8 +4,7 @@
 //! Schema of table:
 //! ```sql
 //! CREATE TABLE IF NOT EXISTS query (
-//!     sha BINARY(32) PRIMARY KEY,
-//!     text TEXT NOT NULL
+//!     text TEXT NOT NULL PRIMARY KEY
 //! );
 //! ```
 
@@ -53,6 +52,49 @@ impl Txn<'_> {
         Ok(queries.into())
     }
 
+    /// Retrieve a [`Query`] that matches the given text
+    pub(crate) fn query<S: AsRef<str>>(&self, q: S) -> Result<Query> {
+        let query: Query = self
+            .select(
+                "SELECT 1
+                FROM query
+                WHERE text = ?1",
+                params![q.as_ref()],
+                |row| {
+                    let r: Query = row.try_into().expect("failed to convert to `Query`");
+                    Ok(r)
+                },
+            )
+            .context("failed to query for `Query`")?;
+
+        Ok(query)
+    }
+
     // ============================= Modifying ============================
     // ====================================================================
+
+    /// Insert a [`Query`] into the query table. Returns a [`Query`]
+    pub(crate) fn insert_query<S: AsRef<str>>(&self, q: S) -> Result<Query> {
+        let q = q.as_ref();
+        self.insert(
+            "INSERT INTO query (text)
+            VALUES (?1)",
+            params![q],
+        )
+        .context("failed to insert `Query`")?;
+
+        Ok(Query::new(q))
+    }
+
+    /// Delete a [`Query`] from the query table
+    pub(crate) fn delete_query<S: AsRef<str>>(&self, q: S) -> Result<()> {
+        self.execute(
+            "DELETE FROM query
+            WHERE text = ?",
+            params![q.as_ref()],
+        )
+        .context("failed to delete `Query`")?;
+
+        Ok(())
+    }
 }

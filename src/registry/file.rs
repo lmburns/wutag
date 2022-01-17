@@ -51,7 +51,7 @@ impl Txn<'_> {
     // ============================ Retrieving ============================
     // ====================================================================
 
-    /// Retrieve the number of files in the database
+    /// Retrieve the number of [`File`]s in the database
     pub(crate) fn file_count(&self) -> Result<u32> {
         self.select1::<u32>(
             "SELECT count(1)
@@ -60,7 +60,7 @@ impl Txn<'_> {
         .context("failed to retrieve `File` count")
     }
 
-    /// Retrieve the number of files matching a specific `hash`
+    /// Retrieve the number of [`File`]s matching a specific `hash`
     pub(crate) fn file_count_by_hash<S: AsRef<str>>(&self, fp: S) -> Result<u32> {
         self.select(
             "SELECT count(id)
@@ -72,7 +72,7 @@ impl Txn<'_> {
         .context("failed to retrieve `File` count by hash")
     }
 
-    /// Retrieve all tracked files within the database
+    /// Retrieve all tracked [`File]s within the database
     pub(crate) fn files(&self, sort: Option<Sort>) -> Result<Files> {
         let mut builder = SqlBuilder::new();
         builder.append(
@@ -107,7 +107,7 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    /// Retrieve a specific `File` within the database
+    /// Retrieve a specific [`File`] within the database
     pub(crate) fn file(&self, id: FileId) -> Result<File> {
         let file: File = self
             .select(
@@ -138,7 +138,7 @@ impl Txn<'_> {
         Ok(file)
     }
 
-    /// Retrieve a `File` matching a specified `directory` and `name`
+    /// Retrieve a [`File`] matching a specified `directory` and `name`
     /// (`PathBuf`)
     pub(crate) fn file_by_path<P: AsRef<Path>>(&self, path: P) -> Result<File> {
         let path = path.as_ref();
@@ -219,7 +219,7 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    /// Retrieve all `File`s matching a specific `hash`
+    /// Retrieve all [`File`]s matching a specific `hash`
     pub(crate) fn files_by_hash<S: AsRef<str>>(&self, fp: S) -> Result<Files> {
         let fp = fp.as_ref();
 
@@ -251,7 +251,7 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    /// Retrieve all `File`s matching a specific `MimeType`
+    /// Retrieve all [`File`]s matching a specific [`MimeType`]
     pub(crate) fn files_by_mime<S: AsRef<str>>(&self, mime: S) -> Result<Files> {
         let mime = mime.as_ref();
 
@@ -283,7 +283,7 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    /// Retrieve all `File`s matching a specific `mtime`
+    /// Retrieve all [`File`]s matching a specific `mtime`
     pub(crate) fn files_by_mtime<S: AsRef<str>>(&self, mtime: S) -> Result<Files> {
         let mtime = mtime.as_ref();
 
@@ -315,7 +315,7 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    /// Retrieve all `File`s matching a specific `ctime`
+    /// Retrieve all [`File`]s matching a specific `ctime`
     pub(crate) fn files_by_ctime<S: AsRef<str>>(&self, ctime: S) -> Result<Files> {
         let ctime = ctime.as_ref();
 
@@ -347,7 +347,7 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    /// Retrieve all `File`s matching a specific `mode`
+    /// Retrieve all [`File`]s matching a specific `mode`
     pub(crate) fn files_by_mode<S: AsRef<str>>(&self, mode: S) -> Result<Files> {
         let mode = mode.as_ref();
 
@@ -379,7 +379,7 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    /// Retrieve all `File`s matching a specific `inode`
+    /// Retrieve all [`File`]s matching a specific `inode`
     pub(crate) fn files_by_inode(&self, inode: u64) -> Result<Files> {
         let files: Vec<File> = self
             .query_vec(
@@ -409,7 +409,7 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    /// Retrieve all `File`s matching a specific `size`
+    /// Retrieve all [`File`]s matching a specific `size`
     pub(crate) fn files_by_size(&self, size: u64) -> Result<Files> {
         let files: Vec<File> = self
             .query_vec(
@@ -439,7 +439,7 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    /// Retrieve the set of `Files` that are untagged
+    /// Retrieve the set of [`Files`] that are untagged
     pub(crate) fn files_untagged(&self) -> Result<Files> {
         let files: Vec<File> = self
             .query_vec(
@@ -470,17 +470,20 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    // /// Retrieve the count of `File`s matching the given `query` and `Path`
-    // pub(crate) fn file_count_by_query<S: AsRef<str>, P: AsRef<Path>>(
-    //     &self,
-    //     expr: S,
-    //     path: P,
-    //     cwd: bool,
-    //     explicit: bool,
-    //     ignore_case: bool,
-    // ) -> Result<u32> {
-    //     todo!()
-    // }
+    // TODO:
+
+    /// Retrieve the count of `File`s matching the given `query` and `Path`
+    #[allow(clippy::unused_self)]
+    pub(crate) fn file_count_by_query<S: AsRef<str>, P: AsRef<Path>>(
+        &self,
+        expr: S,
+        path: P,
+        cwd: bool,
+        explicit: bool,
+        ignore_case: bool,
+    ) -> Result<u32> {
+        todo!()
+    }
 
     // /// Retrieve the set of `Files` matching the given `query` and `Path`
     // #[allow(clippy::fn_params_excessive_bools)]
@@ -559,19 +562,19 @@ impl Txn<'_> {
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
                 params![
-                    f.directory,
-                    f.name,
-                    f.hash,
-                    f.mime,
-                    f.mtime,
-                    f.ctime,
-                    f.mode,
-                    f.inode,
-                    f.links,
-                    f.uid,
-                    f.gid,
-                    f.size,
-                    f.is_dir
+                    f.directory(),
+                    f.name(),
+                    f.hash(),
+                    f.mime(),
+                    f.mtime(),
+                    f.ctime(),
+                    f.mode(),
+                    f.inode(),
+                    f.links(),
+                    f.uid(),
+                    f.gid(),
+                    f.size(),
+                    f.is_dir()
                 ],
             )
             .context("failed to insert `File`")?;
@@ -606,19 +609,19 @@ impl Txn<'_> {
                     is_dir = ?13
                 WHERE id = ?14",
                 params![
-                    f.directory,
-                    f.name,
-                    f.hash,
-                    f.mime,
-                    f.mtime,
-                    f.ctime,
-                    f.mode,
-                    f.inode,
-                    f.links,
-                    f.uid,
-                    f.gid,
-                    f.size,
-                    f.is_dir,
+                    f.directory(),
+                    f.name(),
+                    f.hash(),
+                    f.mime(),
+                    f.mtime(),
+                    f.ctime(),
+                    f.mode(),
+                    f.inode(),
+                    f.links(),
+                    f.uid(),
+                    f.gid(),
+                    f.size(),
+                    f.is_dir(),
                     id
                 ],
             )

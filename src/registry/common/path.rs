@@ -1,12 +1,10 @@
 //! Operations on paths of [`File`]s
 
-use crate::{path_str, regex};
+use crate::path_str;
 use anyhow::{Context, Result};
 use lexiclean::Lexiclean;
 use once_cell::sync::Lazy;
-use regex::{Captures, Regex};
 use std::{
-    borrow::Cow,
     env, fs,
     path::{self, Path, PathBuf},
 };
@@ -14,23 +12,16 @@ use std::{
 /// A path on the filesystem. Basically a wrapper for [`PathBuf`]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct FsPath {
-    /// Is the `Path` a directory?
-    is_dir: bool,
     /// The `PathBuf` of the file
-    path:   PathBuf,
-}
-
-/// Unescape an octal sequence
-pub(crate) fn unescape_octal(s: &str) -> Cow<'_, str> {
-    let reg = regex!(r"([0-7]{3})");
-    let unescape = |s: &str| u32::from_str_radix(s, 8).expect("failed to parse to octal");
-
-    reg.replace_all(s, |caps: &Captures| {
-        unescape(caps.get(0).map_or("", |m| m.as_str())).to_string()
-    })
+    path: PathBuf,
 }
 
 impl FsPath {
+    /// Return the innerr [`PathBuf`]
+    pub(crate) fn path(&self) -> &Path {
+        &self.path
+    }
+
     /// Is the file a basename?
     pub(crate) fn is_dirname(&self) -> Result<bool> {
         Ok(self
@@ -46,7 +37,7 @@ impl FsPath {
         self.path.canonicalize().context("failed to canonicalize")
     }
 
-    /// Return the relative path of the file
+    /// Return the relative path of the file to the `CWD`
     pub(crate) fn relative(&self) -> Result<PathBuf> {
         let path = self.path.canonicalize().context("failed to canonicalize")?;
         let cwd = env::current_dir()
@@ -97,22 +88,21 @@ impl FsPath {
 
         Ok(path)
     }
+
+    // TODO: May not bee needed
+    // Determine whether the path contains the database root path
 }
 
 impl From<PathBuf> for FsPath {
     fn from(p: PathBuf) -> Self {
-        Self {
-            is_dir: p.is_dir(),
-            path:   p,
-        }
+        Self { path: p }
     }
 }
 
 impl From<&Path> for FsPath {
     fn from(p: &Path) -> Self {
         Self {
-            is_dir: p.is_dir(),
-            path:   p.to_path_buf(),
+            path: p.to_path_buf(),
         }
     }
 }

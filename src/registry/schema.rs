@@ -146,10 +146,6 @@ impl Registry {
         Ok(())
     }
 
-    // TODO: UNHEX(SHA2('word', 256))
-    // In sqlite: X'...'
-    // cast(x'...' as text)
-
     /// Create the `query` table
     ///
     /// This table is used to query other tables
@@ -157,8 +153,7 @@ impl Registry {
         log::debug!("creating query table");
         self.exec_no_params(
             "CREATE TABLE IF NOT EXISTS query (
-                sha BINARY(32) PRIMARY KEY,
-                text TEXT NOT NULL
+                text TEXT PRIMARY KEY
             )",
         )
         .context("failed to create table `query`")?;
@@ -229,7 +224,6 @@ impl Registry {
         Ok(())
     }
 
-    // ====================================================================
     // ============================= Version ==============================
     // ====================================================================
 

@@ -5,10 +5,12 @@
 
 #![allow(unused)]
 
+pub(crate) mod api;
 pub(crate) mod common;
 pub(crate) mod file;
 pub(crate) mod filetag;
 pub(crate) mod implication;
+pub(crate) mod querier;
 pub(crate) mod query;
 pub(crate) mod schema;
 pub(crate) mod sqlbuilder;
@@ -86,6 +88,10 @@ pub(crate) enum Error {
     #[error("{0}")]
     General(String),
 
+    /// `Implication` does not exist
+    #[error("implication does not exist in database: {0}")]
+    NonexistentImpl(String),
+
     /// `File` does not exist
     #[error("file does not exist in database: {0}")]
     NonexistentFile(String),
@@ -124,6 +130,9 @@ pub(crate) struct Registry {
     conn:    Connection,
     /// The version the database is using TODO: Maybe Version struct
     version: u32,
+    // -
+    // /// Root path of the database
+    // root_path: PathBuf,
 }
 
 impl Registry {
@@ -352,7 +361,6 @@ impl Registry {
         Ok(v)
     }
 
-    // ====================================================================
     // ============================ Recreation ============================
     // ====================================================================
 
@@ -400,14 +408,16 @@ impl Registry {
         Ok(())
     }
 
-    // ===================== Conversion ===================
+    // ============================ Conversion ============================
+    // ====================================================================
 
     /// Convert to a [`Txn`](self::transaction::Txn)
     pub(crate) fn txn(&self) -> Result<Txn<'_>> {
         Txn::new(self).context("failed to build `Txn`")
     }
 
-    // ======================== Other =====================
+    // ============================== Other ===============================
+    // ====================================================================
 
     // TODO: 1 or 2 args?
 
@@ -562,7 +572,8 @@ impl Registry {
     }
 }
 
-// =================== Helper Functions ===============
+// ========================= Helper Functions =========================
+// ====================================================================
 
 /// Get the path to the database
 pub(crate) fn db_path() -> Result<PathBuf> {

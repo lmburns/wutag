@@ -310,7 +310,11 @@ pub(crate) fn contains_upperchar(pattern: &str) -> bool {
 }
 
 /// Build a regular expression with [`RegexBuilder`](regex::bytes::RegexBuilder)
-pub(crate) fn regex_builder(pattern: &str, case_insensitive: bool, case_sensitive: bool) -> Regex {
+pub(crate) fn regex_builder(
+    pattern: &str,
+    case_insensitive: bool,
+    case_sensitive: bool,
+) -> regex::bytes::Regex {
     let sensitive = !case_insensitive && (case_sensitive || contains_upperchar(pattern));
 
     log::debug!(

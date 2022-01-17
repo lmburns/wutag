@@ -14,6 +14,7 @@ use super::{
     wuid::Wuid,
     ID,
 };
+use crate::inner_immute;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Local};
 use lexiclean::Lexiclean;
@@ -45,44 +46,70 @@ pub(crate) type FileId = ID;
 #[derive(Debug, Clone)]
 pub(crate) struct File {
     /// File ID, similar to UUID
-    pub(crate) id:        FileId,
+    pub(crate) id: FileId,
     /// Directory the file is located.
     ///
     /// This is a directory regardless of whether the item is a file or a
     /// directory. If the item is a directory, this will be the directory that
     /// is above the chosen directory. If the item is a file, then this will be
     /// the parent directory that houses that file
-    pub(crate) directory: String,
+    directory:     String,
     /// Basename of the filepath. This can be a file or a directory name
-    pub(crate) name:      String,
+    name:          String,
     /// [`blake3`](blake3) hash of the file or directory
-    pub(crate) hash:      String,
+    hash:          String,
     /// [`MimeType`](crate::util::MimeType) of a file
-    pub(crate) mime:      MimeType,
+    mime:          MimeType,
     /// Modification time
-    pub(crate) mtime:     DateTime<Local>,
+    mtime:         DateTime<Local>,
     /// Creation time
-    pub(crate) ctime:     DateTime<Local>,
+    ctime:         DateTime<Local>,
     /// File permission in base-10
-    pub(crate) mode:      u32,
+    mode:          u32,
     /// Index node of a file / directory
-    pub(crate) inode:     u64,
+    inode:         u64,
     /// Number of hard links pointing to the file / directory
-    pub(crate) links:     u64,
+    links:         u64,
     /// User ID of the file / directory
-    pub(crate) uid:       u32,
+    uid:           u32,
     /// Group ID of the file / directory
-    pub(crate) gid:       u32,
+    gid:           u32,
     /// Size of a file in TODO:
-    pub(crate) size:      u64,
+    size:          u64,
     /// Is the file name a directory?
-    pub(crate) is_dir:    bool,
+    is_dir:        bool,
 }
 
 // To use this, the scan of the files would have to be done regularly
 // atime:     DateTime<Local>,
 
 impl File {
+    inner_immute!(directory, String);
+
+    inner_immute!(name, String);
+
+    inner_immute!(hash, String);
+
+    inner_immute!(mime, MimeType);
+
+    inner_immute!(mtime, DateTime<Local>);
+
+    inner_immute!(ctime, DateTime<Local>);
+
+    inner_immute!(mode, u32, false);
+
+    inner_immute!(inode, u64, false);
+
+    inner_immute!(links, u64, false);
+
+    inner_immute!(uid, u32, false);
+
+    inner_immute!(gid, u32, false);
+
+    inner_immute!(size, u64, false);
+
+    inner_immute!(is_dir, bool, false);
+
     /// Create a new `File`. A file can be a directory
     pub(crate) fn new<P: AsRef<Path>>(path: P, follow_links: bool) -> Result<Self> {
         let path = path
@@ -187,9 +214,29 @@ impl Files {
         Self { inner: v }
     }
 
+    /// Create a new blank set of [`Files`]
+    pub(crate) const fn empty() -> Self {
+        Self { inner: vec![] }
+    }
+
+    /// Extend the inner vector of [`Files`]
+    pub(crate) fn extend(&mut self, v: &[File]) {
+        self.inner.extend_from_slice(v);
+    }
+
     /// Add a [`File`] to the set of [`Files`]
     pub(crate) fn push(&mut self, file: File) {
         self.inner.push(file);
+    }
+
+    /// Return the inner vector of [`Files`
+    pub(crate) fn inner(&self) -> &[File] {
+        &self.inner
+    }
+
+    /// Combine with another [`Files`] object
+    pub(crate) fn combine(&mut self, other: &Self) {
+        self.extend(other.inner());
     }
 
     /// Adds [`File`] that match a closure to a new [`Files`] struct
@@ -232,55 +279,36 @@ pub(crate) struct FileTagCnt {
 #[derive(Debug, Clone, Hash, PartialOrd, Ord, PartialEq, Eq)]
 pub(crate) struct MimeType(pub(crate) Mime);
 
+macro_rules! mime_try {
+    ($t:tt) => {
+        impl TryFrom<&$t> for MimeType {
+            type Error = anyhow::Error;
+
+            fn try_from(path: &$t) -> Result<Self, Self::Error> {
+                let mime_db = xdg_mime::SharedMimeInfo::new();
+                let mut builder = mime_db.guess_mime_type();
+                let guess = builder
+                    .path(path)
+                    .metadata(fs::metadata(path).with_context(|| {
+                        format!("failed to get metadata for: {}", path.display())
+                    })?)
+                    .data(
+                        &fs::read(path)
+                            .with_context(|| format!("failed to read file: {}", path.display()))?,
+                    )
+                    .guess();
+
+                let mime = guess.mime_type();
+
+                Ok(Self(mime.clone()))
+            }
+        }
+    };
+}
+
 // Both of these conversion here really seem unnecessary
-
-impl TryFrom<&Path> for MimeType {
-    type Error = anyhow::Error;
-
-    fn try_from(path: &Path) -> Result<Self, Self::Error> {
-        let mime_db = xdg_mime::SharedMimeInfo::new();
-        let mut builder = mime_db.guess_mime_type();
-        let guess = builder
-            .path(path)
-            .metadata(
-                fs::metadata(path)
-                    .with_context(|| format!("failed to get metadata for: {}", path.display()))?,
-            )
-            .data(
-                &fs::read(path)
-                    .with_context(|| format!("failed to read file: {}", path.display()))?,
-            )
-            .guess();
-
-        let mime = guess.mime_type();
-
-        Ok(Self(mime.clone()))
-    }
-}
-
-impl TryFrom<&PathBuf> for MimeType {
-    type Error = anyhow::Error;
-
-    fn try_from(path: &PathBuf) -> Result<Self, Self::Error> {
-        let mime_db = xdg_mime::SharedMimeInfo::new();
-        let mut builder = mime_db.guess_mime_type();
-        let guess = builder
-            .path(path)
-            .metadata(
-                fs::metadata(path)
-                    .with_context(|| format!("failed to get metadata for: {}", path.display()))?,
-            )
-            .data(
-                &fs::read(path)
-                    .with_context(|| format!("failed to read file: {}", path.display()))?,
-            )
-            .guess();
-
-        let mime = guess.mime_type();
-
-        Ok(Self(mime.clone()))
-    }
-}
+mime_try!(Path);
+mime_try!(PathBuf);
 
 impl FromStr for MimeType {
     type Err = anyhow::Error;

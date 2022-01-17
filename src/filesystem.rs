@@ -161,13 +161,13 @@ pub(crate) fn create_temp_path() -> String {
             .map(char::from)
             .collect::<String>()
     ));
-    tmp_path.display().to_string()
+    tmp_path.to_string_lossy().to_string()
 }
 
 /// Modify the temporary ignores file that is built from the configuration file
 pub(crate) fn modify_temp_ignore<P: AsRef<Path>>(
     path: P,
-    content: &dyn Fn(&mut File) -> io::Result<()>,
+    content: impl FnOnce(&mut File) -> io::Result<()>,
 ) -> Result<PathBuf, Error> {
     let res = File::create(&path);
     let path = path.as_ref().to_path_buf();
@@ -189,7 +189,7 @@ pub(crate) fn modify_temp_ignore<P: AsRef<Path>>(
 }
 
 /// Create the temporary ignore file with the given contents
-pub(crate) fn create_temp_ignore(content: &dyn Fn(&mut File) -> io::Result<()>) -> String {
+pub(crate) fn create_temp_ignore(content: impl FnOnce(&mut File) -> io::Result<()>) -> String {
     let tmp = create_temp_path();
     match modify_temp_ignore(&tmp, content) {
         Ok(tmp) => return tmp.display().to_string(),

@@ -6,6 +6,7 @@ use super::{
     App,
 };
 
+/// Arguments to the `rm` subcommand
 #[derive(Args, Clone, Debug, PartialEq)]
 pub(crate) struct RmOpts {
     /// A glob pattern like "*.png" (or regex).
@@ -14,6 +15,7 @@ pub(crate) struct RmOpts {
 }
 
 impl App {
+    /// `rm` subcommand
     pub(crate) fn rm(&mut self, opts: &RmOpts) {
         // Global will match a glob only against files that are tagged
         // Could add a fixed string option

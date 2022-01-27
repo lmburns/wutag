@@ -20,7 +20,6 @@ pub(crate) static PROJECT_DIRS: Lazy<WutagDirs> =
 ///
 /// [`build_alias_hash`]: (crate::config::UiConfig::build_alias_hash) and
 /// [`alias_replace`]: (crate::ui::ui_app::UiApp::alias_replace)
-
 #[derive(Debug, Clone)]
 pub(crate) struct WutagDirs {
     // === Main project directories ===

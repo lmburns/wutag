@@ -1,7 +1,7 @@
 //! A value that a [`Tag`] can have. In the database, the table is named
 //! `xattr`, since it is an extended attribute of the [`Tag`] itself
 
-use super::{from_vec, wuid::Wuid, ID};
+use super::{from_vec, impl_vec, ID};
 use rusqlite::{
     self as rsq,
     types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, ValueRef},
@@ -9,9 +9,28 @@ use rusqlite::{
 };
 use serde::{Deserialize, Serialize};
 
-/// Alias to [`Uuid`](uuid::Uuid)
-// pub(crate) type ValueId = Wuid;
+// ====================== ValueId =====================
+
+/// Alias to [`ID`](super::ID)
 pub(crate) type ValueId = ID;
+
+/// A vector of [`ValueId`]s
+#[derive(Debug, Clone, Ord, PartialOrd, PartialEq, Eq)]
+pub(crate) struct ValueIds {
+    inner: Vec<ValueId>,
+}
+
+from_vec!(ValueId, ValueIds);
+
+impl ValueIds {
+    impl_vec!(ValueId);
+
+    /// Get unique [`ValueIds`]
+    pub(crate) fn unique(&mut self) {
+        self.inner.sort_unstable();
+        self.inner.dedup();
+    }
+}
 
 // ======================= Value ======================
 
@@ -86,13 +105,54 @@ pub(crate) struct Values {
 from_vec!(Value, Values);
 
 impl Values {
-    /// Create a new set of [`Values`]
-    pub(crate) fn new(v: Vec<Value>) -> Self {
-        Self { inner: v }
+    impl_vec!(Value);
+
+    /// Shorthand to the Rust builtin `any`
+    pub(crate) fn any<F>(&self, f: F) -> bool
+    where
+        F: Fn(&Value) -> bool,
+    {
+        self.inner.iter().any(f)
     }
 
-    /// Add a [`Value`] to the set of [`Values`]
-    pub(crate) fn push(&mut self, file: Value) {
-        self.inner.push(file);
+    /// Does the inner vector contain a specific [`Value`] by [`ID`]?
+    pub(crate) fn contains(&self, other: &Value) -> bool {
+        self.any(|v| v.id() == other.id())
+    }
+
+    /// Does the inner vector contain a specific [`Value`] by name?
+    pub(crate) fn contains_name<S: AsRef<str>>(&self, name: S, ignore_case: bool) -> bool {
+        let name = name.as_ref();
+        self.any(|v| {
+            *v.name()
+                == ignore_case
+                    .then(|| name.to_lowercase())
+                    .unwrap_or_else(|| name.to_string())
+        })
+    }
+}
+
+mod test {
+    use super::{ValueId, ValueIds};
+
+    #[test]
+    fn unique_valueids() {
+        let v = vec![1, 2, 5, 5, 3, 1, 7]
+            .iter()
+            .map(|i| ValueId::new(*i))
+            .collect::<Vec<_>>();
+        let mut ids = ValueIds::new(v);
+
+        assert!(ids.len() == 7);
+
+        ids.unique();
+        assert!(ids.len() == 5);
+
+        assert_eq!(ids, ValueIds {
+            inner: vec![1, 2, 3, 5, 7]
+                .iter()
+                .map(|i| ValueId::new(*i))
+                .collect::<Vec<_>>(),
+        });
     }
 }

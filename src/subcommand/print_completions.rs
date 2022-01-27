@@ -8,8 +8,8 @@ use super::{
 use crate::{bold_entry, Opts};
 
 use clap::IntoApp;
-use clap_generate::{
-    generators::{Bash, Elvish, Fish, PowerShell, Zsh},
+use clap_complete::{
+    shells::{Bash, Elvish, Fish, PowerShell, Zsh},
     Shell,
 };
 use lexiclean::Lexiclean;

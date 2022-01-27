@@ -7,7 +7,6 @@ pub(crate) mod query;
 pub(crate) mod tag;
 pub(crate) mod tag_color;
 pub(crate) mod value;
-pub(crate) mod wuid;
 
 use chrono::{DateTime, Local};
 use rusqlite::{
@@ -73,7 +72,7 @@ impl Property {
 
 /// A row `ID`
 #[repr(transparent)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct ID(i64);
 
 impl ID {
@@ -273,6 +272,52 @@ macro_rules! from_vec {
     };
 }
 
-/// A `pub` call here prevents the macro from only being accessible from the
-/// crate root
+/// Base functions to use for structs that consist only of an inner vector
+macro_rules! impl_vec {
+    ($t:tt) => {
+        /// Create a new set from a vector
+        pub(crate) fn new(v: Vec<$t>) -> Self {
+            Self { inner: v }
+        }
+
+        /// Create a new blank set
+        pub(crate) const fn empty() -> Self {
+            Self { inner: vec![] }
+        }
+
+        /// Extend the inner vector
+        pub(crate) fn extend(&mut self, v: &[$t]) {
+            self.inner.extend_from_slice(v);
+        }
+
+        /// Add an item to the set
+        pub(crate) fn push(&mut self, t: $t) {
+            self.inner.push(t);
+        }
+
+        /// Return the inner vector
+        pub(crate) fn inner(&self) -> &[$t] {
+            &self.inner
+        }
+
+        /// Combine with another object
+        pub(crate) fn combine(&mut self, other: &Self) {
+            self.extend(other.inner());
+        }
+
+        /// Return the length of the inner vector
+        pub(crate) fn len(&self) -> usize {
+            self.inner.len()
+        }
+    };
+    ($impl:tt, $t:tt) => {
+        impl $impl {
+            impl_vec!($t);
+        }
+    };
+}
+
+// A `pub` qualifier prevents the macro from only being accessible from the
+// crate root
 pub(crate) use from_vec;
+pub(crate) use impl_vec;

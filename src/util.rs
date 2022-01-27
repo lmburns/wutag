@@ -2,7 +2,7 @@
 
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local};
-use clap_generate::{generate, Generator};
+use clap_complete::{generate, Generator};
 use colored::{Color, ColoredString, Colorize};
 use crossbeam_channel as channel;
 use crossbeam_utils::thread;
@@ -300,6 +300,15 @@ pub(crate) fn glob_builder(pattern: &str) -> String {
         .to_owned()
 }
 
+/// Build a glob with [`wax`] and return a string to be compiled as a regular
+/// expression
+#[allow(dead_code)]
+pub(crate) fn wax_builder<S: AsRef<str>>(pattern: S) -> String {
+    wax::Glob::new(pattern.as_ref())
+        .map(|g| g.regex().to_string())
+        .expect("failed to build glob")
+}
+
 /// Match uppercase characters against Unicode characters as well. Tags can also
 /// be any valid Unicode character
 pub(crate) fn contains_upperchar(pattern: &str) -> bool {
@@ -373,6 +382,7 @@ pub(crate) fn reg_walker(app: &Arc<App>) -> Result<ignore::WalkParallel> {
     if let Some(ignore) = &app.ignores {
         let tmp = create_temp_ignore(&move |file: &mut fs::File| write_temp_ignore(ignore, file));
         let res = walker.add_ignore(&tmp);
+        scopeguard::defer!(delete_file(tmp));
         match res {
             Some(ignore::Error::Partial(_)) | None => (),
             Some(err) => {
@@ -382,7 +392,6 @@ pub(crate) fn reg_walker(app: &Arc<App>) -> Result<ignore::WalkParallel> {
                 );
             },
         }
-        delete_file(tmp);
     }
     Ok(walker.build_parallel())
 }

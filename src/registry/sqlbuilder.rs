@@ -1,5 +1,10 @@
 //! Structure that holds an `SQL` query and its parameters
 
+use super::querier::ast::{
+    query::ParsedQuery,
+    search::{Search, SearchKind},
+    BinaryExpr, ComparisonOp, Expr, LogicalOp, UnaryExpr, UnaryOp,
+};
 use anyhow::{anyhow, Context, Result};
 use bytes::{Bytes, BytesMut};
 use itertools::Itertools;
@@ -11,6 +16,7 @@ use rusqlite::{
 use std::{
     fmt::{self, Write},
     ops::Deref,
+    path::Path,
 };
 
 // ============================ SqlBuilder ============================
@@ -100,6 +106,153 @@ impl SqlBuilder {
     pub(crate) fn nocase_collation(&mut self, ignore: bool) {
         if ignore {
             self.query.write_str(" COLLATE NOCASE ");
+        }
+    }
+
+    /// Instead of appending `COLLATE NOCASE` to the query, just return `COLLATE
+    /// NOCASE` as a string if case is to be ignored for the query
+    pub(crate) fn return_nocase_collation(ignore: bool) -> &'static str {
+        ignore.then(|| " COLLATE NOCASE ").unwrap_or("")
+    }
+
+    /// Start a query for files, returning the count
+    pub(crate) fn file_count_query<P: AsRef<Path>>(
+        expr: &ParsedQuery,
+        path: P,
+        cwd: bool,
+        explicit: bool,
+        ignore_case: bool,
+    ) -> Self {
+        let mut builder = Self::new();
+        builder.append(
+            "SELECT count(id)
+            FROM file
+            WHERE",
+        );
+
+        builder
+    }
+
+    /// Handle query branch statements by appending the corresponding SQL
+    pub(crate) fn file_handle_branch(&mut self, expr: &Expr, explicit: bool, ignore_case: bool) {
+        match expr {
+            Expr::Pattern(ref search) => match search.inner_t() {
+                SearchKind::Exact => self.build_pattern_branch(search, explicit, ignore_case),
+                SearchKind::Regex => println!("Regex query: {:#?}", expr.clone()),
+                SearchKind::Glob => println!("Glob query: {:#?}", expr.clone()),
+            },
+            _ => println!("other"),
+        }
+    }
+
+    /// Handle a comparison expression for a file query
+    pub(crate) fn build_comparison_branch(&mut self, cmp: Expr, explicit: bool, ignore_case: bool) {
+        let case = Self::return_nocase_collation(ignore_case);
+
+        if let Expr::Comparison(BinaryExpr {
+            mut operator,
+            lhs,
+            rhs,
+        }) = cmp
+        {
+            // TODO: If a number: 'CAST(v.name as float)'
+            let value = "v.name";
+
+            if operator == ComparisonOp::NotEqual {
+                operator = operator.negate();
+                self.append(" not ");
+            }
+
+            if explicit {
+                self.append(format!(
+                    "id IN (
+                        SELECT file_id
+                        FROM file_tag
+                        WHERE tag_id = (
+                            SELECT id
+                            FROM tag
+                            WHERE name {} = ",
+                    case
+                ));
+
+                // FIX: Finish
+            }
+        }
+    }
+
+    /// Handle a [`UnaryExpr`]. The only operator is `not`
+    pub(crate) fn build_not_branch(
+        &mut self,
+        expr: UnaryExpr<UnaryOp>,
+        explicit: bool,
+        ignore_case: bool,
+    ) {
+        self.append(" NOT ");
+
+        let UnaryExpr { operand, .. } = expr;
+        self.file_handle_branch(&*operand, explicit, ignore_case);
+    }
+
+    /// Handle a [`Search`] pattern for files
+    pub(crate) fn build_pattern_branch(
+        &mut self,
+        patt: &Search,
+        explicit: bool,
+        ignore_case: bool,
+    ) {
+        let case = Self::return_nocase_collation(ignore_case);
+
+        if explicit {
+            self.appendln(format!(
+                "id IN (
+                    SELECT file_id
+                    FROM file_tag
+                    WHERE tag_id = (
+                        SELECT id
+                        FROM tag
+                        WHERE name {} = ",
+                case
+            ));
+            self.append_param(patt.inner().clone());
+            self.appendln("))");
+        } else {
+            self.appendln(format!(
+                "id IN (
+                    SELECT file_id
+                    FROM file_tag
+                    INNER JOIN (
+                        WITH RECURSIVE working (tag_id, value_id) AS
+                            (
+                                SELECT id, 0
+                                FROM tag
+                                WHERE name {} = ",
+                case
+            ));
+            self.append_param(patt.inner().clone());
+            self.appendln(
+                "UNION ALL
+                    SELECT i.tag_id, i.value_id
+                    FROM impl i, working
+                    WHERE i.implied_tag_id = working.tag_id
+                    AND
+                    (
+                        i.implied_value_id = working.value_id
+                        OR
+                        working.value_id = 0
+                    )
+                )
+                SELECT tag_id, value_id
+                FROM working
+                ) imps
+                ON file_tag.tag_id = imps.tag_id
+                AND
+                (
+                    file_tag.value_id = imps.value_id
+                    OR
+                    imps.value_id = 0
+                )
+                )",
+            );
         }
     }
 }

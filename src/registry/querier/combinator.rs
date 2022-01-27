@@ -16,7 +16,7 @@ use std::ops::Range;
 
 /// Combinator that captures the position of the current `fragment` of the
 /// [`Span`], and returns a `Result` of <[`Span`], [`Position`]>
-pub(crate) fn with_position<'a, O, E, F>(
+pub(super) fn with_position<'a, O, E, F>(
     mut f: F,
 ) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Position<O>, E>
 where
@@ -47,7 +47,7 @@ where
 ///   1. The error message is printed to the console
 ///   2. Input is consumed to the `sync_point` (i.e., `|` | `)` | `}` | `]`)
 ///   3. `None` is returned
-pub(crate) fn expect<'a, F, E, T>(
+pub(super) fn expect<'a, F, E, T>(
     mut parser: F,
     error_msg: E,
 ) -> impl FnMut(Span<'a>) -> IResult<Span, Option<T>>
@@ -63,7 +63,7 @@ where
             input
                 .extra
                 .log_error(error_msg.as_ref())
-                .add_range(r, "")
+                .add_range(r, "-")
                 .print_err();
             Ok((input.slice(end..), None))
         },
@@ -77,7 +77,7 @@ where
 ///   1. The error function is called on input [`Range`]
 ///   2. Input is consumed to the `sync_point` (i.e., `|` | `)` | `}` | `]`)
 ///   3. `None` is returned
-pub(crate) fn expect_fn<'a, F, O, EF>(
+pub(super) fn expect_fn<'a, F, O, EF>(
     mut parser: F,
     mut error_fn: EF,
 ) -> impl FnMut(Span<'a>) -> IResult<Span, Option<O>>
@@ -104,7 +104,7 @@ where
 ///
 /// # Error
 ///   1. The error function is called on input [`Range`]
-pub(crate) fn expect_delimited<'a, O1, O2, O3, F, G, H, EF>(
+pub(super) fn expect_delimited<'a, O1, O2, O3, F, G, H, EF>(
     mut first: F,
     mut second: G,
     mut third: H,

@@ -6,7 +6,10 @@ pub(crate) mod search;
 pub(crate) mod time;
 
 use search::Search;
-use std::ops::{Range, RangeInclusive};
+use std::{
+    fmt,
+    ops::{Range, RangeInclusive},
+};
 
 /// A comparison operator that requires more than one operand
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -34,21 +37,12 @@ pub(crate) enum LogicalOp {
     Or,
 }
 
-/// Operators that require more than one operand
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub(crate) enum BinaryOperator {
-    /// Comparison of more than one operand
-    Comparison(ComparisonOp),
-    /// Logically combining more than one operand
-    Logical(LogicalOp),
-}
-
 /// An operator requiring a single operand
 ///
 /// Only `not` is supported at this time
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum UnaryOp {
-    /// Negate the preceding item
+    /// Negate the proceeding item
     Not,
 }
 
@@ -61,8 +55,8 @@ pub(crate) enum ConditionalKind {
     Unless,
     /// A ternary-statement
     Ternary,
-    /// A if else-if statement
-    ElseIf,
+    // TODO: An if else-if statement
+    // ElseIf,
 }
 
 /// A literal representation of an object
@@ -103,6 +97,8 @@ pub(crate) enum Function {
     Tag { term: Box<Expr> },
     /// Function that matches the file's hash
     Hash { term: Box<Expr> },
+
+    // TODO:
     /// Function that matches the file's modification time
     Mtime { term: Box<Expr> },
     /// Function that matches the file's access time
@@ -114,41 +110,57 @@ pub(crate) enum Function {
     Print { term: Box<Expr> },
 }
 
+// ===================================
+// These were created as their own structs to be able to
+// implement `Display`, which translates to an SQL query
+// ===================================
+
+/// A unary expression with a given operator
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct UnaryExpr<T: fmt::Display> {
+    /// The unary operator
+    pub(crate) operator: T,
+    /// The single operand
+    pub(crate) operand:  Box<Expr>,
+}
+
+/// A binary expression with a given operator
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct BinaryExpr<T> {
+    /// The binary operator
+    pub(crate) operator: T,
+    /// Left-hand-side operand
+    pub(crate) lhs:      Box<Expr>,
+    /// Right-hand-side operand
+    pub(crate) rhs:      Box<Expr>,
+}
+
+/// A conditonal expression with a given operator
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct ConditionalExpr<T: fmt::Display> {
+    /// The kind of conditional statement
+    kind:     T,
+    /// The condition to test
+    cond:     Box<Expr>,
+    /// Value to return if `cond` is true
+    if_true:  Box<Expr>,
+    /// Value to return if `cond` is false
+    if_false: Box<Expr>,
+}
+
 /// A parsed expression
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Expr {
-    /// A negated expression
-    Not(Box<Self>),
-
     /// An expression surrounded by parenthesis
     Paren(Box<Self>),
     /// A unary expression
-    Unary {
-        /// The unary operator
-        op:      UnaryOp,
-        /// The unary operand
-        operand: Box<Self>,
-    },
-    /// A binary expression
-    Binary {
-        /// The binary operator
-        op:  BinaryOperator,
-        /// Left-hand-side operand
-        lhs: Box<Self>,
-        /// Right-hand-side operand
-        rhs: Box<Self>,
-    },
-    /// Conditional operator
-    Conditional {
-        /// Kind of conditional expression
-        kind:     ConditionalKind,
-        /// The condition to test
-        cond:     Box<Expr>,
-        /// Value to return if `cond` is true
-        if_true:  Box<Expr>,
-        /// Value to return if `cond` is false
-        if_false: Box<Expr>,
-    },
+    Unary(UnaryExpr<UnaryOp>),
+    /// A comparison expression
+    Comparison(BinaryExpr<ComparisonOp>),
+    /// A logical expression
+    Logical(BinaryExpr<LogicalOp>),
+    /// A conditional expression
+    Conditional(ConditionalExpr<ConditionalKind>),
     /// A function call
     FunctionCall(Function),
 
@@ -169,6 +181,20 @@ pub(crate) enum Expr {
     Empty,
     /// An error occurred during the search
     Error,
+}
+
+impl ComparisonOp {
+    /// Negate the given operator
+    pub(crate) const fn negate(&self) -> Self {
+        match *self {
+            Self::Equal => Self::NotEqual,
+            Self::NotEqual => Self::Equal,
+            Self::LessThan => Self::GreaterThan,
+            Self::GreaterThan => Self::LessThan,
+            Self::LessThanOrEqual => Self::GreaterThanOrEqual,
+            Self::GreaterThanOrEqual => Self::LessThanOrEqual,
+        }
+    }
 }
 
 impl<I> Idx<I> {
@@ -210,29 +236,29 @@ impl Expr {
     }
 
     /// Create a `Unary` operator expression
-    pub(crate) fn unary_op(op: UnaryOp, operand: Self) -> Self {
-        Self::Unary {
-            op,
+    pub(crate) fn unary_op(operator: UnaryOp, operand: Self) -> Self {
+        Self::Unary(UnaryExpr {
+            operator,
             operand: Box::new(operand),
-        }
+        })
     }
 
     /// Create a `Binary` expression with a `Comparison` operator
-    pub(crate) fn comparison_op(op: ComparisonOp, lhs: Self, rhs: Self) -> Self {
-        Self::Binary {
-            op:  BinaryOperator::Comparison(op),
+    pub(crate) fn comparison_op(operator: ComparisonOp, lhs: Self, rhs: Self) -> Self {
+        Self::Comparison(BinaryExpr {
+            operator,
             lhs: Box::new(lhs),
             rhs: Box::new(rhs),
-        }
+        })
     }
 
     /// Create a `Binary` expression with a `Logical` operator
-    pub(crate) fn logical_op(op: LogicalOp, lhs: Self, rhs: Self) -> Self {
-        Self::Binary {
-            op:  BinaryOperator::Logical(op),
+    pub(crate) fn logical_op(operator: LogicalOp, lhs: Self, rhs: Self) -> Self {
+        Self::Logical(BinaryExpr {
+            operator,
             lhs: Box::new(lhs),
             rhs: Box::new(rhs),
-        }
+        })
     }
 
     /// Create a `Conditional` expression
@@ -242,12 +268,12 @@ impl Expr {
         if_true: Self,
         if_false: Self,
     ) -> Self {
-        Self::Conditional {
+        Self::Conditional(ConditionalExpr {
             kind,
             cond: Box::new(cond),
             if_true: Box::new(if_true),
             if_false: Box::new(if_false),
-        }
+        })
     }
 
     /// Create a `value` `FunctionCall` expression
@@ -274,6 +300,20 @@ impl Expr {
     /// Create an `atime` `FunctionCall` expression
     pub(crate) fn atime_func(arg: Self) -> Self {
         Self::FunctionCall(Function::Atime {
+            term: Box::new(arg),
+        })
+    }
+
+    /// Create an `mtime` `FunctionCall` expression
+    pub(crate) fn mtime_func(arg: Self) -> Self {
+        Self::FunctionCall(Function::Mtime {
+            term: Box::new(arg),
+        })
+    }
+
+    /// Create an `ctime` `FunctionCall` expression
+    pub(crate) fn ctime_func(arg: Self) -> Self {
+        Self::FunctionCall(Function::Mtime {
             term: Box::new(arg),
         })
     }
@@ -315,3 +355,67 @@ impl Expr {
         }
     }
 }
+
+// === `Display` implementations ===================================
+
+impl fmt::Display for ComparisonOp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", match *self {
+            Self::Equal => "=",
+            Self::NotEqual => "!=",
+            Self::LessThan => "<",
+            Self::GreaterThan => ">",
+            Self::LessThanOrEqual => "<=",
+            Self::GreaterThanOrEqual => ">=",
+        })
+    }
+}
+
+impl fmt::Display for LogicalOp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", match *self {
+            Self::And => " AND ",
+            Self::Or => " OR ",
+        })
+    }
+}
+
+impl fmt::Display for UnaryOp {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", match *self {
+            Self::Not => " NOT ",
+        })
+    }
+}
+
+impl fmt::Display for ConditionalKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", match *self {
+            Self::If | Self::Ternary => "CASE WHEN ",
+            Self::Unless => "CASE WHEN NOT ",
+        })
+    }
+}
+
+// impl<T: fmt::Display> fmt::Display for ConditionalExpr<T> {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         let mut s = format!(
+//             "{} {} THEN {}",
+//             self.kind.to_string(),
+//             self.cond.to_string(),
+//             self.if_true.to_string()
+//         );
+//
+//         if self.if_false != Box::new(Expr::Empty) {
+//             s.push_str(&format!(" ELSE {}", self.if_false.to_string()));
+//         }
+//
+//         write!(f, "{}", s)
+//     }
+// }
+
+// impl<T: fmt::Display> fmt::Display for UnaryExpr<T> {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(f, "{} {}", self.operator.to_string(), self.operand)
+//     }
+// }

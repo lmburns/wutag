@@ -90,9 +90,9 @@ pub(crate) fn dump_and_exit<F: FnOnce() + Send>(f: F) {
 
 /// Start the UI interface
 pub(crate) fn start_ui(cli_app: &App, config: Config, registry: TagRegistry) -> Result<(), Error> {
-    panic::set_hook(Box::new(|panic_info| {
+    panic::set_hook(Box::new(|pi| {
         destruct_terminal();
-        better_panic::Settings::auto().create_panic_handler()(panic_info);
+        better_panic::Settings::auto().create_panic_handler()(pi);
     }));
 
     // TODO: Use one or the other here ^

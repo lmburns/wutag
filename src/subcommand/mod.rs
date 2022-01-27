@@ -11,6 +11,7 @@ pub(crate) mod repair;
 pub(crate) mod rm;
 pub(crate) mod search;
 pub(crate) mod set;
+pub(crate) mod testing;
 pub(crate) mod uses;
 pub(crate) mod view;
 
@@ -43,6 +44,7 @@ pub(crate) struct App {
     pub(crate) exclude:          Vec<String>,
     pub(crate) extension:        Option<RegexSet>,
     pub(crate) file_type:        Option<FileTypes>,
+    pub(crate) follow_symlinks:  bool,
     pub(crate) format:           String,
     pub(crate) global:           bool,
     pub(crate) ignores:          Option<Vec<String>>,
@@ -189,6 +191,7 @@ impl App {
             exclude: excludes,
             extension: extensions,
             file_type: file_types,
+            follow_symlinks: config.follow_symlinks,
             format,
             global: opts.global,
             ignores: config.ignores,
@@ -234,6 +237,7 @@ impl App {
             Command::Rm(ref opts) => self.rm(opts),
             Command::Search(ref opts) => self.search(opts),
             Command::Set(opts) => self.set(&opts)?,
+            Command::Testing(opts) => self.testing(&opts)?,
             Command::View(ref opts) => self.view(opts)?,
             Command::Ui => {
                 better_panic::install();

@@ -1,5 +1,18 @@
 //! Using `nom` to parse the query
 
+// NOTE: A lot of this can be credited to `rcoh/angle-grinder`
+// I wanted to learn how to use `nom` and used some of their functions
+
+// TODO: Allow special marker for searching files or database separately
+// TODO: Tag vs File searching
+// TODO: Regex/Glob patterns can't match symbol delimiter
+// TODO: Lookaround crate feature
+// TODO: Allow character if escaped
+// TODO: Possible allow 'abc def ghi 'to be 'abc and def and ghi'
+
+// TODO: Set file search
+// TODO: is_dir, is_socket, ... functions
+
 use nom::{
     branch::alt,
     bytes::complete::{escaped, is_a, is_not, take, take_while},
@@ -115,12 +128,11 @@ fn ident(input: Span) -> IResult<Span, String> {
 /// Base identifier function for a regular expression between custom delimiters
 /// Consumes **all input** until a space of some kind
 ///
-/// See [`take_while_not_closing`] for the delimiter specification
+/// See [`not_closing`] for the delimiter specification
 #[inline]
 fn ident_custom_delim(input: Span) -> IResult<Span, String> {
-    terminated(recognize(take_while_not_closing), multispace0)
-        .map(|s: Span| (*s.fragment()).to_string())
-        .context("identifier custom delim")
+    terminated(recognize(not_closing), multispace0)
+        .map(transform_escaped_non_expanded)
         .parse(input)
 }
 
@@ -130,9 +142,8 @@ fn ident_custom_delim(input: Span) -> IResult<Span, String> {
 /// Consumes **all input** until a space of some kind
 #[inline]
 fn ident_slash(input: Span) -> IResult<Span, String> {
-    terminated(recognize(take_while_not_slash), multispace0)
-        .map(|s: Span| (*s.fragment()).to_string())
-        .context("identifier slash")
+    terminated(recognize(not_slash), multispace0)
+        .map(transform_escaped_non_expanded)
         .parse(input)
 }
 
@@ -180,16 +191,20 @@ fn file_hash(i: Span) -> IResult<Span, Expr> {
 ///   - `<` => `>`
 ///   - `[` => `]`
 #[inline]
-fn take_while_not_closing(i: Span) -> IResult<Span, Span> {
-    take_while(|c| c != i.extra.closing_delim().unwrap_or('}'))(i)
+fn not_closing(i: Span) -> IResult<Span, Span> {
+    let delim = i.extra.closing_delim().unwrap_or('}');
+    recognize(many0(
+        is_not(&*format!("\\{}", delim.to_owned()))
+            .or(is_a(&*delim.to_string()).preceded_by(tag("\\"))),
+    ))(i)
 }
 
 /// Consumes **all input** until a matching closing delimiter
 ///
 /// The closing delimiter must be a forward slash (`/`)
 #[inline]
-fn take_while_not_slash(i: Span) -> IResult<Span, Span> {
-    take_while(|c| c != '/')(i)
+fn not_slash(i: Span) -> IResult<Span, Span> {
+    recognize(many0(is_not("\\/").or(is_a("/").preceded_by(tag("\\")))))(i)
 }
 
 // ========================== Escape Sequence =========================
@@ -634,7 +649,7 @@ fn tag_array_perl_like(i: Span) -> IResult<Span, Expr> {
 ///  - `/regex/`
 ///  - `%r{regex}` (any delimiter)
 ///
-/// See [`take_while_not_closing`]
+/// See [`not_closing`]
 fn parse_regex(i: Span) -> IResult<Span, Search> {
     alt((
         pair(
@@ -681,7 +696,7 @@ fn parse_regex(i: Span) -> IResult<Span, Search> {
 /// A glob expression can be used with the following syntaxes:
 ///  - `%g{regex}` (any delimiter)
 ///
-/// See [`take_while_not_closing`]
+/// See [`not_closing`]
 fn parse_glob(i: Span) -> IResult<Span, Search> {
     // Only `glob` needs an `expect_fn` since it is parsed second
     alt((

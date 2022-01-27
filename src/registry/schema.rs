@@ -18,7 +18,7 @@ impl Registry {
             "CREATE TABLE IF NOT EXISTS tag (
                 id INTEGER PRIMARY KEY,
                 name TEXT NOT NULL,
-                color TEXT NOT NULL,
+                color TEXT NOT NULL
             )",
         )
         .context("failed to create table `tag`")?;

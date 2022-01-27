@@ -3,7 +3,7 @@
 // TODO: Look into merging wutag_core Tag and this Tag
 // When writing metadata to file, possibly write tag values as well
 
-use super::{filetag::FileTag, from_vec, implication::Implication, value::ValueId, wuid::Wuid, ID};
+use super::{filetag::FileTag, from_vec, impl_vec, implication::Implication, value::ValueId, ID};
 use anyhow::{Context, Result};
 use colored::{Color, Colorize};
 use rusqlite::{
@@ -14,9 +14,28 @@ use rusqlite::{
 use serde::{Deserialize, Serialize};
 use wutag_core::{color::parse_color, tag::Tag as WTag};
 
-/// Alias to [`Uuid`](uuid::Uuid)
-// pub(crate) type TagId = Wuid;
+// ======================= TagId ======================
+
+/// Alias to [`ID`](super::ID)
 pub(crate) type TagId = ID;
+
+/// A vector of [`TagId`]s
+#[derive(Debug, Clone, Ord, PartialOrd, PartialEq, Eq)]
+pub(crate) struct TagIds {
+    inner: Vec<TagId>,
+}
+
+from_vec!(TagId, TagIds);
+
+impl TagIds {
+    impl_vec!(TagId);
+
+    /// Get unique [`TagIds`]
+    pub(crate) fn unique(&mut self) {
+        self.inner.sort_unstable();
+        self.inner.dedup();
+    }
+}
 
 // ======================== Tag =======================
 
@@ -124,19 +143,30 @@ pub(crate) struct Tags {
 from_vec!(Tag, Tags);
 
 impl Tags {
-    /// Create a new set of [`Tags`]
-    pub(crate) fn new(v: Vec<Tag>) -> Self {
-        Self { inner: v }
+    impl_vec!(Tag);
+
+    /// Shorthand to the Rust builtin `any`
+    pub(crate) fn any<F>(&self, f: F) -> bool
+    where
+        F: Fn(&Tag) -> bool,
+    {
+        self.inner.iter().any(f)
     }
 
-    /// Add a [`Tag`] to the set of [`Files`]
-    pub(crate) fn push(&mut self, tag: Tag) {
-        self.inner.push(tag);
+    /// Does the inner vector contain a specific [`Tag`] by [`ID`]?
+    pub(crate) fn contains(&self, other: &Tag) -> bool {
+        self.any(|v| v.id() == other.id())
     }
 
-    /// Return the inner vector of [`Tag`]s
-    pub(crate) fn inner(&self) -> &[Tag] {
-        &self.inner
+    /// Does the inner vector contain a specific [`Value`] by name?
+    pub(crate) fn contains_name<S: AsRef<str>>(&self, name: S, ignore_case: bool) -> bool {
+        let name = name.as_ref();
+        self.any(|v| {
+            *v.name()
+                == ignore_case
+                    .then(|| name.to_lowercase())
+                    .unwrap_or_else(|| name.to_string())
+        })
     }
 }
 
@@ -223,5 +253,30 @@ impl From<FileTag> for TagValueCombo {
             tag_id:   f.tag_id(),
             value_id: f.value_id(),
         }
+    }
+}
+
+mod test {
+    use super::{TagId, TagIds};
+
+    #[test]
+    fn unique_tagids() {
+        let v = vec![1, 2, 5, 5, 3, 1, 7]
+            .iter()
+            .map(|i| TagId::new(*i))
+            .collect::<Vec<_>>();
+        let mut ids = TagIds::new(v);
+
+        assert!(ids.len() == 7);
+
+        ids.unique();
+        assert!(ids.len() == 5);
+
+        assert_eq!(ids, TagIds {
+            inner: vec![1, 2, 3, 5, 7]
+                .iter()
+                .map(|i| TagId::new(*i))
+                .collect::<Vec<_>>(),
+        });
     }
 }

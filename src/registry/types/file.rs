@@ -10,9 +10,7 @@ use super::{
         },
         Txn,
     },
-    from_vec,
-    wuid::Wuid,
-    ID,
+    from_vec, impl_vec, ID,
 };
 use crate::inner_immute;
 use anyhow::{Context, Result};
@@ -36,9 +34,28 @@ use rusqlite::{
     Row,
 };
 
-/// Alias to [`Uuid`](uuid::Uuid)
-// pub(crate) type FileId = Wuid;
+// ======================== ID ========================
+
+/// Alias to [`ID`](super::ID)
 pub(crate) type FileId = ID;
+
+/// A vector of `FileId`s
+#[derive(Debug, Clone, Ord, PartialOrd, PartialEq, Eq)]
+pub(crate) struct FileIds {
+    inner: Vec<FileId>,
+}
+
+from_vec!(FileId, FileIds);
+
+impl FileIds {
+    impl_vec!(FileId);
+
+    /// Get unique [`FileIds`]
+    pub(crate) fn unique(&mut self) {
+        self.inner.sort_unstable();
+        self.inner.dedup();
+    }
+}
 
 // ======================= File =======================
 
@@ -46,38 +63,38 @@ pub(crate) type FileId = ID;
 #[derive(Debug, Clone)]
 pub(crate) struct File {
     /// File ID, similar to UUID
-    pub(crate) id: FileId,
+    pub(crate) id:        FileId,
     /// Directory the file is located.
     ///
     /// This is a directory regardless of whether the item is a file or a
     /// directory. If the item is a directory, this will be the directory that
     /// is above the chosen directory. If the item is a file, then this will be
     /// the parent directory that houses that file
-    directory:     String,
+    pub(crate) directory: String,
     /// Basename of the filepath. This can be a file or a directory name
-    name:          String,
+    pub(crate) name:      String,
     /// [`blake3`](blake3) hash of the file or directory
-    hash:          String,
+    pub(crate) hash:      String,
     /// [`MimeType`](crate::util::MimeType) of a file
-    mime:          MimeType,
+    pub(crate) mime:      MimeType,
     /// Modification time
-    mtime:         DateTime<Local>,
+    pub(crate) mtime:     DateTime<Local>,
     /// Creation time
-    ctime:         DateTime<Local>,
+    pub(crate) ctime:     DateTime<Local>,
     /// File permission in base-10
-    mode:          u32,
+    pub(crate) mode:      u32,
     /// Index node of a file / directory
-    inode:         u64,
+    pub(crate) inode:     u64,
     /// Number of hard links pointing to the file / directory
-    links:         u64,
+    pub(crate) links:     u64,
     /// User ID of the file / directory
-    uid:           u32,
+    pub(crate) uid:       u32,
     /// Group ID of the file / directory
-    gid:           u32,
+    pub(crate) gid:       u32,
     /// Size of a file in TODO:
-    size:          u64,
+    pub(crate) size:      u64,
     /// Is the file name a directory?
-    is_dir:        bool,
+    pub(crate) is_dir:    bool,
 }
 
 // To use this, the scan of the files would have to be done regularly
@@ -209,35 +226,7 @@ pub(crate) struct Files {
 from_vec!(File, Files);
 
 impl Files {
-    /// Create a new set of [`Files`]
-    pub(crate) fn new(v: Vec<File>) -> Self {
-        Self { inner: v }
-    }
-
-    /// Create a new blank set of [`Files`]
-    pub(crate) const fn empty() -> Self {
-        Self { inner: vec![] }
-    }
-
-    /// Extend the inner vector of [`Files`]
-    pub(crate) fn extend(&mut self, v: &[File]) {
-        self.inner.extend_from_slice(v);
-    }
-
-    /// Add a [`File`] to the set of [`Files`]
-    pub(crate) fn push(&mut self, file: File) {
-        self.inner.push(file);
-    }
-
-    /// Return the inner vector of [`Files`
-    pub(crate) fn inner(&self) -> &[File] {
-        &self.inner
-    }
-
-    /// Combine with another [`Files`] object
-    pub(crate) fn combine(&mut self, other: &Self) {
-        self.extend(other.inner());
-    }
+    impl_vec!(File);
 
     /// Adds [`File`] that match a closure to a new [`Files`] struct
     pub(crate) fn matches<F: FnMut(&File) -> bool>(&self, mut f: F) -> Self {
@@ -330,5 +319,71 @@ impl FromSql for MimeType {
             Ok(v) => Ok(v),
             Err(err) => Err(FromSqlError::InvalidType),
         }
+    }
+}
+
+mod test {
+    use super::{
+        super::super::common::utils::convert_to_datetime, File, FileId, FileIds, Mime, MimeType,
+    };
+    use std::{convert::TryFrom, os::unix::fs::MetadataExt, path::PathBuf, str::FromStr};
+
+    #[test]
+    fn unique_fileids() {
+        let v = vec![1, 2, 5, 5, 3, 1, 7]
+            .iter()
+            .map(|i| FileId::new(*i))
+            .collect::<Vec<_>>();
+        let mut ids = FileIds::new(v);
+
+        assert!(ids.len() == 7);
+
+        ids.unique();
+        assert!(ids.len() == 5);
+
+        assert_eq!(ids, FileIds {
+            inner: vec![1, 2, 3, 5, 7]
+                .iter()
+                .map(|i| FileId::new(*i))
+                .collect::<Vec<_>>(),
+        });
+    }
+
+    #[test]
+    fn mimetype() {
+        let path = PathBuf::from("./src/main.rs");
+        let mime = MimeType::try_from(&path).expect("failed to find main.rs");
+        assert_eq!(mime, MimeType(Mime::from_str("text/rust").unwrap()));
+
+        let path = PathBuf::from("./Cargo.toml");
+        let mime = MimeType::try_from(&path).expect("failed to find Cargo.toml");
+        assert_eq!(mime, MimeType(Mime::from_str("application/toml").unwrap()));
+
+        let path = PathBuf::from("./Cargo.lock");
+        let mime = MimeType::try_from(&path).expect("failed to find Cargo.lock");
+        assert_eq!(mime, MimeType(Mime::from_str("text/plain").unwrap()));
+    }
+
+    #[test]
+    fn file_struct() {
+        let path = PathBuf::from("./src/main.rs");
+        let file = File::new(&path, false).expect("failed to find main.rs");
+        let meta = path.metadata().expect("failed to get metadata");
+
+        assert!(!file.is_dir());
+        assert_eq!(
+            file.directory(),
+            &PathBuf::from("./src")
+                .canonicalize()
+                .expect("failed to canonicalize main.rs")
+                .to_string_lossy()
+                .to_string()
+        );
+        assert_eq!(file.inode(), meta.ino());
+        assert_eq!(file.name(), "main.rs");
+        assert_eq!(
+            file.ctime(),
+            &convert_to_datetime(meta.created().expect("failed to get ctime"))
+        );
     }
 }

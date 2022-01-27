@@ -44,8 +44,9 @@ macro_rules! global_opts {
 }
 
 /// Create a simple method to a struct that returns the field name. This is to
-/// allow access to the field names without direct access. This _always_ returns
-/// a reference to the field. There are probably better ways of doing this
+/// allow access to the field names without direct access for modification. This
+/// _always_ returns a reference to the field. There are probably better ways of
+/// doing this
 #[macro_export]
 macro_rules! inner_immute {
     // A placeholder here `$ref` which just implements a non-reference return-type

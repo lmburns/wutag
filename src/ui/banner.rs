@@ -7,6 +7,7 @@
 
 use tui::layout::Rect;
 
+/// Varying sizes of a banner to be displayed in the TUI help menu
 pub(crate) const BANNERS: &[&str] = &[
     env!("CARGO_PKG_NAME"),
     r#"MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM

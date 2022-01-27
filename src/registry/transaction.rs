@@ -4,7 +4,7 @@
 use super::{
     common::version::Version,
     sqlbuilder::SqlBuilder,
-    types::{wuid::Wuid, Operation, Table, ID},
+    types::{Operation, Table, ID},
     Registry,
 };
 use anyhow::{Context, Result};
@@ -102,7 +102,7 @@ impl<'t> Txn<'t> {
 
         let mut stmt = self
             .txn
-            .prepare_cached(sql)
+            .prepare(sql)
             .context(format!("failed to prepare sql: {}", sql))?;
 
         stmt.insert(params)

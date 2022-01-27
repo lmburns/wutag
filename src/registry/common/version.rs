@@ -44,9 +44,9 @@ impl Version {
             .collect::<Vec<_>>();
 
         Ok(Self {
-            major: *(split.get(0).context("failed to get idx: 0")?),
+            major: *(split.get(0).context("failed to get major")?),
             minor: *(split.get(1).context("failed to get minor")?),
-            patch: *(split.get(2).context("failed to get idx: 2")?),
+            patch: *(split.get(2).context("failed to get patch")?),
         })
     }
 

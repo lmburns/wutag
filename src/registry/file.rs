@@ -541,8 +541,9 @@ impl Txn<'_> {
     /// Insert a `File` into the database
     pub(crate) fn insert_file<P: AsRef<Path>>(&self, path: P) -> Result<File> {
         let path = path.as_ref();
-        let mut f = File::new(&path, self.registry().config().follow_symlinks())
+        let mut f = File::new(&path, self.registry().follow_symlinks())
             .context("failed to build `File`")?;
+        println!("FILE: {:#?}", f);
         let id = self
             .insert(
                 "INSERT INTO file (
@@ -562,19 +563,19 @@ impl Txn<'_> {
                 )
                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
                 params![
-                    f.directory(),
-                    f.name(),
-                    f.hash(),
-                    f.mime(),
-                    f.mtime(),
-                    f.ctime(),
-                    f.mode(),
-                    f.inode(),
-                    f.links(),
-                    f.uid(),
-                    f.gid(),
-                    f.size(),
-                    f.is_dir()
+                    f.directory,
+                    f.name,
+                    f.hash,
+                    f.mime,
+                    f.mtime,
+                    f.ctime,
+                    f.mode,
+                    f.inode,
+                    f.links,
+                    f.uid,
+                    f.gid,
+                    f.size,
+                    f.is_dir
                 ],
             )
             .context("failed to insert `File`")?;
@@ -587,7 +588,7 @@ impl Txn<'_> {
     /// Update a `File` that is already in the database
     pub(crate) fn update_file<P: AsRef<Path>>(&self, id: FileId, path: P) -> Result<File, Error> {
         let path = path.as_ref();
-        let mut f = File::new(&path, self.registry().config().follow_symlinks())
+        let mut f = File::new(&path, self.registry().follow_symlinks())
             .context("failed to build `File`")?;
 
         let affected = self

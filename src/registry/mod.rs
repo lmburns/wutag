@@ -29,7 +29,6 @@ use self::{
 };
 use crate::{
     cassert,
-    config::Config,
     consts::encrypt::REGISTRY_UMASK,
     directories::PROJECT_DIRS,
     util::{contains_upperchar, prompt},
@@ -123,13 +122,13 @@ pub(crate) enum Error {
 #[derive(Debug)]
 pub(crate) struct Registry {
     /// User configuration options
-    config:  Config,
+    follow_symlinks: bool,
     /// Path to the database
-    path:    PathBuf,
+    path:            PathBuf,
     /// The open `Connection` for the database
-    conn:    Connection,
+    conn:            Connection,
     /// The version the database is using TODO: Maybe Version struct
-    version: u32,
+    version:         u32,
     // -
     // /// Root path of the database
     // root_path: PathBuf,
@@ -146,20 +145,20 @@ impl Registry {
         &self.conn
     }
 
-    /// Return the configuration
-    pub(crate) const fn config(&self) -> &Config {
-        &self.config
+    /// Return whether symlinks should be followed
+    pub(crate) const fn follow_symlinks(&self) -> bool {
+        self.follow_symlinks
     }
 
     /// Create a new `Registry`
     #[allow(clippy::unnecessary_wraps)]
-    pub(crate) fn new(config: Config, path: &Path, conn: Connection) -> Result<Self> {
+    pub(crate) fn new(path: &Path, conn: Connection, follow_symlinks: bool) -> Result<Self> {
         if !path.exists() {
             wutag_fatal!("database does not exist");
         }
 
         Ok(Self {
-            config,
+            follow_symlinks,
             path: path.to_path_buf(),
             conn,
             version: 1,
@@ -444,7 +443,7 @@ impl Registry {
     /// Create a regular expression function in the database.
     /// Allow for case-sensitive and case-insensitive functions, as well as
     /// `glob`s
-    pub(crate) fn add_regex_func(
+    fn add_regex_func(
         &self,
         fname: &'static str,
         case_insensitive: bool,
@@ -467,12 +466,17 @@ impl Registry {
                             let s = vr.as_str()?;
 
                             let patt = if glob {
-                                let builder = globset::GlobBuilder::new(s);
-                                builder
-                                    .build()
+                                // let builder = globset::GlobBuilder::new(s);
+                                // builder
+                                //     .build()
+                                //     .expect("invalid glob sequence")
+                                //     .regex()
+                                //     .to_owned()
+
+                                wax::Glob::new(s)
                                     .expect("invalid glob sequence")
                                     .regex()
-                                    .to_owned()
+                                    .to_string()
                             } else {
                                 String::from(s)
                             };

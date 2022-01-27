@@ -164,7 +164,7 @@ impl Txn<'_> {
         )
         .context("failed to insert `FileTag`")?;
 
-        Ok(ft.clone())
+        Ok(*ft)
     }
 
     /// Remove a [`FileTag`] from the database that matches the given

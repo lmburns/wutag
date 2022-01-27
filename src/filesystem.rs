@@ -234,11 +234,10 @@ pub(crate) fn delete_file<P: AsRef<Path>>(file: P) {
 pub(crate) fn contained_path<P: AsRef<Path>>(file: P, path: P) -> bool {
     file.as_ref()
         .to_string_lossy()
-        .to_string()
         .starts_with(&path.as_ref().to_string_lossy().to_string())
 }
 
-/// Convert an OsStr to bytes for RegexBuilder
+/// Convert an [`OsStr`] to bytes for [`RegexBuilder`]
 pub(crate) fn osstr_to_bytes(input: &OsStr) -> Cow<[u8]> {
     use std::os::unix::ffi::OsStrExt;
     Cow::Borrowed(input.as_bytes())

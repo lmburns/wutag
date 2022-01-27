@@ -409,6 +409,75 @@ fn esc_test_non_escape() {
 }
 
 #[test]
+fn regex_escaped_custom_delim() {
+    query_ok("%r/abc\\/def/", &expect![[r#"
+        ParsedQuery {
+            parsed: Pattern(
+                Search {
+                    inner: "abc/def",
+                    t: Regex,
+                },
+            ),
+            raw: "%r/abc\\/def/",
+        }
+        "#]]);
+
+    query_ok("%r{abc\\}def}i", &expect![[r#"
+        ParsedQuery {
+            parsed: Pattern(
+                Search {
+                    inner: "(?i)abc}def",
+                    t: Regex,
+                },
+            ),
+            raw: "%r{abc\\}def}i",
+        }
+        "#]]);
+
+    query_ok("%r<abc\\>def>", &expect![[r#"
+        ParsedQuery {
+            parsed: Pattern(
+                Search {
+                    inner: "abc>def",
+                    t: Regex,
+                },
+            ),
+            raw: "%r<abc\\>def>",
+        }
+        "#]]);
+}
+
+#[test]
+fn regex_escaped_slash() {
+    query_ok("/abc\\/def/r", &expect![[r#"
+        ParsedQuery {
+            parsed: Pattern(
+                Search {
+                    inner: "abc/def",
+                    t: Regex,
+                },
+            ),
+            raw: "/abc\\/def/r",
+        }
+        "#]]);
+}
+
+#[test]
+fn glob_escaped_slash() {
+    query_ok("/abc\\/def/gi", &expect![[r#"
+        ParsedQuery {
+            parsed: Pattern(
+                Search {
+                    inner: "(?i)^(?-i)abc[/](?-i)def$",
+                    t: Glob,
+                },
+            ),
+            raw: "/abc\\/def/gi",
+        }
+        "#]]);
+}
+
+#[test]
 fn glob_escaped_astrisk() {
     query_ok("aa\\*b", &expect![[r#"
         ParsedQuery {
@@ -436,6 +505,291 @@ fn glob_non_escaped_astrisk() {
             raw: "aa*b",
         }
         "#]]);
+}
+
+// =========================== Invalid Names ==========================
+// ====================================================================
+
+#[test]
+fn invalid_names() {
+    query_ok("eq", &expect![[r#"
+        ParsedQuery {
+            parsed: Pattern(
+                Search {
+                    inner: "eq",
+                    t: Exact,
+                },
+            ),
+            raw: "eq",
+        }
+        "#]]);
+
+    query_ok("ne", &expect![[r#"
+        ParsedQuery {
+            parsed: Pattern(
+                Search {
+                    inner: "ne",
+                    t: Exact,
+                },
+            ),
+            raw: "ne",
+        }
+        "#]]);
+
+    query_ok("not", &expect![[r#"
+        ParsedQuery {
+            parsed: Pattern(
+                Search {
+                    inner: "not",
+                    t: Exact,
+                },
+            ),
+            raw: "not",
+        }
+        "#]]);
+
+    query_ok("value", &expect![[r#"
+        ParsedQuery {
+            parsed: Pattern(
+                Search {
+                    inner: "value",
+                    t: Exact,
+                },
+            ),
+            raw: "value",
+        }
+        "#]]);
+
+    query_ok("tag", &expect![[r#"
+        ParsedQuery {
+            parsed: Pattern(
+                Search {
+                    inner: "tag",
+                    t: Exact,
+                },
+            ),
+            raw: "tag",
+        }
+        "#]]);
+}
+
+#[test]
+fn eq_triple() {
+    query_ok("eq eq eq", &expect![[r#"
+        ParsedQuery {
+            parsed: Binary {
+                op: Comparison(
+                    Equal,
+                ),
+                lhs: Pattern(
+                    Search {
+                        inner: "eq",
+                        t: Exact,
+                    },
+                ),
+                rhs: Pattern(
+                    Search {
+                        inner: "eq",
+                        t: Exact,
+                    },
+                ),
+            },
+            raw: "eq eq eq",
+        }
+    "#]]);
+}
+
+// =============================== Errors =============================
+// ====================================================================
+
+#[test]
+fn missing_quote() {
+    query_ok("'abc", &expect![[r#"
+        ParsedQuery {
+            parsed: Vec(
+                [],
+            ),
+            raw: "",
+        }
+        error: missing a terminating single quotation mark
+          |
+        1 | 'abc
+          | ^^^^
+          |
+          = help: Add a final single quote (')"#]]);
+
+    query_ok("\"abc", &expect![[r#"
+        ParsedQuery {
+            parsed: Vec(
+                [],
+            ),
+            raw: "",
+        }
+        error: missing a terminating double quotation mark
+          |
+        1 | "abc
+          | ^^^^
+          |
+          = help: Add a final double quote (")"#]]);
+}
+
+#[test]
+fn missing_closing_bracket_tag() {
+    query_ok("@F[1,", &expect![[r#"
+        ParsedQuery {
+            parsed: Vec(
+                [],
+            ),
+            raw: "",
+        }
+        error: missing a closing bracket
+          |
+        1 | @F[1,
+          |   ^^^
+          |
+          = help: Add a closing bracket to complete the index"#]]);
+
+    query_ok("@F[..", &expect![[r#"
+        ParsedQuery {
+            parsed: Vec(
+                [],
+            ),
+            raw: "",
+        }
+        error: missing a closing bracket
+          |
+        1 | @F[..
+          |   ^^^
+          |
+          = help: Add a closing bracket to complete the index"#]]);
+
+    query_ok("@F[", &expect![[r#"
+        ParsedQuery {
+            parsed: Vec(
+                [],
+            ),
+            raw: "",
+        }
+        error: missing an index
+         = help: Remove the brackets (`[]`)
+         = help: Add a single integer or range as an index
+         = help: Can be:
+                   * [N]
+                   * [N..]
+                   * [..M]
+                   * [N..M]
+        error: missing a closing bracket
+          |
+        1 | @F[
+          |   ^
+          |
+          = help: Add a closing bracket to complete the index"#]]);
+}
+
+#[rustfmt::skip]
+#[test]
+fn missing_pattern_flag() {
+    query_ok("/abc/", &expect![["
+        ParsedQuery {
+            parsed: Vec(
+                [],
+            ),
+            raw: \"\",
+        }
+        error: missing a flag
+          |
+        1 | /abc/
+          |       ^ Flags: griImuUxl
+          |
+          = help: Add a flag(s):
+                  - \x1B[1;32mr\x1B[0m: regex
+                  - \x1B[1;32mg\x1B[0m: glob
+                  - \x1B[1;32mi\x1B[0m | \x1B[1;32mI\x1B[0m: case insensitive
+                  - \x1B[1;32m-i\x1B[0m: case sensitive
+                  - \x1B[1;32ml\x1B[0m: swap the meaning of \x1B[33mx*\x1B[0m and \x1B[33mx*?\x1B[0m
+                  - \x1B[1;32mu\x1B[0m: unicode support (default)
+                  - \x1B[1;32mU\x1B[0m | \x1B[1;32m-u\x1B[0m: disable unicode support
+                  - \x1B[1;32mm\x1B[0m: multiline
+                  - \x1B[1;32mx\x1B[0m: ignore whitespace"]]);
+}
+
+#[test]
+fn missing_cmp_side() {
+    query_ok("foo ==", &expect![[r#"
+        ParsedQuery {
+            parsed: Vec(
+                [],
+            ),
+            raw: "",
+        }
+        error: expected a right-hand-side of query
+          |
+        1 | foo ==
+          |        -
+          |"#]]);
+}
+
+#[test]
+fn missing_unary() {
+    query_ok("!", &expect![[r#"
+        ParsedQuery {
+            parsed: Vec(
+                [],
+            ),
+            raw: "",
+        }
+        error: expected a unary operator expression
+          |
+        1 | !
+          |   ^
+          |
+          = help: Add an operand to the unary operator
+          = help: Remove the unary operator"#]]);
+}
+
+#[test]
+fn missing_func_args() {
+    query_ok("value()", &expect![[r#"
+        ParsedQuery {
+            parsed: Vec(
+                [],
+            ),
+            raw: "",
+        }
+        error: this function requires 1 argument, but 0 were supplied
+          |
+        1 | value()
+          |        - supplied 0 arguments
+          |
+          = help: the argument should be the value parameter to search for"#]]);
+
+    query_ok("tag()", &expect![[r#"
+        ParsedQuery {
+            parsed: Vec(
+                [],
+            ),
+            raw: "",
+        }
+        error: this function requires 1 argument, but 0 were supplied
+          |
+        1 | tag()
+          |      - supplied 0 arguments
+          |
+          = help: the argument should be the tag name to search for"#]]);
+
+    query_ok("hash()", &expect![[r#"
+        ParsedQuery {
+            parsed: Vec(
+                [],
+            ),
+            raw: "",
+        }
+        error: this function requires 1 argument, but 0 were supplied
+          |
+        1 | hash()
+          |       - supplied 0 arguments
+          |
+          = help: the argument should be a file hash"#]]);
 }
 
 // ============================= Tag Array ============================
@@ -592,6 +946,36 @@ fn tag_index_many() {
 
 // ============================== Flags ===============================
 // ====================================================================
+
+#[test]
+fn regex_empty() {
+    query_ok("//ri", &expect![[r#"
+        ParsedQuery {
+            parsed: Pattern(
+                Search {
+                    inner: "(?i)",
+                    t: Regex,
+                },
+            ),
+            raw: "//ri",
+        }
+        "#]]);
+}
+
+#[test]
+fn glob_empty() {
+    query_ok("//g", &expect![[r#"
+        ParsedQuery {
+            parsed: Pattern(
+                Search {
+                    inner: "^$",
+                    t: Glob,
+                },
+            ),
+            raw: "//g",
+        }
+        "#]]);
+}
 
 #[test]
 fn regex_single_flag() {

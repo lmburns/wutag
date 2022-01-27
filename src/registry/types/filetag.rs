@@ -3,10 +3,11 @@
 
 use super::{
     file::{File, FileId},
-    from_vec,
+    from_vec, impl_vec,
     tag::{Tag, TagId, TagValueCombo},
     value::{Value, ValueId},
 };
+use anyhow::{Context, Result};
 
 use rusqlite::{
     self as rsq,
@@ -17,7 +18,7 @@ use rusqlite::{
 // ====================== FileTag =====================
 
 /// Relation between [`File`], [`Tag`], and [`Value`]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct FileTag {
     /// ID of the [`File`]
     file_id:  FileId,
@@ -60,7 +61,7 @@ impl FileTag {
     }
 
     /// Convert a [`FileTag`] to a [`TagValueCombo`]
-    pub(crate) const fn to_tag_value_combo(&self) -> TagValueCombo {
+    pub(crate) const fn to_tag_value_combo(self) -> TagValueCombo {
         TagValueCombo::new(self.tag_id, self.file_id)
     }
 }
@@ -91,13 +92,13 @@ pub(crate) struct FileTags {
 from_vec!(FileTag, FileTags);
 
 impl FileTags {
-    /// Create a new set of [`FileTags`]
-    pub(crate) fn new(v: Vec<FileTag>) -> Self {
-        Self { inner: v }
-    }
+    impl_vec!(FileTag);
 
-    /// Add a [`FileTag`] to the set of [`FileTags`]
-    pub(crate) fn push(&mut self, filetag: FileTag) {
-        self.inner.push(filetag);
+    /// Return the first [`FileTag`]
+    pub(crate) fn first(&self) -> Result<FileTag> {
+        self.inner
+            .get(0)
+            .copied()
+            .context("failed to get first item in `FileTags`")
     }
 }

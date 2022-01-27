@@ -5,6 +5,7 @@ use super::{
     error::{ErrDebug, ErrorBuilder, ErrorReport},
     Expr,
 };
+use crate::inner_immute;
 use nom::FindSubstring;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -16,6 +17,10 @@ pub(crate) struct ParsedQuery {
     /// The raw string expression
     raw:    String,
 }
+
+// impl ParsedQuery {
+// pub(crate) fn handle_functions(&self) {}
+// }
 
 /// A representation of a query into the database before being parsed
 #[derive(Debug)]

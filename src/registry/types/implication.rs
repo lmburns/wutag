@@ -2,7 +2,7 @@
 //! can be searched or matched, tag2 will do the same
 
 use super::{
-    from_vec,
+    from_vec, impl_vec,
     tag::{Tag, TagId, TagValueCombo},
     value::{Value, ValueId},
 };
@@ -95,30 +95,23 @@ pub(crate) struct Implications {
 from_vec!(Implication, Implications);
 
 impl Implications {
-    /// Create a new set of [`Implications`]
-    pub(crate) fn new(i: Vec<Implication>) -> Self {
-        Self { inner: i }
-    }
+    impl_vec!(Implication);
 
-    /// Add an [`Implication`] to the set of [`Implications`]
-    pub(crate) fn push(&mut self, implication: Implication) {
-        self.inner.push(implication);
-    }
-
-    /// Return the vector of [`Implication`]s
-    pub(crate) fn inner(&self) -> &[Implication] {
-        &self.inner
+    /// Shorthand to the Rust builtin `any`
+    pub(crate) fn any<F>(&self, f: F) -> bool
+    where
+        F: Fn(&Implication) -> bool,
+    {
+        self.inner.iter().any(f)
     }
 
     /// Determine whether the given [`TagValueCombo`] is an implied one
     pub(crate) fn implies(&self, other: &TagValueCombo) -> bool {
-        self.inner
-            .iter()
-            .any(|i| i.implied_tag.id() == other.tag_id() && i.implied_val.id() == other.value_id())
+        self.any(|i| i.implied_tag.id() == other.tag_id() && i.implied_val.id() == other.value_id())
     }
 
     /// Determine whether [`Implications`] contains a given [`Implication`]
-    pub(crate) fn contained(&self, other: &Implication) -> bool {
-        self.inner.iter().any(|i| i == other)
+    pub(crate) fn contains(&self, other: &Implication) -> bool {
+        self.any(|i| i == other)
     }
 }

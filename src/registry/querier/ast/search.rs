@@ -69,8 +69,7 @@ impl SearchFlags {
 - {}: unicode support (default)
 - {} | {}: disable unicode support
 - {}: multiline
-- {}: ignore whitespace
-        "#,
+- {}: ignore whitespace"#,
             g!("r"),
             g!("g"),
             g!("i"),
@@ -90,7 +89,7 @@ impl SearchFlags {
 
 /// The type of search into the database
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub(crate) enum SearchType {
+pub(crate) enum SearchKind {
     /// An exact search. No pattern matching
     Exact,
     /// A glob search
@@ -105,7 +104,7 @@ pub(crate) struct Search {
     /// The raw string or a string compiled as a [`regex`]
     inner: String,
     /// The type of search
-    t:     SearchType,
+    t:     SearchKind,
 }
 
 impl Search {
@@ -115,7 +114,7 @@ impl Search {
     }
 
     /// Return the inner [`Search`] type
-    pub(crate) const fn inner_t(&self) -> SearchType {
+    pub(crate) const fn inner_t(&self) -> SearchKind {
         self.t
     }
 
@@ -126,7 +125,7 @@ impl Search {
             inner: esc
                 .then(|| regex::escape(&s.replace("\\\"", "\"")).as_str().to_owned())
                 .unwrap_or_else(|| s.to_owned()),
-            t:     SearchType::Exact,
+            t:     SearchKind::Exact,
         }
     }
 
@@ -155,7 +154,7 @@ impl Search {
 
         Self {
             inner: new,
-            t:     SearchType::Glob,
+            t:     SearchKind::Glob,
         }
     }
 
@@ -166,7 +165,7 @@ impl Search {
 
         Self {
             inner: new,
-            t:     SearchType::Regex,
+            t:     SearchKind::Regex,
         }
     }
 
@@ -197,18 +196,21 @@ impl Search {
         self.inner().is_empty()
     }
 
+    /// Convert this keyword to a `regex::Regex` object
+    pub(crate) fn to_regex(&self) -> Result<regex::Regex> {
+        regex::Regex::new(self.inner())
+            .map_err(|e| anyhow!("{}\n\n{}", Self::error_message(), e.to_string()))
+    }
+
     /// Convert this keyword to a `regex::Regex` object.
-    pub(crate) fn to_regex(&self, case_insensitive: bool, case_sensitive: bool) -> Result<Regex> {
+    pub(crate) fn to_regex_builder(
+        &self,
+        case_insensitive: bool,
+        case_sensitive: bool,
+    ) -> Result<Regex> {
         use regex::bytes::RegexBuilder;
 
         let sensitive = !case_insensitive && (case_sensitive || contains_upperchar(self.inner()));
-
-        // .dot_matches_new_line(true)
-        // .octal(true)
-        // .multi_line(true)
-        // .unicode(true)
-        // .swap_greed(true)
-        // .ignore_whitespace(true)
 
         RegexBuilder::new(self.inner())
             .case_insensitive(!sensitive)

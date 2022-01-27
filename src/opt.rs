@@ -15,6 +15,7 @@ use crate::{
         rm::RmOpts,
         search::SearchOpts,
         set::SetOpts,
+        testing::TestingOpts,
         view::ViewOpts,
     },
 };
@@ -257,6 +258,13 @@ impl Default for Command {
 /// All subcommands
 #[derive(Subcommand, Debug, Clone, PartialEq)]
 pub(crate) enum Command {
+    /// Testing new subcommands
+    #[clap(
+        aliases = &["t", "te"],
+        override_usage = "wutag [FLAG/OPTIONS] test"
+    )]
+    Testing(TestingOpts),
+
     /// Lists all available tags or files.
     #[clap(
         aliases = &["ls", "l", "li", "lis"],
@@ -266,6 +274,7 @@ pub(crate) enum Command {
             is not present, else list all tagged files or tags in the registry. Alias: ls"
     )]
     List(ListOpts),
+
     /// Set tag(s) on files that match the given pattern
     #[clap(
         aliases = &["set", "tag"],
@@ -273,6 +282,7 @@ pub(crate) enum Command {
         long_about = "Set tag(s) on files that match a given pattern. Alias: tag"
     )]
     Set(SetOpts),
+
     /// Remove tag(s) from the files that match the provided pattern
     #[clap(
         aliases = &["remove", "r", "del", "delete"],
@@ -282,23 +292,30 @@ pub(crate) enum Command {
             Aliases: remove, del, delete"
     )]
     Rm(RmOpts),
+
     /// Clears all tags of the files that match the provided pattern
     #[clap(override_usage = "wutag [FLAG/OPTIONS] clear [FLAG/OPTIONS] <pattern>")]
     Clear(ClearOpts),
+
     /// Searches for files that have all of the provided 'tags'
     #[clap(override_usage = "wutag [FLAG/OPTIONS] search [FLAG/OPTIONS] <pattern>")]
     Search(SearchOpts),
+
     /// Copies tags from the specified file to files that match a pattern
     #[clap(override_usage = "wutag [FLAG/OPTIONS] cp [FLAG/OPTIONS] <input_path> <pattern>")]
     Cp(CpOpts),
+
     /// View the results in an editor (optional pattern)
     #[clap(override_usage = "wutag [FLAG/OPTIONS] view [FLAG/OPTIONS] -p [<pattern>]")]
     View(ViewOpts),
+
     /// Edits a tag's color
     #[clap(override_usage = "wutag edit [FLAG/OPTIONS] <tag>")]
     Edit(EditOpts),
+
     /// Display information about the wutag environment
     Info(InfoOpts),
+
     /// Repair broken/missing/modified files in the registry
     #[clap(
         aliases = &["fix", "rep", "repa", "repai"],
@@ -308,15 +325,18 @@ pub(crate) enum Command {
         Alias: fix"
     )]
     Repair(RepairOpts),
+
     /// Prints completions for the specified shell to dir or stdout
     #[clap(
         display_order = 1000,
         override_usage = "wutag print-completions --shell <shell> [FLAG/OPTIONS]"
     )]
     PrintCompletions(CompletionsOpts),
+
     /// Clean the cached tag registry
     #[clap(override_usage = "wutag [FLAG/OPTIONS] clean-cache")]
     CleanCache,
+
     /// Open a TUI to manage tags
     #[clap(
         aliases = &["tui"],

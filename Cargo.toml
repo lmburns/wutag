@@ -96,7 +96,7 @@ chrono = { version = "0.4.19", features = ["serde"] }
 humantime = "2.1.0"
 
 # Command-line
-clap = { version = "3.0.1", features = ["derive", "default", "cargo", "wrap_help", "env"] }
+clap = { version = "3.0.13", features = ["derive", "default", "cargo", "wrap_help", "env"] }
 clap_complete = "3.0.4"
 
 # Tools

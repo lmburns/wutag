@@ -64,7 +64,7 @@ pub(crate) static APP_ABOUT: Lazy<String> = Lazy::new(|| {
 /// Specify the file-type(s) to filter by. Can be repeated
 #[rustfmt::skip]
 pub(crate) static FILE_TYPE: Lazy<String> = Lazy::new(|| {
-    "Filter results based on file-type. Does not work with '-g|--global'.\n  \
+    format!("Filter results based on file-type. Does not work with '-g|--global'.\n  \
         'f' or 'file':       regular file\n  \
         'd' or 'dir':        directory\n  \
         'l' or 'symlink':    symlink\n  \
@@ -73,7 +73,19 @@ pub(crate) static FILE_TYPE: Lazy<String> = Lazy::new(|| {
         's' or 'socket':     socket\n  \
         'F' or 'fifo':       fifo\n  \
         'x' or 'executable': executable\n \
-        'e' or 'empty':      file or directory with 0 size"
+        'e' or 'empty':      file or directory with 0 size\n\n \
+    More than one file-type can be searched for by repeating the argument.\n \
+    For example:\n \
+        1. Searches for directories and symlinks\n \
+        - {}wutag search -td -tl '*'{}\n \
+        2. Searches for empty files\n \
+        - {}wutag search -te -tf '*'{}\n \
+        3. Searches for empty directories\n \
+        - {}wutag search -te -td '*'{}",
+        GREEN, RES,
+        GREEN, RES,
+        GREEN, RES,
+        )
     .to_owned()
 });
 

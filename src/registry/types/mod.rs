@@ -97,6 +97,12 @@ impl ID {
     }
 }
 
+impl Default for ID {
+    fn default() -> Self {
+        ID::null()
+    }
+}
+
 impl ToSql for ID {
     fn to_sql(&self) -> rsq::Result<ToSqlOutput> {
         Ok(ToSqlOutput::from(self.0))
@@ -272,7 +278,9 @@ macro_rules! from_vec {
     };
 }
 
-/// Base functions to use for structs that consist only of an inner vector
+/// Base functions to use for structs that consist only of an inner vector.
+///
+/// These conversion types seem to be necessary when using `rusqlite`
 macro_rules! impl_vec {
     ($t:tt) => {
         /// Create a new set from a vector

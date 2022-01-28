@@ -62,7 +62,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve the number of `File`-`Tag` pairs in the database
-    pub(crate) fn filetag_count(&self) -> Result<u32> {
+    pub(crate) fn select_filetag_count(&self) -> Result<u32> {
         self.select1::<u32>(
             "SELECT count(1)
             FROM file_tag",
@@ -71,7 +71,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve all `File`-`Tag` pairs
-    pub(crate) fn filetags(&self) -> Result<FileTags> {
+    pub(crate) fn select_filetags(&self) -> Result<FileTags> {
         let filetags: Vec<FileTag> = self
             .query_vec(
                 "SELECT file_id, tag_id, value_id
@@ -85,7 +85,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve the count of `File`-`Tag` pairs for the given `FileId`
-    pub(crate) fn filetag_count_by_fileid(&self, fid: FileId) -> Result<u32> {
+    pub(crate) fn select_filetag_count_by_fileid(&self, fid: FileId) -> Result<u32> {
         self.select(
             "SELECT count(1)
             FROM file_tag
@@ -97,7 +97,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve the count of `File`-`Tag` pairs for the given `TagId`
-    pub(crate) fn filetag_count_by_tagid(&self, tid: TagId) -> Result<u32> {
+    pub(crate) fn select_filetag_count_by_tagid(&self, tid: TagId) -> Result<u32> {
         self.select(
             "SELECT count(1)
             FROM file_tag
@@ -109,7 +109,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve the count of `File`-`Tag` pairs for the given `ValueId`
-    pub(crate) fn filetag_count_by_valueid(&self, vid: ValueId) -> Result<u32> {
+    pub(crate) fn select_filetag_count_by_valueid(&self, vid: ValueId) -> Result<u32> {
         self.select(
             "SELECT count(1)
             FROM file_tag
@@ -121,7 +121,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve the `File`s that match the `FileId`
-    pub(crate) fn filetags_by_fileid(&self, fid: FileId) -> Result<FileTags> {
+    pub(crate) fn select_filetags_by_fileid(&self, fid: FileId) -> Result<FileTags> {
         let filetags: Vec<FileTag> = self
             .query_vec(
                 "SELECT file_id, tag_id, value_id
@@ -136,7 +136,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve the `File`s that match the `ValueId`
-    pub(crate) fn filetags_by_valueid(&self, vid: ValueId) -> Result<FileTags> {
+    pub(crate) fn select_filetags_by_valueid(&self, vid: ValueId) -> Result<FileTags> {
         let filetags: Vec<FileTag> = self
             .query_vec(
                 "SELECT file_id, tag_id, value_id

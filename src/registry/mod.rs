@@ -51,7 +51,7 @@ use rusqlite::{
     self as rsq,
     functions::{Context, FunctionFlags},
     params,
-    types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput},
+    types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, ValueRef},
     Connection, Params, Row, Transaction,
 };
 
@@ -118,6 +118,8 @@ pub(crate) enum Error {
 
 // ========================== Registry ==========================
 
+// TODO: Possibly start using 'ON CONFLICT'
+
 /// The `Tag` database
 #[derive(Debug)]
 pub(crate) struct Registry {
@@ -170,31 +172,6 @@ impl Registry {
         // Change `atomic commit and rollback` to `Write-Ahead Log`
         self.conn.pragma_update(None, "journal_mode", &"WAL")?;
 
-        // TODO:
-        // let version = self
-        //     .conn
-        //     .prepare("SELECT user_version from pragma_user_version")?
-        //     .query_row(params![], |row| row.get::<usize, i64>(0))? as usize;
-
-        // let version: i32 = self
-        //     .conn
-        //     .pragma_query_value(None, "user_version", |row| row.get(0))?;
-        //
-        // if version != 0_i32
-        //     && version != self.version as i32
-        //     && prompt(
-        //         "Database version mismatch and it needs to be reset. Is that okay?",
-        //         &self.path,
-        //     )
-        // {
-        //     self.clean_db()?;
-        // }
-        //
-        // if version == 0 {
-        //     self.conn
-        //         .pragma_update(None, "user_version", &self.version)?;
-        // }
-
         self.create_tag_table()?;
         self.create_file_table()?;
         self.create_value_table()?;
@@ -202,12 +179,14 @@ impl Registry {
         self.create_impl_table()?;
         self.create_query_table()?;
         self.create_version_table()?;
-        self.insert_version()?;
+        // self.insert_version()?;
 
+        // TODO:
         // self.create_tracker_table()?;
         // self.create_checkpoint_table()?;
 
         self.add_regex_funcs()?;
+        self.add_test_func()?;
         self.add_blake3_func()?;
 
         /// -
@@ -217,21 +196,51 @@ impl Registry {
 
         if schema_v != crate_v {
             wutag_info!("version mismatch");
-        }
 
-        if schema_v.less_than(crate_v) {
-            self.recreate_version_table()?;
+            if schema_v.less_than(crate_v) {
+                self.recreate_version_table()?;
+            }
         }
 
         self.update_current_version()?;
-        /// -
-        /// -
+
         Ok(())
     }
 
     /// Close the SQL connection
     pub(crate) fn close(self) -> Result<(), Error> {
         self.conn.close().map_err(|e| Error::CloseConnection(e.1))
+    }
+
+    // TODO:
+    /// Update the `user_version` pragma
+    pub(crate) fn update_pragma_version(&self) -> Result<()> {
+        // let version = self
+        //     .conn
+        //     .prepare("SELECT user_version from pragma_user_version")?
+        //     .query_row(params![], |row| row.get::<usize, i64>(0))? as usize;
+
+        let version: i32 = self
+            .conn
+            .pragma_query_value(None, "user_version", |row| row.get(0))?;
+
+        #[allow(clippy::cast_possible_wrap)]
+        if version != 0_i32
+            && version != self.version as i32
+            && prompt(
+                "Database version mismatch and it needs to be reset. Is that okay?",
+                &self.path,
+            )
+        {
+            self.clean_db()?;
+        }
+
+        if version == 0 {
+            self.conn
+                .pragma_update(None, "user_version", &self.version)?;
+        }
+
+        Ok(())
     }
 
     // ====================================================================
@@ -440,6 +449,63 @@ impl Registry {
     //         .context("failed to create `recent` function")
     // }
 
+    fn add_test_func(&self) -> Result<()> {
+        self.conn
+            .create_scalar_function(
+                "fff",
+                2,
+                FunctionFlags::SQLITE_UTF8 | FunctionFlags::SQLITE_DETERMINISTIC,
+                move |ctx| {
+                    let r = ctx.get::<String>(0)?;
+                    println!("ARG1: {:#?}", r);
+                    // let x = ctx.get::<String>(1)?;
+
+                    let s: Arc<String> = ctx
+                        .get_or_create_aux(1, |vr| -> rsq::Result<_, BoxError> {
+                            Ok(vr.as_str()?.to_string())
+                        })?;
+
+                    println!("ARG2: {:#?}", s);
+                    Ok(true)
+                },
+            )
+            .context("failed to create `regexp` function");
+        Ok(())
+    }
+
+    /// Return a `String` from a user-defined-function
+    fn get_string<'a>(
+        ctx: &'a Context,
+        fname: &'static str,
+        idx: usize,
+    ) -> Result<&'a str, rsq::Error> {
+        ctx.get_raw(idx).as_str().map_err(|e| {
+            rsq::Error::UserFunctionError(
+                format!("Bad argument at {} to function '{}': {}", idx, fname, e).into(),
+            )
+        })
+    }
+
+    /// Return an optional `String` from a user-defined-function
+    fn get_opt_string<'a>(
+        ctx: &'a Context,
+        fname: &'static str,
+        idx: usize,
+    ) -> Result<Option<&'a str>> {
+        let raw = ctx.get_raw(idx);
+        if raw == ValueRef::Null {
+            return Ok(None);
+        }
+
+        Ok(Some(raw.as_str().map_err(|e| {
+            rsq::Error::UserFunctionError(
+                format!("Bad argument at {} to function '{}': {}", idx, fname, e).into(),
+            )
+        })?))
+    }
+
+    // TODO: Combine with `Search`
+
     /// Create a regular expression function in the database.
     /// Allow for case-sensitive and case-insensitive functions, as well as
     /// `glob`s
@@ -466,13 +532,6 @@ impl Registry {
                             let s = vr.as_str()?;
 
                             let patt = if glob {
-                                // let builder = globset::GlobBuilder::new(s);
-                                // builder
-                                //     .build()
-                                //     .expect("invalid glob sequence")
-                                //     .regex()
-                                //     .to_owned()
-
                                 wax::Glob::new(s)
                                     .expect("invalid glob sequence")
                                     .regex()
@@ -486,14 +545,15 @@ impl Registry {
                                 .build()
                                 .map_err(|e| rsq::Error::UserFunctionError(Box::new(e)))?;
 
+                            log::debug!("pattern({:#?})", reg);
+
                             Ok(reg)
                         })?;
 
                     let is_match = {
-                        let text = ctx
-                            .get_raw(1)
-                            .as_str()
-                            .map_err(|e| rsq::Error::UserFunctionError(e.into()))?;
+                        let text = Self::get_string(ctx, fname, 1)?;
+
+                        log::debug!("regex text: {:#?}", text);
 
                         regexp.is_match(text)
                     };
@@ -561,13 +621,17 @@ impl Registry {
                         .as_str()
                         .map_err(|e| rsq::Error::UserFunctionError(e.into()))?;
                     let path = PathBuf::from(text);
-                    let mode = path
-                        .metadata()
-                        .map_err(|_e| rsq::Error::InvalidPath(path))?
-                        .permissions()
-                        .mode();
-                    let hash = blake3_hash(text, mode)
-                        .map_err(|e| rsq::Error::UserFunctionError(e.into()))?;
+
+                    let hash = if let Ok(perm) =
+                        path.metadata().map_err(|_e| rsq::Error::InvalidPath(path))
+                    {
+                        let mode = perm.permissions().mode();
+                        blake3_hash(text, Some(mode))
+                            .map_err(|e| rsq::Error::UserFunctionError(e.into()))?
+                    } else {
+                        blake3_hash(text, None)
+                            .map_err(|e| rsq::Error::UserFunctionError(e.into()))?
+                    };
 
                     Ok(hash.to_string())
                 },

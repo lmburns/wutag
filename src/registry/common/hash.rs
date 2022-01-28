@@ -18,7 +18,7 @@ pub(crate) fn blake3_hash_text<S: AsRef<str>>(txt: S) -> String {
 }
 
 /// Use the [`blake3`] hashing function on a file's contents
-pub(crate) fn blake3_hash<P: AsRef<Path>>(path: P, perm: u32) -> Result<blake3::Hash> {
+pub(crate) fn blake3_hash<P: AsRef<Path>>(path: P, perm: Option<u32>) -> Result<blake3::Hash> {
     let path = path.as_ref();
 
     let mut file =
@@ -27,18 +27,30 @@ pub(crate) fn blake3_hash<P: AsRef<Path>>(path: P, perm: u32) -> Result<blake3::
 
     // Hash the file's contents
     io::copy(&mut file, &mut hasher).context("failed to copy file to hasher")?;
+
+    // Not sure if I really like this
     // Add the file's permissions to the hash
-    hasher.update(&perm.to_be_bytes());
+    if let Some(p) = perm {
+        hasher.update(&p.to_be_bytes());
+    }
 
     Ok(hasher.finalize())
 }
 
-/// Use the [`blake3`](blake3) hashing function to get the hash of an entire
+/// Use the [`blake3::hash`] hashing function to get the hash of an entire
 /// directory
+///
+/// Returns a [`Hash`](blake3::Hash) object if the function succeeds
+///
+/// # Note
+/// The hash of the directory is calculated by taking the hash of each file in
+/// the directory with a maximum depth of `1`. Then it joins each of them with
+/// the null byte (`\0`). Finally it takes the hash of this new string and
+/// returns it
 pub(crate) fn hash_dir<P, F>(follow_links: bool, dir: P, f: F) -> Result<blake3::Hash>
 where
     P: AsRef<Path>,
-    F: Fn(&Path, u32) -> Result<blake3::Hash> + Send + Sync,
+    F: Fn(&Path, Option<u32>) -> Result<blake3::Hash> + Send + Sync,
 {
     let mut walker = WalkBuilder::new(&dir.as_ref());
     walker
@@ -68,13 +80,18 @@ where
                 let path = entry.path();
                 if let Ok(meta) = entry.metadata() {
                     let mode = meta.permissions().mode();
-                    if let Ok(hash) = f(path, mode) {
+                    if let Ok(hash) = f(path, Some(mode)) {
                         h.push(hash.to_string());
                     } else {
-                        log::error!("unable to calculate hash hash: {}", path.display());
+                        log::error!("unable to calculate hash: {}", path.display());
                     }
                 } else {
                     log::error!("unable to get metadata: {}", path.display());
+                    if let Ok(hash) = f(path, None) {
+                        h.push(hash.to_string());
+                    } else {
+                        log::error!("unable to calculate hash: {}", path.display());
+                    }
                 }
             }
         });

@@ -20,7 +20,7 @@ use mime::Mime;
 use std::{
     borrow::Cow,
     convert::TryFrom,
-    fs,
+    fs::{self, Metadata},
     os::unix::fs::{MetadataExt, PermissionsExt},
     path::{Path, PathBuf},
     str::FromStr,
@@ -63,38 +63,38 @@ impl FileIds {
 #[derive(Debug, Clone)]
 pub(crate) struct File {
     /// File ID, similar to UUID
-    pub(crate) id:        FileId,
+    pub(crate) id: FileId,
     /// Directory the file is located.
     ///
     /// This is a directory regardless of whether the item is a file or a
     /// directory. If the item is a directory, this will be the directory that
     /// is above the chosen directory. If the item is a file, then this will be
     /// the parent directory that houses that file
-    pub(crate) directory: String,
+    directory:     String,
     /// Basename of the filepath. This can be a file or a directory name
-    pub(crate) name:      String,
+    name:          String,
     /// [`blake3`](blake3) hash of the file or directory
-    pub(crate) hash:      String,
+    hash:          String,
     /// [`MimeType`](crate::util::MimeType) of a file
-    pub(crate) mime:      MimeType,
+    mime:          MimeType,
     /// Modification time
-    pub(crate) mtime:     DateTime<Local>,
+    mtime:         DateTime<Local>,
     /// Creation time
-    pub(crate) ctime:     DateTime<Local>,
+    ctime:         DateTime<Local>,
     /// File permission in base-10
-    pub(crate) mode:      u32,
+    mode:          u32,
     /// Index node of a file / directory
-    pub(crate) inode:     u64,
+    inode:         u64,
     /// Number of hard links pointing to the file / directory
-    pub(crate) links:     u64,
+    links:         u64,
     /// User ID of the file / directory
-    pub(crate) uid:       u32,
+    uid:           u32,
     /// Group ID of the file / directory
-    pub(crate) gid:       u32,
+    gid:           u32,
     /// Size of a file in TODO:
-    pub(crate) size:      u64,
+    size:          u64,
     /// Is the file name a directory?
-    pub(crate) is_dir:    bool,
+    is_dir:        bool,
 }
 
 // To use this, the scan of the files would have to be done regularly
@@ -127,60 +127,169 @@ impl File {
 
     inner_immute!(is_dir, bool, false);
 
-    /// Create a new `File`. A file can be a directory
-    pub(crate) fn new<P: AsRef<Path>>(path: P, follow_links: bool) -> Result<Self> {
-        let path = path
-            .as_ref()
+    // TODO: Test following symlinks
+    fn clean_path<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
+        path.as_ref()
             .lexiclean()
             .canonicalize()
-            .context("failed to canonicalize")?;
+            .context("failed to canonicalize")
+    }
+
+    /// Set the `id` field of the [`File`]
+    pub(crate) fn set_id_mut(&mut self, id: FileId) {
+        self.id = id;
+    }
+
+    /// Set the `id` field of the [`File`]
+    pub(crate) const fn set_id(mut self, id: FileId) -> Self {
+        self.id = id;
+        self
+    }
+
+    /// Modify the [`File`]s directory, due to moving a file
+    pub(crate) fn set_directory(mut self, path: &Path) -> Result<Self> {
+        self.directory = path
+            .parent()
+            .context("failed to get parent")?
+            .to_string_lossy()
+            .to_string();
+
+        Ok(self)
+    }
+
+    /// Modify the [`File`]s file name, due to file name changes
+    pub(crate) fn set_filename(mut self, path: &Path) -> Result<Self> {
+        self.name = path
+            .file_name()
+            .context("failed to get file name")?
+            .to_string_lossy()
+            .to_string();
+
+        Ok(self)
+    }
+
+    /// Modify the [`File`]s hash, due to a file modification
+    pub(crate) fn set_hash(mut self, path: &Path, follow_links: bool) -> Result<Self> {
+        let path = Self::clean_path(path)?;
+        self.hash = {
+            if path.is_dir() {
+                hash_dir(follow_links, &path, |p, perm| blake3_hash(p, perm))?
+            } else {
+                blake3_hash(&path, None)?
+            }
+        }
+        .to_string();
+
+        Ok(self)
+    }
+
+    /// Modify the [`File`]s mime, due to file type changes
+    pub(crate) fn set_mime(mut self, path: &Path) -> Result<Self> {
+        let path = Self::clean_path(path)?;
+        self.mime = MimeType::try_from(&path).context("failed to get mimetype")?;
+
+        Ok(self)
+    }
+
+    /// Modify the [`File`]s modification time, due to file changes
+    pub(crate) fn set_mtime(mut self, meta: &Metadata) -> Result<Self> {
+        self.mtime =
+            convert_to_datetime(meta.modified().context("failed to get modification time")?);
+        Ok(self)
+    }
+
+    /// Modify the [`File`]s creation time. Shouldn't really ever change
+    pub(crate) fn set_ctime(mut self, meta: &Metadata) -> Result<Self> {
+        self.ctime = convert_to_datetime(meta.created().context("failed to get created time")?);
+        Ok(self)
+    }
+
+    /// Modify the [`File`]s permissions, due to permission changes
+    pub(crate) fn set_mode(mut self, meta: &Metadata) -> Self {
+        self.mode = meta.permissions().mode();
+        self
+    }
+
+    /// Modify the [`File`]s inode
+    pub(crate) fn set_inode(mut self, meta: &Metadata) -> Self {
+        self.inode = meta.ino();
+        self
+    }
+
+    /// Modify the [`File`]s links due to hard/soft link creation
+    pub(crate) fn set_links(mut self, meta: &Metadata) -> Self {
+        self.links = meta.nlink();
+        self
+    }
+
+    /// Modify the [`File`]s UID (user ID) due to ownership changes
+    pub(crate) fn set_uid(mut self, meta: &Metadata) -> Self {
+        self.uid = meta.uid();
+        self
+    }
+
+    /// Modify the [`File`]s GID (group ID) due to ownership changes
+    pub(crate) fn set_gid(mut self, meta: &Metadata) -> Self {
+        self.gid = meta.gid();
+        self
+    }
+
+    /// Modify the [`File`]s size, due to modifications
+    pub(crate) fn set_size(mut self, meta: &Metadata) -> Self {
+        self.size = meta.len();
+        self
+    }
+
+    /// Modify the [`File`]s `is_dir` attribute
+    pub(crate) fn set_is_dir(mut self, path: &Path) -> Self {
+        self.is_dir = path.is_dir();
+        self
+    }
+
+    /// Modify the [`File`]s [`Metadata`] attributes
+    pub(crate) fn set_metadata(mut self, meta: &Metadata) -> Result<Self> {
+        self.mtime =
+            convert_to_datetime(meta.modified().context("failed to get modification time")?);
+        self.ctime = convert_to_datetime(meta.created().context("failed to get created time")?);
+        self.mode = meta.permissions().mode();
+        self.inode = meta.ino();
+        self.links = meta.nlink();
+        self.uid = meta.uid();
+        self.gid = meta.gid();
+        self.size = meta.len();
+
+        Ok(self)
+    }
+
+    /// Create a new `File`. A file can be a directory
+    pub(crate) fn new<P: AsRef<Path>>(path: P, follow_links: bool) -> Result<Self> {
+        let path = Self::clean_path(path)?;
         let file = fs::File::open(&path).context("failed to open file")?;
         let meta = file.metadata().context("failed to get file metadata")?;
 
-        // id:        Wuid::new(),
-        Ok(Self {
-            id:        ID::null(),
-            directory: path
-                .parent()
-                .context("failed to get parent")?
-                .to_string_lossy()
-                .to_string(),
-            name:      path
-                .file_name()
-                .context("failed to get file name")?
-                .to_string_lossy()
-                .to_string(),
-            hash:      {
-                if path.is_dir() {
-                    hash_dir(follow_links, &path, |p, perm| blake3_hash(p, perm))?
-                } else {
-                    blake3_hash(&path, meta.permissions().mode())?
-                }
-            }
-            .to_string(),
-            mime:      MimeType::try_from(&path).context("failed to get mimetype")?,
-            mtime:     convert_to_datetime(
-                meta.modified().context("failed to get modification time")?,
-            ),
-            ctime:     convert_to_datetime(meta.created().context("failed to get created time")?),
-            mode:      meta.permissions().mode(),
-            inode:     meta.ino(),
-            links:     meta.nlink(),
-            uid:       meta.uid(),
-            gid:       meta.gid(),
-            size:      meta.len(),
-            is_dir:    path.is_dir(),
-        })
+        let f = Self::default()
+            .set_directory(&path)?
+            .set_filename(&path)?
+            .set_hash(&path, follow_links)?
+            .set_mime(&path)?
+            .set_metadata(&meta)?
+            .set_is_dir(&path);
+
+        // .set_mtime(&meta)?
+        // .set_ctime(&meta)?
+        // .set_mode(&meta)
+        // .set_inode(&meta)
+        // .set_links(&meta)
+        // .set_uid(&meta)
+        // .set_gid(&meta)
+        // .set_size(&meta)
+
+        Ok(f)
     }
 
     /// Join the directory and file name, resulting in the full [`PathBuf`]
     pub(crate) fn path(&self) -> PathBuf {
         PathBuf::from(&self.directory).join(&self.name)
-    }
-
-    /// Set the `id` field of the [`File`]
-    pub(crate) fn set_id(&mut self, id: FileId) {
-        self.id = id;
     }
 }
 
@@ -204,6 +313,27 @@ impl TryFrom<&Row<'_>> for File {
             size:      row.get("size")?,
             is_dir:    row.get("is_dir")?,
         })
+    }
+}
+
+impl Default for File {
+    fn default() -> Self {
+        Self {
+            id:        ID::null(),
+            directory: String::default(),
+            name:      String::default(),
+            hash:      String::default(),
+            mime:      MimeType::default(),
+            mtime:     Local::now(),
+            ctime:     Local::now(),
+            mode:      u32::default(),
+            inode:     u64::default(),
+            links:     u64::default(),
+            uid:       u32::default(),
+            gid:       u32::default(),
+            size:      u64::default(),
+            is_dir:    bool::default(),
+        }
     }
 }
 
@@ -319,6 +449,12 @@ impl FromSql for MimeType {
             Ok(v) => Ok(v),
             Err(err) => Err(FromSqlError::InvalidType),
         }
+    }
+}
+
+impl Default for MimeType {
+    fn default() -> Self {
+        Self(Mime::from_str("text/plain").expect("failed to set text/plain mime"))
     }
 }
 

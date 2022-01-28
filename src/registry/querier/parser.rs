@@ -1003,6 +1003,10 @@ fn parse_expr(input: Span) -> IResult<Span, Expr> {
 /// There is no need to return any kind of error object because the error is
 /// logged to the console to provide hints to the user on how to correct
 /// their query
+///
+/// # Errors
+/// Returns `()` because all errors are printed to the screen during the parsing
+/// phase
 pub(crate) fn parse_query(input: &Query) -> Result<ParsedQuery, ()> {
     let s = Span::new_extra(input.query(), input);
     let (rest, parsed) = parse_expr(s).map_err(|_| ())?;

@@ -88,8 +88,7 @@ impl Txn<'_> {
             return Err(Error::EmptyArray);
         }
 
-        let mut builder = SqlBuilder::new();
-        builder.append(
+        let mut builder = SqlBuilder::new_initial(
             "SELECT id, name, color
             FROM tag
             WHERE id IN (",
@@ -113,12 +112,12 @@ impl Txn<'_> {
     /// Retrieve the [`Tag`] matching the [`Tag`] name
     ///   - **Exact match** searching
     pub(crate) fn tag_by_name<S: AsRef<str>>(&self, name: S, ignore_case: bool) -> Result<Tag> {
-        let mut builder = SqlBuilder::new();
-        builder.append(
+        let mut builder = SqlBuilder::new_initial(
             "SELECT id, name, color
             FROM tag
             WHERE name ",
         );
+
         builder.nocase_collation(ignore_case);
         builder.append("?1");
 
@@ -143,12 +142,12 @@ impl Txn<'_> {
             return Err(Error::EmptyArray);
         }
 
-        let mut builder = SqlBuilder::new();
-        builder.append(
+        let mut builder = SqlBuilder::new_initial(
             "SELECT id, name, color
             FROM tag
             WHERE name ",
         );
+
         builder.nocase_collation(ignore_case);
         builder.append(" IN (");
 

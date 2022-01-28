@@ -33,17 +33,19 @@ use crate::{
     override_usage =  <String as AsRef<str>>::as_ref(&OVERRIDE_HELP),
     max_term_width = 100,
     color = clap::ColorChoice::Auto,
-    global_setting = AppSettings::DisableHelpSubcommand,        // Disables help (use -h)
     global_setting = AppSettings::DeriveDisplayOrder,           // Display in order listed here
     global_setting = AppSettings::HidePossibleValues,
     global_setting = AppSettings::InferSubcommands,             // l, li, lis == list
-    // global_setting = AppSettings::InferLongArgs,             // Same as above but for args
+    global_setting = AppSettings::InferLongArgs,             // Same as above but for args
+    global_setting = AppSettings::DisableHelpSubcommand,        // Disables help (use -h)
+    global_setting = AppSettings::UseLongFormatForHelpSubcommand, // Use a long help message
     // global_setting = AppSettings::UnifiedHelpMessage,     // Options/Flags together
 )]
 pub(crate) struct Opts {
     #[clap(long, short, global = true, parse(from_occurrences))]
     /// Display debugging messages on 4 levels (i.e., -vv..)
-    pub(crate) verbose:          u8,
+    pub(crate) verbose: u8,
+
     /// Specify starting path for filesystem traversal
     #[clap(
         long, short,
@@ -59,7 +61,8 @@ pub(crate) struct Opts {
         path, otherwise default to current working directory. Only applies to subcommands that \
         take a pattern as a positional argument"
     )]
-    pub(crate) dir:              Option<PathBuf>,
+    pub(crate) dir: Option<PathBuf>,
+
     /// Set maximum depth to recurse into
     #[clap(
         long, short,
@@ -72,7 +75,8 @@ pub(crate) struct Opts {
         Increase maximum recursion depth of filesystem traversal to specified value (default: 2). \
                       Only applies to subcommands that take a pattern as a positional argument."
     )]
-    pub(crate) max_depth:        Option<usize>,
+    pub(crate) max_depth: Option<usize>,
+
     /// Specify a different registry to use
     #[clap(
         long = "registry", short = 'R',
@@ -81,7 +85,8 @@ pub(crate) struct Opts {
         value_name = "reg",
         setting = ArgSettings::HideEnv,
     )]
-    pub(crate) reg:              Option<PathBuf>,
+    pub(crate) reg: Option<PathBuf>,
+
     /// Case insensitively search
     #[clap(
         name = "case_insensitive",
@@ -95,6 +100,7 @@ pub(crate) struct Opts {
         argument."
     )]
     pub(crate) case_insensitive: bool,
+
     /// Case sensitively search
     #[clap(
         name = "case_sensitive",
@@ -106,7 +112,8 @@ pub(crate) struct Opts {
         --case-insensitive. Only applies to subcommands that take a pattern as a positional \
         argument."
     )]
-    pub(crate) case_sensitive:   bool,
+    pub(crate) case_sensitive: bool,
+
     /// Search with a regular expressions
     #[clap(
         long,
@@ -115,7 +122,8 @@ pub(crate) struct Opts {
         Search for files using a regular expressions instead of a glob. Only applies to \
                      subcommands that take a pattern as a positional argument."
     )]
-    pub(crate) regex:            bool,
+    pub(crate) regex: bool,
+
     /// Apply operation to all tags and files instead of locally
     #[clap(
         name = "global",
@@ -126,10 +134,12 @@ pub(crate) struct Opts {
                      directories or directories specified with '-d|--dir'. Only applies to \
                      'search', 'list', 'rm', and 'clear'."
     )]
-    pub(crate) global:           bool,
+    pub(crate) global: bool,
+
     /// Respect 'LS_COLORS' environment variable when coloring the output
     #[clap(long, short = 'l', conflicts_with = "color")]
-    pub(crate) ls_colors:        bool,
+    pub(crate) ls_colors: bool,
+
     /// When to colorize output
     #[clap(
         name = "color", long = "color", short = 'c',
@@ -139,7 +149,8 @@ pub(crate) struct Opts {
         When to colorize output (usually meant for piping). Valid values are: always, \
         auto, never. The always selection only applies to the path as of now."
     )]
-    pub(crate) color_when:       Option<String>,
+    pub(crate) color_when: Option<String>,
+
     /// File-type(s) to filter by: f|file, d|directory, l|symlink, e|empty
     #[clap(
         long = "type",
@@ -148,9 +159,22 @@ pub(crate) struct Opts {
         multiple_occurrences = true,
         takes_value = true,
         value_name = "filetype",
+        hide_possible_values = true,
+        possible_values = &[
+            "f", "file",
+            "d", "dir",
+            "l", "symlink",
+            "b", "block",
+            "c", "char",
+            "s", "socket",
+            "p", "fifo",
+            "x", "executable",
+            "e", "empty",
+        ],
         long_help = FILE_TYPE.as_ref(),
     )]
-    pub(crate) file_type:        Option<Vec<String>>,
+    pub(crate) file_type: Option<Vec<String>>,
+
     #[clap(
         long = "ext",
         short = 'e',
@@ -165,8 +189,9 @@ pub(crate) struct Opts {
                       <tag>'. Can be used multiple times: e.g., -e rs -e go.
         "
     )]
+
     /// Filter results by file extension
-    pub(crate) extension:        Option<Vec<String>>,
+    pub(crate) extension: Option<Vec<String>>,
     #[clap(
         long = "exclude", short = 'E',
         number_of_values = 1,
@@ -181,7 +206,8 @@ pub(crate) struct Opts {
         "
     )]
     /// Exclude results that match pattern
-    pub(crate) exclude:          Option<Vec<String>>,
+    pub(crate) exclude:   Option<Vec<String>>,
+
     /// Do not display any output for any command
     #[clap(
         name = "quiet",
@@ -190,10 +216,11 @@ pub(crate) struct Opts {
         long_help = "Do not display any output for any command. Used within the TUI but made \
                      available to users"
     )]
-    pub(crate) quiet:            bool,
+    pub(crate) quiet: bool,
+
     /// Subcommand
     #[clap(subcommand)]
-    pub(crate) cmd:              Command,
+    pub(crate) cmd: Command,
 }
 
 impl Opts {

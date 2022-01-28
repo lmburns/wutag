@@ -4,7 +4,7 @@
 use super::{
     common::version::Version,
     sqlbuilder::SqlBuilder,
-    types::{Operation, Table, ID},
+    types::{Operation, Table, ID, file::File},
     Registry,
 };
 use anyhow::{Context, Result};
@@ -131,6 +131,37 @@ impl<'t> Txn<'t> {
         stmt.query_row(params, f).context(error)
     }
 
+    pub(crate) fn test_regex(&self) -> Result<()> {
+        let is_match: File = self.txn.query_row(
+            "
+            SELECT
+                id,
+                directory,
+                name,
+                hash,
+                mime,
+                mtime,
+                ctime,
+                mode,
+                inode,
+                links,
+                uid,
+                gid,
+                size,
+                is_dir
+            FROM file
+            WHERE regex('^j.*', name) == 1",
+            params![],
+            |row| {
+                let r: File = row.try_into().expect("failed to convert to `File`");
+                Ok(r)
+            },
+        )?;
+
+        println!("is match: {:#?}", is_match);
+        Ok(())
+    }
+
     /// Select a single row, no [`params`](rusqlite::params), and no closure
     pub(crate) fn select1<T: FromSql>(&self, sql: &str) -> Result<T> {
         self.select(sql, params![], |row| row.get(0))
@@ -232,6 +263,8 @@ impl<'t> Txn<'t> {
 
     // ============================== Version =============================
     // ====================================================================
+
+    // TODO: Remove these if not used
 
     /// Insert the latest version into the database
     pub(crate) fn insert_version(&self) -> Result<()> {

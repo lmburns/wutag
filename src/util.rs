@@ -289,22 +289,10 @@ pub(crate) fn command_status(cmd: &str, args: &[&str]) -> Result<(i32, String)> 
     }
 }
 
-/// Build a glob with [`GlobBuilder`](globset::GlobBuilder) and return a string
-/// to be compiled as a regular expression
-pub(crate) fn glob_builder(pattern: &str) -> String {
-    let builder = globset::GlobBuilder::new(pattern);
-    builder
-        .build()
-        .expect("Invalid glob sequence")
-        .regex()
-        .to_owned()
-}
-
 /// Build a glob with [`wax`] and return a string to be compiled as a regular
 /// expression
-#[allow(dead_code)]
-pub(crate) fn wax_builder<S: AsRef<str>>(pattern: S) -> String {
-    wax::Glob::new(pattern.as_ref())
+pub(crate) fn glob_builder(pattern: &str) -> String {
+    wax::Glob::new(pattern)
         .map(|g| g.regex().to_string())
         .expect("failed to build glob")
 }

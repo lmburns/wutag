@@ -2,6 +2,11 @@
 //! into an object Also contains functions that act on [`Txn`] to modify the
 //! `file` table
 
+// TODO: Implement a method on files which compares more than one array
+//      For example, a query of /regex/ && value(4)
+//      Collect all files matching regex (call to SQL), and collect all files
+//      matching value. Then compare the two
+
 use super::{
     super::{
         common::{
@@ -12,7 +17,7 @@ use super::{
     },
     from_vec, impl_vec, ID,
 };
-use crate::inner_immute;
+use crate::{filesystem::ext4::FileFlag, inner_immute};
 use anyhow::{Context, Result};
 use chrono::{DateTime, Local};
 use lexiclean::Lexiclean;
@@ -26,13 +31,19 @@ use std::{
     str::FromStr,
     time::SystemTime,
 };
-use uuid::Uuid;
 
 use rusqlite::{
     self as rsq,
     types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, ValueRef},
     Row,
 };
+
+#[cfg(all(
+    feature = "file-flags",
+    target_family = "unix",
+    not(target_os = "macos")
+))]
+use e2p_fileflags::{FileFlags, Flags};
 
 // ======================== ID ========================
 
@@ -60,7 +71,7 @@ impl FileIds {
 // ======================= File =======================
 
 /// Representation of a file on the filesystem
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct File {
     /// File ID, similar to UUID
     pub(crate) id: FileId,
@@ -95,37 +106,38 @@ pub(crate) struct File {
     size:          u64,
     /// Is the file name a directory?
     is_dir:        bool,
+
+    #[cfg(all(
+        feature = "file-flags",
+        target_family = "unix",
+        not(target_os = "macos")
+    ))]
+    /// `e2fsprogs` file attributes
+    e2pflags: FileFlag,
 }
 
-// To use this, the scan of the files would have to be done regularly
-// atime:     DateTime<Local>,
-
+#[rustfmt::skip]
 impl File {
     inner_immute!(directory, String);
-
     inner_immute!(name, String);
-
     inner_immute!(hash, String);
-
     inner_immute!(mime, MimeType);
-
     inner_immute!(mtime, DateTime<Local>);
-
     inner_immute!(ctime, DateTime<Local>);
-
     inner_immute!(mode, u32, false);
-
     inner_immute!(inode, u64, false);
-
     inner_immute!(links, u64, false);
-
     inner_immute!(uid, u32, false);
-
     inner_immute!(gid, u32, false);
-
     inner_immute!(size, u64, false);
-
     inner_immute!(is_dir, bool, false);
+
+    #[cfg(all(
+        feature = "file-flags",
+        target_family = "unix",
+        not(target_os = "macos")
+    ))]
+    inner_immute!(e2pflags, FileFlag);
 
     // TODO: Test following symlinks
     fn clean_path<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
@@ -206,7 +218,9 @@ impl File {
 
     /// Modify the [`File`]s permissions, due to permission changes
     pub(crate) fn set_mode(mut self, meta: &Metadata) -> Self {
-        self.mode = meta.permissions().mode();
+        self.mode = format!("{:o}", meta.permissions().mode())
+            .parse::<u32>()
+            .expect("failed to parse octal digits");
         self
     }
 
@@ -251,7 +265,9 @@ impl File {
         self.mtime =
             convert_to_datetime(meta.modified().context("failed to get modification time")?);
         self.ctime = convert_to_datetime(meta.created().context("failed to get created time")?);
-        self.mode = meta.permissions().mode();
+        self.mode = format!("{:o}", meta.permissions().mode())
+            .parse::<u32>()
+            .expect("failed to parse octal digits");;
         self.inode = meta.ino();
         self.links = meta.nlink();
         self.uid = meta.uid();
@@ -261,19 +277,37 @@ impl File {
         Ok(self)
     }
 
+    /// Modify the [`File`]s `ext4` flags, due to flag chagnes
+    #[cfg(all(
+        feature = "file-flags",
+        target_family = "unix",
+        not(target_os = "macos")
+    ))]
+    pub(crate) fn set_e2pflags(mut self, flags: Flags) -> Self {
+        self.e2pflags = FileFlag::from(flags);
+        self
+    }
+
     /// Create a new `File`. A file can be a directory
     pub(crate) fn new<P: AsRef<Path>>(path: P, follow_links: bool) -> Result<Self> {
         let path = Self::clean_path(path)?;
         let file = fs::File::open(&path).context("failed to open file")?;
         let meta = file.metadata().context("failed to get file metadata")?;
 
-        let f = Self::default()
+        let mut f = Self::default()
             .set_directory(&path)?
             .set_filename(&path)?
             .set_hash(&path, follow_links)?
             .set_mime(&path)?
             .set_metadata(&meta)?
             .set_is_dir(&path);
+
+        #[cfg(all(
+            feature = "file-flags",
+            target_family = "unix",
+            not(target_os = "macos")
+        ))]
+        let f = f.set_e2pflags(file.flags().context("failed to get the file's flags")?);
 
         // .set_mtime(&meta)?
         // .set_ctime(&meta)?
@@ -312,6 +346,14 @@ impl TryFrom<&Row<'_>> for File {
             gid:       row.get("gid")?,
             size:      row.get("size")?,
             is_dir:    row.get("is_dir")?,
+
+            #[rustfmt::skip]
+            #[cfg(all(
+                feature = "file-flags",
+                target_family = "unix",
+                not(target_os = "macos")
+            ))]
+            e2pflags:  row.get("e2pflags")?,
         })
     }
 }
@@ -333,6 +375,7 @@ impl Default for File {
             gid:       u32::default(),
             size:      u64::default(),
             is_dir:    bool::default(),
+            e2pflags:  FileFlag::from(Flags::default()),
         }
     }
 }
@@ -347,7 +390,7 @@ impl Default for File {
 // ======================= Files ======================
 
 /// A vector of [`File`]s
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Files {
     /// The inner vector of [`File`]s
     inner: Vec<File>,

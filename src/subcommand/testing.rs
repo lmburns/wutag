@@ -1,9 +1,13 @@
 #![allow(unused)]
 
 use anyhow::Context;
-use std::path::PathBuf;
+use std::{
+    os::unix::fs::{MetadataExt, PermissionsExt},
+    path::PathBuf,
+};
 
 use crate::registry::types::ID;
+use e2p_fileflags::{FileFlags,Flags};
 
 use super::{
     uses::{
@@ -53,20 +57,28 @@ impl App {
         // let test = PathBuf::from("./README.md");
         // let ret = txn.insert_file(test)?;
 
-        let q = crate::registry::querier::ast::query::Query::new(&opts.query.join(" "), None);
-        let parsed = q.parse();
+        // let test = PathBuf::from("./Cargo.lock");
+        // let ret = txn.insert_file(test)?;
+        //
+        // let q = crate::registry::querier::ast::query::Query::new(&opts.query.join(" "), None);
+        // let parsed = q.parse();
+        //
+        // if let Ok(p) = parsed {
+        //     println!("parsed: {:#?}", p);
+        // }
 
-        if let Ok(p) = parsed {
-            println!("parsed: {:#?}", p);
-        }
+        // let fs = txn.select_files_by_glob("name", "**/*{.md,.lock}")?;
 
-        // txn.test_regex()?;
-        // let fs = txn.select_files_by_glob("name", "j*")?;
-        // println!("RES: {:#?}", fs);
+        let test = PathBuf::from("./README.md");
+        // test.set_flags(Flags::COMPR | Flags::EXTENTS)?;
+
+        let f = txn.select_file_by_path(&test.canonicalize()?)?;
+        let new = txn.update_file(f.id, test.canonicalize()?)?;
+
+        let og_files = txn.select_files_by_flag("ce")?;
+        println!("OG: {:#?}", og_files);
+
         // txn.commit()?;
-
-        // println!("MATCH: {:#?}", f);
-        // println!("files: {:#?}", f.inner()[1]);
 
         Ok(())
     }

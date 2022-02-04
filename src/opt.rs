@@ -34,10 +34,10 @@ use crate::{
     max_term_width = 100,
     color = clap::ColorChoice::Auto,
     global_setting = AppSettings::DeriveDisplayOrder,           // Display in order listed here
-    global_setting = AppSettings::HidePossibleValues,
     global_setting = AppSettings::InferSubcommands,             // l, li, lis == list
     global_setting = AppSettings::InferLongArgs,             // Same as above but for args
     global_setting = AppSettings::DisableHelpSubcommand,        // Disables help (use -h)
+    global_setting = AppSettings::DontCollapseArgsInUsage,        // TODO: test
     global_setting = AppSettings::UseLongFormatForHelpSubcommand, // Use a long help message
     // global_setting = AppSettings::UnifiedHelpMessage,     // Options/Flags together
 )]

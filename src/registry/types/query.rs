@@ -45,7 +45,7 @@ impl From<&str> for Query {
     }
 }
 
-impl From<SqlBuilder> for Query {
+impl From<SqlBuilder<'_>> for Query {
     fn from(s: SqlBuilder) -> Self {
         Self {
             inner: s.utf().expect("invalid UTF-string in query"),

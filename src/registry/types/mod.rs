@@ -99,7 +99,7 @@ impl ID {
 
 impl Default for ID {
     fn default() -> Self {
-        ID::null()
+        Self::null()
     }
 }
 
@@ -317,6 +317,21 @@ macro_rules! impl_vec {
         pub(crate) fn len(&self) -> usize {
             self.inner.len()
         }
+
+        /// Test whether the inner vector is empty
+        pub(crate) fn is_empty(&self) -> bool {
+            self.inner.is_empty()
+        }
+
+        /// Return an iterator of the inner vector
+        pub(crate) fn iter(&self) -> impl Iterator<Item = $t> + '_ {
+            self.inner.iter().cloned()
+        }
+
+        /// Get an item from the inner vector
+        pub(crate) fn get(&self, idx: usize) -> Option<&$t> {
+            self.inner.get(idx)
+        }
     };
     ($impl:tt, $t:tt) => {
         impl $impl {
@@ -324,6 +339,18 @@ macro_rules! impl_vec {
         }
     };
 }
+
+// macro_rules! impl_deref {
+//     ($t:tt, $type:tt) => {
+//         impl std::ops::Deref for $t {
+//             type Target = Vec<$type>;
+//
+//             fn deref(&self) -> &Self::Target {
+//                 &self.inner
+//             }
+//         }
+//     };
+// }
 
 // A `pub` qualifier prevents the macro from only being accessible from the
 // crate root

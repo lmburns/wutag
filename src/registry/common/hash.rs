@@ -17,6 +17,8 @@ pub(crate) fn blake3_hash_text<S: AsRef<str>>(txt: S) -> String {
     blake3::hash(txt.as_ref().as_bytes()).to_string()
 }
 
+// TODO: Make this so the user can calculate the hash when including the perms
+
 /// Use the [`blake3`] hashing function on a file's contents
 pub(crate) fn blake3_hash<P: AsRef<Path>>(path: P, perm: Option<u32>) -> Result<blake3::Hash> {
     let path = path.as_ref();
@@ -31,7 +33,7 @@ pub(crate) fn blake3_hash<P: AsRef<Path>>(path: P, perm: Option<u32>) -> Result<
     // Not sure if I really like this
     // Add the file's permissions to the hash
     if let Some(p) = perm {
-        hasher.update(&p.to_be_bytes());
+        hasher.update(format!("{:o}", p).as_bytes());
     }
 
     Ok(hasher.finalize())

@@ -19,7 +19,7 @@ name = "wutag_core"
 path = "wutag_core/lib.rs"
 
 [features]
-default = ["encrypt-gpgme", "ui", "yaml-backend", "prettify"]
+default = ["encrypt-gpgme", "ui", "yaml-backend", "prettify", "file-flags"]
 
 _encrypt-gpg = []
 encrypt-gpgme = ["gpgme", "secstr", "zeroize"]
@@ -39,6 +39,8 @@ yaml-backend = ["serde_yaml"]
 toml-backend = ["toml"]
 
 prettify = ["cli-table"]
+
+file-flags = ["e2p-fileflags"]
 
 # json-backend = ["serde_json"]
 
@@ -66,11 +68,16 @@ crossbeam-utils = "0.8.5"
 # rayon = "1.5.1"
 
 # Paths and patterns
-wax = { version = "0.3.0", git = "https://github.com/lmburns/wax" }
-globset = "0.4.8" # TODO: Remove
+wax = { git = "https://github.com/lmburns/wax", features = ["diagnostics"] }
+# wax = { path = "/home/lucas/projects/github/wax", features = ["diagnostics"] }
+# wax = { path = "/home/lucas/projects/rust/repos_example/wax", features = ["diagnostics"] }
+
+# globset = "0.4.8" # TODO: Remove
 regex = "1.5.4"
+unicase = "2.6.0"
 ignore = "0.4.18"
 lexiclean = "0.0.1"
+e2p-fileflags = { git = "https://github.com/michaellass/e2p-fileflags", optional = true, branch = "master" }
 
 # Parsing
 nom = "7.1.0"
@@ -91,9 +98,9 @@ once_cell = "1.8.0"
 # Hashing
 base64 = "0.13.0"
 blake3 = "1.2.0"
-uuid = { version = "0.8", features = ["v4", "serde"] }
 chrono = { version = "0.4.19", features = ["serde"] }
 humantime = "2.1.0"
+# uuid = { version = "0.8", features = ["v4", "serde"] }
 
 # Command-line
 clap = { version = "3.0.13", features = ["derive", "default", "cargo", "wrap_help", "env"] }
@@ -109,15 +116,22 @@ scopeguard = "1.1.0"
 # Option: (default = serde_yaml) -- Serialization
 serde = { version = "1.0.129", features = ["derive"] }
 # serde_json = { version = "1.0.66", optional = true }
+# serde_rusqlite = "0.29.0" # TODO: USE/DEL
 serde_yaml = { version = "0.8.19", optional = true }
-toml = { version = "0.5.8", optional = true }
 serde_json = "1.0.66"
 serde_cbor = "0.11.2" # TODO: Find way not to use this
-serde_rusqlite = "0.29.0" # TODO: USE/DEL
+toml = { version = "0.5.8", optional = true }
 
 notify-rust = { version = "4.0", default-features = false, features = ["z"] } # TODO: USE/DEL
 # TODO: Remove serde_json if not used
-rusqlite = { version = "0.26", features = ["bundled", "functions", "chrono", "serde_json", "collation"] }
+rusqlite = { version = "0.26", features = [
+  "bundled",
+  "functions",
+  "chrono",
+  "serde_json",
+  "collation",
+  "trace",
+] }
 
 # Option: (default) -- Formatting output
 cli-table = { version = "0.4.6", default-features = false, optional = true }

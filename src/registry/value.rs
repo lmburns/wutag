@@ -86,8 +86,7 @@ impl Txn<'_> {
             return Err(Error::EmptyArray);
         }
 
-        let mut builder = SqlBuilder::new();
-        builder.append(
+        let mut builder = SqlBuilder::new_initial(
             "SELECT id, name
             FROM value
             WHERE id IN (",
@@ -130,8 +129,7 @@ impl Txn<'_> {
     /// Retrieve a `Value` by its string name
     ///   - **Exact match** searching
     pub(crate) fn value_by_name<S: AsRef<str>>(&self, name: S, ignore_case: bool) -> Result<Value> {
-        let mut builder = SqlBuilder::new();
-        builder.append(
+        let mut builder = SqlBuilder::new_initial(
             "SELECT id, name
             FROM value
             WHERE name ",
@@ -160,12 +158,12 @@ impl Txn<'_> {
             return Err(Error::EmptyArray);
         }
 
-        let mut builder = SqlBuilder::new();
-        builder.append(
+        let mut builder = SqlBuilder::new_initial(
             "SELECT id, name
             FROM value
             WHERE name ",
         );
+
         builder.nocase_collation(ignore_case);
         builder.append(" IN (");
 

@@ -91,7 +91,7 @@ macro_rules! wutag_info {
 /// variables used in the formatted string. It does require the message to be a
 /// string literal like the standard library's `assert`
 #[macro_export]
-macro_rules! cassert {
+macro_rules! cassert_eq {
     ($left:expr , $right:expr) => ({
         match (&($left), &($right)) {
             (left_val, right_val) => {
@@ -136,4 +136,9 @@ macro_rules! path_str {
     ($p:expr) => {
         $p.to_string_lossy().to_string()
     };
+}
+
+/// Not a macro, but checks whether the user is qualified for the `file-flags` feature
+pub(crate) fn wants_feature_flags() -> bool {
+    cfg!(feature = "file-flags") && cfg!(unix) && !cfg!(macos)
 }

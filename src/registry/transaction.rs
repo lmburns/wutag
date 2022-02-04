@@ -4,7 +4,7 @@
 use super::{
     common::version::Version,
     sqlbuilder::SqlBuilder,
-    types::{Operation, Table, ID, file::File},
+    types::{file::File, Operation, Table, ID},
     Registry,
 };
 use anyhow::{Context, Result};
@@ -131,37 +131,6 @@ impl<'t> Txn<'t> {
         stmt.query_row(params, f).context(error)
     }
 
-    pub(crate) fn test_regex(&self) -> Result<()> {
-        let is_match: File = self.txn.query_row(
-            "
-            SELECT
-                id,
-                directory,
-                name,
-                hash,
-                mime,
-                mtime,
-                ctime,
-                mode,
-                inode,
-                links,
-                uid,
-                gid,
-                size,
-                is_dir
-            FROM file
-            WHERE regex('^j.*', name) == 1",
-            params![],
-            |row| {
-                let r: File = row.try_into().expect("failed to convert to `File`");
-                Ok(r)
-            },
-        )?;
-
-        println!("is match: {:#?}", is_match);
-        Ok(())
-    }
-
     /// Select a single row, no [`params`](rusqlite::params), and no closure
     pub(crate) fn select1<T: FromSql>(&self, sql: &str) -> Result<T> {
         self.select(sql, params![], |row| row.get(0))
@@ -228,14 +197,6 @@ impl<'t> Txn<'t> {
         );
         let error = format!("failed to select row: {}", sql);
 
-        // -- Can be used if only the results form the query are to be returned into
-        // -- some custom enum that is similar to [`Value`]
-        //
-        // for idx in 0..row.as_ref().column_count() {
-        //     items.push(row.get(idx)?);
-        // }
-        // Ok(items)
-
         let mut stmt = self
             .txn
             .prepare_cached(sql)
@@ -253,12 +214,26 @@ impl<'t> Txn<'t> {
     }
 
     /// Shorter function that allows for querying the database from an
-    /// [`SqlBuilder`]. Calls [`query_iter`] internally
+    /// [`SqlBuilder`]. Calls `query_iter` internally
+    ///
+    /// `query_iter`: Txn::query_iter
     pub(crate) fn query_builder<T, F>(&self, builder: &SqlBuilder, f: F) -> Result<Vec<T>>
     where
         F: FnOnce(&Row<'_>) -> T + Copy,
     {
         self.query_iter(builder.utf()?, builder.params_as_slice(), f)
+    }
+
+    /// Shorter function that allows for querying the database from an
+    /// [`SqlBuilder`]. Calls `query_vec` internally on a named parameters
+    /// vector, i.e., `&[(&str, &dyn ToSql)]`
+    ///
+    /// `query_vec`: Txn::query_vec
+    pub(crate) fn query_named_builder<T, F>(&self, builder: &SqlBuilder, f: F) -> Result<Vec<T>>
+    where
+        F: FnOnce(&Row<'_>) -> T + Copy,
+    {
+        self.query_vec(builder.utf()?, builder.named_params_as_slice(), f)
     }
 
     // ============================== Version =============================

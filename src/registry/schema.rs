@@ -37,7 +37,7 @@ impl Registry {
     /// This table contains many details about a single file
     pub(crate) fn create_file_table(&self) -> Result<()> {
         log::debug!("creating file table");
-        self.exec_no_params(
+        self.exec_no_params(&format!(
             "CREATE TABLE IF NOT EXISTS file (
                 id INTEGER PRIMARY KEY,
                 directory TEXT NOT NULL,
@@ -53,9 +53,15 @@ impl Registry {
                 gid INTEGER NOT NULL,
                 size INTEGER NOT NULL,
                 is_dir BOOLEAN NOT NULL,
+                {}
                 CONSTRAINT con_file_path UNIQUE (directory, name)
             )",
-        )
+            if cfg!(feature = "file-flags") {
+                "e2pflags INTEGER NOT NULL,"
+            } else {
+                ""
+            }
+        ))
         .context("failed to create table `file`")?;
 
         self.exec_no_params(

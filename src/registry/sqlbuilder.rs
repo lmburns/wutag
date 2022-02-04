@@ -19,128 +19,39 @@ use std::{
     path::Path,
 };
 
-// ============================ SqlBuilder2 ============================
-
-// TODO: Modify this or delete
+// ============================ SqlBuilder ============================
 
 /// Builder for an `SQL` query
-pub(crate) struct SqlBuilder2<'a> {
-    /// The `SQL` query
-    query:  Vec<&'a str>,
-    /// Parameters used for the `SQL` query
-    params: Vec<(&'a str, &'a dyn ToSql)>,
-}
-
-impl<'a> SqlBuilder2<'a> {
-    /// Create a new [`SqlBuilder2`]
-    pub(crate) fn new() -> Self {
-        Self {
-            params: Vec::with_capacity(4),
-            query:  Vec::with_capacity(4),
-        }
-    }
-
-    /// Create a new [`SqlBuilder2`] with an initial query
-    pub(crate) fn new_initial(initial: &'static str) -> Self {
-        let mut builder = Self::new();
-        builder.push_query(initial);
-        builder
-    }
-
-    /// Push an item to the `query`
-    pub(crate) fn push_query(&mut self, q: &'a str) {
-        self.query.push(q);
-    }
-
-    /// Push an item to the `params`
-    pub(crate) fn push_params(&mut self, p: (&'a str, &'a dyn ToSql)) {
-        self.params.push(p);
-    }
-
-    /// Concatenate a string to the query, returning the [`SqlBuilder2`]
-    pub(crate) fn concat_query(&mut self, q: &'a str) -> &mut Self {
-        self.push_query(q);
-        self
-    }
-
-    /// Concatenate a string to the params, returning the [`SqlBuilder2`]
-    pub(crate) fn concat_param(&mut self, q: &'a str, p: (&'a str, &'a dyn ToSql)) -> &mut Self {
-        self.push_params(p);
-        self.concat_query(q)
-    }
-
-    /// Build the query as a [`String`]
-    pub(crate) fn build(&self) -> String {
-        self.query.join(" ")
-    }
-
-    /// Return the `params` to be used with [`named_params`]
-    pub(crate) fn named_params(&self) -> &[(&str, &dyn ToSql)] {
-        self.params.as_slice()
-    }
-
-    /// Return a string with `LIKE` wildcards surrounding the argument
-    pub(crate) fn likenize(a: &'a str) -> String {
-        format!("%{}%", a)
-    }
-
-    // if self.comma {
-    //     self.query.write_str(",");
-    // }
-    //
-    // self.query.write_str(&format!("?{}", self.pidx));
-    // self.pidx += 1;
-    //
-    // self.params.push(Box::new(param));
-    // self.comma = true;
-}
-
-impl fmt::Debug for SqlBuilder2<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("SqlBuilder2")
-            .field("query", &self.query.clone())
-            .field(
-                "params",
-                &self.params.iter().fold(String::new(), |mut acc, f| {
-                    acc.push_str(&format!(" {} {:?}", f.0, f.1.to_sql()));
-                    acc
-                }),
-            )
-            .finish()
-    }
-}
-
-/// Builder for an `SQL` query
-pub(crate) struct SqlBuilder {
+pub(crate) struct SqlBuilder<'a> {
     /// The `SQL` query as bytes
-    query:  BytesMut,
+    query:        BytesMut,
     /// Parameters used for the `SQL` query
-    params: Vec<Box<dyn ToSql>>,
+    params:       Vec<Box<dyn ToSql>>,
+    /// Named parameters used for the `SQL` query
+    named_params: Vec<(&'a str, &'a dyn ToSql)>,
     /// The index of the parameters
-    pidx:   usize,
+    pidx:         usize,
     /// Does the query need a comma? (i.e., there's more than one param)
-    comma:  bool,
+    comma:        bool,
 }
 
-impl SqlBuilder {
+impl<'a> SqlBuilder<'a> {
     /// Create a new [`SqlBuilder`]
     pub(crate) fn new() -> Self {
         Self {
-            query:  BytesMut::new(),
-            params: vec![],
-            pidx:   1,
-            comma:  false,
+            query:        BytesMut::new(),
+            params:       vec![],
+            named_params: vec![],
+            pidx:         1,
+            comma:        false,
         }
     }
 
-    /// Create a new [`SqlBuilder`] with an initial query
+    /// Create a new [`SqlBuilder`] with an initial `query`
     pub(crate) fn new_initial(query: &str) -> Self {
-        Self {
-            query:  BytesMut::from(query),
-            params: vec![],
-            pidx:   1,
-            comma:  false,
-        }
+        let mut s = Self::new();
+        s.query = BytesMut::from(query);
+        s
     }
 
     /// Return the `query` as bytes
@@ -167,17 +78,19 @@ impl SqlBuilder {
         self.params.iter().map(Deref::deref).collect::<Vec<_>>()
     }
 
+    /// Return the `params` to be used with [`named_params`]
+    pub(crate) fn named_params_as_slice(&self) -> &[(&str, &dyn ToSql)] {
+        self.named_params.as_slice()
+    }
+
     /// Append a string to the query with a starting newline
     pub(crate) fn appendln<S: AsRef<str>>(&mut self, s: S) {
-        // let chars = s.chars().collect::<Vec<_>>();
-        // if chars[0] == ' ' || chars[0] == '\n' {}
-
         self.query.write_str("\n");
         self.query.write_str(s.as_ref());
         self.comma = false;
     }
 
-    /// Append a string to the query
+    /// Append a string to the `query`
     pub(crate) fn append<S: AsRef<str>>(&mut self, s: S) {
         self.query.write_str(s.as_ref());
         self.comma = false;
@@ -196,22 +109,37 @@ impl SqlBuilder {
         self.comma = true;
     }
 
+    /// Append a named parameter to the vector of `named_params`
+    pub(crate) fn append_named_param<S: ToSql>(&mut self, named: &'a str, param: &'a S) {
+        if self.comma {
+            self.query.write_str(",");
+        }
+
+        self.query.write_str(&format!(":{}", named));
+        self.pidx += 1;
+
+        self.named_params.push((named, param));
+        self.comma = true;
+    }
+
     /// Return a string with `LIKE` wildcards surrounding the argument
     pub(crate) fn likenize(a: &str) -> String {
         format!("%{}%", a)
     }
 
+    // TODO: Test unicase vs nocase
+
     /// Append `COLLATE NOCASE` to ignore case when searching
     pub(crate) fn nocase_collation(&mut self, ignore: bool) {
         if ignore {
-            self.query.write_str(" COLLATE NOCASE ");
+            self.query.write_str(" COLLATE unicase ");
         }
     }
 
     /// Instead of appending `COLLATE NOCASE` to the query, just return `COLLATE
     /// NOCASE` as a string if case is to be ignored for the query
     pub(crate) fn return_nocase_collation(ignore: bool) -> &'static str {
-        ignore.then(|| " COLLATE NOCASE ").unwrap_or("")
+        ignore.then(|| " COLLATE unicase ").unwrap_or("")
     }
 
     // ========================== Query Language ==========================
@@ -436,7 +364,7 @@ impl SqlBuilder {
     }
 }
 
-impl fmt::Debug for SqlBuilder {
+impl fmt::Debug for SqlBuilder<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("SqlBuilder")
             .field("query", &self.query.to_vec())
@@ -444,6 +372,13 @@ impl fmt::Debug for SqlBuilder {
                 "params",
                 &self.params.iter().fold(String::new(), |mut acc, f| {
                     acc.push_str(&format!(" {:?}", f.to_sql()));
+                    acc
+                }),
+            )
+            .field(
+                "named_params",
+                &self.named_params.iter().fold(String::new(), |mut acc, f| {
+                    acc.push_str(&format!(" {} {:?}", f.0, f.1.to_sql()));
                     acc
                 }),
             )

@@ -1,12 +1,15 @@
 //! The `Registry` (database) and it's basic commands
 
 // TODO: Remove unused functions
-// TODO: Use custom regex and hash functions (add glob)
+// TODO: Use custom hash function
+// TODO: Add ability to detect files in Db but not with xattr
+// TODO: Add ability to crawl file system to gain db back
 
 #![allow(unused)]
 
 pub(crate) mod api;
 pub(crate) mod common;
+mod db_tests;
 pub(crate) mod file;
 pub(crate) mod filetag;
 pub(crate) mod implication;
@@ -28,16 +31,17 @@ use self::{
     transaction::Txn,
 };
 use crate::{
-    cassert,
+    cassert_eq,
     consts::encrypt::REGISTRY_UMASK,
     directories::PROJECT_DIRS,
     util::{contains_upperchar, prompt},
-    wutag_fatal, wutag_info,
+    wutag_error, wutag_fatal, wutag_info,
 };
 use anyhow::{Context as _, Result};
 use colored::Colorize;
 use regex::{Regex, RegexBuilder};
 use std::{
+    cmp::Ordering,
     error, fs,
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
@@ -179,30 +183,38 @@ impl Registry {
         self.create_impl_table()?;
         self.create_query_table()?;
         self.create_version_table()?;
-        // self.insert_version()?;
 
         // TODO:
         // self.create_tracker_table()?;
         // self.create_checkpoint_table()?;
 
         self.add_regex_funcs()?;
-        self.add_test_func()?;
         self.add_blake3_func()?;
+        self.add_fullpath_func()?;
+
+        self.add_test_func()?;
+
+        self.create_unicase_collation()?;
 
         /// -
         /// -
-        let crate_v = Version::build()?;
-        let schema_v = self.get_current_version()?;
+        if let Ok(schema_v) = self.get_current_version() {
+            log::debug!("checking for correct version");
+            let crate_v = Version::build()?;
 
-        if schema_v != crate_v {
-            wutag_info!("version mismatch");
+            if schema_v != crate_v {
+                wutag_info!("version mismatch");
 
-            if schema_v.less_than(crate_v) {
-                self.recreate_version_table()?;
+                if schema_v.less_than(crate_v) {
+                    self.recreate_version_table()?;
+                }
             }
+        } else {
+            log::debug!("inserting version for the first time");
+            self.insert_version()?;
         }
 
-        self.update_current_version()?;
+        // self.update_current_version()?;
 
         Ok(())
     }
@@ -239,6 +251,18 @@ impl Registry {
             self.conn
                 .pragma_update(None, "user_version", &self.version)?;
         }
+
+        Ok(())
+    }
+
+    /// Create a collation that is similar to `COLLATE NOCASE`; however, this
+    /// works with unicode characters as well
+    fn create_unicase_collation(&self) -> Result<()> {
+        use unicase::UniCase;
+
+        self.conn
+            .create_collation("unicase", |s1, s2| UniCase::new(s1).cmp(&UniCase::new(s2)))
+            .context("failed to create `unicase` collation")?;
 
         Ok(())
     }
@@ -504,38 +528,68 @@ impl Registry {
         })?))
     }
 
+    /// Add a function that is a shorthand for concatenating the file's
+    /// directory and its name
+    fn add_fullpath_func(&self) -> Result<()> {
+        self.conn
+            .create_scalar_function(
+                "fullpath",
+                2,
+                FunctionFlags::SQLITE_UTF8 | FunctionFlags::SQLITE_DETERMINISTIC,
+                move |ctx| {
+                    assert_eq!(ctx.len(), 2, "called with unexpected number of arguments");
+                    let dir = Self::get_string(ctx, "fullpath", 0)?;
+                    let fname = Self::get_string(ctx, "fullpath", 1)?;
+
+                    Ok(format!("{}/{}", dir, fname))
+                },
+            )
+            .context("failed to create `fullpath` function")
+    }
+
     // TODO: Combine with `Search`
+    // TODO: Print miette full capabilities with Glob. It does not work
 
     /// Create a regular expression function in the database.
     /// Allow for case-sensitive and case-insensitive functions, as well as
     /// `glob`s
-    fn add_regex_func(
+    fn add_pattern_func(
         &self,
         fname: &'static str,
         case_insensitive: bool,
         glob: bool,
     ) -> Result<()> {
+        use crate::{wutag_error, wutag_fatal};
+        use wax::{DiagnosticGlob, DiagnosticResultExt, Glob, GlobError};
+
         self.conn
             .create_scalar_function(
                 fname,
                 2,
                 FunctionFlags::SQLITE_UTF8 | FunctionFlags::SQLITE_DETERMINISTIC,
                 move |ctx| {
-                    cassert!(
+                    cassert_eq!(
                         ctx.len(),
                         2,
                         "called {} with unexpected number of arguments",
                         fname
                     );
                     let regexp: Arc<Regex> =
-                        ctx.get_or_create_aux(0, |vr| -> rsq::Result<_, BoxError> {
+                        ctx.get_or_create_aux(0, |vr| -> rsq::Result<Regex, BoxError> {
                             let s = vr.as_str()?;
 
                             let patt = if glob {
-                                wax::Glob::new(s)
-                                    .expect("invalid glob sequence")
-                                    .regex()
-                                    .to_string()
+                                let g = <Glob as DiagnosticGlob>::new(s);
+                                // The diagnostics must be printed first
+                                // If there are no errors, nothing is printed
+                                for diag in g.diagnostics() {
+                                    wutag_error!("{}", diag.to_owned());
+                                }
+
+                                g.map_or_else(
+                                    |_| std::process::exit(1),
+                                    |(glob, _)| glob.regex().to_string(),
+                                )
                             } else {
                                 String::from(s)
                             };
@@ -550,18 +604,19 @@ impl Registry {
                             Ok(reg)
                         })?;
 
-                    let is_match = {
+                    let matched = {
                         let text = Self::get_string(ctx, fname, 1)?;
+                        log::debug!("to match text: {:#?}", text);
 
-                        log::debug!("regex text: {:#?}", text);
+                        println!("=== to match text: {:#?}", text);
 
                         regexp.is_match(text)
                     };
 
-                    Ok(is_match)
+                    Ok(matched)
                 },
             )
-            .context("failed to create `regexp` function")
+            .context(format!("failed to create `{}` function", fname))
     }
 
     /// Add regular expression functions to the database.
@@ -572,13 +627,13 @@ impl Registry {
     ///   - `glob`:   case insensitive: false
     ///   - `iglob`:  case insensitive: true
     pub(crate) fn add_regex_funcs(&self) -> Result<()> {
-        self.add_regex_func("regex", false, false)
+        self.add_pattern_func("regex", false, false)
             .context("failed to build `regex` func")?;
-        self.add_regex_func("iregex", true, false)
+        self.add_pattern_func("iregex", true, false)
             .context("failed to build `iregex` func")?;
-        self.add_regex_func("glob", false, true)
+        self.add_pattern_func("glob", false, true)
             .context("failed to build `glob` func")?;
-        self.add_regex_func("iglob", true, true)
+        self.add_pattern_func("iglob", true, true)
             .context("failed to build `iglob` func")?;
 
         Ok(())

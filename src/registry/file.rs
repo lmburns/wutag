@@ -30,13 +30,12 @@ use super::{
     },
     Error, Txn,
 };
-use crate::{path_str, wutag_fatal};
+use crate::{macros::wants_feature_flags, path_str, wutag_fatal};
 use anyhow::{Context, Result};
 use chrono::{DateTime, Local};
 use colored::Colorize;
 use mime::Mime;
 use std::{
-    convert::{TryFrom, TryInto},
     os::unix::ffi::{OsStrExt, OsStringExt},
     path::{Path, PathBuf},
     time::SystemTime,
@@ -58,17 +57,55 @@ macro_rules! cstr {
     };
 }
 
+// Probably a much better looking way to do this
+
 /// Easier error message expansion, since the base part is repeated
 macro_rules! failure {
+    ($action:expr, $kind:expr) => {
+        format!("failed to {} {}", $action, $kind)
+    };
+    ($action:expr, $kind:expr, $by:expr) => {
+        format!("failed to {} {} by {}", $action, $kind, $by)
+    };
+    ($action:expr, $kind:expr, $by:expr, $val:expr) => {
+        format!("failed to {} {} by {}: {}", $action, $kind, $by, $val)
+    };
+}
+
+/// A retrieve failure
+macro_rules! retr_fail {
     ($kind:expr) => {
-        format!("failed to retrieve {}", $kind)
+        failure!("retrieve", $kind)
     };
     ($kind:expr, $by:expr) => {
-        format!("failed to retrieve {} by {}", $kind, $by)
+        failure!("retrieve", $kind, $by)
     };
     ($kind:expr, $by:expr, $val:expr) => {
-        format!("failed to retrieve {} by {}: {}", $kind, $by, $val)
+        failure!("retrieve", $kind, $by, $val)
     };
+}
+
+/// A query failure
+macro_rules! query_fail {
+    ($kind:expr) => {
+        failure!("query", $kind)
+    };
+    ($kind:expr, $by:expr) => {
+        failure!("query", $kind, $by)
+    };
+    ($kind:expr, $by:expr, $val:expr) => {
+        failure!("query", $kind, $by, $val)
+    };
+}
+
+/// Return column-name string, with comma based on user feature `file-flags`
+pub(crate) fn e2p_feature_comma() -> &'static str {
+    wants_feature_flags().then(|| ", e2pflags").unwrap_or("")
+}
+
+/// Return column-name string, based on user feature `file-flags`
+pub(crate) fn e2p_feature() -> &'static str {
+    wants_feature_flags().then(|| "e2pflags").unwrap_or("")
 }
 
 // ================================ Txn ===============================
@@ -84,7 +121,7 @@ impl Txn<'_> {
             "SELECT count(1)
             FROM file",
         )
-        .context(failure!("`File` count"))
+        .context(retr_fail!("`File` count"))
     }
 
     /// Retrieve the number of [`File`]s matching a specific `hash`
@@ -96,13 +133,13 @@ impl Txn<'_> {
             params![fp.as_ref()],
             |row| row.get(0),
         )
-        .context(failure!("`File` count", "hash"))
+        .context(retr_fail!("`File` count", "hash"))
     }
 
     /// Retrieve all tracked [`File]s within the database
     pub(crate) fn select_files(&self, sort: Option<Sort>) -> Result<Files> {
         let mut builder = SqlBuilder::new();
-        builder.append(
+        builder.append(format!(
             "SELECT
                 id,
                 directory,
@@ -118,8 +155,10 @@ impl Txn<'_> {
                 gid,
                 size,
                 is_dir
+                {}
             FROM file",
-        );
+            e2p_feature_comma()
+        ));
 
         builder.build_sort(sort);
 
@@ -127,16 +166,29 @@ impl Txn<'_> {
             .query_vec(builder.utf()?, params![], |row| {
                 row.try_into().expect("failed to convert to `File`")
             })
-            .context("failed to query for `File`")?;
+            .context(query_fail!("`File`"))?;
 
         Ok(files.into())
+    }
+
+    /// List all [`File`] [`ID`]s
+    pub(crate) fn select_ids(&self) -> Result<Vec<ID>> {
+        let files = self.select_files(None)?;
+        let mut ids = vec![];
+
+        for file in files.iter() {
+            ids.push(file.id);
+        }
+
+        Ok(ids)
     }
 
     /// Retrieve a specific [`File`] within the database
     pub(crate) fn select_file(&self, id: FileId) -> Result<File> {
         let file: File = self
             .select(
-                "SELECT
+                &format!(
+                    "SELECT
                     id,
                     directory,
                     name,
@@ -151,15 +203,18 @@ impl Txn<'_> {
                     gid,
                     size,
                     is_dir
+                    {}
                 FROM file
                 WHERE id = ?1",
+                    e2p_feature_comma()
+                ),
                 params![id],
                 |row| {
                     let r: File = row.try_into().expect("failed to convert to `File`");
                     Ok(r)
                 },
             )
-            .context("failed to query for single `File`")?;
+            .context(query_fail!("single `File`"))?;
         Ok(file)
     }
 
@@ -170,7 +225,8 @@ impl Txn<'_> {
 
         let file: File = self
             .select(
-                "SELECT
+                &format!(
+                    "SELECT
                     id,
                     directory,
                     name,
@@ -185,8 +241,11 @@ impl Txn<'_> {
                     gid,
                     size,
                     is_dir
+                    {}
                 FROM file
                 WHERE directory = ?1 AND name = ?2",
+                    e2p_feature_comma()
+                ),
                 params![
                     path_str!(path.parent().context("failed to get parent")?),
                     path_str!(path.file_name().context("failed to get file name")?)
@@ -196,7 +255,7 @@ impl Txn<'_> {
                     Ok(r)
                 },
             )
-            .context("failed to query for `File` by path")?;
+            .context(query_fail!("`File`", "path"))?;
         Ok(file)
     }
 
@@ -207,7 +266,7 @@ impl Txn<'_> {
         cwd: bool,
     ) -> Result<Files> {
         let dir = dir.as_ref();
-        let mut s = String::from(
+        let mut s = format!(
             "SELECT
                 id,
                 directory,
@@ -223,8 +282,10 @@ impl Txn<'_> {
                 gid,
                 size,
                 is_dir
+                {}
             FROM file
             WHERE directory = ?1 OR directory LIKE ?2",
+            e2p_feature_comma()
         );
 
         if cwd {
@@ -237,7 +298,7 @@ impl Txn<'_> {
             .query_vec(&s, params![dir, format!("{}/%", dir)], |row| {
                 row.try_into().expect("failed to convert to `File`")
             })
-            .with_context(|| format!("failed to query for `File` by directory: {}", dir))?;
+            .context(query_fail!("`File`", "directory", dir))?;
 
         Ok(files.into())
     }
@@ -248,7 +309,8 @@ impl Txn<'_> {
 
         let files: Vec<File> = self
             .query_vec(
-                "SELECT
+                format!(
+                    "SELECT
                     id,
                     directory,
                     name,
@@ -263,13 +325,16 @@ impl Txn<'_> {
                     gid,
                     size,
                     is_dir
+                    {}
                 FROM file
                 WHERE hash = ?1
                 ORDER BY directory || '/' || name",
+                    e2p_feature_comma()
+                ),
                 params![fp],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .with_context(|| format!("failed to query for `File` by hash: {}", fp))?;
+            .context(query_fail!("`File`", "hash", fp))?;
 
         Ok(files.into())
     }
@@ -280,7 +345,8 @@ impl Txn<'_> {
 
         let files: Vec<File> = self
             .query_vec(
-                "SELECT
+                format!(
+                    "SELECT
                     id,
                     directory,
                     name,
@@ -295,13 +361,16 @@ impl Txn<'_> {
                     gid,
                     size,
                     is_dir
+                    {}
                 FROM file
                 WHERE mime = ?1
                 ORDER BY directory || '/' || name",
+                    e2p_feature_comma()
+                ),
                 params![mime],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .with_context(|| format!("failed to query for `File` by mime: {}", mime))?;
+            .context(query_fail!("`File`", "mime", mime))?;
 
         Ok(files.into())
     }
@@ -312,7 +381,8 @@ impl Txn<'_> {
 
         let files: Vec<File> = self
             .query_vec(
-                "SELECT
+                format!(
+                    "SELECT
                     id,
                     directory,
                     name,
@@ -327,13 +397,16 @@ impl Txn<'_> {
                     gid,
                     size,
                     is_dir
+                    {}
                 FROM file
                 WHERE mtime = ?1
                 ORDER BY directory || '/' || name",
+                    e2p_feature_comma()
+                ),
                 params![mtime],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .with_context(|| format!("failed to query for `File` by mtime: {}", mtime))?;
+            .context(query_fail!("`File`", "mtime", mtime))?;
 
         Ok(files.into())
     }
@@ -344,7 +417,8 @@ impl Txn<'_> {
 
         let files: Vec<File> = self
             .query_vec(
-                "SELECT
+                format!(
+                    "SELECT
                     id,
                     directory,
                     name,
@@ -359,13 +433,16 @@ impl Txn<'_> {
                     gid,
                     size,
                     is_dir
+                    {}
                 FROM file
                 WHERE ctime = ?1
                 ORDER BY directory || '/' || name",
+                    e2p_feature_comma()
+                ),
                 params![ctime],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .with_context(|| format!("failed to query for `File` by ctime: {}", ctime))?;
+            .context(query_fail!("`File`", "ctime", ctime))?;
 
         Ok(files.into())
     }
@@ -376,7 +453,8 @@ impl Txn<'_> {
 
         let files: Vec<File> = self
             .query_vec(
-                "SELECT
+                format!(
+                    "SELECT
                     id,
                     directory,
                     name,
@@ -391,13 +469,16 @@ impl Txn<'_> {
                     gid,
                     size,
                     is_dir
+                    {}
                 FROM file
-                WHERE mode = ?1
+                WHERE mode = ?1 or mode = 100 || ?1 or mode = 10 || ?1
                 ORDER BY directory || '/' || name",
+                    e2p_feature_comma()
+                ),
                 params![mode],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .with_context(|| format!("failed to query for `File` by mode: {}", mode))?;
+            .context(query_fail!("`File`", "mode", mode))?;
 
         Ok(files.into())
     }
@@ -406,7 +487,8 @@ impl Txn<'_> {
     pub(crate) fn select_files_by_inode(&self, inode: u64) -> Result<Files> {
         let files: Vec<File> = self
             .query_vec(
-                "SELECT
+                format!(
+                    "SELECT
                     id,
                     directory,
                     name,
@@ -421,13 +503,118 @@ impl Txn<'_> {
                     gid,
                     size,
                     is_dir
+                    {}
                 FROM file
                 WHERE inode = ?1
                 ORDER BY directory || '/' || name",
+                    e2p_feature_comma()
+                ),
                 params![inode],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .with_context(|| format!("failed to query for `File` by inode: {}", inode))?;
+            .context(query_fail!("`File`", "inode", inode))?;
+
+        Ok(files.into())
+    }
+
+    /// Retrieve all [`File`]s matching a certain number of links
+    pub(crate) fn select_files_by_links(&self, links: u64) -> Result<Files> {
+        let files: Vec<File> = self
+            .query_vec(
+                format!(
+                    "SELECT
+                    id,
+                    directory,
+                    name,
+                    hash,
+                    mime,
+                    mtime,
+                    ctime,
+                    mode,
+                    inode,
+                    links,
+                    uid,
+                    gid,
+                    size,
+                    is_dir
+                    {}
+                FROM file
+                WHERE links = ?1
+            ORDER BY directory || '/' || name",
+                    e2p_feature_comma()
+                ),
+                params![links],
+                |row| row.try_into().expect("failed to convert to `File`"),
+            )
+            .context(query_fail!("`File`", "links", links))?;
+
+        Ok(files.into())
+    }
+
+    /// Retrieve all [`File`]s matching a given `UID`
+    pub(crate) fn select_files_by_uid(&self, uid: u64) -> Result<Files> {
+        let files: Vec<File> = self
+            .query_vec(
+                format!(
+                    "SELECT
+                    id,
+                    directory,
+                    name,
+                    hash,
+                    mime,
+                    mtime,
+                    ctime,
+                    mode,
+                    inode,
+                    links,
+                    uid,
+                    gid,
+                    size,
+                    is_dir
+                    {}
+                FROM file
+                WHERE uid = ?1
+                ORDER BY directory || '/' || name",
+                    e2p_feature_comma()
+                ),
+                params![uid],
+                |row| row.try_into().expect("failed to convert to `File`"),
+            )
+            .context(query_fail!("`File`", "uid", uid))?;
+
+        Ok(files.into())
+    }
+
+    /// Retrieve all [`File`]s matching a given `GID`
+    pub(crate) fn select_files_by_gid(&self, gid: u64) -> Result<Files> {
+        let files: Vec<File> = self
+            .query_vec(
+                format!(
+                    "SELECT
+                    id,
+                    directory,
+                    name,
+                    hash,
+                    mime,
+                    mtime,
+                    ctime,
+                    mode,
+                    inode,
+                    links,
+                    uid,
+                    gid,
+                    size,
+                    is_dir
+                    {}
+                FROM file
+                WHERE gid = ?1
+                ORDER BY directory || '/' || name",
+                    e2p_feature_comma()
+                ),
+                params![gid],
+                |row| row.try_into().expect("failed to convert to `File`"),
+            )
+            .context(query_fail!("`File`", "gid", gid))?;
 
         Ok(files.into())
     }
@@ -436,7 +623,8 @@ impl Txn<'_> {
     pub(crate) fn select_files_by_size(&self, size: u64) -> Result<Files> {
         let files: Vec<File> = self
             .query_vec(
-                "SELECT
+                format!(
+                    "SELECT
                     id,
                     directory,
                     name,
@@ -451,13 +639,63 @@ impl Txn<'_> {
                     gid,
                     size,
                     is_dir
+                    {}
                 FROM file
                 WHERE size = ?1
-                ORDER BY size || directory || '/' || name",
+                ORDER BY directory || '/' || name",
+                    e2p_feature_comma()
+                ),
                 params![size],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .with_context(|| format!("failed to query for `File` by the size: {}", size))?;
+            .context(query_fail!("`File`", "size", size))?;
+
+        Ok(files.into())
+    }
+
+    #[cfg(all(
+        feature = "file-flags",
+        target_family = "unix",
+        not(target_os = "macos")
+    ))]
+    /// Retrieve all [`File`]s matching an `e2p_fileflag`
+    pub(crate) fn select_files_by_flag<S: AsRef<str>>(&self, given: S) -> Result<Files> {
+        let files = self.select_files(None)?;
+        let filtered = files.matches(|f| f.e2pflags().has_flags(given.as_ref()));
+
+        Ok(filtered)
+    }
+
+    /// Retrieve all [`File`]s that are directories
+    pub(crate) fn select_directories(&self) -> Result<Files> {
+        let files: Vec<File> = self
+            .query_vec(
+                format!(
+                    "SELECT
+                    id,
+                    directory,
+                    name,
+                    hash,
+                    mime,
+                    mtime,
+                    ctime,
+                    mode,
+                    inode,
+                    links,
+                    uid,
+                    gid,
+                    size,
+                    is_dir
+                    {}
+                FROM file
+                WHERE is_dir = true
+                ORDER BY directory || '/' || name",
+                    e2p_feature_comma()
+                ),
+                params![],
+                |row| row.try_into().expect("failed to convert to `File`"),
+            )
+            .context(query_fail!("`File`", "is_dir"))?;
 
         Ok(files.into())
     }
@@ -466,7 +704,8 @@ impl Txn<'_> {
     pub(crate) fn select_files_untagged(&self) -> Result<Files> {
         let files: Vec<File> = self
             .query_vec(
-                "SELECT
+                format!(
+                    "SELECT
                     id,
                     directory,
                     name,
@@ -481,10 +720,13 @@ impl Txn<'_> {
                     gid,
                     size,
                     is_dir
+                    {}
                 FROM file
                 WHERE id NOT IN (
                     SELECT distinct(file_id) FROM file_tag
                 )",
+                    e2p_feature_comma()
+                ),
                 params![],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
@@ -526,7 +768,8 @@ impl Txn<'_> {
     pub(crate) fn select_files_duplicates(&self) -> Result<Files> {
         let files: Vec<File> = self
             .query_vec(
-                "SELECT
+                format!(
+                    "SELECT
                     id,
                     directory,
                     name,
@@ -541,6 +784,7 @@ impl Txn<'_> {
                     gid,
                     size,
                     is_dir
+                    {}
                 FROM file
                 WHERE hash IN (
                     SELECT hash
@@ -550,10 +794,12 @@ impl Txn<'_> {
                     HAVING count(1) > 1
                 )
                 ORDER BY hash, directory || '/' || name",
+                    e2p_feature_comma()
+                ),
                 params![],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .context(failure!("duplicate `File`s"))?;
+            .context(retr_fail!("duplicate `File`s"))?;
 
         Ok(files.into())
     }
@@ -581,36 +827,46 @@ impl Txn<'_> {
                     gid,
                     size,
                     is_dir
+                    {}
                 FROM file
                 WHERE {}('{}', {}) == 1",
-                    func, reg, column
+                    e2p_feature_comma(),
+                    func,
+                    reg,
+                    column
                 ),
                 params![],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .with_context(|| format!("failed to query for `File` with regex: {}", reg))?;
+            .context(query_fail!("`File`", "regex", reg))?;
 
         Ok(files.into())
     }
 
-    /// Query for files using a the `regex` custom function
+    /// Query for files using a the `regex` custom function on any column
     pub(crate) fn select_files_by_regex(&self, column: &str, reg: &str) -> Result<Files> {
         self.select_files_by_func("regex", column, reg)
     }
 
-    /// Query for files using a the `iregex` custom function
+    /// Query for files using a the `iregex` custom function on any column
     pub(crate) fn select_files_by_iregex(&self, column: &str, reg: &str) -> Result<Files> {
         self.select_files_by_func("iregex", column, reg)
     }
 
-    /// Query for files using a the `glob` custom function
+    /// Query for files using a the `glob` custom function on any column
     pub(crate) fn select_files_by_glob(&self, column: &str, reg: &str) -> Result<Files> {
         self.select_files_by_func("glob", column, reg)
     }
 
-    /// Query for files using a the `iglob` custom function
+    /// Query for files using a the `iglob` custom function on any column
     pub(crate) fn select_files_by_iglob(&self, column: &str, reg: &str) -> Result<Files> {
         self.select_files_by_func("iglob", column, reg)
+    }
+
+    /// Query for files using a the `regex` custom function on the full file
+    /// path (`fp`)
+    pub(crate) fn select_files_by_regex_fp(&self, reg: &str) -> Result<Files> {
+        self.select_files_by_regex("fullpath(directory, name)", reg)
     }
 
     // ============================= Modifying ============================
@@ -624,8 +880,45 @@ impl Txn<'_> {
 
         log::debug!("{}: inserting file:\n{:#?}", cfile!(path), f);
 
-        let id = self
-            .insert(
+        let id = if wants_feature_flags() {
+            self.insert(
+                "INSERT INTO file (
+                    directory,
+                    name,
+                    hash,
+                    mime,
+                    mtime,
+                    ctime,
+                    mode,
+                    inode,
+                    links,
+                    uid,
+                    gid,
+                    size,
+                    is_dir,
+                    e2pflags
+                )
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                params![
+                    f.directory(),
+                    f.name(),
+                    f.hash(),
+                    f.mime(),
+                    f.mtime(),
+                    f.ctime(),
+                    f.mode(),
+                    f.inode(),
+                    f.links(),
+                    f.uid(),
+                    f.gid(),
+                    f.size(),
+                    f.is_dir(),
+                    f.e2pflags()
+                ],
+            )
+            .context(failure!("insert", "`File`", cfile!(path)))?
+        } else {
+            self.insert(
                 "INSERT INTO file (
                     directory,
                     name,
@@ -655,10 +948,11 @@ impl Txn<'_> {
                     f.uid(),
                     f.gid(),
                     f.size(),
-                    f.is_dir()
+                    f.is_dir(),
                 ],
             )
-            .context(format!("failed to insert File: {}", cfile!(path)))?;
+            .context(failure!("insert", "`File`", cfile!(path)))?
+        };
 
         f.set_id_mut(ID::new(id));
 
@@ -673,8 +967,46 @@ impl Txn<'_> {
 
         log::debug!("{}: updating file:\n{:#?}", cfile!(path), f);
 
-        let affected = self
-            .execute(
+        let affected = if wants_feature_flags() {
+            self.execute(
+                "UPDATE file
+                SET
+                    directory = ?1,
+                    name = ?2,
+                    hash = ?3,
+                    mime = ?4,
+                    mtime = ?5,
+                    ctime = ?6,
+                    mode = ?7,
+                    inode = ?8,
+                    links = ?9,
+                    uid = ?10,
+                    gid = ?11,
+                    size = ?12,
+                    is_dir = ?13,
+                    e2pflags = ?14
+                WHERE id = ?15",
+                params![
+                    f.directory(),
+                    f.name(),
+                    f.hash(),
+                    f.mime(),
+                    f.mtime(),
+                    f.ctime(),
+                    f.mode(),
+                    f.inode(),
+                    f.links(),
+                    f.uid(),
+                    f.gid(),
+                    f.size(),
+                    f.is_dir(),
+                    f.e2pflags(),
+                    id
+                ],
+            )
+            .context(failure!("update", "`File`", cfile!(path)))?
+        } else {
+            self.execute(
                 "UPDATE file
                 SET
                     directory = ?1,
@@ -708,7 +1040,8 @@ impl Txn<'_> {
                     id
                 ],
             )
-            .with_context(|| format!("failed to update File: {}", cfile!(path)))?;
+            .context(failure!("update", "`File`", cfile!(path)))?
+        };
 
         if affected == 0 {
             return Err(Error::NonexistentFile(path.to_string_lossy().to_string()));
@@ -731,7 +1064,7 @@ impl Txn<'_> {
                 WHERE id = ?1",
                 params![id],
             )
-            .context("failed to delete `File`")?;
+            .context(failure!("delete", "`File`"))?;
 
         if affected == 0 {
             return Err(Error::NonexistentFile(id.to_string()));
@@ -758,7 +1091,11 @@ impl Txn<'_> {
                 ) == 0",
                 params![id],
             )
-            .with_context(|| format!("failed to delete untagged file with ID({})", cstr!(id)))?;
+            .context(failure!(
+                "delete",
+                "untagged `File`",
+                format!("ID({})", cstr!(id))
+            ))?;
         }
 
         Ok(())

@@ -1,5 +1,8 @@
-#![allow(clippy::non_ascii_literal)]
-//! Keybindings for help menu within TUI
+//! Keybindings for help menu within TUI.
+//!
+//! Credit for the idea of how to implement and build this module can be given
+//! to `orhun` on GitHub, as I am still learning how to build applications from
+//! the ground up.
 
 // Keybinding {
 //     key:         "hjkl,arrows,pgkeys",
@@ -10,6 +13,8 @@
 //     C-<key>,pgup,pgdown: scroll to top/bottom
 //     :scroll (row) up/down/left/right <amount>
 //     "#,
+
+#![allow(clippy::non_ascii_literal)]
 
 use crate::config::KeyConfig;
 use once_cell::sync::Lazy;
@@ -27,7 +32,7 @@ use super::{
 
 // Would be string slices, but I haven't figured out how to convert an enum
 // value to a string slice. An error is given about temporary variables being
-// referenced at the same time their being dropped at the end of the function.
+// referenced at the same time they're being dropped at the end of the function.
 // It would make it much easier if they could be slices
 
 /// Representation of a keybinding

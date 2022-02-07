@@ -29,6 +29,7 @@ use super::{
     },
     Error, Txn,
 };
+use crate::{fail, query_fail, retr_fail};
 use anyhow::{Context, Result};
 use colored::Colorize;
 use std::{convert::TryInto, time::SystemTime};
@@ -56,7 +57,7 @@ impl Txn<'_> {
                 params![ft.file_id(), ft.tag_id(), ft.value_id()],
                 |row| row.get(0),
             )
-            .context("failed to check if `FileTag` exists")?;
+            .context(fail!("check if `FileTag` exists"))?;
 
         Ok(count > 0)
     }
@@ -79,7 +80,7 @@ impl Txn<'_> {
                 params![],
                 |row| row.try_into().expect("failed to convert to `FileTag`"),
             )
-            .context("failed to query for `FileTags`")?;
+            .context(fail!("query for `FileTags`"))?;
 
         Ok(filetags.into())
     }
@@ -93,10 +94,10 @@ impl Txn<'_> {
             params![fid],
             |row| row.get(0),
         )
-        .context("failed to retrieve `FileTag` count by `FileId`")
+        .context(retr_fail!("`FileTag` count", "`FileId`"))
     }
 
-    /// Retrieve the count of `File`-`Tag` pairs for the given `TagId`
+    /// Retrieve the count of `File`-`Tag` pairs for the given [`TagId`]
     pub(crate) fn select_filetag_count_by_tagid(&self, tid: TagId) -> Result<u32> {
         self.select(
             "SELECT count(1)
@@ -105,10 +106,10 @@ impl Txn<'_> {
             params![tid],
             |row| row.get(0),
         )
-        .context("failed to retrieve `FileTag` count by `TagId`")
+        .context(retr_fail!("`FileTag` count", "`TagId`"))
     }
 
-    /// Retrieve the count of `File`-`Tag` pairs for the given `ValueId`
+    /// Retrieve the count of `File`-`Tag` pairs for the given [`ValueId`]
     pub(crate) fn select_filetag_count_by_valueid(&self, vid: ValueId) -> Result<u32> {
         self.select(
             "SELECT count(1)
@@ -117,7 +118,7 @@ impl Txn<'_> {
             params![vid],
             |row| row.get(0),
         )
-        .context("failed to retrieve `FileTag` count by `ValueId`")
+        .context(retr_fail!("`FileTag` count","`ValueId`"))
     }
 
     /// Retrieve the `File`s that match the `FileId`
@@ -130,7 +131,22 @@ impl Txn<'_> {
                 params![fid],
                 |row| row.try_into().expect("failed to convert to `FileTag`"),
             )
-            .context("failed to query for `FileTag`")?;
+            .context(query_fail!("`FileTag`"))?;
+
+        Ok(filetags.into())
+    }
+
+    /// Retrieve the `File`s that match the [`TagId`]
+    pub(crate) fn select_filetags_by_tagid(&self, tid: TagId) -> Result<FileTags> {
+        let filetags: Vec<FileTag> = self
+            .query_vec(
+                "SELECT file_id, tag_id, value_id
+                FROM file_tag
+                WHERE tag_id = ?1",
+                params![tid],
+                |row| row.try_into().expect("failed to convert to `FileTag`"),
+            )
+            .context(query_fail!("`FileTag`"))?;
 
         Ok(filetags.into())
     }
@@ -145,7 +161,7 @@ impl Txn<'_> {
                 params![vid],
                 |row| row.try_into().expect("failed to convert to `FileTag`"),
             )
-            .context("failed to query for `FileTag`")?;
+            .context(query_fail!("`FileTag`"))?;
 
         Ok(filetags.into())
     }
@@ -153,7 +169,6 @@ impl Txn<'_> {
     // ============================= Modifying ============================
     // ====================================================================
 
-    /// TODO: Possibly use vid, fid, tid instead
     /// Insert a `File`-`Tag` pair to the database
     /// Returns the same `FileTag` that is passed
     pub(crate) fn insert_filetag(&self, ft: &FileTag) -> Result<FileTag> {
@@ -162,7 +177,7 @@ impl Txn<'_> {
             VALUES (?1, ?2, ?3)",
             params![ft.file_id(), ft.tag_id(), ft.value_id()],
         )
-        .context("failed to insert `FileTag`")?;
+        .context(fail!("insert `FileTag`"))?;
 
         Ok(*ft)
     }
@@ -176,7 +191,7 @@ impl Txn<'_> {
                 WHERE file_id = ?1 AND tag_id = ?2 AND value_id = ?3",
                 params![ft.file_id(), ft.tag_id(), ft.value_id()],
             )
-            .context("failed to delete `FileTag`")?;
+            .context(fail!("delete `FileTag`"))?;
 
         if affected == 0 {
             return Err(Error::NonexistentFile(ft.file_id().to_string()));
@@ -194,7 +209,7 @@ impl Txn<'_> {
             WHERE file_id = ?",
             params![fid],
         )
-        .context("failed to delete `FileTag` by `FileId`")?;
+        .context(fail!("delete `FileTag` by `FileId`"))?;
 
         Ok(())
     }
@@ -206,7 +221,7 @@ impl Txn<'_> {
             WHERE tag_id = ?",
             params![tid],
         )
-        .context("failed to delete `FileTag` by `TagId`")?;
+        .context(fail!("delete `FileTag` by `TagId`"))?;
 
         Ok(())
     }
@@ -218,7 +233,7 @@ impl Txn<'_> {
             WHERE value_id = ?",
             params![vid],
         )
-        .context("failed to delete `FileTag` by `ValueId`")?;
+        .context(fail!("delete `FileTag` by `ValueId`"))?;
 
         Ok(())
     }
@@ -232,7 +247,7 @@ impl Txn<'_> {
             WHERE tag_id = ?1",
             params![source_tid, dest_tid],
         )
-        .context("failed to copy `FileTag`")?;
+        .context(fail!("copy `FileTag`"))?;
 
         Ok(())
     }

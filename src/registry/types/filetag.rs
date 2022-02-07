@@ -18,7 +18,7 @@ use rusqlite::{
 // ====================== FileTag =====================
 
 /// Relation between [`File`], [`Tag`], and [`Value`]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct FileTag {
     /// ID of the [`File`]
     file_id:  FileId,

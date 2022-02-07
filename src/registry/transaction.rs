@@ -4,9 +4,10 @@
 use super::{
     common::version::Version,
     sqlbuilder::SqlBuilder,
-    types::{file::File, Operation, Table, ID},
+    types::{file::File, ModType, Table, ID},
     Registry,
 };
+use crate::fail;
 use anyhow::{Context, Result};
 use colored::Colorize;
 use rusqlite::{
@@ -38,7 +39,7 @@ impl<'t> Txn<'t> {
         let txn = registry
             .conn()
             .unchecked_transaction()
-            .context("failed to get transaction")?;
+            .context(fail!("get transaction"))?;
 
         Ok(Self { registry, txn })
     }
@@ -56,14 +57,12 @@ impl<'t> Txn<'t> {
 
     /// Commit a [`Transaction`](rusqlite::Transaction)
     pub(crate) fn commit(self) -> Result<()> {
-        self.txn.commit().context("failed to commit transaction")
+        self.txn.commit().context(fail!("commit transaction"))
     }
 
     /// Rollback a [`Transaction`](rusqlite::Transaction)
     pub(crate) fn rollback(self) -> Result<()> {
-        self.txn
-            .rollback()
-            .context("failed to rollback transaction")
+        self.txn.rollback().context(fail!("rollback transaction"))
     }
 
     // ============================ Executing =============================
@@ -78,7 +77,7 @@ impl<'t> Txn<'t> {
 
         self.txn
             .execute(sql, params)
-            .with_context(|| format!("failed to execute command: {}", sql))
+            .context(fail!("execute command: {}", sql))
     }
 
     /// Execute a command with no [`params`]. Implements the same function as
@@ -103,10 +102,10 @@ impl<'t> Txn<'t> {
         let mut stmt = self
             .txn
             .prepare(sql)
-            .context(format!("failed to prepare sql: {}", sql))?;
+            .context(fail!("prepare sql: {}", sql))?;
 
         stmt.insert(params)
-            .context(format!("failed to insert item: {}", sql))
+            .context(fail!("insert item: {}", sql))
     }
 
     // ============================ Retrieving ============================
@@ -121,12 +120,12 @@ impl<'t> Txn<'t> {
         F: FnOnce(&Row<'_>) -> Result<T, rsq::Error>,
     {
         log::debug!("{}({}): {}", "select".green().bold(), "Txn".purple(), sql);
-        let error = format!("failed to select row: {}", sql);
+        let error = fail!("select row: {}", sql);
 
         let mut stmt = self
             .txn
             .prepare_cached(sql)
-            .context(format!("failed to prepare sql: {}", sql))?;
+            .context(fail!("prepare sql: {}", sql))?;
 
         stmt.query_row(params, f).context(error)
     }
@@ -161,13 +160,13 @@ impl<'t> Txn<'t> {
         let mut stmt = self
             .txn
             .prepare_cached(sql)
-            .context(format!("failed to prepare sql: {}", sql))?;
+            .context(fail!("prepare sql: {}", sql))?;
         let mut rows = stmt
             .query(params)
-            .context(format!("failed to query row(s): {}", sql))?;
+            .context(fail!("query row(s): {}", sql))?;
 
         let mut v = Vec::<T>::new();
-        while let Some(row) = rows.next().context("failed to get next item")? {
+        while let Some(row) = rows.next().context(fail!("get next item"))? {
             v.push(f(row));
         }
 
@@ -195,18 +194,18 @@ impl<'t> Txn<'t> {
             "Txn".purple(),
             sql
         );
-        let error = format!("failed to select row: {}", sql);
+        let error = fail!("select row: {}", sql);
 
         let mut stmt = self
             .txn
             .prepare_cached(sql)
-            .context(format!("failed to prepare sql: {}", sql))?;
+            .context(fail!("prepare sql: {}", sql))?;
         let mut rows = stmt
             .query(rsq::params_from_iter(params))
-            .context(format!("failed to query_iter: {}", sql))?;
+            .context(fail!("query_iter: {}", sql))?;
 
         let mut v = Vec::<T>::new();
-        while let Some(row) = rows.next().context("failed to get next item")? {
+        while let Some(row) = rows.next().context(fail!("get next item"))? {
             v.push(f(row));
         }
 
@@ -287,7 +286,7 @@ impl<'t> Txn<'t> {
     pub(crate) fn record_modification<S: AsRef<str>>(
         &self,
         table: &Table,
-        op: &Operation,
+        op: &ModType,
         id: ID,
         previous: S,
     ) -> Result<usize> {

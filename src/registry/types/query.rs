@@ -1,6 +1,9 @@
 //! A user's query into the database to return an item
 
-use super::{super::sqlbuilder::SqlBuilder, from_vec};
+use super::{
+    super::{querier::ast::query::ParsedQuery, sqlbuilder::SqlBuilder},
+    from_vec, impl_vec,
+};
 use rusqlite::{
     self as rsq,
     types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, ValueRef},
@@ -25,23 +28,27 @@ impl Query {
     }
 }
 
+impl From<ParsedQuery> for Query {
+    fn from(q: ParsedQuery) -> Self {
+        Self::new(q.raw())
+    }
+}
+
 impl From<String> for Query {
     fn from(s: String) -> Self {
-        Self { inner: s }
+        Self::new(s)
     }
 }
 
 impl From<&String> for Query {
     fn from(s: &String) -> Self {
-        Self { inner: s.clone() }
+        Self::new(s.clone())
     }
 }
 
 impl From<&str> for Query {
     fn from(s: &str) -> Self {
-        Self {
-            inner: s.to_owned(),
-        }
+        Self::new(s.to_owned())
     }
 }
 
@@ -76,13 +83,5 @@ pub(crate) struct Queries {
 from_vec!(Query, Queries);
 
 impl Queries {
-    /// Create a new set of [`Queries`]
-    pub(crate) fn new(v: Vec<Query>) -> Self {
-        Self { inner: v }
-    }
-
-    /// Add a [`Query`] to the set of [`Queries`]
-    pub(crate) fn push(&mut self, query: Query) {
-        self.inner.push(query);
-    }
+    impl_vec!(Query);
 }

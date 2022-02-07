@@ -7,16 +7,16 @@ use std::ops::Range;
 /// Provide the ability to track the position of the parser in the query when
 /// performing the tokenization
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct Position<T> {
+pub(super) struct Position<T> {
     /// Range of the characters
-    pub(crate) range: QueryRange,
+    pub(super) range: QueryRange,
     /// Value being tracked
-    pub(crate) value: T,
+    pub(super) value: T,
 }
 
 impl<T> Position<T> {
     /// Convert into the value `&T`
-    pub(crate) const fn into(&self) -> &T {
+    pub(super) const fn into(&self) -> &T {
         &self.value
     }
 }
@@ -25,7 +25,8 @@ impl<T> Position<T> {
 ///
 /// A trait must be implemented to use these values, because [`LocatedSpan`] is
 /// defined within another crate
-pub(crate) trait ToRange {
+pub(super) trait ToRange {
+    // TODO: Use this method
     /// Return a [`Range`] of the entire [`Span`]
     fn to_range(&self) -> Range<usize>;
 
@@ -59,12 +60,9 @@ macro_rules! to_point {
     };
 }
 
+#[rustfmt::skip]
 impl ToRange for Span<'_> {
-    to_point!(
-        to_sync_point,
-        (|ch| matches!(ch, '|' | ')' | ']' | '}' | '>'))
-    );
-
+    to_point!(to_sync_point, (|ch| matches!(ch, '|' | ')' | ']' | '}' | '>')));
     to_point!(to_whitespace, (|ch| matches!(ch, ' ' | '\t' | '\n')));
 
     fn to_range(&self) -> Range<usize> {

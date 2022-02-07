@@ -309,6 +309,14 @@ fn equivalent_tag_array() {
     let q2 = Query::new("@F[  1.. ]", None);
     assert_eq!(q1.parse().unwrap().parsed(), q2.parse().unwrap().parsed());
 
+    let q1 = Query::new("@F[1..]", None);
+    let q2 = Query::new("@F[  1   .. ]", None);
+    assert_eq!(q1.parse().unwrap().parsed(), q2.parse().unwrap().parsed());
+
+    let q1 = Query::new("@F[..=2]", None);
+    let q2 = Query::new("@F[  .. = 2 ]", None);
+    assert_eq!(q1.parse().unwrap().parsed(), q2.parse().unwrap().parsed());
+
     let q1 = Query::new("@F[..2]", None);
     let q2 = Query::new("@F[0..2]", None);
     assert_eq!(q1.parse().unwrap().parsed(), q2.parse().unwrap().parsed());

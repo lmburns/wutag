@@ -25,6 +25,7 @@ use super::{
 use anyhow::{Context, Result};
 use colored::Colorize;
 use std::{convert::TryInto, time::SystemTime};
+use crate::{fail, query_fail};
 
 use rusqlite::{
     self as rsq, params,
@@ -68,7 +69,7 @@ impl Txn<'_> {
                 params![],
                 |row| row.try_into().expect("failed to convert to `Implication`"),
             )
-            .context("failed to query for `Implications`")?;
+            .context(query_fail!("`Implications`"))?;
 
         Ok(impls.into())
     }
@@ -107,8 +108,7 @@ impl Txn<'_> {
 
         for (idx, pair) in tvpairs.iter().enumerate() {
             if idx > 0 {
-                // TODO: Three spaces?
-                builder.append("   OR ");
+                builder.append(" OR ");
             }
 
             builder.append("(impl.tag_id = ");
@@ -124,7 +124,7 @@ impl Txn<'_> {
             .query_builder(&builder, |row| {
                 row.try_into().expect("failed to convert to `Implication`")
             })
-            .context("failed to query for `Implications`")?;
+            .context(query_fail!("`Implications`"))?;
 
         Ok(impls.into())
     }
@@ -174,7 +174,7 @@ impl Txn<'_> {
             .query_builder(&builder, |row| {
                 row.try_into().expect("failed to convert to `Implication`")
             })
-            .context("failed to query for `Implications`")?;
+            .context(query_fail!("`Implications`"))?;
 
         Ok(impls.into())
     }
@@ -200,7 +200,7 @@ impl Txn<'_> {
                 implied.value_id()
             ],
         )
-        .context("failed to insert `Implication`")?;
+        .context(fail!("`Implication`"))?;
 
         Ok(())
     }
@@ -227,7 +227,7 @@ impl Txn<'_> {
                     implied.value_id()
                 ],
             )
-            .context("failed to delete `Implication`")?;
+            .context(fail!("`Implication`"))?;
 
         let e = format!(
             "\nimplying (tag, value): {} {}\nimplied (tag, value): {} {}",
@@ -253,7 +253,7 @@ impl Txn<'_> {
             WHERE tag_id = ?1 OR implied_tag_id = ?1",
             params![tid],
         )
-        .context("failed to delete `Implication` by `TagId`")?;
+        .context(fail!("`Implication` by `TagId`"))?;
 
         Ok(())
     }
@@ -265,7 +265,7 @@ impl Txn<'_> {
             WHERE value_id = ?1 OR implied_value_id = ?1",
             params![vid],
         )
-        .context("failed to delete `Implication` by `ValueId`")?;
+        .context(fail!("`Implication` by `ValueId`"))?;
 
         Ok(())
     }

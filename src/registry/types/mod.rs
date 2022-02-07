@@ -1,4 +1,5 @@
-//! Types used for the [`Registry`](super::Registry)
+//! Types used for the [`Registry`](super::Registry) database.
+//! All objects within this module are database objects
 
 pub(crate) mod file;
 pub(crate) mod filetag;
@@ -15,6 +16,7 @@ use rusqlite::{
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use uuid::Uuid;
 
 // ============================= Property =============================
 // ====================================================================
@@ -159,35 +161,27 @@ impl fmt::Display for ID {
 //     }
 // }
 
-// ============================ Operation =============================
+// ============================ ModType =============================
 // ====================================================================
 
-/// A change to the database
-#[allow(variant_size_differences)]
-#[derive(Debug, PartialEq, Clone)]
-pub(crate) enum Operation1 {
-    Add {
-        id: ID,
-    },
-    Delete {
-        id: ID,
-    },
-    Update {
-        id:        ID,
-        property:  String,
-        value:     Option<String>,
-        timestamp: DateTime<Local>,
-    },
+/// An operation to the database
+#[derive(Debug, PartialEq, Clone, Eq)]
+pub(crate) struct Operation {
+    ty:      ModType,
+    table:   Table,
+    literal: String,
+    uuid:    Uuid,
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub(crate) enum Operation {
+/// The type of modification carried out on the database
+#[derive(Debug, PartialEq, Clone, Eq)]
+pub(crate) enum ModType {
     Add,
     Delete,
     Update,
 }
 
-impl ToSql for Operation {
+impl ToSql for ModType {
     fn to_sql(&self) -> rsq::Result<ToSqlOutput<'_>> {
         match self {
             Self::Add => "add",
@@ -198,7 +192,7 @@ impl ToSql for Operation {
     }
 }
 
-impl FromSql for Operation {
+impl FromSql for ModType {
     fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
         match value.as_str()? {
             "add" => Ok(Self::Add),
@@ -213,7 +207,7 @@ impl FromSql for Operation {
 // ====================================================================
 
 /// Tables that are in the database
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Table {
     Tag,
     File,

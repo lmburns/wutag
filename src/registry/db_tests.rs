@@ -3,7 +3,13 @@
 use super::{
     common::hash,
     transaction::Txn,
-    types::file::{File, FileId, Files, MimeType},
+    types::{
+        file::{File, FileId, Files, MimeType},
+        filetag::{FileTag, FileTags},
+        query::{Queries, Query},
+        tag::{Tag, TagId, Tags},
+        value::{Value, ValueId},
+    },
     Registry,
 };
 use crate::filesystem as wfs;
@@ -13,15 +19,15 @@ use std::{env, os::unix::prelude::MetadataExt, path::PathBuf, str::FromStr};
 
 const DB_NAME: &str = "./tests/my.db";
 
-// ============================== Files ===============================
-// ====================================================================
+macro_rules! get_0 {
+    ($f:tt) => {
+        $f.get(0).context("first idx")?
+    };
+}
 
 macro_rules! first_idx {
-    ($files:ident) => {
-        assert_eq!(
-            $files.inner().get(0).context("first index")?.name(),
-            "README.md"
-        );
+    ($files:tt) => {
+        assert_eq!(get_0!($files).name(), "README.md");
     };
 }
 
@@ -62,6 +68,9 @@ where
     })
 }
 
+// ============================== Files ===============================
+// ====================================================================
+
 #[test]
 fn insert_file() -> Result<()> {
     setup_dbfn(|txn| {
@@ -99,28 +108,19 @@ fn glob_matching() -> Result<()> {
             )
             .context("failed to query for `File` with regex: ")?;
 
-        assert_eq!(
-            files.get(0).context("failed to get first index")?.name(),
-            "README.md"
-        );
+        first_idx!(files);
 
         let files = txn.select_files_by_glob("name", "*.md")?;
-        assert_eq!(
-            files.inner().get(0).context("first index")?.name(),
-            "README.md"
-        );
+        first_idx!(files);
 
         let files = txn.select_files_by_iglob("name", "*.MD")?;
-        assert_eq!(
-            files.inner().get(0).context("first index")?.name(),
-            "README.md"
-        );
+        first_idx!(files);
 
-        let files = txn.select_files_by_glob("fullpath(directory, name)", "**/*.md")?;
-        assert_eq!(
-            files.inner().get(0).context("first index")?.name(),
-            "README.md"
-        );
+        let files = txn.select_files_by_glob_fp("**/*.md")?;
+        first_idx!(files);
+
+        let files = txn.select_files_by_iglob_fp("**/*.md")?;
+        first_idx!(files);
 
         Ok(())
     })
@@ -130,22 +130,16 @@ fn glob_matching() -> Result<()> {
 fn regex_matching() -> Result<()> {
     setup_dbfn(|txn| {
         let files = txn.select_files_by_regex("name", "READ.*")?;
-        assert_eq!(
-            files.inner().get(0).context("first index")?.name(),
-            "README.md"
-        );
+        first_idx!(files);
 
         let files = txn.select_files_by_iregex("name", "rEaD.*")?;
-        assert_eq!(
-            files.inner().get(0).context("first index")?.name(),
-            "README.md"
-        );
+        first_idx!(files);
 
-        let files = txn.select_files_by_regex("fullpath(directory, name)", ".*.md")?;
-        assert_eq!(
-            files.inner().get(0).context("first index")?.name(),
-            "README.md"
-        );
+        let files = txn.select_files_by_regex_fp(".*.md")?;
+        first_idx!(files);
+
+        let files = txn.select_files_by_iregex_fp(".*.md")?;
+        first_idx!(files);
 
         Ok(())
     })
@@ -292,12 +286,304 @@ fn file_counts() -> Result<()> {
 #[test]
 fn file_delete() -> Result<()> {
     setup_dbfn_wfile(|txn| {
-        let f = txn.select_file_by_path(PathBuf::from("./README.md").canonicalize()?)?;
+        let pb = PathBuf::from("./README.md").canonicalize()?;
+        let f = txn.select_file_by_path(&pb)?;
         txn.delete_file(f.id)?;
 
-        assert!(txn
-            .select_file_by_path(PathBuf::from("./README.md").canonicalize()?)
-            .is_err());
+        assert!(txn.select_file_by_path(pb).is_err());
+
+        Ok(())
+    })
+}
+
+// ============================= Filetag ==============================
+// ====================================================================
+
+fn setup_dbfn_wfiletag<F>(mut f: F) -> Result<()>
+where
+    F: FnMut(&Txn) -> Result<()>,
+{
+    setup_dbfn(|txn| {
+        let test = PathBuf::from("./README.md");
+        let ftag = FileTag::new(FileId::new(1), TagId::new(1), ValueId::new(1));
+
+        txn.insert_file(test)?;
+        txn.insert_filetag(&ftag)?;
+
+        f(txn);
+
+        Ok(())
+    })
+}
+
+#[test]
+fn delete_filetag() -> Result<()> {
+    setup_dbfn_wfiletag(|txn| {
+        let ftag = FileTag::new(FileId::new(1), TagId::new(1), ValueId::new(1));
+        txn.delete_filetag(&ftag)?;
+
+        let f2 = FileTag::new(2.into(), 1.into(), 2.into());
+
+        txn.insert_filetag(&f2)?;
+        assert!(txn.filetag_exists(&f2)?);
+        txn.delete_filetag_by_fileid(2.into())?;
+        assert!(!txn.filetag_exists(&f2)?);
+
+        txn.insert_filetag(&f2)?;
+        assert!(txn.filetag_exists(&f2)?);
+        txn.delete_filetag_by_tagid(1.into())?;
+        assert!(!txn.filetag_exists(&f2)?);
+
+        txn.insert_filetag(&f2)?;
+        assert!(txn.filetag_exists(&f2)?);
+        txn.delete_filetag_by_valueid(2.into())?;
+        assert!(!txn.filetag_exists(&f2)?);
+
+        Ok(())
+    })
+}
+
+#[test]
+fn filetag_select() -> Result<()> {
+    setup_dbfn_wfiletag(|txn| {
+        let ftag = FileTag::new(FileId::new(1), TagId::new(1), ValueId::new(1));
+
+        assert!(txn.filetag_exists(&ftag)?);
+        assert_eq!(txn.select_filetag_count()?, 1);
+
+        let new = txn.select_filetags()?;
+        assert_eq!(*new.get(0).context("failed to get first idx")?, ftag);
+
+        let ftag2 = FileTag::new(FileId::new(1), TagId::new(2), ValueId::new(2));
+        txn.insert_filetag(&ftag2)?;
+
+        let f = txn.select_filetags_by_fileid(FileId::new(2))?;
+        assert_eq!(*get_0!(f), ftag);
+
+        let f = txn.select_filetags_by_tagid(TagId::new(1))?;
+        assert_eq!(*get_0!(f), ftag);
+
+        let f = txn.select_filetags_by_valueid(ValueId::new(1))?;
+        assert_eq!(*get_0!(f), ftag);
+
+        Ok(())
+    })
+}
+
+#[test]
+fn filetag_count() -> Result<()> {
+    setup_dbfn_wfiletag(|txn| {
+        let ftag = FileTag::new(FileId::new(1), TagId::new(1), ValueId::new(1));
+        assert!(txn.filetag_exists(&ftag)?);
+
+        let ftag2 = FileTag::new(FileId::new(1), TagId::new(2), ValueId::new(2));
+        txn.insert_filetag(&ftag2)?;
+
+        // === count ===
+        assert_eq!(txn.select_filetag_count()?, 2);
+        assert_eq!(txn.select_filetag_count_by_fileid(FileId::new(2))?, 2);
+        assert_eq!(txn.select_filetag_count_by_tagid(TagId::new(1))?, 2);
+        assert_eq!(txn.select_filetag_count_by_valueid(ValueId::new(1))?, 2);
+
+        Ok(())
+    })
+}
+
+#[test]
+fn filetag_copy() -> Result<()> {
+    setup_dbfn_wfiletag(|txn| {
+        let ftag = FileTag::new(FileId::new(1), TagId::new(1), ValueId::new(1));
+        assert!(txn.filetag_exists(&ftag)?);
+
+        let ftag2 = FileTag::new(FileId::new(1), TagId::new(2), ValueId::new(2));
+        txn.insert_filetag(&ftag2)?;
+
+        // == copying ===
+        let f = txn.copy_filetags(TagId::new(1), TagId::new(2));
+        assert!(f.is_ok());
+
+        Ok(())
+    })
+}
+
+// =========================== Implications ===========================
+// ====================================================================
+
+// #[test]
+// fn implication_tests() -> Result<()> {
+//     setup_dbfn_wfiletag(|txn| {
+//         let l = "hi";
+//
+//         Ok(())
+//     })
+// }
+
+// ================================ Tag ===============================
+// ====================================================================
+
+#[test]
+fn tag_tests() -> Result<()> {
+    setup_dbfn_wfiletag(|txn| {
+        use colored::Color;
+
+        let t1 = txn.insert_tag("tag1", "#FF01FF")?;
+        assert_eq!(t1.color(), Color::truecolor(255, 1, 255));
+
+        let t2 = txn.update_tag_name(t1.id(), "tag2")?;
+        assert_ne!(t1.name(), t2.name());
+
+        let t3 = txn.update_tag_color(t2.id(), "#01FF01")?;
+        assert_eq!(t3.color(), Color::truecolor(1, 255, 1));
+
+        let tags = txn.tags()?;
+        assert_eq!(tags.len(), 1);
+
+        txn.delete_tag(t3.id())?;
+        assert_eq!(txn.tags()?.len(), 0);
+
+        let t1 = txn.insert_tag("foo1", "#BBAABB")?;
+        let t2 = txn.insert_tag("foo2", "#AABBAA")?;
+
+        let info = txn.tag_information()?;
+        assert!(!info.into_iter().any(|tf| tf.count() > 0));
+
+        Ok(())
+    })
+}
+
+#[test]
+fn tag_query_exact() -> Result<()> {
+    setup_dbfn_wfiletag(|txn| {
+        let t1 = txn.insert_tag("tag1", "#FF01FF")?;
+        let t2 = txn.insert_tag("tag2", "#01FF01")?;
+        let t3 = txn.insert_tag("tag3", "#FFFFFF")?;
+
+        let tag = txn.tag_by_name("tag1", false)?;
+        assert_eq!(tag.name(), "tag1");
+
+        let tag = txn.tag_by_name("TAG1", true)?;
+        assert_eq!(tag.name(), "tag1");
+
+        let tags = txn.tags_by_names(&["tag1", "tag2"], true)?;
+        assert_eq!(tags.len(), 2);
+
+        let tags = txn.tags_by_ids(&[1, 3].map(TagId::new))?;
+        assert_eq!(tags.len(), 2);
+
+        let tag = txn.tag(TagId::new(3))?;
+        assert_eq!(tag.name(), "tag3");
+
+        let cnt = txn.tag_count()?;
+        assert_eq!(cnt, 3);
+
+        Ok(())
+    })
+}
+
+#[test]
+fn tag_query_pattern() -> Result<()> {
+    setup_dbfn_wfiletag(|txn| {
+        let t1 = txn.insert_tag("tag1", "#FF01FF")?;
+        let t2 = txn.insert_tag("tag2", "#01FF01")?;
+        let t3 = txn.insert_tag("tag3", "#FFFFFF")?;
+
+        let tags = txn.select_tags_by_regex("name", "ta.*")?;
+        assert_eq!(tags.len(), 3);
+
+        let tags = txn.select_tags_by_iregex("name", "TAG\\d")?;
+        assert_eq!(tags.len(), 3);
+
+        let tags = txn.select_tags_by_glob("color", "#<F:2,>*")?;
+        assert_eq!(tags.len(), 2);
+
+        let tags = txn.select_tags_by_iglob("color", "#<f:2,>*")?;
+        assert_eq!(tags.len(), 2);
+
+        Ok(())
+    })
+}
+
+// ============================== Query ===============================
+// ====================================================================
+
+#[test]
+fn query_tests() -> Result<()> {
+    setup_dbfn_wfile(|txn| {
+        let qu = txn.insert_query("select * from file;");
+        let qu2 = txn.insert_query("set '*.{md,rs}' tag1");
+        let qu3 = txn.insert_query("set '*.rs' rust");
+
+        assert_eq!(txn.queries()?.len(), 3);
+        assert!(txn.query("set '*.rs' rust").is_ok());
+
+        txn.delete_query("set '*.rs' rust")?;
+        assert_eq!(txn.queries()?.len(), 2);
+
+        Ok(())
+    })
+}
+
+// ============================== Value ===============================
+// ====================================================================
+
+#[test]
+fn value_tests() -> Result<()> {
+    setup_dbfn_wfile(|txn| {
+        use itertools::Itertools;
+
+        let val = txn.insert_value("value1")?;
+        assert_eq!(val.name(), "value1");
+
+        let val2 = txn.insert_value("vvvv")?;
+        assert_eq!(txn.values()?.len(), 2);
+        assert_eq!(txn.value_count()? as usize, txn.values()?.len());
+
+        let val3 = txn.insert_value("foo")?;
+        let ret = txn.update_value(val3.id(), "bar")?;
+        assert!(txn.select_values_by_glob("f*").is_err());
+
+        let val4 = txn.insert_value("zaf")?;
+        txn.delete_value(val4.id())?;
+        assert!(!txn.values().iter().any(|v| v.contains_name("zaf", true)));
+
+        let vals = txn.values_by_names(&["value1", "vvvv"], true)?;
+        assert_eq!(vals.len(), 2);
+
+        // TEST:
+        // let vals = txn.values_by_tagid(val2.id())?;
+        // assert_eq!(vals.len(), 1);
+
+        let val = txn.value_by_name("vvvv", true)?;
+        assert_eq!(val.name(), "vvvv");
+
+        let vals = txn.values_by_valueids(vec![val2.id(), val.id()])?;
+        assert_eq!(vals.len(), 2);
+
+        let val = txn.value(val.id())?;
+        assert_eq!(val.name(), "value1");
+
+        Ok(())
+    })
+}
+
+#[test]
+fn value_query() -> Result<()> {
+    setup_dbfn_wfile(|txn| {
+        let val = txn.insert_value("value1")?;
+        let val2 = txn.insert_value("vvvv")?;
+        let val3 = txn.insert_value("foo")?;
+
+        let values = txn.select_values_by_regex("v.*")?;
+        assert_eq!(values.len(), 2);
+
+        let values = txn.select_values_by_iregex("V.*")?;
+        assert_eq!(values.len(), 2);
+
+        let values = txn.select_values_by_glob("<v:4>")?;
+        assert_eq!(values.len(), 1);
+
+        let values = txn.select_values_by_iglob("V*")?;
+        assert_eq!(values.len(), 2);
 
         Ok(())
     })

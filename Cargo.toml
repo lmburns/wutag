@@ -100,7 +100,7 @@ base64 = "0.13.0"
 blake3 = "1.2.0"
 chrono = { version = "0.4.19", features = ["serde"] }
 humantime = "2.1.0"
-# uuid = { version = "0.8", features = ["v4", "serde"] }
+uuid = { version = "0.8", features = ["v4", "serde"] }
 
 # Command-line
 clap = { version = "3.0.13", features = ["derive", "default", "cargo", "wrap_help", "env"] }

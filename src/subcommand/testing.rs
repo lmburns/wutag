@@ -68,15 +68,22 @@ impl App {
         // }
 
         // let fs = txn.select_files_by_glob("name", "**/*{.md,.lock}")?;
+        // println!("OG: {:#?}", fs);
 
-        let test = PathBuf::from("./README.md");
-        // test.set_flags(Flags::COMPR | Flags::EXTENTS)?;
+        // let fs = txn.select_files_by_links(1)?;
+        // println!("OG: {:#?}", fs);
 
-        let f = txn.select_file_by_path(&test.canonicalize()?)?;
-        let new = txn.update_file(f.id, test.canonicalize()?)?;
+        // let tag = txn.insert_tag("taghere", "#FF01FF")?;
+        // println!("tag: {:#?}", tag);
 
-        let og_files = txn.select_files_by_flag("ce")?;
-        println!("OG: {:#?}", og_files);
+        // let val1 = txn.insert_value("vvv1")?;
+        // println!("VAL1: {:#?}", val1);
+        //
+        // let val2 = txn.insert_value("www1")?;
+        // println!("VAL2: {:#?}", val2);
+        //
+        // let values = txn.values()?;
+        // println!("value: {:#?}", values);
 
         // txn.commit()?;
 

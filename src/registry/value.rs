@@ -19,7 +19,7 @@ use super::{
     },
     Error, Txn,
 };
-use crate::wutag_fatal;
+use crate::{fail, query_fail, retr_fail, wutag_fatal};
 use anyhow::{Context, Result};
 use colored::Colorize;
 use std::convert::TryInto;
@@ -38,17 +38,16 @@ impl Txn<'_> {
     // ====================================================================
 
     /// Retrieve the number of `Value`s in the database
-    pub(crate) fn value_count(&self) -> Result<u32> {
+    pub(super) fn value_count(&self) -> Result<u32> {
         self.select1::<u32>(
-            "SELECT id, name
-            FROM value
-            ORDER BY name",
+            "SELECT count(1)
+            FROM value",
         )
-        .context("failed to retrieve `Value` count")
+        .context(retr_fail!("`Value` count"))
     }
 
     /// Retrieve all `Value`s in the database
-    pub(crate) fn values(&self) -> Result<Values> {
+    pub(super) fn values(&self) -> Result<Values> {
         let values: Vec<Value> = self
             .query_vec(
                 "SELECT id, name
@@ -57,13 +56,13 @@ impl Txn<'_> {
                 params![],
                 |row| row.try_into().expect("failed to convert to `Value`"),
             )
-            .context("failed to query for `Values`")?;
+            .context(query_fail!("`Values`"))?;
 
         Ok(values.into())
     }
 
     /// Retrieve the `Value` matching the `ValueId` in the database
-    pub(crate) fn value(&self, vid: ValueId) -> Result<Value> {
+    pub(super) fn value(&self, vid: ValueId) -> Result<Value> {
         let value: Value = self
             .select(
                 "SELECT id, name
@@ -75,13 +74,13 @@ impl Txn<'_> {
                     Ok(r)
                 },
             )
-            .context("failed to query for `Value`")?;
+            .context(query_fail!("`Value`"))?;
 
         Ok(value)
     }
 
     /// Retrieve all `Value`s matching the vector of `ValueId`s
-    pub(crate) fn values_by_valueids(&self, ids: Vec<ValueId>) -> Result<Values, Error> {
+    pub(super) fn values_by_valueids(&self, ids: Vec<ValueId>) -> Result<Values, Error> {
         if ids.is_empty() {
             return Err(Error::EmptyArray);
         }
@@ -102,13 +101,14 @@ impl Txn<'_> {
             .query_builder(&builder, |row| {
                 row.try_into().expect("failed to convert to `Value`")
             })
-            .context("failed to query for `Values`")?;
+            .context(query_fail!("`Values`"))?;
 
         Ok(values.into())
     }
 
+    // TEST:
     /// Retrieve all unused `Value`s within the database
-    pub(crate) fn values_unused(&self) -> Result<Values> {
+    pub(super) fn values_unused(&self) -> Result<Values> {
         let values: Vec<Value> = self
             .query_vec(
                 "SELECT id, name FROM value
@@ -121,14 +121,14 @@ impl Txn<'_> {
                 params![],
                 |row| row.try_into().expect("failed to convert to `Value`"),
             )
-            .context("failed to query for `Value`")?;
+            .context(query_fail!("`Value`"))?;
 
         Ok(values.into())
     }
 
     /// Retrieve a `Value` by its string name
     ///   - **Exact match** searching
-    pub(crate) fn value_by_name<S: AsRef<str>>(&self, name: S, ignore_case: bool) -> Result<Value> {
+    pub(super) fn value_by_name<S: AsRef<str>>(&self, name: S, ignore_case: bool) -> Result<Value> {
         let mut builder = SqlBuilder::new_initial(
             "SELECT id, name
             FROM value
@@ -142,16 +142,16 @@ impl Txn<'_> {
                 let r: Value = row.try_into().expect("failed to convert to `Value`");
                 Ok(r)
             })
-            .context("failed to query for `Value`")?;
+            .context(query_fail!("`Value`"))?;
 
         Ok(value)
     }
 
     /// Retrieve all `Value`s matching a vector of names
     ///   - **Exact match** searching
-    pub(crate) fn values_by_names(
+    pub(super) fn values_by_names<S: AsRef<str>>(
         &self,
-        names: Vec<String>,
+        names: &[S],
         ignore_case: bool,
     ) -> Result<Values, Error> {
         if names.is_empty() {
@@ -168,7 +168,7 @@ impl Txn<'_> {
         builder.append(" IN (");
 
         for name in names {
-            builder.append_param(name);
+            builder.append_param(name.as_ref().to_owned());
         }
 
         builder.append(")");
@@ -178,13 +178,13 @@ impl Txn<'_> {
             .query_builder(&builder, |row| {
                 row.try_into().expect("failed to convert to `Value`")
             })
-            .context("failed to query for `Values`")?;
+            .context(query_fail!("`Values`"))?;
 
         Ok(values.into())
     }
 
-    /// Retrieve all [`Value`]s matching a `TagId`
-    pub(crate) fn values_by_tagid(&self, tid: TagId) -> Result<Values> {
+    /// Retrieve all [`Value`]s matching a [`TagId`]
+    pub(super) fn values_by_tagid(&self, tid: TagId) -> Result<Values> {
         let values: Vec<Value> = self
             .query_vec(
                 "SELECT id, name
@@ -198,16 +198,57 @@ impl Txn<'_> {
                 params![],
                 |row| row.try_into().expect("failed to convert to `Value`"),
             )
-            .context("failed to query `Values`")?;
+            .context(query_fail!("`Values`"))?;
 
         Ok(values.into())
+    }
+
+    // ============================== Pattern =============================
+    // ====================================================================
+
+    /// Query for files using a custom function
+    fn select_values_by_func(&self, func: &str, reg: &str) -> Result<Values> {
+        let values: Vec<Value> = self
+            .query_vec(
+                format!(
+                    "SELECT id, name,
+                    FROM value
+                    WHERE {}('{}', name) == 1",
+                    func, reg,
+                ),
+                params![],
+                |row| row.try_into().expect("failed to convert to `Value`"),
+            )
+            .context(query_fail!("`Value`", "pattern", reg))?;
+
+        Ok(values.into())
+    }
+
+    /// Query for [`Values`] using a the `regex` custom function
+    pub(super) fn select_values_by_regex(&self, reg: &str) -> Result<Values> {
+        self.select_values_by_func("regex", reg)
+    }
+
+    /// Query for [`Values`] using a the `iregex` custom function
+    pub(super) fn select_values_by_iregex(&self, reg: &str) -> Result<Values> {
+        self.select_values_by_func("iregex", reg)
+    }
+
+    /// Query for [`Values`] using a the `glob` custom function
+    pub(super) fn select_values_by_glob(&self, glob: &str) -> Result<Values> {
+        self.select_values_by_func("glob", glob)
+    }
+
+    /// Query for [`Values`] using a the `iglob` custom function
+    pub(super) fn select_values_by_iglob(&self, glob: &str) -> Result<Values> {
+        self.select_values_by_func("iglob", glob)
     }
 
     // ============================= Modifying ============================
     // ====================================================================
 
     /// Insert a `Value` into the database
-    pub(crate) fn insert_value<S: AsRef<str>>(&self, name: S) -> Result<Value> {
+    pub(super) fn insert_value<S: AsRef<str>>(&self, name: S) -> Result<Value> {
         let name = name.as_ref();
         let res = self
             .insert(
@@ -215,13 +256,13 @@ impl Txn<'_> {
                 VALUES (?1)",
                 params![name],
             )
-            .context("failed to insert `Value`")?;
+            .context(fail!("insert `Value`"))?;
 
         Ok(Value::new(ID::new(res), name.to_owned()))
     }
 
     /// Update the `Value` by changing its' name
-    pub(crate) fn update_value<S: AsRef<str>>(&self, id: ValueId, new: S) -> Result<Value, Error> {
+    pub(super) fn update_value<S: AsRef<str>>(&self, id: ValueId, new: S) -> Result<Value, Error> {
         let name = new.as_ref();
         let affected = self
             .execute(
@@ -230,7 +271,7 @@ impl Txn<'_> {
                 WHERE id = ?2",
                 params![name, id],
             )
-            .context("failed to update `Value`")?;
+            .context(fail!("update `Value`"))?;
 
         if affected == 0 {
             return Err(Error::NonexistentValue(id.to_string()));
@@ -242,14 +283,14 @@ impl Txn<'_> {
     }
 
     /// Remove a `Value` from the database
-    pub(crate) fn delete_value(&self, id: ValueId) -> Result<(), Error> {
+    pub(super) fn delete_value(&self, id: ValueId) -> Result<(), Error> {
         let affected = self
             .execute(
                 "DELETE FROM value
                 WHERE id = ?1",
                 params![id],
             )
-            .context("failed to delete `Value`")?;
+            .context(fail!("delete `Value`"))?;
 
         if affected == 0 {
             return Err(Error::NonexistentFile(id.to_string()));

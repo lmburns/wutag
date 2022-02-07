@@ -23,6 +23,7 @@ use super::{
     },
     Error, Txn,
 };
+use crate::{conv_fail, fail, failure, query_fail, retr_fail};
 use anyhow::{Context, Result};
 use colored::Colorize;
 use std::{convert::TryInto, time::SystemTime};
@@ -46,7 +47,7 @@ impl Txn<'_> {
             "SELECT count(1)
             FROM tag",
         )
-        .context("failed to retrieve `Tag` count")
+        .context(retr_fail!("`Tag` count"))
     }
 
     /// Retrieve all [`Tag`]s within the database
@@ -59,7 +60,7 @@ impl Txn<'_> {
                 params![],
                 |row| row.try_into().expect("failed to convert to `Tag`"),
             )
-            .context("failed to query for `Tags`")?;
+            .context(query_fail!("`Tag`"))?;
 
         Ok(tags.into())
     }
@@ -77,13 +78,13 @@ impl Txn<'_> {
                     Ok(r)
                 },
             )
-            .context("failed to query for single `Tag`")?;
+            .context(query_fail!("single `Tag`"))?;
 
         Ok(tag)
     }
 
     /// Retrieve all [`Tag`]s that match the vector of [`TagId`]s
-    pub(crate) fn tags_by_ids(&self, ids: Vec<TagId>) -> Result<Tags, Error> {
+    pub(crate) fn tags_by_ids(&self, ids: &[TagId]) -> Result<Tags, Error> {
         if ids.is_empty() {
             return Err(Error::EmptyArray);
         }
@@ -95,7 +96,7 @@ impl Txn<'_> {
         );
 
         for id in ids {
-            builder.append_param(id);
+            builder.append_param(id.to_string());
         }
 
         builder.append(")");
@@ -104,7 +105,7 @@ impl Txn<'_> {
             .query_builder(&builder, |row| {
                 row.try_into().expect("failed to convert to `Tag`")
             })
-            .context("failed to query for `Tags`")?;
+            .context(query_fail!("`Tags`"))?;
 
         Ok(tags.into())
     }
@@ -126,16 +127,16 @@ impl Txn<'_> {
                 let r: Tag = row.try_into().expect("failed to convert to `Tag`");
                 Ok(r)
             })
-            .context("failed to query for `Tag`")?;
+            .context(query_fail!("`Tag`"))?;
 
         Ok(tag)
     }
 
     /// Retrieve all [`Tag`]s matching a vector of names
     ///   - **Exact match** searching
-    pub(crate) fn tags_by_names(
+    pub(crate) fn tags_by_names<S: AsRef<str>>(
         &self,
-        names: Vec<String>,
+        names: &[S],
         ignore_case: bool,
     ) -> Result<Tags, Error> {
         if names.is_empty() {
@@ -152,7 +153,7 @@ impl Txn<'_> {
         builder.append(" IN (");
 
         for name in names {
-            builder.append_param(name);
+            builder.append_param(name.as_ref().to_string());
         }
 
         builder.append(")");
@@ -162,15 +163,54 @@ impl Txn<'_> {
             .query_builder(&builder, |row| {
                 row.try_into().expect("failed to convert to `Tag`")
             })
-            .context("failed to query for `Tags`")?;
+            .context(query_fail!("`Tags`"))?;
 
         Ok(tags.into())
     }
 
+    /// Retrieve all [`Tag`]s matching a pattern
+    ///   - **Pattern** searching
+    fn select_tags_by_func(&self, func: &str, column: &str, patt: &str) -> Result<Tags> {
+        let tags: Vec<Tag> = self
+            .query_vec(
+                format!(
+                    "SELECT id, name, color
+                    FROM tag
+                    WHERE {}('{}', {}) == 1",
+                    func, patt, column
+                ),
+                params![],
+                |row| row.try_into().expect("failed to convert to `Tag`"),
+            )
+            .context(query_fail!("`Tags`"))?;
+
+        Ok(tags.into())
+    }
+
+    /// Query for tags using a the `regex` custom function on `name`, or `color`
+    pub(crate) fn select_tags_by_regex(&self, column: &str, reg: &str) -> Result<Tags> {
+        self.select_tags_by_func("regex", column, reg)
+    }
+
+    /// Query for tags using a the `iregex` custom function on `name`, or
+    /// `color`
+    pub(crate) fn select_tags_by_iregex(&self, column: &str, reg: &str) -> Result<Tags> {
+        self.select_tags_by_func("iregex", column, reg)
+    }
+
+    /// Query for files using a the `glob` custom function on `name`, or `color`
+    pub(crate) fn select_tags_by_glob(&self, column: &str, glob: &str) -> Result<Tags> {
+        self.select_tags_by_func("glob", column, glob)
+    }
+
+    /// Query for files using a the `iglob` custom function on `name`, or
+    /// `color`
+    pub(crate) fn select_tags_by_iglob(&self, column: &str, glob: &str) -> Result<Tags> {
+        self.select_tags_by_func("iglob", column, glob)
+    }
+
     // ============================= Modifying ============================
     // ====================================================================
-
-    // TODO: Does a tag object really need to be returned?
 
     /// Insert a [`Tag`] into the database
     pub(crate) fn insert_tag<S: AsRef<str>>(&self, name: S, color: S) -> Result<Tag> {
@@ -182,7 +222,7 @@ impl Txn<'_> {
                 VALUES (?1, ?2)",
                 params![name, color],
             )
-            .context("failed to insert `Tag`")?;
+            .context(fail!("insert `Tag`"))?;
 
         Ok(Tag::new(ID::new(res), name, color))
     }
@@ -205,9 +245,7 @@ impl Txn<'_> {
             return Err(Error::TooManyChanges(id.to_string()));
         }
 
-        Ok(self
-            .tag(id)
-            .context(format!("failed to get tag with id: {}", id))?)
+        Ok(self.tag(id).context(retr_fail!("tag", "id", id))?)
     }
 
     /// Update the [`Tag`] by changing its' color
@@ -232,9 +270,7 @@ impl Txn<'_> {
             return Err(Error::TooManyChanges(id.to_string()));
         }
 
-        Ok(self
-            .tag(id)
-            .context(format!("failed to get tag with id: {}", id))?)
+        Ok(self.tag(id).context(retr_fail!("tag", "id", id))?)
     }
 
     /// Remove a [`Tag`] from the database
@@ -245,7 +281,7 @@ impl Txn<'_> {
                 WHERE id = ?",
                 params![id],
             )
-            .context("failed to delete `Tag`")?;
+            .context(fail!("delete `Tag`"))?;
 
         if affected == 0 {
             return Err(Error::NonexistentTag(id.to_string()));
@@ -256,6 +292,7 @@ impl Txn<'_> {
         Ok(())
     }
 
+    // BETTER TEST:
     /// Retrieve information about each [`Tag`]. Returns a vector of
     /// [`TagFileCnt`], which contains information about the number of files the
     /// [`Tag`] is associated with
@@ -270,7 +307,7 @@ impl Txn<'_> {
                 params![],
                 |row| row.try_into().expect("failed to convert to `TagFileCnt`"),
             )
-            .context("failed to get `Tag` information in `TagFileCnt`")?;
+            .context(retr_fail!("`Tag` information", "`TagFileCnt`"))?;
 
         Ok(tfc)
     }

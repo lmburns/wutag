@@ -1,7 +1,11 @@
 //! A value that a [`Tag`] can have. In the database, the table is named
 //! `xattr`, since it is an extended attribute of the [`Tag`] itself
 
-use super::{from_vec, impl_vec, ID};
+use super::{
+    super::querier::{COMPARISON_OPS, FUNC_NAMES},
+    from_vec, impl_vec, ID,
+};
+use anyhow::{anyhow, Result};
 use rusqlite::{
     self as rsq,
     types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, ValueRef},
@@ -58,6 +62,34 @@ impl Value {
     pub(crate) const fn new(id: ValueId, name: String) -> Self {
         Self { id, name }
     }
+
+    /// Verify that the [`Value`] name is valid
+    pub(crate) fn validate_name<S: AsRef<str>>(name: S) -> Result<()> {
+        use crate::regex;
+        use regex::Regex;
+
+        let name = name.as_ref();
+        if COMPARISON_OPS.contains(&name) {
+            return Err(anyhow!(
+                "invalid value name was given: {}\n\nValid values must not contain:\n\t- {}",
+                name,
+                COMPARISON_OPS.join(", ")
+            ));
+        }
+
+        let reg = regex!(&format!("({})\\(.*\\)", FUNC_NAMES.join("|")));
+        if FUNC_NAMES.iter().any(|f| reg.is_match(f)) {
+            return Err(anyhow!(
+                "invalid value name was given: {}\n\nValid values must not contain any of the \
+                 following function names, proceeded by an opening and closing parenethesis:\n\t- \
+                 {}",
+                name,
+                FUNC_NAMES.join(", ")
+            ));
+        }
+
+        Ok(())
+    }
 }
 
 impl ToSql for Value {
@@ -74,7 +106,6 @@ impl FromSql for Value {
         match value {
             ValueRef::Text(d) | ValueRef::Blob(d) => serde_json::from_slice(d),
             _s => {
-                // let val = s.as_i64();
                 return Err(FromSqlError::InvalidType);
             },
         }

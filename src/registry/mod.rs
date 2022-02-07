@@ -192,8 +192,6 @@ impl Registry {
         self.add_blake3_func()?;
         self.add_fullpath_func()?;
 
-        self.add_test_func()?;
-
         self.create_unicase_collation()?;
 
         /// -
@@ -473,30 +471,6 @@ impl Registry {
     //         .context("failed to create `recent` function")
     // }
 
-    fn add_test_func(&self) -> Result<()> {
-        self.conn
-            .create_scalar_function(
-                "fff",
-                2,
-                FunctionFlags::SQLITE_UTF8 | FunctionFlags::SQLITE_DETERMINISTIC,
-                move |ctx| {
-                    let r = ctx.get::<String>(0)?;
-                    println!("ARG1: {:#?}", r);
-                    // let x = ctx.get::<String>(1)?;
-
-                    let s: Arc<String> = ctx
-                        .get_or_create_aux(1, |vr| -> rsq::Result<_, BoxError> {
-                            Ok(vr.as_str()?.to_string())
-                        })?;
-
-                    println!("ARG2: {:#?}", s);
-                    Ok(true)
-                },
-            )
-            .context("failed to create `regexp` function");
-        Ok(())
-    }
-
     /// Return a `String` from a user-defined-function
     fn get_string<'a>(
         ctx: &'a Context,
@@ -607,8 +581,6 @@ impl Registry {
                     let matched = {
                         let text = Self::get_string(ctx, fname, 1)?;
                         log::debug!("to match text: {:#?}", text);
-
-                        println!("=== to match text: {:#?}", text);
 
                         regexp.is_match(text)
                     };

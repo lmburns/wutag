@@ -98,13 +98,31 @@ pub(crate) enum Function {
     /// Function that matches the file's hash
     Hash { term: Box<Expr> },
 
-    // TODO:
+    // TODO: ===
+
+    // --- THESE: Function or tag as a result?
+    /// Function that matches files that have an implied tag
+    Implied { term: Box<Expr> },
+    /// Function that matches files that have tags that imply another
+    Implies { term: Box<Expr> },
+
+    /// Function that matches a given time before
+    Before { term: Box<Expr> },
+    /// Function that matches a given time after
+    After { term: Box<Expr> },
+
+    /// Function that matches the file's size
+    Size { term: Box<Expr> },
+    /// Function that matches the file's `UID`
+    Uid { term: Box<Expr> },
+    /// Function that matches the file's `GID`
+    Gid { term: Box<Expr> },
     /// Function that matches the file's modification time
     Mtime { term: Box<Expr> },
-    /// Function that matches the file's access time
-    Atime { term: Box<Expr> },
     /// Function that matches the file's creation time
     Ctime { term: Box<Expr> },
+    /// Function that matches directories
+    Dir,
 
     /// Function to print a search term
     Print { term: Box<Expr> },
@@ -297,13 +315,6 @@ impl Expr {
         })
     }
 
-    /// Create an `atime` `FunctionCall` expression
-    pub(crate) fn atime_func(arg: Self) -> Self {
-        Self::FunctionCall(Function::Atime {
-            term: Box::new(arg),
-        })
-    }
-
     /// Create an `mtime` `FunctionCall` expression
     pub(crate) fn mtime_func(arg: Self) -> Self {
         Self::FunctionCall(Function::Mtime {
@@ -314,6 +325,20 @@ impl Expr {
     /// Create an `ctime` `FunctionCall` expression
     pub(crate) fn ctime_func(arg: Self) -> Self {
         Self::FunctionCall(Function::Mtime {
+            term: Box::new(arg),
+        })
+    }
+
+    /// Create a `uid` [`FunctionCall`] expression
+    pub(crate) fn uid_func(arg: Self) -> Self {
+        Self::FunctionCall(Function::Uid {
+            term: Box::new(arg),
+        })
+    }
+
+    /// Create a `gid` [`FunctionCall`] expression
+    pub(crate) fn gid_func(arg: Self) -> Self {
+        Self::FunctionCall(Function::Gid {
             term: Box::new(arg),
         })
     }

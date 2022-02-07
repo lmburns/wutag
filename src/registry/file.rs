@@ -13,8 +13,15 @@
 //!     ctime DATETIME NOT NULL,
 //!     mode INTEGER NOT NULL,
 //!     inode INTEGER NOT NULL,
+//!     links INTEGER NOT NULL,
+//!     uid INTEGER NOT NULL,
+//!     gid INTEGER NOT NULL,
 //!     size INTEGER NOT NULL,
 //!     is_dir BOOLEAN NOT NULL,
+//!
+//!     #[cfg(feature = "file-flags")]
+//!     e2pflags INTEGER NOT NULL,
+//!
 //!     CONSTRAINT con_file_path UNIQUE (directory, name)
 //! );
 //! CREATE INDEX IF NOT EXISTS idx_file_hash
@@ -30,7 +37,10 @@ use super::{
     },
     Error, Txn,
 };
-use crate::{macros::wants_feature_flags, path_str, wutag_fatal};
+use crate::{
+    conv_fail, fail, failure, macros::wants_feature_flags, path_str, query_fail, retr_fail,
+    wutag_fatal,
+};
 use anyhow::{Context, Result};
 use chrono::{DateTime, Local};
 use colored::Colorize;
@@ -54,47 +64,6 @@ macro_rules! cfile {
 macro_rules! cstr {
     ($file:expr) => {
         $file.to_string().green().bold()
-    };
-}
-
-// Probably a much better looking way to do this
-
-/// Easier error message expansion, since the base part is repeated
-macro_rules! failure {
-    ($action:expr, $kind:expr) => {
-        format!("failed to {} {}", $action, $kind)
-    };
-    ($action:expr, $kind:expr, $by:expr) => {
-        format!("failed to {} {} by {}", $action, $kind, $by)
-    };
-    ($action:expr, $kind:expr, $by:expr, $val:expr) => {
-        format!("failed to {} {} by {}: {}", $action, $kind, $by, $val)
-    };
-}
-
-/// A retrieve failure
-macro_rules! retr_fail {
-    ($kind:expr) => {
-        failure!("retrieve", $kind)
-    };
-    ($kind:expr, $by:expr) => {
-        failure!("retrieve", $kind, $by)
-    };
-    ($kind:expr, $by:expr, $val:expr) => {
-        failure!("retrieve", $kind, $by, $val)
-    };
-}
-
-/// A query failure
-macro_rules! query_fail {
-    ($kind:expr) => {
-        failure!("query", $kind)
-    };
-    ($kind:expr, $by:expr) => {
-        failure!("query", $kind, $by)
-    };
-    ($kind:expr, $by:expr, $val:expr) => {
-        failure!("query", $kind, $by, $val)
     };
 }
 
@@ -171,6 +140,7 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
+    // MAKE A TEST
     /// List all [`File`] [`ID`]s
     pub(crate) fn select_ids(&self) -> Result<Vec<ID>> {
         let files = self.select_files(None)?;
@@ -247,8 +217,8 @@ impl Txn<'_> {
                     e2p_feature_comma()
                 ),
                 params![
-                    path_str!(path.parent().context("failed to get parent")?),
-                    path_str!(path.file_name().context("failed to get file name")?)
+                    path_str!(path.parent().context(fail!("get parent"))?),
+                    path_str!(path.file_name().context(fail!("get file name"))?)
                 ],
                 |row| {
                     let r: File = row.try_into().expect("failed to convert to `File`");
@@ -472,7 +442,7 @@ impl Txn<'_> {
                     {}
                 FROM file
                 WHERE mode = ?1 or mode = 100 || ?1 or mode = 10 || ?1
-                ORDER BY directory || '/' || name",
+                ORDER BY fullpath(directory, name)",
                     e2p_feature_comma()
                 ),
                 params![mode],
@@ -506,7 +476,7 @@ impl Txn<'_> {
                     {}
                 FROM file
                 WHERE inode = ?1
-                ORDER BY directory || '/' || name",
+                ORDER BY fullpath(directory, name)",
                     e2p_feature_comma()
                 ),
                 params![inode],
@@ -540,7 +510,7 @@ impl Txn<'_> {
                     {}
                 FROM file
                 WHERE links = ?1
-            ORDER BY directory || '/' || name",
+                ORDER BY fullpath(directory, name)",
                     e2p_feature_comma()
                 ),
                 params![links],
@@ -646,7 +616,7 @@ impl Txn<'_> {
                     e2p_feature_comma()
                 ),
                 params![size],
-                |row| row.try_into().expect("failed to convert to `File`"),
+                |row| row.try_into().expect("failed to convertt to `File`"),
             )
             .context(query_fail!("`File`", "size", size))?;
 
@@ -693,13 +663,14 @@ impl Txn<'_> {
                     e2p_feature_comma()
                 ),
                 params![],
-                |row| row.try_into().expect("failed to convert to `File`"),
+                |row| row.try_into().expect("failed to convertt to `File`"),
             )
             .context(query_fail!("`File`", "is_dir"))?;
 
         Ok(files.into())
     }
 
+    // MAKE A TEST
     /// Retrieve the set of [`Files`] that are untagged
     pub(crate) fn select_files_untagged(&self) -> Result<Files> {
         let files: Vec<File> = self
@@ -730,7 +701,7 @@ impl Txn<'_> {
                 params![],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .context("failed to query for untagged `File`")?;
+            .context(query_fail!("untagged `File`"))?;
 
         Ok(files.into())
     }
@@ -764,6 +735,7 @@ impl Txn<'_> {
     //     todo!()
     // }
 
+    // MAKE A TEST
     /// Retrieve the set of `Files` that are duplicates in the database
     pub(crate) fn select_files_duplicates(&self) -> Result<Files> {
         let files: Vec<File> = self
@@ -838,7 +810,7 @@ impl Txn<'_> {
                 params![],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .context(query_fail!("`File`", "regex", reg))?;
+            .context(query_fail!("`File`", "pattern", reg))?;
 
         Ok(files.into())
     }
@@ -854,19 +826,33 @@ impl Txn<'_> {
     }
 
     /// Query for files using a the `glob` custom function on any column
-    pub(crate) fn select_files_by_glob(&self, column: &str, reg: &str) -> Result<Files> {
-        self.select_files_by_func("glob", column, reg)
+    pub(crate) fn select_files_by_glob(&self, column: &str, glob: &str) -> Result<Files> {
+        self.select_files_by_func("glob", column, glob)
     }
 
     /// Query for files using a the `iglob` custom function on any column
-    pub(crate) fn select_files_by_iglob(&self, column: &str, reg: &str) -> Result<Files> {
-        self.select_files_by_func("iglob", column, reg)
+    pub(crate) fn select_files_by_iglob(&self, column: &str, glob: &str) -> Result<Files> {
+        self.select_files_by_func("iglob", column, glob)
     }
 
-    /// Query for files using a the `regex` custom function on the full file
-    /// path (`fp`)
+    /// Query for files using the `regex` custom function on full path
     pub(crate) fn select_files_by_regex_fp(&self, reg: &str) -> Result<Files> {
         self.select_files_by_regex("fullpath(directory, name)", reg)
+    }
+
+    /// Query for files using the `iregex` custom function on full path
+    pub(crate) fn select_files_by_iregex_fp(&self, reg: &str) -> Result<Files> {
+        self.select_files_by_iregex("fullpath(directory, name)", reg)
+    }
+
+    /// Query for files using the `glob` custom function on full path
+    pub(crate) fn select_files_by_glob_fp(&self, glob: &str) -> Result<Files> {
+        self.select_files_by_glob("fullpath(directory, name)", glob)
+    }
+
+    /// Query for files using the `iglob` custom function on the full path
+    pub(crate) fn select_files_by_iglob_fp(&self, glob: &str) -> Result<Files> {
+        self.select_files_by_iglob("fullpath(directory, name)", glob)
     }
 
     // ============================= Modifying ============================
@@ -876,7 +862,7 @@ impl Txn<'_> {
     pub(crate) fn insert_file<P: AsRef<Path>>(&self, path: P) -> Result<File> {
         let path = path.as_ref();
         let mut f = File::new(&path, self.registry().follow_symlinks())
-            .context(format!("failed to build `File`: {}", cfile!(path)))?;
+            .context(fail!("build `File`: {}", cfile!(path)))?;
 
         log::debug!("{}: inserting file:\n{:#?}", cfile!(path), f);
 
@@ -963,7 +949,7 @@ impl Txn<'_> {
     pub(crate) fn update_file<P: AsRef<Path>>(&self, id: FileId, path: P) -> Result<File, Error> {
         let path = path.as_ref();
         let mut f = File::new(&path, self.registry().follow_symlinks())
-            .context("failed to build `File`")?;
+            .context(fail!("build `File`: {}", cfile!(path)))?;
 
         log::debug!("{}: updating file:\n{:#?}", cfile!(path), f);
 

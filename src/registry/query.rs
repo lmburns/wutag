@@ -1,4 +1,4 @@
-//! Contains functions that act on `Txn` to modify the queries stored in the
+//! Contains functions that act on [`Txn`] to modify the queries stored in the
 //! `query` table
 //!
 //! Schema of table:
@@ -17,6 +17,7 @@ use super::{
     },
     Error, Txn,
 };
+use crate::{fail, query_fail};
 use anyhow::{Context, Result};
 use chrono::{DateTime, Local};
 use colored::Colorize;
@@ -47,7 +48,7 @@ impl Txn<'_> {
                 params![],
                 |row| row.try_into().expect("failed to convert to `Query`"),
             )
-            .context("failed to query for `Queries`")?;
+            .context(query_fail!("`Queries`"))?;
 
         Ok(queries.into())
     }
@@ -56,7 +57,7 @@ impl Txn<'_> {
     pub(crate) fn query<S: AsRef<str>>(&self, q: S) -> Result<Query> {
         let query: Query = self
             .select(
-                "SELECT 1
+                "SELECT text
                 FROM query
                 WHERE text = ?1",
                 params![q.as_ref()],
@@ -65,7 +66,7 @@ impl Txn<'_> {
                     Ok(r)
                 },
             )
-            .context("failed to query for `Query`")?;
+            .context(query_fail!("`Query`"))?;
 
         Ok(query)
     }
@@ -81,7 +82,7 @@ impl Txn<'_> {
             VALUES (?1)",
             params![q],
         )
-        .context("failed to insert `Query`")?;
+        .context(fail!("insert `Query`"))?;
 
         Ok(Query::new(q))
     }
@@ -93,7 +94,7 @@ impl Txn<'_> {
             WHERE text = ?",
             params![q.as_ref()],
         )
-        .context("failed to delete `Query`")?;
+        .context(fail!("delete `Query`"))?;
 
         Ok(())
     }

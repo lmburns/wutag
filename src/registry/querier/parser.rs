@@ -1007,7 +1007,7 @@ fn parse_expr(input: Span) -> IResult<Span, Expr> {
 /// # Errors
 /// Returns `()` because all errors are printed to the screen during the parsing
 /// phase
-pub(crate) fn parse_query(input: &Query) -> Result<ParsedQuery, ()> {
+pub(super) fn parse_query(input: &Query) -> Result<ParsedQuery, ()> {
     let s = Span::new_extra(input.query(), input);
     let (rest, parsed) = parse_expr(s).map_err(|_| ())?;
 

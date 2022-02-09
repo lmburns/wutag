@@ -30,6 +30,11 @@ _wutag__list__files_commands() {
     local commands; commands=()
     _describe -t commands 'wutag list files commands' commands \"$@\"
 }
+(( $+functions[_wutag__list2__files_commands] )) ||
+_wutag__list2__files_commands() {
+    local commands; commands=()
+    _describe -t commands 'wutag list2 files commands' commands \"$@\"
+}
 (( $+functions[_wutag__info_commands] )) ||
 _wutag__info_commands() {
     local commands; commands=()
@@ -42,6 +47,14 @@ _wutag__list_commands() {
 'files:List the `Files` within the database' \\
     )
     _describe -t commands 'wutag list commands' commands \"$@\"
+}
+(( $+functions[_wutag__list2_commands] )) ||
+_wutag__list2_commands() {
+    local commands; commands=(
+'tags:List the `Tags` within the database' \\
+'files:List the `Files` within the database' \\
+    )
+    _describe -t commands 'wutag list2 commands' commands \"$@\"
 }
 (( $+functions[_wutag__print-completions_commands] )) ||
 _wutag__print-completions_commands() {
@@ -72,6 +85,16 @@ _wutag__set_commands() {
 _wutag__list__tags_commands() {
     local commands; commands=()
     _describe -t commands 'wutag list tags commands' commands \"$@\"
+}
+(( $+functions[_wutag__list2__tags_commands] )) ||
+_wutag__list2__tags_commands() {
+    local commands; commands=()
+    _describe -t commands 'wutag list2 tags commands' commands \"$@\"
+}
+(( $+functions[_wutag__testing_commands] )) ||
+_wutag__testing_commands() {
+    local commands; commands=()
+    _describe -t commands 'wutag testing commands' commands \"$@\"
 }
 (( $+functions[_wutag__ui_commands] )) ||
 _wutag__ui_commands() {

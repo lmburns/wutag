@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::registry::types::ID;
-use e2p_fileflags::{FileFlags,Flags};
+use e2p_fileflags::{FileFlags, Flags};
 
 use super::{
     uses::{
@@ -60,8 +60,8 @@ impl App {
         // let test = PathBuf::from("./Cargo.lock");
         // let ret = txn.insert_file(test)?;
         //
-        // let q = crate::registry::querier::ast::query::Query::new(&opts.query.join(" "), None);
-        // let parsed = q.parse();
+        // let q = crate::registry::querier::ast::query::Query::new(&opts.query.join("
+        // "), None); let parsed = q.parse();
         //
         // if let Ok(p) = parsed {
         //     println!("parsed: {:#?}", p);

@@ -86,7 +86,6 @@ pub(crate) static FILE_TYPE: Lazy<String> = Lazy::new(|| {
         GREEN, RES,
         GREEN, RES,
         )
-    .to_owned()
 });
 
 /// Colorized message to explain the -X flag to execute commands on tagged files

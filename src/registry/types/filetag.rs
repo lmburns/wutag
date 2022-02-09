@@ -2,7 +2,7 @@
 //! [`Value`]s
 
 use super::{
-    file::{File, FileId},
+    file::{File, FileId, FileIds},
     from_vec, impl_vec,
     tag::{Tag, TagId, TagValueCombo},
     value::{Value, ValueId},
@@ -26,7 +26,7 @@ pub(crate) struct FileTag {
     tag_id:   TagId,
     /// ID of the [`Value`]
     value_id: ValueId,
-    // TODO: need both?
+
     /// Is it explicitly tagged?
     explicit: bool,
     /// Is it implicitly tagged?
@@ -42,6 +42,23 @@ impl FileTag {
             value_id: vid,
             explicit: true,
             implicit: false,
+        }
+    }
+
+    /// Create a new [`FileTag`] with `explicit` and `implicit` specified
+    pub(crate) const fn new_full(
+        fid: FileId,
+        tid: TagId,
+        vid: ValueId,
+        exp: bool,
+        imp: bool,
+    ) -> Self {
+        Self {
+            file_id:  fid,
+            tag_id:   tid,
+            value_id: vid,
+            explicit: exp,
+            implicit: imp,
         }
     }
 
@@ -94,10 +111,17 @@ from_vec!(FileTag, FileTags);
 impl FileTags {
     impl_vec!(FileTag);
 
+    /// Return the [`FileId`] of each [`FileTag`]
+    pub(crate) fn file_ids(&self) -> FileIds {
+        self.iter()
+            .map(|ft| ft.file_id())
+            .collect::<Vec<_>>()
+            .into()
+    }
+
     /// Return the first [`FileTag`]
     pub(crate) fn first(&self) -> Result<FileTag> {
-        self.inner
-            .get(0)
+        self.get(0)
             .copied()
             .context("failed to get first item in `FileTags`")
     }

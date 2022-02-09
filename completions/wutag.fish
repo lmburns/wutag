@@ -3,7 +3,7 @@ complete -c wutag -n "__fish_use_subcommand" -s d -l dir -d 'Specify starting pa
 complete -c wutag -n "__fish_use_subcommand" -s m -l max-depth -d 'Set maximum depth to recurse into' -r
 complete -c wutag -n "__fish_use_subcommand" -s R -l registry -d 'Specify a different registry to use' -r -F
 complete -c wutag -n "__fish_use_subcommand" -s c -l color -d 'When to colorize output' -r -f -a "{never	,auto	,always	}"
-complete -c wutag -n "__fish_use_subcommand" -s t -l type -d 'File-type(s) to filter by: f|file, d|directory, l|symlink, e|empty' -r
+complete -c wutag -n "__fish_use_subcommand" -s t -l type -d 'File-type(s) to filter by: f|file, d|directory, l|symlink, e|empty' -r -f -a "{f	,file	,d	,dir	,l	,symlink	,b	,block	,c	,char	,s	,socket	,p	,fifo	,x	,executable	,e	,empty	}"
 complete -c wutag -n "__fish_use_subcommand" -s e -l ext -d 'Filter results by file extension' -r
 complete -c wutag -n "__fish_use_subcommand" -s E -l exclude -d 'Exclude results that match pattern' -r -f -a "(__fish_complete_directories)"
 complete -c wutag -n "__fish_use_subcommand" -s h -l help -d 'Print help information'
@@ -15,7 +15,9 @@ complete -c wutag -n "__fish_use_subcommand" -s r -l regex -d 'Search with a reg
 complete -c wutag -n "__fish_use_subcommand" -s g -l global -d 'Apply operation to all tags and files instead of locally'
 complete -c wutag -n "__fish_use_subcommand" -s l -l ls-colors -d 'Respect \'LS_COLORS\' environment variable when coloring the output'
 complete -c wutag -n "__fish_use_subcommand" -s q -l quiet -d 'Do not display any output for any command'
+complete -c wutag -n "__fish_use_subcommand" -f -a "testing" -d 'Testing new subcommands'
 complete -c wutag -n "__fish_use_subcommand" -f -a "list" -d 'Lists all available tags or files'
+complete -c wutag -n "__fish_use_subcommand" -f -a "list2" -d 'Lists all available tags or files'
 complete -c wutag -n "__fish_use_subcommand" -f -a "set" -d 'Set tag(s) on files that match the given pattern'
 complete -c wutag -n "__fish_use_subcommand" -f -a "rm" -d 'Remove tag(s) from the files that match the provided pattern'
 complete -c wutag -n "__fish_use_subcommand" -f -a "clear" -d 'Clears all tags of the files that match the provided pattern'
@@ -28,7 +30,10 @@ complete -c wutag -n "__fish_use_subcommand" -f -a "repair" -d 'Repair broken/mi
 complete -c wutag -n "__fish_use_subcommand" -f -a "print-completions" -d 'Prints completions for the specified shell to dir or stdout'
 complete -c wutag -n "__fish_use_subcommand" -f -a "clean-cache" -d 'Clean the cached tag registry'
 complete -c wutag -n "__fish_use_subcommand" -f -a "ui" -d 'Open a TUI to manage tags'
-complete -c wutag -n "__fish_seen_subcommand_from list; and not __fish_seen_subcommand_from tags; and not __fish_seen_subcommand_from files" -s r -l raw -d 'Output will be raw so that it can be easily piped to other commands'
+complete -c wutag -n "__fish_seen_subcommand_from testing" -s q -l query -r -f -a "(__fish_complete_command)"
+complete -c wutag -n "__fish_seen_subcommand_from testing" -s h -l help -d 'Print help information'
+complete -c wutag -n "__fish_seen_subcommand_from testing" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
+complete -c wutag -n "__fish_seen_subcommand_from list; and not __fish_seen_subcommand_from tags; and not __fish_seen_subcommand_from files" -s r -l raw -d 'Output will not be colorized'
 complete -c wutag -n "__fish_seen_subcommand_from list; and not __fish_seen_subcommand_from tags; and not __fish_seen_subcommand_from files" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from list; and not __fish_seen_subcommand_from tags; and not __fish_seen_subcommand_from files" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from list; and not __fish_seen_subcommand_from tags; and not __fish_seen_subcommand_from files" -f -a "tags" -d 'List the `Tags` within the database'
@@ -36,7 +41,8 @@ complete -c wutag -n "__fish_seen_subcommand_from list; and not __fish_seen_subc
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -l version -d 'Print version information'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s c -l no-count -d 'Do not display tag count'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s u -l unique -d 'Only display unique occurences. (See --help)'
-complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s s -l sort -d 'Sort the output alphabetically (no-count), numerically otherwise'
+complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s s -l sort -d 'Sort the output'
+complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s i -l implied -d 'Do not show implied tags'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s 1 -l one-per-line -d 'Display one tag per line instead of tags on files'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s b -l border -d 'Use border separators when formatting output'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s h -l help -d 'Print help information'
@@ -48,6 +54,27 @@ complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcomma
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from files" -s G -l garrulous -d 'Display tags and files on separate lines'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from files" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from files" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
+complete -c wutag -n "__fish_seen_subcommand_from list2; and not __fish_seen_subcommand_from tags; and not __fish_seen_subcommand_from files" -s r -l raw -d 'Output will not be colorized'
+complete -c wutag -n "__fish_seen_subcommand_from list2; and not __fish_seen_subcommand_from tags; and not __fish_seen_subcommand_from files" -s h -l help -d 'Print help information'
+complete -c wutag -n "__fish_seen_subcommand_from list2; and not __fish_seen_subcommand_from tags; and not __fish_seen_subcommand_from files" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
+complete -c wutag -n "__fish_seen_subcommand_from list2; and not __fish_seen_subcommand_from tags; and not __fish_seen_subcommand_from files" -f -a "tags" -d 'List the `Tags` within the database'
+complete -c wutag -n "__fish_seen_subcommand_from list2; and not __fish_seen_subcommand_from tags; and not __fish_seen_subcommand_from files" -f -a "files" -d 'List the `Files` within the database'
+complete -c wutag -n "__fish_seen_subcommand_from list2; and __fish_seen_subcommand_from tags" -l version -d 'Print version information'
+complete -c wutag -n "__fish_seen_subcommand_from list2; and __fish_seen_subcommand_from tags" -s c -l no-count -d 'Do not display tag count'
+complete -c wutag -n "__fish_seen_subcommand_from list2; and __fish_seen_subcommand_from tags" -s u -l unique -d 'Only display unique occurences. (See --help)'
+complete -c wutag -n "__fish_seen_subcommand_from list2; and __fish_seen_subcommand_from tags" -s s -l sort -d 'Sort the output'
+complete -c wutag -n "__fish_seen_subcommand_from list2; and __fish_seen_subcommand_from tags" -s i -l implied -d 'Do not show implied tags'
+complete -c wutag -n "__fish_seen_subcommand_from list2; and __fish_seen_subcommand_from tags" -s 1 -l one-per-line -d 'Display one tag per line instead of tags on files'
+complete -c wutag -n "__fish_seen_subcommand_from list2; and __fish_seen_subcommand_from tags" -s b -l border -d 'Use border separators when formatting output'
+complete -c wutag -n "__fish_seen_subcommand_from list2; and __fish_seen_subcommand_from tags" -s h -l help -d 'Print help information'
+complete -c wutag -n "__fish_seen_subcommand_from list2; and __fish_seen_subcommand_from tags" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
+complete -c wutag -n "__fish_seen_subcommand_from list2; and __fish_seen_subcommand_from files" -l version -d 'Print version information'
+complete -c wutag -n "__fish_seen_subcommand_from list2; and __fish_seen_subcommand_from files" -s t -l with-tags -d 'Display tags along with the files'
+complete -c wutag -n "__fish_seen_subcommand_from list2; and __fish_seen_subcommand_from files" -s f -l format -d 'Format the tags and files output into columns'
+complete -c wutag -n "__fish_seen_subcommand_from list2; and __fish_seen_subcommand_from files" -s b -l border -d 'Use border separators when formatting output'
+complete -c wutag -n "__fish_seen_subcommand_from list2; and __fish_seen_subcommand_from files" -s G -l garrulous -d 'Display tags and files on separate lines'
+complete -c wutag -n "__fish_seen_subcommand_from list2; and __fish_seen_subcommand_from files" -s h -l help -d 'Print help information'
+complete -c wutag -n "__fish_seen_subcommand_from list2; and __fish_seen_subcommand_from files" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from set" -s C -l color -d 'Explicitly select color for tag' -r
 complete -c wutag -n "__fish_seen_subcommand_from set" -s q -l quiet -d 'Do not show errors that tag already exists'
 complete -c wutag -n "__fish_seen_subcommand_from set" -s c -l clear -d 'Clear all tags before setting them'

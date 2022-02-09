@@ -36,7 +36,10 @@ pub(crate) static OTHER_RES: Lazy<Vec<String>> = Lazy::new(|| {
         r"^%r(<((\\<|[^<]+)*[^<])>|\{((\\\{|[^{]+)*[^{])}|\(((\\\(|[^(]+)*[^(])\)|\[((\\\[|[^\[]+)*[^\[])\])(-?[iu]|[IlUmxr])*$",
         r"^%g(<((\\<|[^<]+)*[^<])>|\{((\\\{|[^{]+)*[^{])}|\(((\\\(|[^(]+)*[^(])\)|\[((\\\[|[^\[]+)*[^\[])\])(-?[iu]|[IlUmxg])*$",
         &format!("({})\\([^(]*\\)", FUNC_NAMES.join("|"))
-    ].iter().map(ToString::to_string).collect::<Vec<_>>()
+    ]
+    .iter()
+    .map(ToString::to_string)
+    .collect::<Vec<_>>()
 });
 
 /// All reserved words within [`wutag`](crate)
@@ -45,11 +48,11 @@ pub(crate) static RESERVED_WORDS: Lazy<Vec<&'static str>> =
 
 /// Type alias for the [`Range<I>`] over the concerned section of the
 /// [`Query`](ast::query::Query)
-pub(crate) type QueryRange = Range<usize>;
+pub(self) type QueryRange = Range<usize>;
 
 /// Type alias for [`nom_supreme`]'s [`LocatedSpan`] with extra information
 /// Allows for better tracking of a query and tracking its location
-pub(crate) type Span<'a> = LocatedSpan<&'a str, &'a ast::query::Query>;
+pub(self) type Span<'a> = LocatedSpan<&'a str, &'a ast::query::Query>;
 
 /// Tests used to determine if the name of the [`Tag`] or [`Value`] will be
 /// allowed due to the parsing rules implemented by [`nom`]
@@ -57,7 +60,7 @@ pub(crate) type Span<'a> = LocatedSpan<&'a str, &'a ast::query::Query>;
 /// [`Tag`]: super::super::types::tag::Tag
 /// [`Value`]: super::super::types::value::Value
 mod tests {
-    use super::{OTHER_RES, RESERVED_WORDS, FUNC_NAMES};
+    use super::{FUNC_NAMES, OTHER_RES, RESERVED_WORDS};
     use crate::regex;
     use regex::Regex;
 

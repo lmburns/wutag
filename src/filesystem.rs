@@ -357,11 +357,7 @@ pub(crate) fn delete_file<P: AsRef<Path>>(file: P) {
     if path.exists() && path.is_file() {
         match fs::remove_file(&path) {
             Ok(_) => log::debug!("Ignore file deleted: {}", &path.display()),
-            Err(err) => wutag_info!(
-                "Unable to delete ignore file: {} {}",
-                &path.display(),
-                err
-            ),
+            Err(err) => wutag_info!("Unable to delete ignore file: {} {}", &path.display(), err),
         }
     } else {
         println!();
@@ -375,7 +371,8 @@ pub(crate) fn contained_path<P: AsRef<Path>>(file: P, path: P) -> bool {
         .starts_with(&path.as_ref().to_string_lossy().to_string())
 }
 
-/// Convert an [`OsStr`] to bytes for [`RegexBuilder`](regex::bytes::RegexBuilder)
+/// Convert an [`OsStr`] to bytes for
+/// [`RegexBuilder`](regex::bytes::RegexBuilder)
 pub(crate) fn osstr_to_bytes(input: &OsStr) -> Cow<[u8]> {
     use std::os::unix::ffi::OsStrExt;
     Cow::Borrowed(input.as_bytes())

@@ -22,10 +22,10 @@ use super::{
     },
     Error, Txn,
 };
+use crate::{fail, query_fail};
 use anyhow::{Context, Result};
 use colored::Colorize;
 use std::{convert::TryInto, time::SystemTime};
-use crate::{fail, query_fail};
 
 use rusqlite::{
     self as rsq, params,

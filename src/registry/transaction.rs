@@ -104,8 +104,7 @@ impl<'t> Txn<'t> {
             .prepare(sql)
             .context(fail!("prepare sql: {}", sql))?;
 
-        stmt.insert(params)
-            .context(fail!("insert item: {}", sql))
+        stmt.insert(params).context(fail!("insert item: {}", sql))
     }
 
     // ============================ Retrieving ============================
@@ -161,9 +160,7 @@ impl<'t> Txn<'t> {
             .txn
             .prepare_cached(sql)
             .context(fail!("prepare sql: {}", sql))?;
-        let mut rows = stmt
-            .query(params)
-            .context(fail!("query row(s): {}", sql))?;
+        let mut rows = stmt.query(params).context(fail!("query row(s): {}", sql))?;
 
         let mut v = Vec::<T>::new();
         while let Some(row) = rows.next().context(fail!("get next item"))? {

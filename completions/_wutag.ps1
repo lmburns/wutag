@@ -12,7 +12,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             $element = $commandElements[$i]
             if ($element -isnot [StringConstantExpressionAst] -or
                 $element.StringConstantType -ne [StringConstantType]::BareWord -or
-                $element.Value.StartsWith('-')) {
+                $element.Value.StartsWith('-') -or
+                $element.Value -eq $wordToComplete) {
                 break
         }
         $element.Value
@@ -52,7 +53,9 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--ls-colors', 'ls-colors', [CompletionResultType]::ParameterName, 'Respect ''LS_COLORS'' environment variable when coloring the output')
             [CompletionResult]::new('-q', 'q', [CompletionResultType]::ParameterName, 'Do not display any output for any command')
             [CompletionResult]::new('--quiet', 'quiet', [CompletionResultType]::ParameterName, 'Do not display any output for any command')
+            [CompletionResult]::new('testing', 'testing', [CompletionResultType]::ParameterValue, 'Testing new subcommands')
             [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'Lists all available tags or files')
+            [CompletionResult]::new('list2', 'list2', [CompletionResultType]::ParameterValue, 'Lists all available tags or files')
             [CompletionResult]::new('set', 'set', [CompletionResultType]::ParameterValue, 'Set tag(s) on files that match the given pattern')
             [CompletionResult]::new('rm', 'rm', [CompletionResultType]::ParameterValue, 'Remove tag(s) from the files that match the provided pattern')
             [CompletionResult]::new('clear', 'clear', [CompletionResultType]::ParameterValue, 'Clears all tags of the files that match the provided pattern')
@@ -67,9 +70,18 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('ui', 'ui', [CompletionResultType]::ParameterValue, 'Open a TUI to manage tags')
             break
         }
+        'wutag;testing' {
+            [CompletionResult]::new('-q', 'q', [CompletionResultType]::ParameterName, 'q')
+            [CompletionResult]::new('--query', 'query', [CompletionResultType]::ParameterName, 'query')
+            [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
+            [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
+            [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            break
+        }
         'wutag;list' {
-            [CompletionResult]::new('-r', 'r', [CompletionResultType]::ParameterName, 'Output will be raw so that it can be easily piped to other commands')
-            [CompletionResult]::new('--raw', 'raw', [CompletionResultType]::ParameterName, 'Output will be raw so that it can be easily piped to other commands')
+            [CompletionResult]::new('-r', 'r', [CompletionResultType]::ParameterName, 'Output will not be colorized')
+            [CompletionResult]::new('--raw', 'raw', [CompletionResultType]::ParameterName, 'Output will not be colorized')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
@@ -84,8 +96,10 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--no-count', 'no-count', [CompletionResultType]::ParameterName, 'Do not display tag count')
             [CompletionResult]::new('-u', 'u', [CompletionResultType]::ParameterName, 'Only display unique occurences. (See --help)')
             [CompletionResult]::new('--unique', 'unique', [CompletionResultType]::ParameterName, 'Only display unique occurences. (See --help)')
-            [CompletionResult]::new('-s', 's', [CompletionResultType]::ParameterName, 'Sort the output alphabetically (no-count), numerically otherwise')
-            [CompletionResult]::new('--sort', 'sort', [CompletionResultType]::ParameterName, 'Sort the output alphabetically (no-count), numerically otherwise')
+            [CompletionResult]::new('-s', 's', [CompletionResultType]::ParameterName, 'Sort the output')
+            [CompletionResult]::new('--sort', 'sort', [CompletionResultType]::ParameterName, 'Sort the output')
+            [CompletionResult]::new('-i', 'i', [CompletionResultType]::ParameterName, 'Do not show implied tags')
+            [CompletionResult]::new('--implied', 'implied', [CompletionResultType]::ParameterName, 'Do not show implied tags')
             [CompletionResult]::new('-1', '1', [CompletionResultType]::ParameterName, 'Display one tag per line instead of tags on files')
             [CompletionResult]::new('--one-per-line', 'one-per-line', [CompletionResultType]::ParameterName, 'Display one tag per line instead of tags on files')
             [CompletionResult]::new('-b', 'b', [CompletionResultType]::ParameterName, 'Use border separators when formatting output')
@@ -97,6 +111,53 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             break
         }
         'wutag;list;files' {
+            [CompletionResult]::new('--version', 'version', [CompletionResultType]::ParameterName, 'Print version information')
+            [CompletionResult]::new('-t', 't', [CompletionResultType]::ParameterName, 'Display tags along with the files')
+            [CompletionResult]::new('--with-tags', 'with-tags', [CompletionResultType]::ParameterName, 'Display tags along with the files')
+            [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Format the tags and files output into columns')
+            [CompletionResult]::new('--format', 'format', [CompletionResultType]::ParameterName, 'Format the tags and files output into columns')
+            [CompletionResult]::new('-b', 'b', [CompletionResultType]::ParameterName, 'Use border separators when formatting output')
+            [CompletionResult]::new('--border', 'border', [CompletionResultType]::ParameterName, 'Use border separators when formatting output')
+            [CompletionResult]::new('-G', 'G', [CompletionResultType]::ParameterName, 'Display tags and files on separate lines')
+            [CompletionResult]::new('--garrulous', 'garrulous', [CompletionResultType]::ParameterName, 'Display tags and files on separate lines')
+            [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
+            [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
+            [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            break
+        }
+        'wutag;list2' {
+            [CompletionResult]::new('-r', 'r', [CompletionResultType]::ParameterName, 'Output will not be colorized')
+            [CompletionResult]::new('--raw', 'raw', [CompletionResultType]::ParameterName, 'Output will not be colorized')
+            [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
+            [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
+            [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('tags', 'tags', [CompletionResultType]::ParameterValue, 'List the `Tags` within the database')
+            [CompletionResult]::new('files', 'files', [CompletionResultType]::ParameterValue, 'List the `Files` within the database')
+            break
+        }
+        'wutag;list2;tags' {
+            [CompletionResult]::new('--version', 'version', [CompletionResultType]::ParameterName, 'Print version information')
+            [CompletionResult]::new('-c', 'c', [CompletionResultType]::ParameterName, 'Do not display tag count')
+            [CompletionResult]::new('--no-count', 'no-count', [CompletionResultType]::ParameterName, 'Do not display tag count')
+            [CompletionResult]::new('-u', 'u', [CompletionResultType]::ParameterName, 'Only display unique occurences. (See --help)')
+            [CompletionResult]::new('--unique', 'unique', [CompletionResultType]::ParameterName, 'Only display unique occurences. (See --help)')
+            [CompletionResult]::new('-s', 's', [CompletionResultType]::ParameterName, 'Sort the output')
+            [CompletionResult]::new('--sort', 'sort', [CompletionResultType]::ParameterName, 'Sort the output')
+            [CompletionResult]::new('-i', 'i', [CompletionResultType]::ParameterName, 'Do not show implied tags')
+            [CompletionResult]::new('--implied', 'implied', [CompletionResultType]::ParameterName, 'Do not show implied tags')
+            [CompletionResult]::new('-1', '1', [CompletionResultType]::ParameterName, 'Display one tag per line instead of tags on files')
+            [CompletionResult]::new('--one-per-line', 'one-per-line', [CompletionResultType]::ParameterName, 'Display one tag per line instead of tags on files')
+            [CompletionResult]::new('-b', 'b', [CompletionResultType]::ParameterName, 'Use border separators when formatting output')
+            [CompletionResult]::new('--border', 'border', [CompletionResultType]::ParameterName, 'Use border separators when formatting output')
+            [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
+            [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
+            [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            break
+        }
+        'wutag;list2;files' {
             [CompletionResult]::new('--version', 'version', [CompletionResultType]::ParameterName, 'Print version information')
             [CompletionResult]::new('-t', 't', [CompletionResultType]::ParameterName, 'Display tags along with the files')
             [CompletionResult]::new('--with-tags', 'with-tags', [CompletionResultType]::ParameterName, 'Display tags along with the files')

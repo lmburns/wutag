@@ -160,6 +160,45 @@ impl<'a> SqlBuilder<'a> {
         );
 
         builder.file_handle_branch(expr.parsed(), explicit, ignore_case);
+        // build_path_clause
+
+        builder
+    }
+
+    /// Build a query for a file in the database
+    pub(crate) fn build_query<P: AsRef<Path>>(
+        expr: &ParsedQuery,
+        path: P,
+        cwd: bool,
+        explicit: bool,
+        ignore_case: bool,
+        sort: Sort,
+    ) -> Self {
+        let mut builder = Self::new_initial(&format!(
+            "SELECT
+                id,
+                directory,
+                name,
+                hash,
+                mime,
+                mtime,
+                ctime,
+                mode,
+                inode,
+                links,
+                uid,
+                gid,
+                size,
+                is_dir
+                {}
+            FROM file
+            WHERE",
+            super::file::e2p_feature_comma()
+        ));
+
+        builder.file_handle_branch(expr.parsed(), explicit, ignore_case);
+        // build_path_clause
+        // build_sort
 
         builder
     }
@@ -168,7 +207,7 @@ impl<'a> SqlBuilder<'a> {
     pub(crate) fn file_handle_branch(&mut self, expr: &Expr, explicit: bool, ignore_case: bool) {
         match expr {
             Expr::Pattern(ref search) => match search.inner_t() {
-                SearchKind::Exact => self.build_pattern_branch(search, explicit, ignore_case),
+                SearchKind::Exact => self.build_tag_pattern_branch(search, explicit, ignore_case),
                 SearchKind::Regex => println!("Regex query: {:#?}", expr.clone()),
                 SearchKind::Glob => println!("Glob query: {:#?}", expr.clone()),
             },
@@ -256,7 +295,7 @@ impl<'a> SqlBuilder<'a> {
     }
 
     /// Handle a [`Search`] pattern for files
-    pub(crate) fn build_pattern_branch(
+    pub(crate) fn build_tag_pattern_branch(
         &mut self,
         patt: &Search,
         explicit: bool,

@@ -18,10 +18,6 @@ pub(crate) struct ParsedQuery {
     raw:    String,
 }
 
-// impl ParsedQuery {
-// pub(crate) fn handle_functions(&self) {}
-// }
-
 /// A representation of a query into the database before being parsed
 #[derive(Debug)]
 pub(crate) struct Query {

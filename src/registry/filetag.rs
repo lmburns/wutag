@@ -47,8 +47,11 @@ impl Txn<'_> {
     // ============================ Retrieving ============================
     // ====================================================================
 
-    /// Check whether the given `File` has a specified `Tag`
-    pub(crate) fn filetag_exists(&self, ft: &FileTag) -> Result<bool> {
+    /// Check whether the given [`File`] has a specified [`Tag`]
+    ///
+    /// [`File`]: ../types/file/struct.File.html
+    /// [`Tag`]: ../types/tag/struct.Tag.html
+    pub(super) fn filetag_exists(&self, ft: &FileTag) -> Result<bool> {
         let count: u32 = self
             .select(
                 "SELECT count(1)
@@ -63,7 +66,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve the number of `File`-`Tag` pairs in the database
-    pub(crate) fn select_filetag_count(&self) -> Result<u32> {
+    pub(super) fn select_filetag_count(&self) -> Result<u32> {
         self.select1::<u32>(
             "SELECT count(1)
             FROM file_tag",
@@ -72,7 +75,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve all `File`-`Tag` pairs
-    pub(crate) fn select_filetags(&self) -> Result<FileTags> {
+    pub(super) fn select_filetags(&self) -> Result<FileTags> {
         let filetags: Vec<FileTag> = self
             .query_vec(
                 "SELECT file_id, tag_id, value_id
@@ -85,8 +88,8 @@ impl Txn<'_> {
         Ok(filetags.into())
     }
 
-    /// Retrieve the count of `File`-`Tag` pairs for the given `FileId`
-    pub(crate) fn select_filetag_count_by_fileid(&self, fid: FileId) -> Result<u32> {
+    /// Retrieve the count of `File`-`Tag` pairs for the given [`FileId`]
+    pub(super) fn select_filetag_count_by_fileid(&self, fid: FileId) -> Result<u32> {
         self.select(
             "SELECT count(1)
             FROM file_tag
@@ -98,7 +101,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve the count of `File`-`Tag` pairs for the given [`TagId`]
-    pub(crate) fn select_filetag_count_by_tagid(&self, tid: TagId) -> Result<u32> {
+    pub(super) fn select_filetag_count_by_tagid(&self, tid: TagId) -> Result<u32> {
         self.select(
             "SELECT count(1)
             FROM file_tag
@@ -110,7 +113,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve the count of `File`-`Tag` pairs for the given [`ValueId`]
-    pub(crate) fn select_filetag_count_by_valueid(&self, vid: ValueId) -> Result<u32> {
+    pub(super) fn select_filetag_count_by_valueid(&self, vid: ValueId) -> Result<u32> {
         self.select(
             "SELECT count(1)
             FROM file_tag
@@ -118,11 +121,11 @@ impl Txn<'_> {
             params![vid],
             |row| row.get(0),
         )
-        .context(retr_fail!("`FileTag` count","`ValueId`"))
+        .context(retr_fail!("`FileTag` count", "`ValueId`"))
     }
 
-    /// Retrieve the `File`s that match the `FileId`
-    pub(crate) fn select_filetags_by_fileid(&self, fid: FileId) -> Result<FileTags> {
+    /// Retrieve the `File`s that match the [`FileId`]
+    pub(super) fn select_filetags_by_fileid(&self, fid: FileId) -> Result<FileTags> {
         let filetags: Vec<FileTag> = self
             .query_vec(
                 "SELECT file_id, tag_id, value_id
@@ -137,7 +140,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve the `File`s that match the [`TagId`]
-    pub(crate) fn select_filetags_by_tagid(&self, tid: TagId) -> Result<FileTags> {
+    pub(super) fn select_filetags_by_tagid(&self, tid: TagId) -> Result<FileTags> {
         let filetags: Vec<FileTag> = self
             .query_vec(
                 "SELECT file_id, tag_id, value_id
@@ -151,8 +154,8 @@ impl Txn<'_> {
         Ok(filetags.into())
     }
 
-    /// Retrieve the `File`s that match the `ValueId`
-    pub(crate) fn select_filetags_by_valueid(&self, vid: ValueId) -> Result<FileTags> {
+    /// Retrieve the `File`s that match the [`ValueId`]
+    pub(super) fn select_filetags_by_valueid(&self, vid: ValueId) -> Result<FileTags> {
         let filetags: Vec<FileTag> = self
             .query_vec(
                 "SELECT file_id, tag_id, value_id
@@ -170,8 +173,8 @@ impl Txn<'_> {
     // ====================================================================
 
     /// Insert a `File`-`Tag` pair to the database
-    /// Returns the same `FileTag` that is passed
-    pub(crate) fn insert_filetag(&self, ft: &FileTag) -> Result<FileTag> {
+    /// Returns the same [`FileTag`] that is passed
+    pub(super) fn insert_filetag(&self, ft: &FileTag) -> Result<FileTag> {
         self.insert(
             "INSERT OR IGNORE INTO file_tag (file_id, tag_id, value_id)
             VALUES (?1, ?2, ?3)",
@@ -182,9 +185,8 @@ impl Txn<'_> {
         Ok(*ft)
     }
 
-    /// Remove a [`FileTag`] from the database that matches the given
-    /// [`FileTag`]
-    pub(crate) fn delete_filetag(&self, ft: &FileTag) -> Result<(), Error> {
+    /// Remove a specified [`FileTag`] from the database
+    pub(super) fn delete_filetag(&self, ft: &FileTag) -> Result<(), Error> {
         let affected = self
             .execute(
                 "DELETE FROM file_tag

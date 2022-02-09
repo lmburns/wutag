@@ -198,7 +198,8 @@ macro_rules! query_fail {
     };
 }
 
-/// Not a macro, but checks whether the user is qualified for the `file-flags` feature
+/// Not a macro, but checks whether the user is qualified for the `file-flags`
+/// feature
 pub(crate) const fn wants_feature_flags() -> bool {
     cfg!(feature = "file-flags") && cfg!(unix) && !cfg!(macos)
 }

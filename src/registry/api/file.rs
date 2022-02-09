@@ -1,15 +1,14 @@
 //! Interactions with the [`File`] object
 
-use std::path::Path;
-
 use super::super::{
     common::path::FsPath,
     sqlbuilder::Sort,
-    types::file::{File, FileId, Files},
+    types::file::{File, FileId, FileIds, Files},
     Registry,
 };
 use anyhow::{anyhow, Context, Result};
 use colored::Colorize;
+use std::path::Path;
 
 impl Registry {
     // ============================ Retrieving ============================
@@ -163,6 +162,86 @@ impl Registry {
         txn.select_files_untagged()
     }
 
+    /// Retrieve the number of files that match a given query and path
+    #[allow(clippy::unused_self)]
+    pub(crate) fn files_count_for_query(&self) -> Result<u32> {
+        todo!()
+    }
+
+    /// Retrieve all [`Files`] that match a given query
+    #[allow(clippy::unused_self)]
+    pub(crate) fn files_by_query(&self) -> Result<Files> {
+        todo!()
+    }
+
+    /// Retrieve all [`Files`] that are duplicates in the database
+    pub(crate) fn duplicate_files(&self) -> Result<Files> {
+        let txn = self.txn()?;
+        txn.select_files_duplicates()
+    }
+
+    // ========================= Pattern Matching =========================
+
+    /// Retrieve all [`Files`] that match a given `regex`
+    pub(crate) fn files_by_regex(&self, column: &str, patt: &str) -> Result<Files> {
+        let txn = self.txn()?;
+        txn.select_files_by_regex(column, patt)
+    }
+
+    /// Retrieve all [`Files`] that match a given `iregex`
+    pub(crate) fn files_by_iregex(&self, column: &str, patt: &str) -> Result<Files> {
+        let txn = self.txn()?;
+        txn.select_files_by_iregex(column, patt)
+    }
+
+    /// Retrieve all [`Files`] that match a given `glob`
+    pub(crate) fn files_by_glob(&self, column: &str, patt: &str) -> Result<Files> {
+        let txn = self.txn()?;
+        txn.select_files_by_glob(column, patt)
+    }
+
+    /// Retrieve all [`Files`] that match a given `iglob`
+    pub(crate) fn files_by_iglob(&self, column: &str, patt: &str) -> Result<Files> {
+        let txn = self.txn()?;
+        txn.select_files_by_iglob(column, patt)
+    }
+
     // ============================= Modifying ============================
     // ====================================================================
+
+    /// Add a [`File`] to the database
+    pub(crate) fn insert_file<P: AsRef<Path>>(&self, path: P) -> Result<File> {
+        let txn = self.txn()?;
+        txn.insert_file(path)
+    }
+
+    /// Update a [`File`]'s information in the database
+    pub(crate) fn update_file<P: AsRef<Path>>(&self, id: FileId, path: P) -> Result<File> {
+        let txn = self.txn()?;
+        Ok(txn.update_file(id, path)?)
+    }
+
+    /// Remove a [`File`] from the database
+    pub(crate) fn delete_file(&self, id: FileId) -> Result<()> {
+        let txn = self.txn()?;
+        Ok(txn.delete_file(id)?)
+    }
+
+    /// Remove a [`File`] from the database if it is not tagged
+    pub(crate) fn delete_file_if_untagged(&self, id: FileId) -> Result<()> {
+        let txn = self.txn()?;
+        let count = txn.select_filetag_count_by_fileid(id)?;
+
+        if count == 0 {
+            txn.delete_file(id)?;
+        }
+
+        Ok(())
+    }
+
+    /// Remove an array of [`File`]s from the database if they're untagged
+    pub(crate) fn delete_untagged_files(&self, ids: &FileIds) -> Result<()> {
+        let txn = self.txn()?;
+        txn.delete_files_untagged(ids)
+    }
 }

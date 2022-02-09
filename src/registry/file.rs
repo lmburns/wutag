@@ -30,9 +30,10 @@
 
 use super::{
     common::hash::blake3_hash,
+    querier::ast::query::ParsedQuery,
     sqlbuilder::{Sort, SqlBuilder},
     types::{
-        file::{File, FileId, Files, MimeType},
+        file::{File, FileId, FileIds, Files, MimeType},
         ID,
     },
     Error, Txn,
@@ -669,9 +670,9 @@ impl Txn<'_> {
         Ok(filtered)
     }
 
-    // MAKE A TEST
+    // TODO: MAKE A TEST
     /// Retrieve the set of [`Files`] that are untagged
-    pub(crate) fn select_files_untagged(&self) -> Result<Files> {
+    pub(super) fn select_files_untagged(&self) -> Result<Files> {
         let files: Vec<File> = self
             .query_vec(
                 format!(
@@ -705,13 +706,13 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    // TODO:
+    // TODO: ========================================
 
     /// Retrieve the count of `File`s matching the given `query` and `Path`
     #[allow(clippy::unused_self)]
-    pub(crate) fn file_count_by_query<S: AsRef<str>, P: AsRef<Path>>(
+    pub(crate) fn file_count_by_query<P: AsRef<Path>>(
         &self,
-        expr: S,
+        expr: &ParsedQuery,
         path: P,
         cwd: bool,
         explicit: bool,
@@ -734,9 +735,11 @@ impl Txn<'_> {
     //     todo!()
     // }
 
-    // MAKE A TEST
+    // TODO: ========================================
+
+    // TODO: MAKE A TEST
     /// Retrieve the set of `Files` that are duplicates in the database
-    pub(crate) fn select_files_duplicates(&self) -> Result<Files> {
+    pub(super) fn select_files_duplicates(&self) -> Result<Files> {
         let files: Vec<File> = self
             .query_vec(
                 format!(
@@ -814,42 +817,42 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    /// Query for files using a the `regex` custom function on any column
-    pub(crate) fn select_files_by_regex(&self, column: &str, reg: &str) -> Result<Files> {
+    /// Query for [`Files`] using a the `regex` custom function on any column
+    pub(super) fn select_files_by_regex(&self, column: &str, reg: &str) -> Result<Files> {
         self.select_files_by_func("regex", column, reg)
     }
 
-    /// Query for files using a the `iregex` custom function on any column
-    pub(crate) fn select_files_by_iregex(&self, column: &str, reg: &str) -> Result<Files> {
+    /// Query for [`Files`] using a the `iregex` custom function on any column
+    pub(super) fn select_files_by_iregex(&self, column: &str, reg: &str) -> Result<Files> {
         self.select_files_by_func("iregex", column, reg)
     }
 
-    /// Query for files using a the `glob` custom function on any column
-    pub(crate) fn select_files_by_glob(&self, column: &str, glob: &str) -> Result<Files> {
+    /// Query for [`Files`] using a the `glob` custom function on any column
+    pub(super) fn select_files_by_glob(&self, column: &str, glob: &str) -> Result<Files> {
         self.select_files_by_func("glob", column, glob)
     }
 
-    /// Query for files using a the `iglob` custom function on any column
-    pub(crate) fn select_files_by_iglob(&self, column: &str, glob: &str) -> Result<Files> {
+    /// Query for [`Files`] using a the `iglob` custom function on any column
+    pub(super) fn select_files_by_iglob(&self, column: &str, glob: &str) -> Result<Files> {
         self.select_files_by_func("iglob", column, glob)
     }
 
-    /// Query for files using the `regex` custom function on full path
+    /// Query for [`Files`] using the `regex` custom function on full path
     pub(crate) fn select_files_by_regex_fp(&self, reg: &str) -> Result<Files> {
         self.select_files_by_regex("fullpath(directory, name)", reg)
     }
 
-    /// Query for files using the `iregex` custom function on full path
+    /// Query for [`Files`] using the `iregex` custom function on full path
     pub(crate) fn select_files_by_iregex_fp(&self, reg: &str) -> Result<Files> {
         self.select_files_by_iregex("fullpath(directory, name)", reg)
     }
 
-    /// Query for files using the `glob` custom function on full path
+    /// Query for [`Files`] using the `glob` custom function on full path
     pub(crate) fn select_files_by_glob_fp(&self, glob: &str) -> Result<Files> {
         self.select_files_by_glob("fullpath(directory, name)", glob)
     }
 
-    /// Query for files using the `iglob` custom function on the full path
+    /// Query for [`Files`] using the `iglob` custom function on the full path
     pub(crate) fn select_files_by_iglob_fp(&self, glob: &str) -> Result<Files> {
         self.select_files_by_iglob("fullpath(directory, name)", glob)
     }
@@ -857,8 +860,8 @@ impl Txn<'_> {
     // ============================= Modifying ============================
     // ====================================================================
 
-    /// Insert a `File` into the database
-    pub(crate) fn insert_file<P: AsRef<Path>>(&self, path: P) -> Result<File> {
+    /// Insert a [`File`] into the database
+    pub(super) fn insert_file<P: AsRef<Path>>(&self, path: P) -> Result<File> {
         let path = path.as_ref();
         let mut f = File::new(&path, self.registry().follow_symlinks())
             .context(fail!("build `File`: {}", cfile!(path)))?;
@@ -944,8 +947,8 @@ impl Txn<'_> {
         Ok(f)
     }
 
-    /// Update a `File` that is already in the database
-    pub(crate) fn update_file<P: AsRef<Path>>(&self, id: FileId, path: P) -> Result<File, Error> {
+    /// Update a [`File`] that is in the database
+    pub(super) fn update_file<P: AsRef<Path>>(&self, id: FileId, path: P) -> Result<File, Error> {
         let path = path.as_ref();
         let mut f = File::new(&path, self.registry().follow_symlinks())
             .context(fail!("build `File`: {}", cfile!(path)))?;
@@ -1039,8 +1042,8 @@ impl Txn<'_> {
 
     // TODO: Possibly return `FileId` from every function to log the changes
 
-    /// Remove a `File` from the database
-    pub(crate) fn delete_file(&self, id: FileId) -> Result<(), Error> {
+    /// Remove a [`File`] from the database
+    pub(super) fn delete_file(&self, id: FileId) -> Result<(), Error> {
         log::debug!("deleting file with ID({})", cstr!(id));
 
         let affected = self
@@ -1060,10 +1063,10 @@ impl Txn<'_> {
         Ok(())
     }
 
-    /// Remove `File`s from the database if they are not associated with a
+    /// Remove [`File`]s from the database if they are not associated with a
     /// [`Tag`](super::types::tag::Tag)
-    pub(crate) fn delete_file_untagged(&self, ids: Vec<FileId>) -> Result<()> {
-        for id in ids {
+    pub(super) fn delete_files_untagged(&self, ids: &FileIds) -> Result<()> {
+        for id in ids.iter() {
             log::debug!("deleting file with ID({})", cstr!(id));
 
             self.execute(

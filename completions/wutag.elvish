@@ -2,11 +2,11 @@
 use builtin;
 use str;
 
-set edit:completion:arg-completer[wutag] = [@words]{
-    fn spaces [n]{
+set edit:completion:arg-completer[wutag] = {|@words|
+    fn spaces {|n|
         builtin:repeat $n ' ' | str:join ''
     }
-    fn cand [text desc]{
+    fn cand {|text desc|
         edit:complex-candidate $text &display=$text' '(spaces (- 14 (wcswidth $text)))$desc
     }
     var command = 'wutag'
@@ -50,7 +50,9 @@ set edit:completion:arg-completer[wutag] = [@words]{
             cand --ls-colors 'Respect ''LS_COLORS'' environment variable when coloring the output'
             cand -q 'Do not display any output for any command'
             cand --quiet 'Do not display any output for any command'
+            cand testing 'Testing new subcommands'
             cand list 'Lists all available tags or files'
+            cand list2 'Lists all available tags or files'
             cand set 'Set tag(s) on files that match the given pattern'
             cand rm 'Remove tag(s) from the files that match the provided pattern'
             cand clear 'Clears all tags of the files that match the provided pattern'
@@ -64,9 +66,17 @@ set edit:completion:arg-completer[wutag] = [@words]{
             cand clean-cache 'Clean the cached tag registry'
             cand ui 'Open a TUI to manage tags'
         }
+        &'wutag;testing'= {
+            cand -q 'q'
+            cand --query 'query'
+            cand -h 'Print help information'
+            cand --help 'Print help information'
+            cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
+        }
         &'wutag;list'= {
-            cand -r 'Output will be raw so that it can be easily piped to other commands'
-            cand --raw 'Output will be raw so that it can be easily piped to other commands'
+            cand -r 'Output will not be colorized'
+            cand --raw 'Output will not be colorized'
             cand -h 'Print help information'
             cand --help 'Print help information'
             cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
@@ -80,8 +90,10 @@ set edit:completion:arg-completer[wutag] = [@words]{
             cand --no-count 'Do not display tag count'
             cand -u 'Only display unique occurences. (See --help)'
             cand --unique 'Only display unique occurences. (See --help)'
-            cand -s 'Sort the output alphabetically (no-count), numerically otherwise'
-            cand --sort 'Sort the output alphabetically (no-count), numerically otherwise'
+            cand -s 'Sort the output'
+            cand --sort 'Sort the output'
+            cand -i 'Do not show implied tags'
+            cand --implied 'Do not show implied tags'
             cand -1 'Display one tag per line instead of tags on files'
             cand --one-per-line 'Display one tag per line instead of tags on files'
             cand -b 'Use border separators when formatting output'
@@ -92,6 +104,50 @@ set edit:completion:arg-completer[wutag] = [@words]{
             cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
         }
         &'wutag;list;files'= {
+            cand --version 'Print version information'
+            cand -t 'Display tags along with the files'
+            cand --with-tags 'Display tags along with the files'
+            cand -f 'Format the tags and files output into columns'
+            cand --format 'Format the tags and files output into columns'
+            cand -b 'Use border separators when formatting output'
+            cand --border 'Use border separators when formatting output'
+            cand -G 'Display tags and files on separate lines'
+            cand --garrulous 'Display tags and files on separate lines'
+            cand -h 'Print help information'
+            cand --help 'Print help information'
+            cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
+        }
+        &'wutag;list2'= {
+            cand -r 'Output will not be colorized'
+            cand --raw 'Output will not be colorized'
+            cand -h 'Print help information'
+            cand --help 'Print help information'
+            cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand tags 'List the `Tags` within the database'
+            cand files 'List the `Files` within the database'
+        }
+        &'wutag;list2;tags'= {
+            cand --version 'Print version information'
+            cand -c 'Do not display tag count'
+            cand --no-count 'Do not display tag count'
+            cand -u 'Only display unique occurences. (See --help)'
+            cand --unique 'Only display unique occurences. (See --help)'
+            cand -s 'Sort the output'
+            cand --sort 'Sort the output'
+            cand -i 'Do not show implied tags'
+            cand --implied 'Do not show implied tags'
+            cand -1 'Display one tag per line instead of tags on files'
+            cand --one-per-line 'Display one tag per line instead of tags on files'
+            cand -b 'Use border separators when formatting output'
+            cand --border 'Use border separators when formatting output'
+            cand -h 'Print help information'
+            cand --help 'Print help information'
+            cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
+        }
+        &'wutag;list2;files'= {
             cand --version 'Print version information'
             cand -t 'Display tags along with the files'
             cand --with-tags 'Display tags along with the files'

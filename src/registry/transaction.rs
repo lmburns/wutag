@@ -68,10 +68,10 @@ impl<'t> Txn<'t> {
     // ============================ Executing =============================
     // ====================================================================
 
-    /// Execute a command. Implements the same function as `execute`.
+    /// Execute a command. Implements the same function as [`execute`].
     /// Returns the number of rows that are affected by the change
     ///
-    /// `execute`: rusqlite::Connection::execute
+    /// [`execute`]: /rusqlite/struct.Connection.html#method.execute
     pub(crate) fn execute<P: Params>(&self, sql: &str, params: P) -> Result<usize> {
         log::debug!("{}({}): {}", "execute".green().bold(), "Txn".purple(), sql);
 
@@ -83,7 +83,7 @@ impl<'t> Txn<'t> {
     /// Execute a command with no [`params`]. Implements the same function as
     /// [`execute`]
     ///
-    /// [`execute`]: rusqlite::Connection::execute
+    /// [`execute`]: /rusqlite/struct.Connection.html#method.execute
     /// [`params`]: rusqlite::params
     pub(crate) fn exec_no_params(&self, sql: &str) -> Result<()> {
         self.execute(sql, params![])?;
@@ -92,10 +92,10 @@ impl<'t> Txn<'t> {
     }
 
     /// Insert a row into the database. Implements the same function as
-    /// `insert`. Returns the `last_insert_rowid`
+    /// [`insert`]. Returns the [`last_insert_rowid`]
     ///
-    /// `insert`: rusqlite::statement::Statement::insert
-    /// `last_insert_rowid`: rusqlite::Connection::last_insert_rowid
+    /// [`insert`]: /rusqlite/statement/struct.Statement.html#method.insert
+    /// [`last_insert_rowid`]: /rusqlite/struct.Connection.html#method.last_insert_rowid
     pub(crate) fn insert<P: Params>(&self, sql: &str, params: P) -> Result<i64> {
         log::debug!("{}({}): {}", "insert".green().bold(), "Txn".purple(), sql);
 

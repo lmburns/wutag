@@ -6,6 +6,7 @@ pub(crate) mod cp;
 pub(crate) mod edit;
 pub(crate) mod info;
 pub(crate) mod list;
+pub(crate) mod list2;
 pub(crate) mod print_completions;
 pub(crate) mod repair;
 pub(crate) mod rm;
@@ -232,6 +233,7 @@ impl App {
             Command::Edit(ref opts) => self.edit(opts),
             Command::Info(ref opts) => self.info(opts),
             Command::List(ref opts) => self.list(opts),
+            Command::List2(ref opts) => self.list2(opts),
             Command::PrintCompletions(ref opts) => self.print_completions(opts),
             Command::Repair(ref opts) => self.repair(opts)?,
             Command::Rm(ref opts) => self.rm(opts),

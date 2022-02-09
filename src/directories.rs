@@ -7,19 +7,20 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// Get the base `WutagDirs`
+/// Get the base [`WutagDirs`]
 pub(crate) static PROJECT_DIRS: Lazy<WutagDirs> =
     Lazy::new(|| WutagDirs::new().expect("failed to get `WutagDirs`"));
 
-/// Get the project directories relevant to `wutag`. This treats `macOS`
+/// Get the project directories relevant to [`wutag`]. This treats `macOS`
 /// directories in the same way that `Linux` is treated. That is, all `XDG`
 /// directories will be the same.
 ///
 /// More information on directory conversion usage can be found in
 /// [`build_alias_hash`] and [`alias_replace`]
 ///
-/// [`build_alias_hash`]: (crate::config::UiConfig::build_alias_hash) and
-/// [`alias_replace`]: (crate::ui::ui_app::UiApp::alias_replace)
+/// [`wutag`]: crate
+/// [`build_alias_hash`]: ./config/struct.UiConfig.html#method.build_alias_hash
+/// [`alias_replace`]: ./ui/ui_app/struct.UiApp.html#method.alias_replace
 #[derive(Debug, Clone)]
 pub(crate) struct WutagDirs {
     // === Main project directories ===
@@ -63,7 +64,7 @@ pub(crate) struct WutagDirs {
 }
 
 impl WutagDirs {
-    /// Create a new `WutagDirs`
+    /// Create a new [`WutagDirs`]
     fn new() -> Option<Self> {
         Some(Self {
             home_dir:   Self::get_home_dir()?,
@@ -399,7 +400,7 @@ impl WutagDirs {
     }
 }
 
-/// Get all user project directories (not for macOS)
+/// Get all user project directories (not for `macOS`)
 pub(crate) fn get_project_dirs() -> ProjectDirs {
     log::trace!("determining project default folders");
     ProjectDirs::from("com", "lmburns", "wutag")

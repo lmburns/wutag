@@ -151,6 +151,8 @@ gpgme = { version = "0.10.0", optional = true }
 secstr = { version = "0.4.0", optional = true }
 zeroize = { version = "1.4.3", optional = true }
 bytes = "1.1.0"
+pathdiff = "0.2.1"
+fancy-regex = "0.7.1"
 
 [dev-dependencies]
 predicates = "2.0.1"

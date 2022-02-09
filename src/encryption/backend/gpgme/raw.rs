@@ -10,14 +10,14 @@ use gpgme::{Context, EncryptFlags, Key};
 use thiserror::Error;
 use zeroize::Zeroize;
 
-/// GPGME encryption flags
+/// `GPGME` encryption flags
 const ENCRYPT_FLAGS: EncryptFlags = EncryptFlags::ALWAYS_TRUST;
 
 /// Encrypt the [`Plaintext`](crate::encryption::Plaintext) to
 /// [`Ciphertext`](crate::encryption::Ciphertext), only used with the
 /// [`wutag`](crate) [`Registry`](crate::registry::Registry)
 ///
-/// - `context`: GPGME context
+/// - `context`: `GPGME` context
 /// - `recipients`: recipients whose fingerprint will be used to encrypt with
 /// - `plaintext`: plaintext to be encrypted
 ///
@@ -49,7 +49,7 @@ pub(crate) fn encrypt(
 
 /// Decrypt [`Ciphertext`]
 ///
-/// - `context`: GPGME context
+/// - `context`: `GPGME` context
 /// - `ciphertext`: ciphertext to be decrypted
 pub(crate) fn decrypt(context: &mut Context, ciphertext: &Ciphertext) -> Result<Plaintext> {
     let mut plaintext = vec![];
@@ -67,7 +67,7 @@ pub(crate) fn decrypt(context: &mut Context, ciphertext: &Ciphertext) -> Result<
 /// ciphertext. Assumes `true` if GPGME returns an error different than
 /// `NO_SECKEY`.
 ///
-/// - `context`: GPGME context
+/// - `context`: `GPGME` context
 /// - `ciphertext`: ciphertext to check
 #[allow(clippy::unnecessary_wraps)]
 pub(crate) fn can_decrypt(context: &mut Context, ciphertext: &Ciphertext) -> Result<bool> {
@@ -84,7 +84,7 @@ pub(crate) fn can_decrypt(context: &mut Context, ciphertext: &Ciphertext) -> Res
 
 /// Get all public keys from keychain.
 ///
-/// - `context`: GPGME context
+/// - `context`: `GPGME` context
 pub(crate) fn public_keys(context: &mut Context) -> Result<Vec<KeyId>> {
     Ok(context
         .keys()?
@@ -97,7 +97,7 @@ pub(crate) fn public_keys(context: &mut Context) -> Result<Vec<KeyId>> {
 
 /// Get all private/secret keys from keychain.
 ///
-/// - `context`: GPGME context
+/// - `context`: `GPGME` context
 pub(crate) fn private_keys(context: &mut Context) -> Result<Vec<KeyId>> {
     Ok(context
         .secret_keys()?
@@ -167,8 +167,9 @@ impl From<Key> for KeyId {
     }
 }
 
-/// Transform fingerprints into GPGME keys.
+/// Transform fingerprints into `GPGME` keys.
 ///
+/// # Error
 /// Errors if a fingerprint does not match a public key.
 fn fingerprints_to_keys(context: &mut Context, fingerprints: &[&str]) -> Result<Vec<Key>> {
     let mut keys = vec![];
@@ -182,18 +183,18 @@ fn fingerprints_to_keys(context: &mut Context, fingerprints: &[&str]) -> Result<
     Ok(keys)
 }
 
-/// [`GPGME`] library error
+/// `GPGME` library error
 #[derive(Debug, Error)]
 pub(crate) enum Error {
-    /// [`GPG`] encryption error
+    /// [`gpgme`] encryption error
     #[error("failed to encrypt plaintext")]
     Encrypt(#[source] gpgme::Error),
 
-    /// [`GPG`] decryption error
+    /// [`gpgme`] decryption error
     #[error("failed to decrypt ciphertext")]
     Decrypt(#[source] gpgme::Error),
 
-    /// Unknown [`GPG`] fingerprint
+    /// Unknown `GPG` fingerprint
     #[error("fingerprint does not match public key in keychain")]
     UnknownFingerprint(#[source] gpgme::Error),
 }

@@ -1,4 +1,8 @@
 //! Optional encryption interface the `wutag` crate
+//!
+//! Most of help of developing this section of the crate can be given to
+//! `timvisee/prs`, and some of the work can be credited I put into forking that
+//! project.
 
 pub(crate) mod backend;
 pub(crate) mod protocol;

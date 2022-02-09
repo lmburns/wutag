@@ -53,3 +53,70 @@
 * [ ] `lt`, `<`
 * [ ] `gte`, `>=`
 * [ ] `lte`, `<=`
+
+### Possibilities
+
+abc
+
+/abc/ri
+/abc/gi
+%r{abc}
+%g{abc}i
+hi*
+
+!foo
+not foo
+
+a and b
+a && b
+a or b
+a || b
+
+a == b
+a eq b
+a != b
+a ne b
+a > b
+a gt b
+a < b
+a lt b
+a >= b
+a gte b
+a <= b
+a lte b
+
+foo ? bar
+foo ? bar : baz
+foo ? bar ? baz : fah : zag
+
+if foo { bar }
+if foo { bar } else { baz }
+unless foo { bar }
+unless foo { bar } else { baz }
+
+@F
+@F[..]
+@F[1..]
+@F[1..3]
+@F[1..=3]
+@F[..=3]
+@F[1]
+@F[1,2]
+
+* **Functions dealing with tags specifically**
+value()   v()
+tag()     t()
+implied()
+implies()
+
+* **Functions that aren't necessary**
+    * *File fields*
+        * hash()
+        * before(ctime, yesterday)
+        * after(mtime, yesterday)
+    * *Other*
+        * exec()
+
+a\ b
+ab\{
+'ab{'

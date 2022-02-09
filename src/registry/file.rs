@@ -85,7 +85,7 @@ impl Txn<'_> {
     // ====================================================================
 
     /// Retrieve the number of [`File`]s in the database
-    pub(crate) fn select_file_count(&self) -> Result<u32> {
+    pub(super) fn select_file_count(&self) -> Result<u32> {
         self.select1::<u32>(
             "SELECT count(1)
             FROM file",
@@ -94,7 +94,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve the number of [`File`]s matching a specific `hash`
-    pub(crate) fn select_file_count_by_hash<S: AsRef<str>>(&self, fp: S) -> Result<u32> {
+    pub(super) fn select_file_count_by_hash<S: AsRef<str>>(&self, fp: S) -> Result<u32> {
         self.select(
             "SELECT count(id)
             FROM file
@@ -105,8 +105,8 @@ impl Txn<'_> {
         .context(retr_fail!("`File` count", "hash"))
     }
 
-    /// Retrieve all tracked [`File]s within the database
-    pub(crate) fn select_files(&self, sort: Option<Sort>) -> Result<Files> {
+    /// Retrieve all tracked [`Files`] within the database
+    pub(super) fn select_files(&self, sort: Option<Sort>) -> Result<Files> {
         let mut builder = SqlBuilder::new();
         builder.append(format!(
             "SELECT
@@ -140,6 +140,40 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
+    /// Retrieve all [`Files`] that are directories
+    pub(super) fn select_directories(&self) -> Result<Files> {
+        let files: Vec<File> = self
+            .query_vec(
+                format!(
+                    "SELECT
+                    id,
+                    directory,
+                    name,
+                    hash,
+                    mime,
+                    mtime,
+                    ctime,
+                    mode,
+                    inode,
+                    links,
+                    uid,
+                    gid,
+                    size,
+                    is_dir
+                    {}
+                FROM file
+                WHERE is_dir = true
+                ORDER BY directory || '/' || name",
+                    e2p_feature_comma()
+                ),
+                params![],
+                |row| row.try_into().expect("failed to convertt to `File`"),
+            )
+            .context(query_fail!("`File`", "is_dir"))?;
+
+        Ok(files.into())
+    }
+
     // MAKE A TEST
     /// List all [`File`] [`ID`]s
     pub(crate) fn select_ids(&self) -> Result<Vec<ID>> {
@@ -154,7 +188,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve a specific [`File`] within the database
-    pub(crate) fn select_file(&self, id: FileId) -> Result<File> {
+    pub(super) fn select_file(&self, id: FileId) -> Result<File> {
         let file: File = self
             .select(
                 &format!(
@@ -188,9 +222,8 @@ impl Txn<'_> {
         Ok(file)
     }
 
-    /// Retrieve a [`File`] matching a specified `directory` and `name`
-    /// (`PathBuf`)
-    pub(crate) fn select_file_by_path<P: AsRef<Path>>(&self, path: P) -> Result<File> {
+    /// Retrieve a [`File`] matching a given `directory` and `name` ([`Path`])
+    pub(super) fn select_file_by_path<P: AsRef<Path>>(&self, path: P) -> Result<File> {
         let path = path.as_ref();
 
         let file: File = self
@@ -229,8 +262,8 @@ impl Txn<'_> {
         Ok(file)
     }
 
-    /// Retrieve all `File`s matching a specific `directory`
-    pub(crate) fn select_files_by_directory<S: AsRef<str>>(
+    /// Retrieve [`Files`] matching a specific `directory`
+    pub(super) fn select_files_by_directory<S: AsRef<str>>(
         &self,
         dir: S,
         cwd: bool,
@@ -273,8 +306,8 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    /// Retrieve all [`File`]s matching a specific `hash`
-    pub(crate) fn select_files_by_hash<S: AsRef<str>>(&self, fp: S) -> Result<Files> {
+    /// Retrieve all [`Files`] matching a specific `hash`
+    pub(super) fn select_files_by_hash<S: AsRef<str>>(&self, fp: S) -> Result<Files> {
         let fp = fp.as_ref();
 
         let files: Vec<File> = self
@@ -309,8 +342,8 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    /// Retrieve all [`File`]s matching a specific [`MimeType`]
-    pub(crate) fn select_files_by_mime<S: AsRef<str>>(&self, mime: S) -> Result<Files> {
+    /// Retrieve all [`Files`] matching a specific [`MimeType`]
+    pub(super) fn select_files_by_mime<S: AsRef<str>>(&self, mime: S) -> Result<Files> {
         let mime = mime.as_ref();
 
         let files: Vec<File> = self
@@ -345,8 +378,8 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    /// Retrieve all [`File`]s matching a specific `mtime`
-    pub(crate) fn select_files_by_mtime<S: AsRef<str>>(&self, mtime: S) -> Result<Files> {
+    /// Retrieve all [`Files`] matching a specific `mtime`
+    pub(super) fn select_files_by_mtime<S: AsRef<str>>(&self, mtime: S) -> Result<Files> {
         let mtime = mtime.as_ref();
 
         let files: Vec<File> = self
@@ -381,8 +414,8 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    /// Retrieve all [`File`]s matching a specific `ctime`
-    pub(crate) fn select_files_by_ctime<S: AsRef<str>>(&self, ctime: S) -> Result<Files> {
+    /// Retrieve all [`Files`] matching a specific `ctime`
+    pub(super) fn select_files_by_ctime<S: AsRef<str>>(&self, ctime: S) -> Result<Files> {
         let ctime = ctime.as_ref();
 
         let files: Vec<File> = self
@@ -417,8 +450,8 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    /// Retrieve all [`File`]s matching a specific `mode`
-    pub(crate) fn select_files_by_mode<S: AsRef<str>>(&self, mode: S) -> Result<Files> {
+    /// Retrieve all [`Files`] matching a specific `mode`
+    pub(super) fn select_files_by_mode<S: AsRef<str>>(&self, mode: S) -> Result<Files> {
         let mode = mode.as_ref();
 
         let files: Vec<File> = self
@@ -453,8 +486,8 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    /// Retrieve all [`File`]s matching a specific `inode`
-    pub(crate) fn select_files_by_inode(&self, inode: u64) -> Result<Files> {
+    /// Retrieve all [`Files`] matching a specific `inode`
+    pub(super) fn select_files_by_inode(&self, inode: u64) -> Result<Files> {
         let files: Vec<File> = self
             .query_vec(
                 format!(
@@ -487,8 +520,8 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    /// Retrieve all [`File`]s matching a certain number of links
-    pub(crate) fn select_files_by_links(&self, links: u64) -> Result<Files> {
+    /// Retrieve all [`Files`] matching a certain number of links
+    pub(super) fn select_files_by_links(&self, links: u64) -> Result<Files> {
         let files: Vec<File> = self
             .query_vec(
                 format!(
@@ -521,8 +554,8 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    /// Retrieve all [`File`]s matching a given `UID`
-    pub(crate) fn select_files_by_uid(&self, uid: u64) -> Result<Files> {
+    /// Retrieve all [`Files`] matching a given `UID`
+    pub(super) fn select_files_by_uid(&self, uid: u64) -> Result<Files> {
         let files: Vec<File> = self
             .query_vec(
                 format!(
@@ -555,8 +588,8 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    /// Retrieve all [`File`]s matching a given `GID`
-    pub(crate) fn select_files_by_gid(&self, gid: u64) -> Result<Files> {
+    /// Retrieve all [`Files`] matching a given `GID`
+    pub(super) fn select_files_by_gid(&self, gid: u64) -> Result<Files> {
         let files: Vec<File> = self
             .query_vec(
                 format!(
@@ -589,8 +622,8 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    /// Retrieve all [`File`]s matching a specific `size`
-    pub(crate) fn select_files_by_size(&self, size: u64) -> Result<Files> {
+    /// Retrieve all [`Files`] matching a specific `size`
+    pub(super) fn select_files_by_size(&self, size: u64) -> Result<Files> {
         let files: Vec<File> = self
             .query_vec(
                 format!(
@@ -628,46 +661,12 @@ impl Txn<'_> {
         target_family = "unix",
         not(target_os = "macos")
     ))]
-    /// Retrieve all [`File`]s matching an `e2p_fileflag`
-    pub(crate) fn select_files_by_flag<S: AsRef<str>>(&self, given: S) -> Result<Files> {
+    /// Retrieve all [`Files`] matching an `e2p_fileflag`
+    pub(super) fn select_files_by_flag<S: AsRef<str>>(&self, given: S) -> Result<Files> {
         let files = self.select_files(None)?;
         let filtered = files.matches(|f| f.e2pflags().has_flags(given.as_ref()));
 
         Ok(filtered)
-    }
-
-    /// Retrieve all [`File`]s that are directories
-    pub(crate) fn select_directories(&self) -> Result<Files> {
-        let files: Vec<File> = self
-            .query_vec(
-                format!(
-                    "SELECT
-                    id,
-                    directory,
-                    name,
-                    hash,
-                    mime,
-                    mtime,
-                    ctime,
-                    mode,
-                    inode,
-                    links,
-                    uid,
-                    gid,
-                    size,
-                    is_dir
-                    {}
-                FROM file
-                WHERE is_dir = true
-                ORDER BY directory || '/' || name",
-                    e2p_feature_comma()
-                ),
-                params![],
-                |row| row.try_into().expect("failed to convertt to `File`"),
-            )
-            .context(query_fail!("`File`", "is_dir"))?;
-
-        Ok(files.into())
     }
 
     // MAKE A TEST

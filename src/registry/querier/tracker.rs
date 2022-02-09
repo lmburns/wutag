@@ -23,8 +23,8 @@ impl<T> Position<T> {
 
 /// Converting a [`Span`] to a [`Range`] of some sort.
 ///
-/// A trait must be implemented to use these values, because [`LocatedSpan`] is
-/// defined within another crate
+/// A trait must be implemented to use these values, because
+/// [`LocatedSpan`](nom_locate::LocatedSpan) is defined within another crate
 pub(super) trait ToRange {
     // TODO: Use this method
     /// Return a [`Range`] of the entire [`Span`]

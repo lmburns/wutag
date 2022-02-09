@@ -101,7 +101,7 @@ pub(crate) enum SearchKind {
 /// A search into the database
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub(crate) struct Search {
-    /// The raw string or a string compiled as a [`regex`]
+    /// The raw string or a string compiled as a [`Regex`]
     inner: String,
     /// The type of search
     t:     SearchKind,
@@ -158,7 +158,7 @@ impl Search {
         }
     }
 
-    /// Create a new [`Search`] with a [`regex`]
+    /// Create a new [`Search`] with a [`Regex`]
     pub(crate) fn new_regex<S: AsRef<str>>(str: S, flags: &[SearchFlags]) -> Self {
         let mut new = Self::combine_flags(flags);
         new.push_str(str.as_ref());

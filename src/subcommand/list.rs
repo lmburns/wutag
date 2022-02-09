@@ -1,6 +1,9 @@
 //! `list` - List `Tag`s or `File`s within the database
 
+#![allow(unused)]
+
 // TODO: list files relative to directory as an option
+// TODO: take into account color of tag for combinations
 
 use super::{
     uses::{
@@ -17,6 +20,7 @@ use super::uses::{print_stdout, Border, Cell, Justify, Separator, Style, Table};
 /// Subcommands used for the `list` subcommand
 #[derive(Subcommand, Debug, Clone, PartialEq)]
 pub(crate) enum ListObject {
+    // ========================== Tags ==========================
     /// List the `Tags` within the database
     Tags {
         /// Do not display tag count
@@ -33,9 +37,21 @@ pub(crate) enum ListObject {
         )]
         unique: bool,
 
-        /// Sort the output alphabetically (no-count), numerically otherwise
-        #[clap(long, short = 's')]
+        /// Sort the output
+        #[clap(
+            long = "sort",
+            short = 's',
+            long_help = "Sort alphabetically with `no-count`, otherwise it is numerically sorted"
+        )]
         sort: bool,
+
+        /// Do not show implied tags
+        #[clap(
+            long = "implied",
+            short = 'i',
+            long_help = "Only display tags that were explicitly set"
+        )]
+        explicit: bool,
 
         /// Display one tag per line instead of tags on files
         #[clap(
@@ -50,8 +66,8 @@ pub(crate) enum ListObject {
 
         /// Use border separators when formatting output
         #[clap(
-            long,
-            short,
+            long = "border",
+            short = 'b',
             conflicts_with = "no-count",
             long_help = "\
             Use a border around the perimeter of the formatted tags, as well as in-between the \
@@ -60,6 +76,7 @@ pub(crate) enum ListObject {
         border: bool,
     },
 
+    // ========================== Files ==========================
     /// List the `Files` within the database
     Files {
         /// Display tags along with the files
@@ -107,9 +124,13 @@ pub(crate) struct ListOpts {
     /// Object to list: 'tags', 'files'.
     #[clap(subcommand)]
     pub(crate) object: ListObject,
-    /// Output will be raw so that it can be easily piped to other
-    /// commands
-    #[clap(long, short)]
+    /// Output will not be colorized
+    #[clap(
+        long = "raw",
+        short = 'r',
+        long_help = "Output of command will not be colorized. This is equivalent to `NO_COLOR=1 \
+                     wutag <cmd>`"
+    )]
     pub(crate) raw:    bool,
 }
 
@@ -224,6 +245,7 @@ impl App {
                 one_per_line,
                 unique,
                 sort,
+                explicit,
             } => {
                 let mut utags = Vec::new();
                 for (&id, file) in self.registry.list_entries_and_ids() {

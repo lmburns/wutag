@@ -22,6 +22,7 @@ impl FsPath {
         &self.path
     }
 
+    // TODO: What is this for?
     /// Is the file a basename?
     pub(crate) fn is_dirname(&self) -> Result<bool> {
         Ok(self
@@ -37,6 +38,21 @@ impl FsPath {
         self.path.canonicalize().context("failed to canonicalize")
     }
 
+    /// Return the difference in the `CWD` and the [`FsPath`]
+    pub(crate) fn complete_relative(&self) -> Result<PathBuf> {
+        let path = self.path.canonicalize().context("failed to canonicalize")?;
+        let cwd = env::current_dir()
+            .context("failed to get CWD")?
+            .canonicalize()?;
+
+        if path == cwd {
+            return Ok(PathBuf::from("."));
+        }
+
+        let diff = pathdiff::diff_paths(path, cwd).context("failed to get path diffs")?;
+        Ok(diff)
+    }
+
     /// Return the relative path of the file to the `CWD`
     pub(crate) fn relative(&self) -> Result<PathBuf> {
         let path = self.path.canonicalize().context("failed to canonicalize")?;
@@ -44,7 +60,6 @@ impl FsPath {
             .context("failed to get CWD")?
             .canonicalize()?;
 
-        // TODO: If expanded, change to string
         if path == cwd {
             return Ok(PathBuf::from("."));
         }
@@ -88,9 +103,6 @@ impl FsPath {
 
         Ok(path)
     }
-
-    // TODO: May not bee needed
-    // Determine whether the path contains the database root path
 }
 
 impl From<PathBuf> for FsPath {

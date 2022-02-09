@@ -2,7 +2,7 @@
 
 #![allow(unused)]
 
-use crate::wutag_error;
+use crate::{wutag_error, wutag_info};
 use anyhow::Result;
 use colored::Colorize;
 use rand::{distributions::Alphanumeric, Rng};
@@ -150,10 +150,12 @@ pub(crate) mod ext4 {
     };
     use std::str::FromStr;
 
-    /// Easier way to check whether [`FileFlags`] contains a flag
+    /// Easier way to check whether [`FileFlag`] contains a flag
+    ///
+    /// [`FileFlag`]: self::FileFlags
     macro_rules! fileflag_contains {
         ($name:tt, $flag:path) => {
-            /// Test whether [`FileFlag`] contains a given [`Flag`]
+            /// Test whether [`FileFlag`] contains any given [`Flags`]
             pub(crate) const fn $name(&self) -> bool {
                 self.0.contains($flag)
             }
@@ -324,7 +326,7 @@ pub(crate) fn modify_temp_ignore<P: AsRef<Path>>(
     }
 }
 
-/// Create the temporary ignore file with the given contents
+/// Create the temporary ignore-file with the given contents
 pub(crate) fn create_temp_ignore(content: impl FnOnce(&mut File) -> io::Result<()>) -> String {
     let tmp = create_temp_path();
     match modify_temp_ignore(&tmp, content) {
@@ -336,8 +338,8 @@ pub(crate) fn create_temp_ignore(content: impl FnOnce(&mut File) -> io::Result<(
     }
 }
 
-/// Write the temporary ignore file (passed to `create_temp_ignore()`, which
-/// returns a string of the contents of the file)
+/// Write the temporary ignore file (passed to [`create_temp_ignore`], which
+/// returns a `String` of the contents of the file)
 pub(crate) fn write_temp_ignore(ignores: &[String], file: &File) -> io::Result<()> {
     let mut writer = io::BufWriter::new(file);
 
@@ -348,15 +350,15 @@ pub(crate) fn write_temp_ignore(ignores: &[String], file: &File) -> io::Result<(
     Ok(())
 }
 
-/// Delete the temporarily created ignore file
+/// Delete the temporarily created ignore-file
 pub(crate) fn delete_file<P: AsRef<Path>>(file: P) {
     let path = file.as_ref().to_path_buf();
 
     if path.exists() && path.is_file() {
         match fs::remove_file(&path) {
             Ok(_) => log::debug!("Ignore file deleted: {}", &path.display()),
-            Err(err) => log::debug!(
-                "Unable to delete ignore file: {} {:#?}",
+            Err(err) => wutag_info!(
+                "Unable to delete ignore file: {} {}",
                 &path.display(),
                 err
             ),
@@ -373,7 +375,7 @@ pub(crate) fn contained_path<P: AsRef<Path>>(file: P, path: P) -> bool {
         .starts_with(&path.as_ref().to_string_lossy().to_string())
 }
 
-/// Convert an [`OsStr`] to bytes for [`RegexBuilder`]
+/// Convert an [`OsStr`] to bytes for [`RegexBuilder`](regex::bytes::RegexBuilder)
 pub(crate) fn osstr_to_bytes(input: &OsStr) -> Cow<[u8]> {
     use std::os::unix::ffi::OsStrExt;
     Cow::Borrowed(input.as_bytes())

@@ -28,26 +28,59 @@ pub(crate) static COMPARISON_OPS: &[&str] =
 
 /// Other reserved symbols that are [`Regex`](regex::Regex)es
 #[rustfmt::skip]
-pub(crate) static OTHER_RES: &[&str] =
-    &["^[@\\$]F(\\[\\s*((\\.{2}|((\\d+\\s*)?\\.{2}\\s*=?\\s*)?\\d+|\\d+\\s*\\.{2})|(\\d+(\\s*,\\s*\\d+)*))\\s*\\])?$"];
+pub(crate) static OTHER_RES: Lazy<Vec<String>> = Lazy::new(|| {
+    [
+        "^[@\\$]F(\\[\\s*((\\.{2}|((\\d+\\s*)?\\.{2}\\s*=?\\s*)?\\d+|\\d+\\s*\\.{2})|(\\d+(\\s*,\\s*\\d+)*))\\s*\\])?$",
+        r"^%r([^<{(\[])((\\\1|[^\\1]+)*[^\\1]*)(\1)(-?[iu]|[IlUmxr])*$",
+        r"^%g([^<{(\[])((\\\1|[^\\1]+)*[^\\1]*)(\1)(-?[iu]|[IlUmxg])*$",
+        r"^%r(<((\\<|[^<]+)*[^<])>|\{((\\\{|[^{]+)*[^{])}|\(((\\\(|[^(]+)*[^(])\)|\[((\\\[|[^\[]+)*[^\[])\])(-?[iu]|[IlUmxr])*$",
+        r"^%g(<((\\<|[^<]+)*[^<])>|\{((\\\{|[^{]+)*[^{])}|\(((\\\(|[^(]+)*[^(])\)|\[((\\\[|[^\[]+)*[^\[])\])(-?[iu]|[IlUmxg])*$",
+        &format!("({})\\([^(]*\\)", FUNC_NAMES.join("|"))
+    ].iter().map(ToString::to_string).collect::<Vec<_>>()
+});
 
-/// All reserved words within `wutag`
+/// All reserved words within [`wutag`](crate)
 pub(crate) static RESERVED_WORDS: Lazy<Vec<&'static str>> =
     Lazy::new(|| [FUNC_NAMES, COMPARISON_OPS].concat());
 
-/// Type alias for the `Range<I>` over the concerned section of the `Query`
+/// Type alias for the [`Range<I>`] over the concerned section of the
+/// [`Query`](ast::query::Query)
 pub(crate) type QueryRange = Range<usize>;
 
 /// Type alias for [`nom_supreme`]'s [`LocatedSpan`] with extra information
 /// Allows for better tracking of a query and tracking its location
 pub(crate) type Span<'a> = LocatedSpan<&'a str, &'a ast::query::Query>;
 
-/// Tests used to determine if the name of the `Tag` or `Value` will be allowed
-/// due to the parsing rules implemented by [`nom`]
+/// Tests used to determine if the name of the [`Tag`] or [`Value`] will be
+/// allowed due to the parsing rules implemented by [`nom`]
+///
+/// [`Tag`]: super::super::types::tag::Tag
+/// [`Value`]: super::super::types::value::Value
 mod tests {
-    use super::{OTHER_RES, RESERVED_WORDS};
+    use super::{OTHER_RES, RESERVED_WORDS, FUNC_NAMES};
     use crate::regex;
     use regex::Regex;
+
+    #[test]
+    fn match_func_names() {
+        let names = FUNC_NAMES
+            .iter()
+            .map(|f| format!("{}()", f))
+            .collect::<Vec<_>>();
+
+        let mut names_w_args = FUNC_NAMES
+            .iter()
+            .map(|f| format!("{}(hello)", f))
+            .collect::<Vec<_>>();
+
+        names_w_args.extend_from_slice(&names);
+
+        let reg = regex!(&OTHER_RES[5]);
+
+        for name in &names_w_args {
+            assert!(reg.is_match(name));
+        }
+    }
 
     #[test]
     fn match_legal_tag_array() {
@@ -96,7 +129,7 @@ mod tests {
 
         dollar.extend_from_slice(&names[..]);
 
-        let reg = regex!(OTHER_RES[0]);
+        let reg = regex!(&OTHER_RES[0]);
 
         for totest in &dollar {
             assert!(reg.is_match(totest));
@@ -129,10 +162,78 @@ mod tests {
 
         dollar.extend_from_slice(&names[..]);
 
-        let reg = regex!(OTHER_RES[0]);
+        let reg = regex!(&OTHER_RES[0]);
 
         for totest in &dollar {
             assert!(!reg.is_match(totest));
+        }
+    }
+
+    #[test]
+    fn match_legal_pattern() {
+        let names = &[
+            "%r/hisir/",
+            "%g/hisir/",
+            "%g/h\\/isir/",
+            "%g/hisir/",
+            "%g|hi\\|sir|",
+            "%r|hisir|",
+            "%r:hisir:",
+            "%r:hi\\:sir:",
+            "%r:hi\\:s\\:i\\:r:",
+            "%r;hisir;",
+            "%r;hi\\;sir;",
+            "%r/hi\\/sir/",
+            "%g/hi\\/saa\\/ir/",
+            // Flags
+            "%g|hi\\|sir|-i",
+            "%r|hisir|mxU",
+            "%r:hisir:r-u",
+            "%r:hi\\:sir:Url",
+            "%r:hi\\:s\\:i\\:r:-i-uU",
+        ];
+
+        let reg1 = fancy_regex::Regex::new(&OTHER_RES[1]).expect("failed to build regex");
+        let reg2 = fancy_regex::Regex::new(&OTHER_RES[2]).expect("failed to build regex");
+
+        for totest in names.iter() {
+            assert!(
+                reg1.is_match(totest).expect("failed to unwrap match")
+                    | reg2.is_match(totest).expect("failed to unwrap match")
+            );
+        }
+    }
+
+    #[test]
+    fn match_legal_pattern_diff_delim() {
+        let names = &[
+            "%r<hisir>",
+            "%r<h\\<isir>",
+            "%r{hisir}",
+            "%r{hi\\{s\\{ir}",
+            "%r(hisir)",
+            "%r(h\\(isir)",
+            "%r[hisir]",
+            "%r[h\\[isir]",
+            "%g<hisir>",
+            "%g{hisir}",
+            "%g{h\\{isir}",
+            "%g(hisir)",
+            "%g[hisir]",
+            // Flags
+            "%r<hisir>i",
+            "%r<h\\<isir>r-i",
+            "%r{hisir}Ux",
+            "%r{hi\\{s\\{ir}m",
+            "%r(hisir)-u",
+            "%r[h\\[isir]m",
+        ];
+
+        let reg1 = regex!(&OTHER_RES[3]);
+        let reg2 = regex!(&OTHER_RES[4]);
+
+        for totest in names.iter() {
+            assert!(reg1.is_match(totest) | reg2.is_match(totest));
         }
     }
 }

@@ -263,7 +263,7 @@ By default each tag will be assigned with a random color from 8 base colors (eit
  - The colors are case insensitive
 
 Each command that takes a pattern starts a filesystem traversal from current working directory. To override this
-behaviour specify a global parameter `--dir` or `-d` like this:
+behavior specify a global parameter `--dir` or `-d` like this:
  - `wutag -d ~ set '**' code`
 
 Default recursion depth is set to *2*. To increase it use `--max-depth` or `-m` global parameter.

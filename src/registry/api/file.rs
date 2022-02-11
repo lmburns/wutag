@@ -181,29 +181,80 @@ impl Registry {
     }
 
     // ========================= Pattern Matching =========================
+    // ====================================================================
 
-    /// Retrieve all [`Files`] that match a given `regex`
-    pub(crate) fn files_by_regex(&self, column: &str, patt: &str) -> Result<Files> {
+    /// Retrieve all [`Files`] with a given column matching a `regex`
+    pub(crate) fn files_by_regex_generic(&self, column: &str, patt: &str) -> Result<Files> {
         let txn = self.txn()?;
         txn.select_files_by_regex(column, patt)
     }
 
-    /// Retrieve all [`Files`] that match a given `iregex`
-    pub(crate) fn files_by_iregex(&self, column: &str, patt: &str) -> Result<Files> {
+    /// Retrieve all [`Files`] with a given column matching a `iregex`
+    pub(crate) fn files_by_iregex_generic(&self, column: &str, patt: &str) -> Result<Files> {
         let txn = self.txn()?;
         txn.select_files_by_iregex(column, patt)
     }
 
-    /// Retrieve all [`Files`] that match a given `glob`
-    pub(crate) fn files_by_glob(&self, column: &str, patt: &str) -> Result<Files> {
+    /// Retrieve all [`Files`] with a given column matching a `glob`
+    pub(crate) fn files_by_glob_generic(&self, column: &str, patt: &str) -> Result<Files> {
         let txn = self.txn()?;
         txn.select_files_by_glob(column, patt)
     }
 
-    /// Retrieve all [`Files`] that match a given `iglob`
-    pub(crate) fn files_by_iglob(&self, column: &str, patt: &str) -> Result<Files> {
+    /// Retrieve all [`Files`] with a given column matching a `iglob`
+    pub(crate) fn files_by_iglob_generic(&self, column: &str, patt: &str) -> Result<Files> {
         let txn = self.txn()?;
         txn.select_files_by_iglob(column, patt)
+    }
+
+    // ==================== Most used pattern matching ====================
+
+    /// Retrieve all [`Files`] with a 'name' matching a `regex`
+    pub(crate) fn files_by_regex_fname(&self, patt: &str) -> Result<Files> {
+        let txn = self.txn()?;
+        txn.select_files_by_regex("name", patt)
+    }
+
+    /// Retrieve all [`Files`] with a 'name' matching a `regex`
+    pub(crate) fn files_by_iregex_fname(&self, patt: &str) -> Result<Files> {
+        let txn = self.txn()?;
+        txn.select_files_by_iregex("name", patt)
+    }
+
+    /// Retrieve all [`Files`] that match a given `glob` on the given column
+    pub(crate) fn files_by_glob_fname(&self, patt: &str) -> Result<Files> {
+        let txn = self.txn()?;
+        txn.select_files_by_glob("name", patt)
+    }
+
+    /// Retrieve all [`Files`] that match a given `iglob` on the given column
+    pub(crate) fn files_by_iglob_fname(&self, patt: &str) -> Result<Files> {
+        let txn = self.txn()?;
+        txn.select_files_by_iglob("name", patt)
+    }
+
+    /// Retrieve all [`Files`] with a full path matching a `regex`
+    pub(crate) fn files_by_regex_fp(&self, patt: &str) -> Result<Files> {
+        let txn = self.txn()?;
+        txn.select_files_by_regex_fp(patt)
+    }
+
+    /// Retrieve all [`Files`] with a full path matching a `iregex`
+    pub(crate) fn files_by_iregex_fp(&self, patt: &str) -> Result<Files> {
+        let txn = self.txn()?;
+        txn.select_files_by_iregex_fp(patt)
+    }
+
+    /// Retrieve all [`Files`] with a full path matching a `glob`
+    pub(crate) fn files_by_glob_fp(&self, patt: &str) -> Result<Files> {
+        let txn = self.txn()?;
+        txn.select_files_by_glob_fp(patt)
+    }
+
+    /// Retrieve all [`Files`] with a full path matching a `iglob`
+    pub(crate) fn files_by_iglob_fp(&self, patt: &str) -> Result<Files> {
+        let txn = self.txn()?;
+        txn.select_files_by_iglob_fp(patt)
     }
 
     // ============================= Modifying ============================

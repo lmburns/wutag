@@ -150,13 +150,56 @@ impl Registry {
         Ok(())
     }
 
-    /// Remove all [`FileTag`]s matching a given [`FileId`]
+    /// Remove all [`FileTag`]s matching a given [`TagId`]
     pub(crate) fn delete_filetag_by_tagid(&self, id: TagId) -> Result<()> {
         let txn = self.txn()?;
         let ftags = txn.select_filetags_by_tagid(id)?;
         txn.delete_filetag_by_tagid(id)?;
-        self.delete_untagged_files(&ftags.file_ids());
+        self.delete_untagged_files(&ftags.file_ids())?;
 
         Ok(())
     }
+
+    /// Remove all [`FileTag`]s matching a given [`ValueId`]
+    pub(crate) fn delete_filetag_by_valueid(&self, id: ValueId) -> Result<()> {
+        let txn = self.txn()?;
+        let ftags = txn.select_filetags_by_valueid(id)?;
+        txn.delete_filetag_by_valueid(id)?;
+        self.delete_untagged_files(&ftags.file_ids())?;
+
+        Ok(())
+    }
+
+    /// Copy one [`FileTag`] to another
+    pub(crate) fn copy_filetags(&self, src: TagId, dest: TagId) -> Result<()> {
+        let txn = self.txn()?;
+        txn.copy_filetags(src, dest)
+    }
+
+    // fn add_implied_filetags(&self, mut ftags: FileTags) -> Result<FileTags> {
+    //     for f in ftags.iter() {
+    //         let implications =
+    // self.implications_for(&[&f.to_tag_value_combo()])?;
+    //
+    //         for implication in implications.iter() {
+    //             let mut implied_ftag = ftags
+    //                 .filter(|ftag| {
+    //                     ftag.file_id() == f.file_id()
+    //                         && ftag.tag_id() == implication.implied_tag().id()
+    //                         && ftag.value_id() == implication.implied_val().id()
+    //                 })
+    //                 .first();
+    //
+    //             if let Some(ref mut iftag) = implied_ftag {
+    //                 // Does nothing?
+    //                 iftag.implicit = true;
+    //             } else {
+    //                 let implied_ftag = FileTag::new(f.file_id(), f.tag_id(),
+    // f.value_id());                 ftags.push(implied_ftag);
+    //             }
+    //         }
+    //     }
+    //
+    //     Ok(ftags)
+    // }
 }

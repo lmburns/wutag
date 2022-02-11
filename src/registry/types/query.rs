@@ -14,7 +14,7 @@ use rusqlite::{
 // ====================================================================
 
 /// Represents a query in the database
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Ord, PartialOrd, PartialEq, Eq)]
 pub(crate) struct Query {
     inner: String,
 }

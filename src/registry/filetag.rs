@@ -204,8 +204,8 @@ impl Txn<'_> {
         Ok(())
     }
 
-    /// Remove a `FileTag` from the database that matches the given `FileId`
-    pub(crate) fn delete_filetag_by_fileid(&self, fid: FileId) -> Result<()> {
+    /// Remove a [`FileTag`] from the database that matches the given [`FileId`]
+    pub(super) fn delete_filetag_by_fileid(&self, fid: FileId) -> Result<()> {
         self.execute(
             "DELETE FROM file_tag
             WHERE file_id = ?",
@@ -216,8 +216,8 @@ impl Txn<'_> {
         Ok(())
     }
 
-    /// Remove a `FileTag` from the database that matches the given `TagId`
-    pub(crate) fn delete_filetag_by_tagid(&self, tid: TagId) -> Result<()> {
+    /// Remove a [`FileTag`] from the database that matches the given [`TagId`]
+    pub(super) fn delete_filetag_by_tagid(&self, tid: TagId) -> Result<()> {
         self.execute(
             "DELETE FROM file_tag
             WHERE tag_id = ?",
@@ -228,8 +228,9 @@ impl Txn<'_> {
         Ok(())
     }
 
-    /// Remove a `FileTag` from the database that matches the given `ValueId`
-    pub(crate) fn delete_filetag_by_valueid(&self, vid: ValueId) -> Result<()> {
+    /// Remove a [`FileTag`] from the database that matches the given
+    /// [`ValueId`]
+    pub(super) fn delete_filetag_by_valueid(&self, vid: ValueId) -> Result<()> {
         self.execute(
             "DELETE FROM file_tag
             WHERE value_id = ?",
@@ -240,8 +241,8 @@ impl Txn<'_> {
         Ok(())
     }
 
-    /// Copy `Tag`s on one `File` to another
-    pub(crate) fn copy_filetags(&self, source_tid: TagId, dest_tid: TagId) -> Result<()> {
+    /// Copy [`FileTag`]s on one `Tag` to another
+    pub(super) fn copy_filetags(&self, source_tid: TagId, dest_tid: TagId) -> Result<()> {
         self.execute(
             "INSERT INTO file_tag (file_id, tag_id, value_id)
             SELECT file_id, ?2, value_id

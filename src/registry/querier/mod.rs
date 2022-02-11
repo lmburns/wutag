@@ -23,28 +23,28 @@ pub(crate) static FUNC_NAMES: &[&str] = &[
 ];
 
 /// Reserved comparison operator names
-pub(crate) static COMPARISON_OPS: &[&str] =
-    &["and", "or", "not", "eq", "ne", "lt", "gt", "le", "ge"];
+#[rustfmt::skip]
+pub(crate) static COMPARISON_OPS: &[&str] = &[
+    "and", "or", "not", "eq", "ne", "lt", "gt", "le", "ge",
+    "&&",  "||", "!",   "==", "!=", "<",  ">",  "<=", ">=",
+];
+
+/// Reserved conditional operator names
+pub(crate) static CONDITIONAL_RES: &[&str] = &["if", "unless"];
 
 /// Other reserved symbols that are [`Regex`](regex::Regex)es
 #[rustfmt::skip]
-pub(crate) static OTHER_RES: Lazy<Vec<String>> = Lazy::new(|| {
-    [
+pub(crate) static OTHER_RES: &[&str] = &[
         "^[@\\$]F(\\[\\s*((\\.{2}|((\\d+\\s*)?\\.{2}\\s*=?\\s*)?\\d+|\\d+\\s*\\.{2})|(\\d+(\\s*,\\s*\\d+)*))\\s*\\])?$",
         r"^%r([^<{(\[])((\\\1|[^\\1]+)*[^\\1]*)(\1)(-?[iu]|[IlUmxr])*$",
         r"^%g([^<{(\[])((\\\1|[^\\1]+)*[^\\1]*)(\1)(-?[iu]|[IlUmxg])*$",
         r"^%r(<((\\<|[^<]+)*[^<])>|\{((\\\{|[^{]+)*[^{])}|\(((\\\(|[^(]+)*[^(])\)|\[((\\\[|[^\[]+)*[^\[])\])(-?[iu]|[IlUmxr])*$",
         r"^%g(<((\\<|[^<]+)*[^<])>|\{((\\\{|[^{]+)*[^{])}|\(((\\\(|[^(]+)*[^(])\)|\[((\\\[|[^\[]+)*[^\[])\])(-?[iu]|[IlUmxg])*$",
-        &format!("({})\\([^(]*\\)", FUNC_NAMES.join("|"))
-    ]
-    .iter()
-    .map(ToString::to_string)
-    .collect::<Vec<_>>()
-});
+];
 
 /// All reserved words within [`wutag`](crate)
 pub(crate) static RESERVED_WORDS: Lazy<Vec<&'static str>> =
-    Lazy::new(|| [FUNC_NAMES, COMPARISON_OPS].concat());
+    Lazy::new(|| [FUNC_NAMES, COMPARISON_OPS, CONDITIONAL_RES].concat());
 
 /// Type alias for the [`Range<I>`] over the concerned section of the
 /// [`Query`](ast::query::Query)
@@ -78,7 +78,7 @@ mod tests {
 
         names_w_args.extend_from_slice(&names);
 
-        let reg = regex!(&OTHER_RES[5]);
+        let reg = regex!(&format!("({})\\([^(]*\\)", FUNC_NAMES.join("|")));
 
         for name in &names_w_args {
             assert!(reg.is_match(name));
@@ -132,7 +132,7 @@ mod tests {
 
         dollar.extend_from_slice(&names[..]);
 
-        let reg = regex!(&OTHER_RES[0]);
+        let reg = regex!(OTHER_RES[0]);
 
         for totest in &dollar {
             assert!(reg.is_match(totest));
@@ -165,7 +165,7 @@ mod tests {
 
         dollar.extend_from_slice(&names[..]);
 
-        let reg = regex!(&OTHER_RES[0]);
+        let reg = regex!(OTHER_RES[0]);
 
         for totest in &dollar {
             assert!(!reg.is_match(totest));
@@ -196,8 +196,8 @@ mod tests {
             "%r:hi\\:s\\:i\\:r:-i-uU",
         ];
 
-        let reg1 = fancy_regex::Regex::new(&OTHER_RES[1]).expect("failed to build regex");
-        let reg2 = fancy_regex::Regex::new(&OTHER_RES[2]).expect("failed to build regex");
+        let reg1 = fancy_regex::Regex::new(OTHER_RES[1]).expect("failed to build regex");
+        let reg2 = fancy_regex::Regex::new(OTHER_RES[2]).expect("failed to build regex");
 
         for totest in names.iter() {
             assert!(
@@ -232,8 +232,8 @@ mod tests {
             "%r[h\\[isir]m",
         ];
 
-        let reg1 = regex!(&OTHER_RES[3]);
-        let reg2 = regex!(&OTHER_RES[4]);
+        let reg1 = regex!(OTHER_RES[3]);
+        let reg2 = regex!(OTHER_RES[4]);
 
         for totest in names.iter() {
             assert!(reg1.is_match(totest) | reg2.is_match(totest));

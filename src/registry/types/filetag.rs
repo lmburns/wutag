@@ -4,11 +4,12 @@
 use super::{
     file::{File, FileId, FileIds},
     from_vec, impl_vec,
-    tag::{Tag, TagId, TagValueCombo},
+    tag::{Tag, TagId, TagValueCombo, TagValueCombos},
     value::{Value, ValueId},
 };
 use anyhow::{Context, Result};
 
+use itertools::Itertools;
 use rusqlite::{
     self as rsq,
     types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, ValueRef},
@@ -18,7 +19,7 @@ use rusqlite::{
 // ====================== FileTag =====================
 
 /// Relation between [`File`], [`Tag`], and [`Value`]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) struct FileTag {
     /// ID of the [`File`]
     file_id:  FileId,
@@ -28,9 +29,9 @@ pub(crate) struct FileTag {
     value_id: ValueId,
 
     /// Is it explicitly tagged?
-    explicit: bool,
+    explicit:            bool,
     /// Is it implicitly tagged?
-    implicit: bool,
+    pub(crate) implicit: bool,
 }
 
 impl FileTag {
@@ -100,7 +101,7 @@ impl TryFrom<&Row<'_>> for FileTag {
 // ===================== FileTags =====================
 
 /// A vector of [`FileTag`]s
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub(crate) struct FileTags {
     /// The inner vector of [`FileTag`]s
     inner: Vec<FileTag>,
@@ -113,16 +114,26 @@ impl FileTags {
 
     /// Return the [`FileId`] of each [`FileTag`]
     pub(crate) fn file_ids(&self) -> FileIds {
-        self.iter()
-            .map(|ft| ft.file_id())
-            .collect::<Vec<_>>()
-            .into()
+        self.map_vec_uniq(FileTag::file_id).into()
+    }
+
+    /// Return the [`TagId`] of each [`FileTag`]
+    pub(crate) fn tag_ids(&self) -> FileIds {
+        self.map_vec_uniq(FileTag::tag_id).into()
+    }
+
+    /// Return the [`ValueId`] of each [`FileTag`]
+    pub(crate) fn value_ids(&self) -> FileIds {
+        self.map_vec_uniq(FileTag::value_id).into()
     }
 
     /// Return the first [`FileTag`]
-    pub(crate) fn first(&self) -> Result<FileTag> {
-        self.get(0)
-            .copied()
-            .context("failed to get first item in `FileTags`")
+    pub(crate) fn first(&self) -> Option<FileTag> {
+        crate::ternary!(self.len() == 1, self.get(0).copied(), None)
+    }
+
+    /// Convert all [`FileTag`]s to a [`TagValueCombo`]s
+    pub(crate) fn to_tag_value_combos(&self) -> TagValueCombos {
+        self.map_vec(|f| f.to_tag_value_combo()).into()
     }
 }

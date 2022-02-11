@@ -135,3 +135,83 @@ pub(crate) enum Error {
     #[error("unable to convert a string to `Version`")]
     FromString,
 }
+
+mod test {
+    use super::Version;
+    use anyhow::Result;
+
+    #[test]
+    fn version_greater_manual() {
+        let v1 = Version::new(0, 7, 1);
+        let v2 = Version::new(0, 7, 2);
+        assert!(v2.greater_than(v1));
+
+        let v1 = Version::new(1, 0, 1);
+        let v2 = Version::new(0, 7, 2);
+        assert!(v1.greater_than(v2));
+
+        let v1 = Version::new(0, 0, 2);
+        let v2 = Version::new(0, 3, 0);
+        assert!(v2.greater_than(v1));
+    }
+
+    #[test]
+    fn version_lesser_manual() {
+        let v1 = Version::new(0, 7, 1);
+        let v2 = Version::new(0, 7, 2);
+        assert!(v1.less_than(v2));
+
+        let v1 = Version::new(1, 0, 1);
+        let v2 = Version::new(0, 7, 2);
+        assert!(v2.less_than(v1));
+
+        let v1 = Version::new(0, 0, 2);
+        let v2 = Version::new(0, 3, 0);
+        assert!(v1.less_than(v2));
+    }
+
+    #[test]
+    fn version_greater_macro() {
+        let v1 = Version::new(0, 7, 1);
+        let v2 = Version::new(0, 7, 2);
+        assert!(v2 > v1);
+
+        let v1 = Version::new(1, 0, 1);
+        let v2 = Version::new(0, 7, 2);
+        assert!(v1 > v2);
+
+        let v1 = Version::new(1, 0, 2);
+        let v2 = Version::new(0, 3, 0);
+        assert!(v1 > v2);
+    }
+
+    #[test]
+    fn version_lesser_macro() {
+        let v1 = Version::new(0, 7, 1);
+        let v2 = Version::new(0, 7, 2);
+        assert!(v1 < v2);
+
+        let v1 = Version::new(0, 0, 1);
+        let v2 = Version::new(0, 7, 2);
+        assert!(v1 < v2);
+
+        let v1 = Version::new(1, 0, 2);
+        let v2 = Version::new(0, 3, 0);
+        assert!(v2 < v1);
+    }
+
+    #[test]
+    fn version_equal() {
+        let v1 = Version::new(0, 7, 1);
+        let v2 = Version::new(0, 7, 1);
+        assert!(v1 == v2);
+
+        let v1 = Version::new(0, 0, 1);
+        let v2 = Version::new(0, 0, 1);
+        assert!(v1 == v2);
+
+        let v1 = Version::new(0, 0, 0);
+        let v2 = Version::new(0, 0, 0);
+        assert!(v1 == v2);
+    }
+}

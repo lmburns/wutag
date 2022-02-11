@@ -16,7 +16,7 @@ use rusqlite::{
 // =================== Implication ====================
 
 /// Representation of one [`Tag`] implementing another [`Tag`]
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) struct Implication {
     /// `Tag` that is doing the implying
     implying_tag: Tag,
@@ -87,6 +87,7 @@ impl TryFrom<&Row<'_>> for Implication {
 // =================== Implications ===================
 
 /// Vector of [`Implication`]s
+#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) struct Implications {
     /// Inner `Vec` of `Implication`s
     inner: Vec<Implication>,
@@ -96,14 +97,6 @@ from_vec!(Implication, Implications);
 
 impl Implications {
     impl_vec!(Implication);
-
-    /// Shorthand to the Rust builtin `any`
-    pub(crate) fn any<F>(&self, f: F) -> bool
-    where
-        F: Fn(&Implication) -> bool,
-    {
-        self.inner.iter().any(f)
-    }
 
     /// Determine whether the given [`TagValueCombo`] is an implied one
     pub(crate) fn implies(&self, other: &TagValueCombo) -> bool {

@@ -57,21 +57,12 @@ pub(crate) struct FileIds {
 }
 
 from_vec!(FileId, FileIds);
-
-impl FileIds {
-    impl_vec!(FileId);
-
-    /// Get unique [`FileIds`]
-    pub(crate) fn unique(&mut self) {
-        self.inner.sort_unstable();
-        self.inner.dedup();
-    }
-}
+impl_vec!(FileIds, FileId);
 
 // ======================= File =======================
 
 /// Representation of a file on the filesystem
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) struct File {
     /// File ID, similar to UUID
     pub(crate) id: FileId,
@@ -390,7 +381,7 @@ impl Default for File {
 // ======================= Files ======================
 
 /// A vector of [`File`]s
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) struct Files {
     /// The inner vector of [`File`]s
     inner: Vec<File>,

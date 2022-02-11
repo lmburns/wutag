@@ -42,7 +42,7 @@ impl Txn<'_> {
     // ====================================================================
 
     /// Retrieve the number of [`Tag`]s within the database
-    pub(crate) fn tag_count(&self) -> Result<u32> {
+    pub(super) fn tag_count(&self) -> Result<u32> {
         self.select1::<u32>(
             "SELECT count(1)
             FROM tag",
@@ -51,7 +51,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve all [`Tag`]s within the database
-    pub(crate) fn tags(&self) -> Result<Tags> {
+    pub(super) fn tags(&self) -> Result<Tags> {
         let tags: Vec<Tag> = self
             .query_vec(
                 "SELECT id, name, color
@@ -66,7 +66,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve the [`Tag`] that matches the given [`TagId`]
-    pub(crate) fn tag(&self, id: TagId) -> Result<Tag> {
+    pub(super) fn tag(&self, id: TagId) -> Result<Tag> {
         let tag: Tag = self
             .select(
                 "SELECT id, name, color
@@ -84,7 +84,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve all [`Tag`]s that match the vector of [`TagId`]s
-    pub(crate) fn tags_by_ids(&self, ids: &[TagId]) -> Result<Tags, Error> {
+    pub(super) fn tags_by_ids(&self, ids: &[TagId]) -> Result<Tags, Error> {
         if ids.is_empty() {
             return Err(Error::EmptyArray);
         }
@@ -112,7 +112,7 @@ impl Txn<'_> {
 
     /// Retrieve the [`Tag`] matching the [`Tag`] name
     ///   - **Exact match** searching
-    pub(crate) fn tag_by_name<S: AsRef<str>>(&self, name: S, ignore_case: bool) -> Result<Tag> {
+    pub(super) fn tag_by_name<S: AsRef<str>>(&self, name: S, ignore_case: bool) -> Result<Tag> {
         let mut builder = SqlBuilder::new_initial(
             "SELECT id, name, color
             FROM tag
@@ -134,7 +134,7 @@ impl Txn<'_> {
 
     /// Retrieve all [`Tag`]s matching a vector of names
     ///   - **Exact match** searching
-    pub(crate) fn tags_by_names<S: AsRef<str>>(
+    pub(super) fn tags_by_names<S: AsRef<str>>(
         &self,
         names: &[S],
         ignore_case: bool,
@@ -170,14 +170,16 @@ impl Txn<'_> {
 
     /// Retrieve all [`Tag`]s matching a pattern
     ///   - **Pattern** searching
-    fn select_tags_by_func(&self, func: &str, column: &str, patt: &str) -> Result<Tags> {
+    fn select_tags_by_func<S: AsRef<str>>(&self, func: S, column: S, patt: S) -> Result<Tags> {
         let tags: Vec<Tag> = self
             .query_vec(
                 format!(
                     "SELECT id, name, color
                     FROM tag
                     WHERE {}('{}', {}) == 1",
-                    func, patt, column
+                    func.as_ref(),
+                    patt.as_ref(),
+                    column.as_ref()
                 ),
                 params![],
                 |row| row.try_into().expect("failed to convert to `Tag`"),
@@ -188,25 +190,25 @@ impl Txn<'_> {
     }
 
     /// Query for tags using a the `regex` custom function on `name`, or `color`
-    pub(crate) fn select_tags_by_regex(&self, column: &str, reg: &str) -> Result<Tags> {
-        self.select_tags_by_func("regex", column, reg)
+    pub(super) fn select_tags_by_regex<S: AsRef<str>>(&self, column: S, reg: S) -> Result<Tags> {
+        self.select_tags_by_func("regex", column.as_ref(), reg.as_ref())
     }
 
     /// Query for tags using a the `iregex` custom function on `name`, or
     /// `color`
-    pub(crate) fn select_tags_by_iregex(&self, column: &str, reg: &str) -> Result<Tags> {
-        self.select_tags_by_func("iregex", column, reg)
+    pub(super) fn select_tags_by_iregex<S: AsRef<str>>(&self, column: S, reg: S) -> Result<Tags> {
+        self.select_tags_by_func("iregex", column.as_ref(), reg.as_ref())
     }
 
     /// Query for files using a the `glob` custom function on `name`, or `color`
-    pub(crate) fn select_tags_by_glob(&self, column: &str, glob: &str) -> Result<Tags> {
-        self.select_tags_by_func("glob", column, glob)
+    pub(super) fn select_tags_by_glob<S: AsRef<str>>(&self, column: S, glob: S) -> Result<Tags> {
+        self.select_tags_by_func("glob", column.as_ref(), glob.as_ref())
     }
 
     /// Query for files using a the `iglob` custom function on `name`, or
     /// `color`
-    pub(crate) fn select_tags_by_iglob(&self, column: &str, glob: &str) -> Result<Tags> {
-        self.select_tags_by_func("iglob", column, glob)
+    pub(super) fn select_tags_by_iglob<S: AsRef<str>>(&self, column: S, glob: S) -> Result<Tags> {
+        self.select_tags_by_func("iglob", column.as_ref(), glob.as_ref())
     }
 
     // ============================= Modifying ============================

@@ -838,22 +838,22 @@ impl Txn<'_> {
     }
 
     /// Query for [`Files`] using the `regex` custom function on full path
-    pub(crate) fn select_files_by_regex_fp(&self, reg: &str) -> Result<Files> {
+    pub(super) fn select_files_by_regex_fp(&self, reg: &str) -> Result<Files> {
         self.select_files_by_regex("fullpath(directory, name)", reg)
     }
 
     /// Query for [`Files`] using the `iregex` custom function on full path
-    pub(crate) fn select_files_by_iregex_fp(&self, reg: &str) -> Result<Files> {
+    pub(super) fn select_files_by_iregex_fp(&self, reg: &str) -> Result<Files> {
         self.select_files_by_iregex("fullpath(directory, name)", reg)
     }
 
     /// Query for [`Files`] using the `glob` custom function on full path
-    pub(crate) fn select_files_by_glob_fp(&self, glob: &str) -> Result<Files> {
+    pub(super) fn select_files_by_glob_fp(&self, glob: &str) -> Result<Files> {
         self.select_files_by_glob("fullpath(directory, name)", glob)
     }
 
     /// Query for [`Files`] using the `iglob` custom function on the full path
-    pub(crate) fn select_files_by_iglob_fp(&self, glob: &str) -> Result<Files> {
+    pub(super) fn select_files_by_iglob_fp(&self, glob: &str) -> Result<Files> {
         self.select_files_by_iglob("fullpath(directory, name)", glob)
     }
 

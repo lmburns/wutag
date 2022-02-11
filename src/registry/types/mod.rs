@@ -74,26 +74,26 @@ impl Property {
 
 /// A row `ID`
 #[repr(transparent)]
-#[derive(Debug, Copy, Clone, Ord, PartialOrd, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub(crate) struct ID(i64);
 
 impl ID {
-    /// Returns an invalid `ID`
+    /// Returns an invalid [`ID`]
     pub(crate) const fn null() -> Self {
         Self(0)
     }
 
-    /// Returns the largest `ID`
+    /// Returns the largest [`ID`]
     pub(crate) const fn max() -> Self {
         Self(i64::MAX)
     }
 
-    /// Returns the inner `ID`
+    /// Returns the inner [`ID`]
     pub(crate) const fn id(self) -> i64 {
         self.0
     }
 
-    /// Create a new `ID` from a number
+    /// Create a new [`ID`] from a number
     pub(crate) const fn new(id: i64) -> Self {
         Self(id)
     }
@@ -257,11 +257,11 @@ impl FromSql for Table {
 // ============================== Extra ===============================
 // ====================================================================
 
-/// Convert a single type (e.g., `Tag`) to its' type that is a vector of that
-/// same type (e.g., `Tags`)
+/// Convert a single type (e.g., [`Tag`]) to a type that is a wrapper for a
+/// vector of that same type (e.g., [`Tags`])
 ///
-/// `Tag`: self::tag::Tag
-/// `Tags`: self::tag::Tags
+/// [`Tag`]: ./tag/struct.Tag.html
+/// [`Tags`]: ./tag/struct.Tags.html
 macro_rules! from_vec {
     ($from:tt, $to:tt) => {
         impl From<Vec<$from>> for $to {
@@ -274,7 +274,8 @@ macro_rules! from_vec {
 
 /// Base functions to use for structs that consist only of an inner vector.
 ///
-/// These conversion types seem to be necessary when using `rusqlite`
+/// Used specifically for objects that are serialized form a [`rusqlite`]
+/// database.
 macro_rules! impl_vec {
     ($t:tt) => {
         /// Create a new set from a vector
@@ -285,6 +286,11 @@ macro_rules! impl_vec {
         /// Create a new blank set
         pub(crate) const fn empty() -> Self {
             Self { inner: vec![] }
+        }
+
+        /// Clear the values in the vector
+        pub(crate) fn clear(&mut self) {
+            self.inner.clear();
         }
 
         /// Extend the inner vector
@@ -317,14 +323,91 @@ macro_rules! impl_vec {
             self.inner.is_empty()
         }
 
-        /// Return an iterator of the inner vector
-        pub(crate) fn iter(&self) -> impl Iterator<Item = $t> + '_ {
-            self.inner.iter().cloned()
-        }
-
         /// Get an item from the inner vector
         pub(crate) fn get(&self, idx: usize) -> Option<&$t> {
             self.inner.get(idx)
+        }
+
+        /// Get unique items from the inner array
+        pub(crate) fn unique(&mut self) {
+            self.inner.sort_unstable();
+            self.inner.dedup();
+        }
+
+        /// Get unique items from the inner array, returning `Self`
+        pub(crate) fn unique_b(mut self) -> Self {
+            self.inner.sort_unstable();
+            self.inner.dedup();
+            self
+        }
+
+        /// Return an iterator of the inner vector
+        pub(crate) fn iter(&self) -> std::slice::Iter<'_, $t> {
+            self.inner.iter()
+        }
+
+        /// Shorthand to the [`itertools`] function [`find_position`]
+        ///
+        /// [`find_position`]: itertools::Itertools::find_position
+        pub(crate) fn find_position<F>(&self, mut f: F) -> Option<(usize, &$t)>
+        where
+            F: FnMut(&$t) -> bool,
+        {
+            use itertools::Itertools;
+            self.iter().find_position(|item| f(*item))
+        }
+
+        /// Shorthand to the Rust builtin [`filter`]
+        ///
+        /// [`any`]: std::iter::Iterator::filter
+        pub(crate) fn filter<F>(&self, mut f: F) -> Vec<$t>
+        where
+            F: FnMut(&$t) -> bool,
+        {
+            self.iter().filter(|i| f(i)).cloned().collect::<Vec<$t>>()
+        }
+
+        /// Shorthand to the Rust builtin [`any`]
+        ///
+        /// [`any`]: std::iter::Iterator::any
+        pub(crate) fn any<F>(&self, f: F) -> bool
+        where
+            F: Fn(&$t) -> bool,
+        {
+            self.iter().any(f)
+        }
+
+        /// Shorthand to the Rust builtin [`all`]
+        ///
+        /// [`any`]: std::iter::Iterator::all
+        pub(crate) fn all<F>(&self, f: F) -> bool
+        where
+            F: Fn(&$t) -> bool,
+        {
+            self.iter().all(f)
+        }
+
+        /// Same function as [`map`] on any iterator. Returns a vector
+        ///
+        /// [`map`]: std::iter::Iterator::map
+        pub(crate) fn map_vec<F, B>(&self, mut f: F) -> Vec<B>
+        where
+            F: FnMut(&$t) -> B,
+        {
+            self.iter().map(|i| f(&i)).collect::<Vec<B>>()
+        }
+
+        /// Same function as [`map`] on any iterator.
+        /// Returns a **unique** vector
+        ///
+        /// [`map`]: std::iter::Iterator::map
+        pub(crate) fn map_vec_uniq<F, B>(&self, mut f: F) -> Vec<B>
+        where
+            B: Clone + Eq + std::hash::Hash,
+            F: FnMut(&$t) -> B,
+        {
+            use itertools::Itertools;
+            self.iter().map(f).unique().collect::<Vec<B>>()
         }
     };
     ($impl:tt, $t:tt) => {
@@ -346,7 +429,98 @@ macro_rules! impl_vec {
 //     };
 // }
 
+/// Create a function that will validate the given type's name before inserting
+/// it into the database.
+///
+/// This helps to prevent *some* parsing errors with `nom`
+macro_rules! validate_name {
+    ($type:tt, $type_plural:tt) => {
+        /// Verify that the given name is valid
+        pub(crate) fn validate_name<S: AsRef<str>>(name: S) -> anyhow::Result<()> {
+            use crate::registry::querier::{
+                COMPARISON_OPS, CONDITIONAL_RES, FUNC_NAMES, OTHER_RES,
+            };
+            use anyhow::anyhow;
+            use regex::Regex;
+
+            macro_rules! color_arr {
+                ($arr:expr) => {
+                    $arr.iter()
+                        .map(|s| s.red().to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                };
+            }
+
+            let name = name.as_ref().to_ascii_lowercase();
+            if COMPARISON_OPS.iter().copied().any(|c| c == name) {
+                return Err(anyhow!(
+                    "invalid {} was given: {}\n\nValid {} must not contain any operators:\n\t- {}",
+                    $type,
+                    name,
+                    $type_plural,
+                    color_arr!(COMPARISON_OPS)
+                ));
+            }
+
+            if CONDITIONAL_RES.iter().copied().any(|r| r == name) {
+                return Err(anyhow!(
+                    "invalid {} was given: {}\n\nValid {} must not contain any conditional \
+             keywords:\n\t- {}",
+                    $type,
+                    name,
+                    $type_plural,
+                    color_arr!(CONDITIONAL_RES)
+                ));
+            }
+
+            let reg = $crate::regex!(&format!("({})\\(.*\\)", FUNC_NAMES.join("|")));
+            if reg.is_match(&name) {
+                return Err(anyhow!(
+                    "invalid {} was given: {}\n\nValid {} must not contain any of the following \
+             function names, proceeded by an opening and closing parenethesis:\n\t- {}",
+                    $type,
+                    name,
+                    $type_plural,
+                    color_arr!(FUNC_NAMES)
+                ));
+            }
+
+            if OTHER_RES
+                .iter()
+                .any(|reg| $crate::regex!(reg).is_match(&name))
+            {
+                return Err(anyhow!(
+                    "invalid {} was given: {}\n\nValid {} must not contain any of:\n\t- {}",
+                    $type,
+                    name,
+                    $type_plural,
+                    color_arr!(
+                        ([
+                            "$F",
+                            "@F",
+                            "@F[N]",
+                            "@F[N..M]",
+                            "@F[N,M]",
+                            "@F[N..=M]",
+                            "@F[..]",
+                            "@F[..=M]",
+                            "%r//",
+                            "%g//",
+                            "//r",
+                            "//g"
+                        ])
+                    )
+                ));
+            }
+
+            Ok(())
+        }
+    };
+}
+
 // A `pub` qualifier prevents the macro from only being accessible from the
 // crate root
 pub(crate) use from_vec;
 pub(crate) use impl_vec;
+pub(crate) use validate_name;

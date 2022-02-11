@@ -3,8 +3,11 @@
 // TODO: Look into merging wutag_core Tag and this Tag
 // When writing metadata to file, possibly write tag values as well
 
-use super::{filetag::FileTag, from_vec, impl_vec, implication::Implication, value::ValueId, ID};
-use anyhow::{Context, Result};
+use super::{
+    filetag::FileTag, from_vec, impl_vec, implication::Implication, validate_name, value::ValueId,
+    ID,
+};
+use anyhow::{anyhow, Context, Result};
 use colored::{Color, Colorize};
 use rusqlite::{
     self as rsq,
@@ -12,6 +15,7 @@ use rusqlite::{
     Row,
 };
 use serde::{Deserialize, Serialize};
+use std::{cmp::Ordering, fmt};
 use wutag_core::{color::parse_color, tag::Tag as WTag};
 
 // ======================= TagId ======================
@@ -25,17 +29,13 @@ pub(crate) struct TagIds {
     inner: Vec<TagId>,
 }
 
-from_vec!(TagId, TagIds);
-
-impl TagIds {
-    impl_vec!(TagId);
-
-    /// Get unique [`TagIds`]
-    pub(crate) fn unique(&mut self) {
-        self.inner.sort_unstable();
-        self.inner.dedup();
+impl From<TagIds> for Vec<TagId> {
+    fn from(t: TagIds) -> Self {
+        t.inner
     }
 }
+from_vec!(TagId, TagIds);
+impl_vec!(TagIds, TagId);
 
 // ======================== Tag =======================
 
@@ -43,7 +43,7 @@ impl TagIds {
 ///
 /// The [`Tag`](wutag_core::tag::Tag) in [`wutag_core`] is what is written to a
 /// file's extended attributes
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub(crate) struct Tag {
     /// The unique identifier
     id:    TagId,
@@ -54,6 +54,8 @@ pub(crate) struct Tag {
 }
 
 impl Tag {
+    validate_name!("tag name", "tag names");
+
     /// Return the [`TagId`]
     pub(crate) const fn id(&self) -> TagId {
         self.id
@@ -145,14 +147,6 @@ from_vec!(Tag, Tags);
 impl Tags {
     impl_vec!(Tag);
 
-    /// Shorthand to the Rust builtin `any`
-    pub(crate) fn any<F>(&self, f: F) -> bool
-    where
-        F: Fn(&Tag) -> bool,
-    {
-        self.inner.iter().any(f)
-    }
-
     /// Does the inner vector contain a specific [`Tag`] by [`ID`]?
     pub(crate) fn contains(&self, other: &Tag) -> bool {
         self.any(|v| v.id() == other.id())
@@ -219,11 +213,11 @@ impl TryFrom<&Row<'_>> for TagFileCnt {
 // ================== TagValueCombo ===================
 
 /// A pair made of a [`TagId`] and [`ValueId`]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub(crate) struct TagValueCombo {
     /// ID of the [`Tag`]
     tag_id:   TagId,
-    /// ID of the [`Value`]
+    /// ID of the [`Value`](super::value::Value)
     value_id: ValueId,
 }
 
@@ -247,14 +241,40 @@ impl TagValueCombo {
     }
 }
 
-impl From<FileTag> for TagValueCombo {
-    fn from(f: FileTag) -> Self {
-        Self {
-            tag_id:   f.tag_id(),
-            value_id: f.value_id(),
-        }
+impl fmt::Display for TagValueCombo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use colored::Colorize;
+        write!(
+            f,
+            "#{}=#{}",
+            self.tag_id.to_string().green(),
+            self.value_id.to_string().red()
+        )
     }
 }
+
+impl From<FileTag> for TagValueCombo {
+    fn from(f: FileTag) -> Self {
+        Self::new(f.tag_id(), f.file_id())
+    }
+}
+
+// ===================== TagValueCombos =====================
+
+/// A vector of [`TagValueCombo`]s
+#[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
+pub(crate) struct TagValueCombos {
+    /// The inner vector of [`TagValueCombo`]s
+    inner: Vec<TagValueCombo>,
+}
+
+from_vec!(TagValueCombo, TagValueCombos);
+
+impl TagValueCombos {
+    impl_vec!(TagValueCombo);
+}
+
+// ========================== Tests ==========================
 
 mod test {
     use super::{TagId, TagIds};

@@ -41,7 +41,7 @@ impl Txn<'_> {
     // ====================================================================
 
     /// Retrieve all [`Implication`]s within the database
-    pub(crate) fn implications(&self) -> Result<Implications> {
+    pub(super) fn implications(&self) -> Result<Implications> {
         let impls: Vec<Implication> = self
             .query_vec(
                 "SELECT
@@ -76,7 +76,7 @@ impl Txn<'_> {
 
     /// Retrieve the [`Implication`]s matching the [`TagValueCombo`]s. This
     /// returns the `implied` values
-    pub(crate) fn implications_implied(
+    pub(super) fn implications_for(
         &self,
         tvpairs: &[TagValueCombo],
     ) -> Result<Implications, Error> {
@@ -131,7 +131,7 @@ impl Txn<'_> {
 
     /// Retrieve the [`Implication`]s matching the [`TagValueCombo`]s. This
     /// returns the `implying` values
-    pub(crate) fn implications_implying(&self, tvpairs: &[TagValueCombo]) -> Result<Implications> {
+    pub(super) fn implications_implying(&self, tvpairs: &[TagValueCombo]) -> Result<Implications> {
         let mut builder = SqlBuilder::new();
         // TODO: Implying here is matching what?
         // `implying` renamed to `implied` to convert to row
@@ -158,7 +158,7 @@ impl Txn<'_> {
 
         for (idx, pair) in tvpairs.iter().enumerate() {
             if idx > 0 {
-                builder.append("   OR ");
+                builder.append(" OR ");
             }
 
             builder.append("(impl.implied_tag_id = ");
@@ -183,7 +183,7 @@ impl Txn<'_> {
     // ====================================================================
 
     /// Insert an [`Implication`] into the `impl` table
-    pub(crate) fn insert_implication(
+    pub(super) fn insert_implication(
         &self,
         pair: &TagValueCombo,
         implied: &TagValueCombo,
@@ -206,7 +206,7 @@ impl Txn<'_> {
     }
 
     /// Remove an [`Implication`] from the `impl` table
-    pub(crate) fn delete_implication(
+    pub(super) fn delete_implication(
         &self,
         pair: &TagValueCombo,
         implied: &TagValueCombo,
@@ -214,12 +214,12 @@ impl Txn<'_> {
         let affected = self
             .execute(
                 "DELETE FROM
-              implication
-            WHERE
-              tag_id = ?1
-              AND value_id = ?2
-              AND implied_tag_id = ?3
-              AND implied_value_id = ?4",
+                  implication
+                WHERE
+                  tag_id = ?1
+                  AND value_id = ?2
+                  AND implied_tag_id = ?3
+                  AND implied_value_id = ?4",
                 params![
                     pair.tag_id(),
                     pair.value_id(),
@@ -247,7 +247,7 @@ impl Txn<'_> {
     }
 
     /// Remove an [`Implication`] from the `impl` table given a [`TagId`]
-    pub(crate) fn delete_implication_by_tagid(&self, tid: TagId) -> Result<()> {
+    pub(super) fn delete_implication_by_tagid(&self, tid: TagId) -> Result<()> {
         self.execute(
             "DELETE FROM implication
             WHERE tag_id = ?1 OR implied_tag_id = ?1",
@@ -259,7 +259,7 @@ impl Txn<'_> {
     }
 
     /// Remove an [`Implication`] from the `impl` table given a [`ValueId`]
-    pub(crate) fn delete_implication_by_valueid(&self, vid: ValueId) -> Result<()> {
+    pub(super) fn delete_implication_by_valueid(&self, vid: ValueId) -> Result<()> {
         self.execute(
             "DELETE FROM implication
             WHERE value_id = ?1 OR implied_value_id = ?1",
@@ -270,12 +270,3 @@ impl Txn<'_> {
         Ok(())
     }
 }
-
-// implying_tag.id,
-// implying_tag.name,
-// implying_value.id,
-// implying_value.name
-// INNER JOIN tag implied_tag ON impl.implied_tag_id = implied_tag.id
-// LEFT OUTER JOIN value implied_value ON impl.implied_value_id =
-// implied_value.id INNER JOIN tag tag ON implication.tag_id = tag.id
-// LEFT OUTER JOIN value value ON implication.value_id = value.id

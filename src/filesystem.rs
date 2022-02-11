@@ -165,7 +165,7 @@ pub(crate) mod ext4 {
     /// `ext2`, `ext3`, `ext4` file flags used with `chattr(1)` and `lsattr(1)`
     ///
     /// Used for custom implementations and a better description of flag names
-    #[derive(Debug, Clone, PartialEq, Eq)]
+    #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
     pub(crate) struct FileFlag(Flags);
 
     #[rustfmt::skip]

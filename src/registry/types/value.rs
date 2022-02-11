@@ -2,10 +2,11 @@
 //! `xattr`, since it is an extended attribute of the [`Tag`] itself
 
 use super::{
-    super::querier::{COMPARISON_OPS, FUNC_NAMES},
-    from_vec, impl_vec, ID,
+    super::querier::{COMPARISON_OPS, CONDITIONAL_RES, FUNC_NAMES, OTHER_RES},
+    from_vec, impl_vec, validate_name, ID,
 };
 use anyhow::{anyhow, Result};
+use colored::Colorize;
 use rusqlite::{
     self as rsq,
     types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, ValueRef},
@@ -25,21 +26,12 @@ pub(crate) struct ValueIds {
 }
 
 from_vec!(ValueId, ValueIds);
-
-impl ValueIds {
-    impl_vec!(ValueId);
-
-    /// Get unique [`ValueIds`]
-    pub(crate) fn unique(&mut self) {
-        self.inner.sort_unstable();
-        self.inner.dedup();
-    }
-}
+impl_vec!(ValueIds, ValueId);
 
 // ======================= Value ======================
 
 /// The representation of a "`Tag`'s tag"
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub(crate) struct Value {
     /// The value's unique identifier
     id:   ValueId,
@@ -48,6 +40,8 @@ pub(crate) struct Value {
 }
 
 impl Value {
+    validate_name!("value name", "values");
+
     /// Return the [`ValueId`]
     pub(crate) const fn id(&self) -> ValueId {
         self.id
@@ -61,34 +55,6 @@ impl Value {
     /// Create a new `Value`
     pub(crate) const fn new(id: ValueId, name: String) -> Self {
         Self { id, name }
-    }
-
-    /// Verify that the [`Value`] name is valid
-    pub(crate) fn validate_name<S: AsRef<str>>(name: S) -> Result<()> {
-        use crate::regex;
-        use regex::Regex;
-
-        let name = name.as_ref();
-        if COMPARISON_OPS.contains(&name) {
-            return Err(anyhow!(
-                "invalid value name was given: {}\n\nValid values must not contain:\n\t- {}",
-                name,
-                COMPARISON_OPS.join(", ")
-            ));
-        }
-
-        let reg = regex!(&format!("({})\\(.*\\)", FUNC_NAMES.join("|")));
-        if FUNC_NAMES.iter().any(|f| reg.is_match(f)) {
-            return Err(anyhow!(
-                "invalid value name was given: {}\n\nValid values must not contain any of the \
-                 following function names, proceeded by an opening and closing parenethesis:\n\t- \
-                 {}",
-                name,
-                FUNC_NAMES.join(", ")
-            ));
-        }
-
-        Ok(())
     }
 }
 
@@ -127,7 +93,7 @@ impl TryFrom<&Row<'_>> for Value {
 // ====================== Values ======================
 
 /// A vector of [`Value`]s
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Ord, PartialOrd, PartialEq, Eq)]
 pub(crate) struct Values {
     /// The inner vector of [`Value`]s
     inner: Vec<Value>,
@@ -137,14 +103,6 @@ from_vec!(Value, Values);
 
 impl Values {
     impl_vec!(Value);
-
-    /// Shorthand to the Rust builtin `any`
-    pub(crate) fn any<F>(&self, f: F) -> bool
-    where
-        F: Fn(&Value) -> bool,
-    {
-        self.inner.iter().any(f)
-    }
 
     /// Does the inner vector contain a specific [`Value`] by [`ID`]?
     pub(crate) fn contains(&self, other: &Value) -> bool {

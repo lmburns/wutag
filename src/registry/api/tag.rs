@@ -1,5 +1,7 @@
 //! Interactions with the [`Tag`] object
 
+use crate::registry::types::tag::TagFileCnt;
+
 use super::super::{
     types::{
         file::FileId,
@@ -10,7 +12,8 @@ use super::super::{
     Registry,
 };
 use anyhow::{anyhow, Context, Result};
-use colored::Colorize;
+use colored::{Color, Colorize};
+use wutag_core::color::parse_color;
 
 impl Registry {
     // ============================ Retrieving ============================
@@ -37,7 +40,7 @@ impl Registry {
     /// Retrieve the [`Tags`] matching the array of [`TagIds`]
     pub(crate) fn tags_by_ids(&self, ids: &TagIds) -> Result<Tags> {
         let txn = self.txn()?;
-        Ok(txn.tags_by_ids(ids.inner())?)
+        txn.tags_by_ids(ids.inner()).map_err(Into::into)
     }
 
     /// Retrieve the [`Tag`] matching the given name
@@ -55,13 +58,13 @@ impl Registry {
     /// Retrieve the [`Tags`] matching the given names
     pub(crate) fn tags_by_names<S: AsRef<str>>(&self, names: &[S]) -> Result<Tags> {
         let txn = self.txn()?;
-        Ok(txn.tags_by_names(names, false)?)
+        txn.tags_by_names(names, false).map_err(Into::into)
     }
 
     /// Retrieve the [`Tags`] matching the given names (ignoring case)
     pub(crate) fn tags_by_names_nocase<S: AsRef<str>>(&self, names: &[S]) -> Result<Tags> {
         let txn = self.txn()?;
-        Ok(txn.tags_by_names(names, true)?)
+        txn.tags_by_names(names, true).map_err(Into::into)
     }
 
     // ========================= Pattern Matching =========================
@@ -119,9 +122,54 @@ impl Registry {
 
     /// Insert a [`Tag`] into the database
     pub(crate) fn insert_tag<S: AsRef<str>>(&self, name: S, color: S) -> Result<Tag> {
+        Tag::validate_name(&name)?;
+        let txn = self.txn()?;
+        // Parse color at a higher level
+        // TODO: Decide whether this should express an error
+        let color = parse_color(&color).unwrap_or(Color::BrightWhite);
+
+        txn.insert_tag(name, color)
+    }
+
+    /// Update the [`Tag`] by changing its `name`
+    pub(crate) fn update_tag_name<S: AsRef<str>>(&self, id: TagId, name: S) -> Result<Tag> {
+        Tag::validate_name(&name)?;
+        let txn = self.txn()?;
+        txn.update_tag_name(id, name).map_err(Into::into)
+    }
+
+    /// Update the [`Tag`] by changing its `color`
+    pub(crate) fn update_tag_color<S: AsRef<str>>(&self, id: TagId, color: S) -> Result<Tag> {
+        let txn = self.txn()?;
+        // TODO: Decide whether this should express an error
+        let color = parse_color(&color).unwrap_or(Color::BrightWhite);
+        txn.update_tag_color(id, color).map_err(Into::into)
+    }
+
+    /// Create a new [`Tag`] and apply it to an existing [`Tag`]
+    pub(crate) fn copy_tag<S: AsRef<str>>(&self, source_id: TagId, name: S) -> Result<Tag> {
+        Tag::validate_name(&name)?;
         let txn = self.txn()?;
 
-        // TODO: verify color
-        txn.insert_tag(name, color)
+        let source_tag = txn.tag(source_id)?;
+        let new_tag = txn.insert_tag(name, source_tag.color())?;
+        txn.copy_filetags(source_id, new_tag.id())?;
+
+        Ok(new_tag)
+    }
+
+    /// Delete a [`Tag`] matching the given [`TagId`]
+    pub(crate) fn delete_tag<S: AsRef<str>>(&self, id: TagId) -> Result<()> {
+        let txn = self.txn()?;
+        txn.delete_tag(id).map_err(Into::into)
+    }
+
+    // ============================== Other ===============================
+    // ====================================================================
+
+    /// Show information about a [`Tag`]
+    pub(crate) fn tag_info(&self) -> Result<Vec<TagFileCnt>> {
+        let txn = self.txn()?;
+        txn.tag_information()
     }
 }

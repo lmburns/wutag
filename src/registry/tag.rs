@@ -25,7 +25,7 @@ use super::{
 };
 use crate::{conv_fail, fail, failure, query_fail, retr_fail};
 use anyhow::{Context, Result};
-use colored::Colorize;
+use colored::{Color, Colorize};
 use std::{convert::TryInto, time::SystemTime};
 
 use rusqlite::{
@@ -215,14 +215,13 @@ impl Txn<'_> {
     // ====================================================================
 
     /// Insert a [`Tag`] into the database
-    pub(crate) fn insert_tag<S: AsRef<str>>(&self, name: S, color: S) -> Result<Tag> {
+    pub(super) fn insert_tag<S: AsRef<str>>(&self, name: S, color: Color) -> Result<Tag> {
         let name = name.as_ref();
-        let color = color.as_ref();
         let res = self
             .insert(
                 "INSERT INTO tag (name, color)
                 VALUES (?1, ?2)",
-                params![name, color],
+                params![name, color.to_fg_str().as_ref().to_string()],
             )
             .context(fail!("insert `Tag`"))?;
 
@@ -230,7 +229,7 @@ impl Txn<'_> {
     }
 
     /// Update the [`Tag`] by changing its' name
-    pub(crate) fn update_tag_name<S: AsRef<str>>(&self, id: TagId, new: S) -> Result<Tag, Error> {
+    pub(super) fn update_tag_name<S: AsRef<str>>(&self, id: TagId, new: S) -> Result<Tag, Error> {
         let name = new.as_ref();
         let affected = self
             .execute(
@@ -251,18 +250,13 @@ impl Txn<'_> {
     }
 
     /// Update the [`Tag`] by changing its' color
-    pub(crate) fn update_tag_color<S: AsRef<str>>(
-        &self,
-        id: TagId,
-        color: S,
-    ) -> Result<Tag, Error> {
-        let color = color.as_ref();
+    pub(super) fn update_tag_color(&self, id: TagId, color: Color) -> Result<Tag, Error> {
         let affected = self
             .execute(
                 "UPDATE tag
                 SET color = ?1
                 WHERE id = ?2",
-                params![color, id],
+                params![color.to_fg_str().as_ref().to_string(), id],
             )
             .context("failed to update `Tag` by color")?;
 
@@ -301,7 +295,7 @@ impl Txn<'_> {
     pub(crate) fn tag_information(&self) -> Result<Vec<TagFileCnt>> {
         let tfc: Vec<TagFileCnt> = self
             .query_vec(
-                "SELECT t.id, t.name, count(file_id) as cnt
+                "SELECT t.id, t.name, COUNT(file_id) as cnt
                 FROM file_tag ft, tag t
                 WHERE ft.tag_id = t.id
                 GROUP BY t.id

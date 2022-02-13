@@ -129,7 +129,7 @@ impl FileTags {
 
     /// Return the first [`FileTag`]
     pub(crate) fn first(&self) -> Option<FileTag> {
-        crate::ternary!(self.len() == 1, self.get(0).copied(), None)
+        tern::t!(self.len() == 1 ? self.get(0).copied() : None)
     }
 
     /// Convert all [`FileTag`]s to a [`TagValueCombo`]s

@@ -417,6 +417,19 @@ macro_rules! impl_vec {
     };
 }
 
+// macro_rules! impl_intoiter {
+//     ($t:tt, $type:tt) => {
+//         impl IntoIterator for $t {
+//             type IntoIter = std::vec::IntoIter<$type>;
+//             type Item = $type;
+//
+//             fn into_iter(self) -> Self::IntoIter {
+//                 self.inner().into_iter()
+//             }
+//         }
+//     };
+// }
+
 // macro_rules! impl_deref {
 //     ($t:tt, $type:tt) => {
 //         impl std::ops::Deref for $t {
@@ -437,12 +450,13 @@ macro_rules! validate_name {
     ($type:tt, $type_plural:tt) => {
         /// Verify that the given name is valid
         pub(crate) fn validate_name<S: AsRef<str>>(name: S) -> anyhow::Result<()> {
-            use crate::registry::querier::{
-                COMPARISON_OPS, CONDITIONAL_RES, FUNC_NAMES, OTHER_RES,
-            };
             use anyhow::anyhow;
             use regex::Regex;
+            use $crate::registry::querier::{
+                COMPARISON_OPS, CONDITIONAL_RES, FUNC_NAMES, OTHER_RES,
+            };
 
+            /// Color the items in an array
             macro_rules! color_arr {
                 ($arr:expr) => {
                     $arr.iter()

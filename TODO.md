@@ -120,3 +120,8 @@ implies()
 a\ b
 ab\{
 'ab{'
+
+====================================================
+
+## Non-Registry Todo
+* Allow option for tags to be moved when file is moved

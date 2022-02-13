@@ -7,8 +7,8 @@
 
 use super::{
     uses::{
-        contained_path, fmt_local_path, fmt_path, fmt_tag, global_opts, raw_local_path, ternary,
-        Args, ColorChoice, Colorize, HashMap, Subcommand,
+        contained_path, fmt_local_path, fmt_path, fmt_tag, global_opts, raw_local_path, Args,
+        ColorChoice, Colorize, HashMap, Subcommand,
     },
     App,
 };
@@ -201,10 +201,10 @@ impl App {
 
                         if formatted {
                             table.push(vec![
-                                ternary!(
-                                    self.global,
-                                    fmt_path(file.path(), self.base_color, self.ls_colors),
-                                    fmt_local_path(
+                                tern::t!(
+                                    self.global
+                                    ? fmt_path(file.path(), self.base_color, self.ls_colors)
+                                    : fmt_local_path(
                                         file.path(),
                                         &self.base_dir,
                                         self.base_color,
@@ -225,13 +225,13 @@ impl App {
                 }
 
                 if formatted {
-                    print_stdout(ternary!(
-                        border,
-                        table
+                    print_stdout(tern::t!(
+                        border
+                        ? table
                             .table()
                             .foreground_color(Some(self.border_color))
-                            .color_choice(colorchoice),
-                        table
+                            .color_choice(colorchoice)
+                        : table
                             .table()
                             .border(Border::builder().build())
                             .separator(Separator::builder().build())
@@ -303,10 +303,10 @@ impl App {
                 for (tag, count) in vec {
                     table.push(vec![
                         tag.cell(),
-                        ternary!(
-                            opts.raw,
-                            count.to_string().white(),
-                            count.to_string().green().bold()
+                        tern::t!(
+                            opts.raw
+                                ? count.to_string().white()
+                                : count.to_string().green().bold()
                         )
                         .cell()
                         .justify(Justify::Right),
@@ -344,13 +344,13 @@ impl App {
                         println!("{}", tag);
                     }
                 } else {
-                    print_stdout(ternary!(
-                        border,
-                        table
+                    print_stdout(tern::t!(
+                        border
+                        ? table
                             .table()
                             .foreground_color(Some(self.border_color))
-                            .color_choice(colorchoice),
-                        table
+                            .color_choice(colorchoice)
+                        : table
                             .table()
                             .border(Border::builder().build())
                             .separator(Separator::builder().build())

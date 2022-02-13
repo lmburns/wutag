@@ -6,6 +6,7 @@ use super::{
     tag::{Tag, TagId, TagValueCombo},
     value::{Value, ValueId},
 };
+use wutag_core::color::parse_color;
 
 use rusqlite::{
     self as rsq,
@@ -71,13 +72,15 @@ impl TryFrom<&Row<'_>> for Implication {
             implying_tag: Tag::new(
                 row.get("tag.id")?,
                 row.get::<_, String>("tag.name")?,
-                row.get::<_, String>("tag.color")?,
+                parse_color(row.get::<_, String>("tag.color")?)
+                    .map_err(|e| rsq::Error::InvalidColumnName(e.to_string()))?,
             ),
             implying_val: Value::new(row.get("value.id")?, row.get("value.name")?),
             implied_tag:  Tag::new(
                 row.get(5)?,
                 row.get::<_, String>(6)?,
-                row.get::<_, String>(7)?,
+                parse_color(row.get::<_, String>(7)?)
+                    .map_err(|e| rsq::Error::InvalidColumnName(e.to_string()))?,
             ),
             implied_val:  Value::new(row.get(8)?, row.get(9)?),
         })

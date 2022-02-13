@@ -40,7 +40,7 @@ pub(crate) use crate::{
     global_opts,
     opt::{Command, Opts},
     oregistry::{self, EntryData, TagRegistry},
-    ternary, ui,
+    ui,
     util::{
         collect_stdin_paths, fmt_err, fmt_local_path, fmt_ok, fmt_path, fmt_tag, gen_completions,
         glob_builder, parse_path, prompt, raw_local_path, reg_ok, regex_builder, replace,

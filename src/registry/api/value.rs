@@ -32,7 +32,7 @@ impl Registry {
         txn.value(id)
     }
 
-    /// Retrieve all `Value`s matching the vector of `ValueId`s
+    /// Retrieve all [`Values`] matching the vector of [`ValueId`]s
     pub(crate) fn values_by_valueids(&self, ids: Vec<ValueId>) -> Result<Values> {
         let txn = self.txn()?;
         txn.values_by_valueids(ids).map_err(Into::into)
@@ -72,22 +72,22 @@ impl Registry {
     // ====================================================================
 
     /// Query for [`Values`] using a the `regex` custom function
-    pub(crate) fn select_values_by_regex(&self, reg: &str) -> Result<Values> {
+    pub(crate) fn values_by_regex(&self, reg: &str) -> Result<Values> {
         self.txn()?.select_values_by_regex(reg)
     }
 
     /// Query for [`Values`] using a the `regex` custom function
-    pub(crate) fn select_values_by_iregex(&self, reg: &str) -> Result<Values> {
+    pub(crate) fn values_by_iregex(&self, reg: &str) -> Result<Values> {
         self.txn()?.select_values_by_iregex(reg)
     }
 
     /// Query for [`Values`] using a the `glob` custom function
-    pub(crate) fn select_values_by_glob(&self, glob: &str) -> Result<Values> {
+    pub(crate) fn values_by_glob(&self, glob: &str) -> Result<Values> {
         self.txn()?.select_values_by_glob(glob)
     }
 
     /// Query for [`Values`] using a the `iglob` custom function
-    pub(crate) fn select_values_by_iglob(&self, glob: &str) -> Result<Values> {
+    pub(crate) fn values_by_iglob(&self, glob: &str) -> Result<Values> {
         self.txn()?.select_values_by_iglob(glob)
     }
 

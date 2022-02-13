@@ -17,24 +17,12 @@ macro_rules! err {
     }};
 }
 
-/// Makeshift ternary 2 == 2 ? "yes" : "no", mainly used for printing
-#[macro_export]
-macro_rules! ternary {
-    ($c:expr, $v:expr, $v1:expr) => {
-        if $c {
-            $v
-        } else {
-            $v1
-        }
-    };
-}
-
 /// Detect if the files should be displayed globally
 #[macro_export]
 macro_rules! global_opts {
     ($local:expr, $global:expr, $app:ident, $garrulous:expr) => {
         if $garrulous {
-            ternary!($app.global, println!("{}", $global), println!("{}", $local));
+            tern::t!($app.global ? println!("{}", $global) : println!("{}", $local));
         } else if $app.global {
             print!("{}", $global);
         } else {

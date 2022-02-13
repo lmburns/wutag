@@ -11,7 +11,6 @@ pub(crate) use crate::{
     filesystem::{contained_path, osstr_to_bytes},
     global_opts,
     subcommand::{search::SearchOpts, App},
-    ternary,
     util::{fmt_local_path, fmt_path, fmt_tag, raw_local_path, regex_builder},
     wutag_error,
 };

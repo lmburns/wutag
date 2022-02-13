@@ -6,7 +6,7 @@
 use super::{
     list::{ListObject, ListOpts},
     uses::{
-        contained_path, fmt_local_path, fmt_path, fmt_tag, global_opts, raw_local_path, ternary,
+        contained_path, fmt_local_path, fmt_path, fmt_tag, global_opts, raw_local_path,
         ColorChoice, Colorize, HashMap,
     },
     App,

@@ -3,9 +3,9 @@
 use super::{
     uses::{
         bold_entry, clear_tags, contained_path, create_temp_path, fmt_path, fmt_tag, fs,
-        glob_builder, osstr_to_bytes, process, raw_local_path, reg_ok, regex_builder, ternary,
-        wutag_error, wutag_fatal, wutag_info, Arc, ArgSettings, Args, BTreeMap, Captures, Colorize,
-        Cow, DirEntryExt, EntryData, Lexiclean, OsStr, PathBuf, Regex, Result, Tag, Write,
+        glob_builder, osstr_to_bytes, process, raw_local_path, reg_ok, regex_builder, wutag_error,
+        wutag_fatal, wutag_info, Arc, ArgSettings, Args, BTreeMap, Captures, Colorize, Cow,
+        DirEntryExt, EntryData, Lexiclean, OsStr, PathBuf, Regex, Result, Tag, Write,
         DEFAULT_EDITOR,
     },
     App,
@@ -88,10 +88,10 @@ impl App {
                 &Arc::new(self.clone()),
                 |entry: &ignore::DirEntry| {
                     map.insert(
-                        ternary!(
-                            self.global,
-                            entry.path().display().to_string(),
-                            raw_local_path(entry.path(), &self.base_dir)
+                        tern::t!(
+                            self.global
+                            ? entry.path().display().to_string()
+                            : raw_local_path(entry.path(), &self.base_dir)
                         ),
                         match entry.has_tags() {
                             Ok(has_tags) =>
@@ -146,10 +146,10 @@ impl App {
                     }
 
                     map.insert(
-                        ternary!(
-                            self.global,
-                            entry.path().display().to_string(),
-                            raw_local_path(entry.path(), &self.base_dir)
+                        tern::t!(
+                            self.global
+                            ? entry.path().display().to_string()
+                            : raw_local_path(entry.path(), &self.base_dir)
                         ),
                         self.registry
                             .list_entry_tags(*id)

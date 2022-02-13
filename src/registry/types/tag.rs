@@ -72,11 +72,11 @@ impl Tag {
     }
 
     /// Create a new [`Tag`]
-    pub(crate) fn new<S: AsRef<str>>(id: TagId, name: S, color: S) -> Self {
+    pub(crate) fn new<S: AsRef<str>>(id: TagId, name: S, color: Color) -> Self {
         Self {
             id,
             name: name.as_ref().to_owned(),
-            color: parse_color(color).unwrap_or(Color::BrightWhite),
+            color,
         }
     }
 

@@ -269,13 +269,13 @@ impl Registry {
     /// Update a [`File`]'s information in the database
     pub(crate) fn update_file<P: AsRef<Path>>(&self, id: FileId, path: P) -> Result<File> {
         let txn = self.txn()?;
-        Ok(txn.update_file(id, path)?)
+        txn.update_file(id, path).map_err(Into::into)
     }
 
     /// Remove a [`File`] from the database
     pub(crate) fn delete_file(&self, id: FileId) -> Result<()> {
         let txn = self.txn()?;
-        Ok(txn.delete_file(id)?)
+        txn.delete_file(id).map_err(Into::into)
     }
 
     /// Remove a [`File`] from the database if it is not tagged

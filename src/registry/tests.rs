@@ -16,6 +16,7 @@ use crate::filesystem as wfs;
 use anyhow::{Context, Result};
 use rusqlite::{self as rsq, params, Connection};
 use std::{env, os::unix::prelude::MetadataExt, path::PathBuf, str::FromStr};
+use wutag_core::color::parse_color;
 
 const DB_NAME: &str = "./tests/my.db";
 
@@ -426,13 +427,13 @@ fn tag_tests() -> Result<()> {
     setup_dbfn_wfiletag(|txn| {
         use colored::Color;
 
-        let t1 = txn.insert_tag("tag1", "#FF01FF")?;
+        let t1 = txn.insert_tag("tag1", parse_color("#FF01FF")?)?;
         assert_eq!(t1.color(), Color::truecolor(255, 1, 255));
 
         let t2 = txn.update_tag_name(t1.id(), "tag2")?;
         assert_ne!(t1.name(), t2.name());
 
-        let t3 = txn.update_tag_color(t2.id(), "#01FF01")?;
+        let t3 = txn.update_tag_color(t2.id(), parse_color("#01FF01")?)?;
         assert_eq!(t3.color(), Color::truecolor(1, 255, 1));
 
         let tags = txn.tags()?;
@@ -441,8 +442,8 @@ fn tag_tests() -> Result<()> {
         txn.delete_tag(t3.id())?;
         assert_eq!(txn.tags()?.len(), 0);
 
-        let t1 = txn.insert_tag("foo1", "#BBAABB")?;
-        let t2 = txn.insert_tag("foo2", "#AABBAA")?;
+        let t1 = txn.insert_tag("foo1", parse_color("#BBAABB")?)?;
+        let t2 = txn.insert_tag("foo2", parse_color("#AABBAA")?)?;
 
         let info = txn.tag_information()?;
         assert!(!info.into_iter().any(|tf| tf.count() > 0));
@@ -454,9 +455,9 @@ fn tag_tests() -> Result<()> {
 #[test]
 fn tag_query_exact() -> Result<()> {
     setup_dbfn_wfiletag(|txn| {
-        let t1 = txn.insert_tag("tag1", "#FF01FF")?;
-        let t2 = txn.insert_tag("tag2", "#01FF01")?;
-        let t3 = txn.insert_tag("tag3", "#FFFFFF")?;
+        let t1 = txn.insert_tag("tag1", parse_color("#FF01FF")?)?;
+        let t2 = txn.insert_tag("tag2", parse_color("#01FF01")?)?;
+        let t3 = txn.insert_tag("tag3", parse_color("#FFFFFF")?)?;
 
         let tag = txn.tag_by_name("tag1", false)?;
         assert_eq!(tag.name(), "tag1");
@@ -483,9 +484,9 @@ fn tag_query_exact() -> Result<()> {
 #[test]
 fn tag_query_pattern() -> Result<()> {
     setup_dbfn_wfiletag(|txn| {
-        let t1 = txn.insert_tag("tag1", "#FF01FF")?;
-        let t2 = txn.insert_tag("tag2", "#01FF01")?;
-        let t3 = txn.insert_tag("tag3", "#FFFFFF")?;
+        let t1 = txn.insert_tag("tag1", parse_color("#FF01FF")?)?;
+        let t2 = txn.insert_tag("tag2", parse_color("#01FF01")?)?;
+        let t3 = txn.insert_tag("tag3", parse_color("#FFFFFF")?)?;
 
         let tags = txn.select_tags_by_regex("name", "ta.*")?;
         assert_eq!(tags.len(), 3);

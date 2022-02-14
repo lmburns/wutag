@@ -30,6 +30,7 @@ pub(crate) const APP_NAME: &str = "wutag";
 /// Default base color for printing files
 pub(crate) const DEFAULT_BASE_COLOR: Color = Blue;
 /// Default border color for printing formatted tags
+#[cfg(feature = "prettify")]
 pub(crate) const DEFAULT_BORDER_COLOR: cli_table::Color = cli_table::Color::White;
 /// Default max depth passed to [WalkParallel](ignore::WalkParallel)
 pub(crate) const DEFAULT_MAX_DEPTH: usize = 2;
@@ -167,12 +168,12 @@ pub(crate) static DEFAULT_EDITOR: Lazy<String> = Lazy::new(|| {
 });
 
 /// Encryption-specific constants
-#[allow(clippy::unwrap_used)]
 #[cfg(feature = "encrypt-gpgme")]
 pub(crate) mod encrypt {
     use super::{env, Lazy};
 
-    /// The umask of the registry file
+    /// The `umask` of the registry file
+    #[allow(clippy::unwrap_used)]
     pub(crate) static REGISTRY_UMASK: Lazy<u32> = Lazy::new(|| {
         u32::from_str_radix(
             &env::var("WUTAG_REGISTRY_UMASK").unwrap_or_else(|_| "077".to_owned()),

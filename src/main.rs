@@ -2,6 +2,7 @@
 
 #![feature(adt_const_params)]
 #![allow(incomplete_features)]
+// #![deny(broken_intra_doc_links)]
 #![deny(
     clippy::all,
     // clippy::cargo,

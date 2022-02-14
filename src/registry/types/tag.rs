@@ -73,6 +73,7 @@ impl Tag {
 
     /// Create a new [`Tag`]
     pub(crate) fn new<S: AsRef<str>>(id: TagId, name: S, color: Color) -> Self {
+        // TODO: Parse color here or at a higher level?
         Self {
             id,
             name: name.as_ref().to_owned(),

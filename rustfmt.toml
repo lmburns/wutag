@@ -19,6 +19,6 @@ unstable_features            = true
 use_field_init_shorthand     = true
 use_try_shorthand            = true
 wrap_comments                = true
-color                        = "always"
+color                        = "Never"
 
 combine_control_expr         = true # foo!(if x {...

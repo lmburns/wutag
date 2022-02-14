@@ -9,7 +9,6 @@
 
 pub(crate) mod api;
 pub(crate) mod common;
-mod db_tests;
 pub(crate) mod file;
 pub(crate) mod filetag;
 pub(crate) mod implication;
@@ -22,6 +21,9 @@ pub(crate) mod transaction;
 pub(crate) mod types;
 pub(crate) mod upgrade;
 pub(crate) mod value;
+
+#[cfg(test)]
+mod tests;
 
 use self::{
     common::{
@@ -131,11 +133,10 @@ pub(crate) struct Registry {
     follow_symlinks: bool,
     /// Path to the database
     path:            PathBuf,
-    /// The open `Connection` for the database
-    conn:            Connection,
     /// The version the database is using TODO: Maybe Version struct
     version:         u32,
-    // -
+    /// The open [`Connection`] for the database
+    conn:            Connection,
     // /// Root path of the database
     // root_path: PathBuf,
 }

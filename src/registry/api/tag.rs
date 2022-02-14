@@ -124,7 +124,6 @@ impl Registry {
     pub(crate) fn insert_tag<S: AsRef<str>>(&self, name: S, color: S) -> Result<Tag> {
         Tag::validate_name(&name)?;
         let txn = self.txn()?;
-        // Parse color at a higher level
         // TODO: Decide whether this should express an error
         let color = parse_color(&color).unwrap_or(Color::BrightWhite);
 

@@ -39,6 +39,7 @@ pub(crate) struct Config {
     #[serde(alias = "base-color")]
     pub(crate) base_color:      Option<String>,
     /// Border color used to display tags with border option
+    #[cfg(feature = "prettify")]
     #[serde(alias = "border-color")]
     pub(crate) border_color:    Option<String>,
     /// Array of colors to use as tags
@@ -238,13 +239,14 @@ impl Config {
 
     inner_immute!(base_color, Option<String>);
 
-    inner_immute!(border_color, Option<String>);
-
     inner_immute!(colors, Option<Vec<String>>);
 
     inner_immute!(ignores, Option<Vec<String>>);
 
     inner_immute!(format, Option<String>);
+
+    #[cfg(feature = "prettify")]
+    inner_immute!(border_color, Option<String>);
 
     #[cfg(feature = "ui")]
     inner_immute!(keys, KeyConfig);
@@ -426,8 +428,10 @@ impl UiConfig {
     ///
     /// This also adds the user's custom aliases from the configuration file
     ///
-    /// See [`alias_replace`](crate::ui::ui_app::UiApp::alias_replace) for more
+    /// See [`alias_replace`] for more
     /// information on what this does and why I'm doing it
+    ///
+    /// [`alias_replace`]: ./ui/ui_app/struct.UiApp#method.alias_replace
     pub(crate) fn build_alias_hash(&mut self) -> IndexMap<String, String> {
         let mut alias_hash = IndexMap::new();
 

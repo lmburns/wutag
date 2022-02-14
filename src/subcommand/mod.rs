@@ -12,6 +12,7 @@ pub(crate) mod repair;
 pub(crate) mod rm;
 pub(crate) mod search;
 pub(crate) mod set;
+// pub(crate) mod set2;
 pub(crate) mod testing;
 pub(crate) mod uses;
 pub(crate) mod view;
@@ -37,7 +38,6 @@ use uses::{
 pub(crate) struct App {
     pub(crate) base_color:       Color,
     pub(crate) base_dir:         PathBuf,
-    pub(crate) border_color:     cli_table::Color,
     pub(crate) case_insensitive: bool,
     pub(crate) case_sensitive:   bool,
     pub(crate) color_when:       String,
@@ -54,6 +54,9 @@ pub(crate) struct App {
     pub(crate) quiet:            bool,
     pub(crate) pat_regex:        bool,
     pub(crate) registry:         TagRegistry,
+
+    #[cfg(feature = "prettify")]
+    pub(crate) border_color: cli_table::Color,
 
     #[cfg(feature = "encrypt-gpgme")]
     pub(crate) encrypt: EncryptConfig,
@@ -74,12 +77,12 @@ impl App {
     pub(crate) fn new(opts: &Opts, config: Config) -> Result<Self> {
         let base_dir = if let Some(base_dir) = &opts.dir {
             if base_dir.display().to_string() == "." {
-                std::env::current_dir().context("failed to determine current working directory")?
+                std::env::current_dir().context("failed to determine CWD")?
             } else {
                 base_dir.clone()
             }
         } else {
-            std::env::current_dir().context("failed to determine current working directory")?
+            std::env::current_dir().context("failed to determine CWD")?
         };
 
         let colors = if let Some(colors_) = config.colors {
@@ -98,6 +101,7 @@ impl App {
             .transpose()?
             .unwrap_or(DEFAULT_BASE_COLOR);
 
+        #[cfg(feature = "prettify")]
         let border_color = config
             .border_color
             .map(parse_color_cli_table)
@@ -150,7 +154,7 @@ impl App {
             .transpose()?;
 
         let excludes = opts.exclude.clone().map_or_else(Vec::new, |v| {
-            v.iter().map(|p| String::from("!") + p.as_str()).collect()
+            v.iter().map(|p| format!("!{}", p.as_str())).collect()
         });
 
         let file_types = opts.file_type.clone().map(|vals| {
@@ -184,7 +188,6 @@ impl App {
         Ok(Self {
             base_color,
             base_dir,
-            border_color,
             case_insensitive: opts.case_insensitive,
             case_sensitive: opts.case_sensitive,
             color_when: color_when.to_owned(),
@@ -205,6 +208,9 @@ impl App {
             pat_regex: opts.regex,
             quiet: opts.quiet,
             registry,
+
+            #[cfg(feature = "prettify")]
+            border_color,
 
             #[cfg(any(feature = "encrypt-gpgme"))]
             encrypt: config.encryption,
@@ -241,6 +247,8 @@ impl App {
             Command::Set(opts) => self.set(&opts)?,
             Command::Testing(opts) => self.testing(&opts)?,
             Command::View(ref opts) => self.view(opts)?,
+
+            #[cfg(feature = "ui")]
             Command::Ui => {
                 better_panic::install();
                 if let Err(e) = ui::start_ui(

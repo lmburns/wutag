@@ -5,4 +5,5 @@ pub(crate) mod filetag;
 pub(crate) mod implication;
 pub(crate) mod query;
 pub(crate) mod tag;
+pub(crate) mod tests;
 pub(crate) mod value;

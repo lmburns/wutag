@@ -1,3 +1,4 @@
+#![deny(broken_intra_doc_links)]
 //! Intermediate state of changes that have yet to be committed to the
 //! [`Registry`](super::Registry)
 
@@ -23,18 +24,16 @@ use rusqlite::{
 /// database. See [`Transaction`](https://www.sqlite.org/lang_transaction.html)
 #[derive(Debug)]
 pub(crate) struct Txn<'t> {
-    /// The tag `Registry`
+    /// The registry that created the transaction
     registry: &'t Registry,
-    /// A `Transaction` on a database, which allows for modifications
+    /// A [`Transaction`] on a database, which allows for modifications
     txn:      Transaction<'t>,
 }
 
 impl<'t> Txn<'t> {
-    // -- TODO: Possibly use this function inside every function instead of
-    // initialization and then another function
     // -- TODO: Checked vs unchecked
 
-    /// Create a new `Txn`
+    /// Create a new [`Txn`]
     pub(crate) fn new(registry: &'t Registry) -> Result<Self> {
         let txn = registry
             .conn()
@@ -44,23 +43,27 @@ impl<'t> Txn<'t> {
         Ok(Self { registry, txn })
     }
 
-    /// Return the `Registry`
-    pub(crate) const fn registry(&self) -> &'t Registry {
-        self.registry
-    }
-
-    /// Return the `Transaction`
+    /// Return the [`Transaction`]
     #[allow(clippy::missing_const_for_fn)]
     pub(crate) fn txn(self) -> Transaction<'t> {
         self.txn
     }
 
-    /// Commit a [`Transaction`](rusqlite::Transaction)
+    /// Return the [`Registry`]
+    pub(crate) const fn registry(&self) -> &'t Registry {
+        self.registry
+    }
+
+    /// Commit a [`Transaction`]
     pub(crate) fn commit(self) -> Result<()> {
+        // TODO: Create checkpoint here
         self.txn.commit().context(fail!("commit transaction"))
     }
 
-    /// Rollback a [`Transaction`](rusqlite::Transaction)
+    // Checkout rollback/commit hooks
+    // TODO: Implement an ability to rollback
+
+    /// Rollback a [`Transaction`]
     pub(crate) fn rollback(self) -> Result<()> {
         self.txn.rollback().context(fail!("rollback transaction"))
     }
@@ -112,7 +115,7 @@ impl<'t> Txn<'t> {
 
     /// Select a single row. Implements the same function as [`query_row`]
     ///
-    /// [`query_row`]: rusqlite::statement::Statement::query_row
+    /// [`query_row`]: /rusqlite/statement/struct.Statement#method.query_row
     pub(crate) fn select<T, F, P>(&self, sql: &str, params: P, f: F) -> Result<T>
     where
         P: Params,
@@ -129,7 +132,7 @@ impl<'t> Txn<'t> {
         stmt.query_row(params, f).context(error)
     }
 
-    /// Select a single row, no [`params`](rusqlite::params), and no closure
+    /// Select a single row, no [`params`], and no closure
     pub(crate) fn select1<T: FromSql>(&self, sql: &str) -> Result<T> {
         self.select(sql, params![], |row| row.get(0))
     }
@@ -138,8 +141,8 @@ impl<'t> Txn<'t> {
     /// matches, returning a vector of type `T`. Implements [`query`] but is
     /// closer in equivalency to [`query_map`]
     ///
-    /// [`query`]: rusqlite::statement::Statement::query
-    /// [`query_map`]: rusqlite::statement::Statement::query_map
+    /// [`query`]: /rusqlite/statement/struct.Statement.html#method.query
+    /// [`query_map`]: /rusqlite/statement/struct.Statement.html#method.query_map
     pub(crate) fn query_vec<T, F, P, S>(&self, sql: S, params: P, f: F) -> Result<Vec<T>>
     where
         S: AsRef<str>,
@@ -172,9 +175,7 @@ impl<'t> Txn<'t> {
 
     /// Select all items matching a query. This function requires that `params`
     /// are an iterator implementing [`ToSql`]. Implements the same function as
-    /// `query_map` on this iterator.
-    ///
-    /// `query_map`: rusqlite::statement::Statement::query_map
+    /// [`query_map`] on this iterator.
     pub(crate) fn query_iter<T, F, P, S>(&self, sql: S, params: P, f: F) -> Result<Vec<T>>
     where
         S: AsRef<str>,
@@ -210,9 +211,7 @@ impl<'t> Txn<'t> {
     }
 
     /// Shorter function that allows for querying the database from an
-    /// [`SqlBuilder`]. Calls `query_iter` internally
-    ///
-    /// `query_iter`: Txn::query_iter
+    /// [`SqlBuilder`]. Calls [`query_iter`](#method.query_iter) internally
     pub(crate) fn query_builder<T, F>(&self, builder: &SqlBuilder, f: F) -> Result<Vec<T>>
     where
         F: FnOnce(&Row<'_>) -> T + Copy,
@@ -221,10 +220,8 @@ impl<'t> Txn<'t> {
     }
 
     /// Shorter function that allows for querying the database from an
-    /// [`SqlBuilder`]. Calls `query_vec` internally on a named parameters
-    /// vector, i.e., `&[(&str, &dyn ToSql)]`
-    ///
-    /// `query_vec`: Txn::query_vec
+    /// [`SqlBuilder`]. Calls [`query_vec`](#method.query_vec) internally on a
+    /// named parameters vector, i.e., `&[(&str, &dyn ToSql)]`
     pub(crate) fn query_named_builder<T, F>(&self, builder: &SqlBuilder, f: F) -> Result<Vec<T>>
     where
         F: FnOnce(&Row<'_>) -> T + Copy,

@@ -82,6 +82,7 @@ pub(crate) fn destruct_terminal() {
 }
 
 /// Used with print statements for debugging purposes
+#[allow(dead_code)]
 pub(crate) fn dump_and_exit<F: FnOnce() + Send>(f: F) {
     destruct_terminal();
     f();
@@ -96,7 +97,7 @@ pub(crate) fn start_ui(cli_app: &App, config: Config, registry: TagRegistry) -> 
     }));
 
     // TODO: Use one or the other here ^
-    scopeguard::defer!(destruct_terminal());
+    // scopeguard::defer!(destruct_terminal());
 
     let mut app = ui_app::UiApp::new(config, registry).map_err(Error::UiStartFailure)?;
     let backend = CrosstermBackend::new(io::stdout());

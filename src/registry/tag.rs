@@ -270,7 +270,7 @@ impl Txn<'_> {
     }
 
     /// Remove a [`Tag`] from the database
-    pub(crate) fn delete_tag(&self, id: TagId) -> Result<(), Error> {
+    pub(super) fn delete_tag(&self, id: TagId) -> Result<(), Error> {
         let affected = self
             .execute(
                 "DELETE FROM tag
@@ -292,7 +292,7 @@ impl Txn<'_> {
     /// Retrieve information about each [`Tag`]. Returns a vector of
     /// [`TagFileCnt`], which contains information about the number of files the
     /// [`Tag`] is associated with
-    pub(crate) fn tag_information(&self) -> Result<Vec<TagFileCnt>> {
+    pub(super) fn tag_information(&self) -> Result<Vec<TagFileCnt>> {
         let tfc: Vec<TagFileCnt> = self
             .query_vec(
                 "SELECT t.id, t.name, COUNT(file_id) as cnt

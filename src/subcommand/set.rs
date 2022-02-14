@@ -12,7 +12,7 @@ pub(crate) struct SetOpts {
     // TODO: Implement/remove
     /// Do not show errors that tag already exists
     #[clap(name = "quiet", long, short = 'q')]
-    quiet:              bool,
+    pub(crate) quiet:   bool,
     /// Clear all tags before setting them
     #[clap(long, short)]
     pub(crate) clear:   bool,

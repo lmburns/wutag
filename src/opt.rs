@@ -302,15 +302,6 @@ pub(crate) enum Command {
     )]
     List(ListOpts),
 
-    /// Lists all available tags or files.
-    #[clap(
-        override_usage = "wutag [FLAG/OPTIONS] list [FLAG/OPTIONS] <SUBCOMMAND> [FLAG/OPTIONS]",
-        long_about = "\
-            List all tagged files or tags under current directory if the global option is not \
-                      present, else list all tagged files or tags in the registry. Alias: ls"
-    )]
-    List2(ListOpts),
-
     /// Set tag(s) on files that match the given pattern
     #[clap(
         aliases = &["set", "tag"],
@@ -318,6 +309,14 @@ pub(crate) enum Command {
         long_about = "Set tag(s) on files that match a given pattern. Alias: tag"
     )]
     Set(SetOpts),
+
+    /// Set tag(s) on files that match the given pattern
+    #[clap(
+        aliases = &["set", "tag"],
+        override_usage = "wutag [FLAG/OPTIONS] set [FLAG/OPTIONS] <pattern> <tag>",
+        long_about = "Set tag(s) on files that match a given pattern. Alias: tag"
+    )]
+    Set2(SetOpts),
 
     /// Remove tag(s) from the files that match the provided pattern
     #[clap(

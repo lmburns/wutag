@@ -10,7 +10,7 @@ pub(crate) fn strip_current_dir(path: &Path) -> &Path {
 
 /// Removes the parent component of the path
 pub(crate) fn basename(path: &Path) -> &OsStr {
-    path.file_name().unwrap_or_else(|| path.as_os_str())
+    path.file_name().unwrap_or(path.as_os_str())
 }
 
 /// Execute the command in specified directory
@@ -75,7 +75,7 @@ pub(crate) fn wutag_cp_tag(path: &Path) -> OsString {
 /// Removes the extension from the path
 pub(crate) fn remove_extension(path: &Path) -> OsString {
     let dirname = dirname(path);
-    let stem = path.file_stem().unwrap_or_else(|| path.as_os_str());
+    let stem = path.file_stem().unwrap_or(path.as_os_str());
 
     let path = PathBuf::from(dirname).join(stem);
 

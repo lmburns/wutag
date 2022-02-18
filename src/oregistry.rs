@@ -433,7 +433,7 @@ impl TagRegistry {
     pub(crate) fn entry_has_only_all_tags(&self, id: EntryId, tags: &[String]) -> bool {
         use std::collections::HashSet;
 
-        let entry_tags = self.list_entry_tags(id).unwrap_or_else(Vec::new);
+        let entry_tags = self.list_entry_tags(id).unwrap_or_default();
         let entry_hash: HashSet<String> = entry_tags.iter().map(|e| e.name().to_owned()).collect();
         let inp_hash: HashSet<String> = tags.iter().cloned().collect();
 
@@ -450,7 +450,7 @@ impl TagRegistry {
     /// will return true if `file1` is tested for `a`, and `b`, `a` and `c`, `b`
     /// and `c`, or all three
     pub(crate) fn entry_has_all_tags(&self, id: EntryId, tags: &[String]) -> bool {
-        let entry_tags = self.list_entry_tags(id).unwrap_or_else(Vec::new);
+        let entry_tags = self.list_entry_tags(id).unwrap_or_default();
 
         // Reverse what is being checked
         tags.iter()
@@ -463,7 +463,7 @@ impl TagRegistry {
     /// If `file1` has `a`, `b`, and `c` as tags, this function
     /// will return true if `file1` is tested for `a`, or `b`, or `c`
     pub(crate) fn entry_has_any_tags(&self, id: EntryId, tags: &[String]) -> bool {
-        let entry_tags = self.list_entry_tags(id).unwrap_or_else(Vec::new);
+        let entry_tags = self.list_entry_tags(id).unwrap_or_default();
 
         entry_tags
             .iter()

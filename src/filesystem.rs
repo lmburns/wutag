@@ -344,7 +344,7 @@ pub(crate) fn write_temp_ignore(ignores: &[String], file: &File) -> io::Result<(
     let mut writer = io::BufWriter::new(file);
 
     for i in ignores.iter() {
-        writeln!(&mut writer, "{}", i)?;
+        writeln!(writer, "{}", i)?;
     }
 
     Ok(())

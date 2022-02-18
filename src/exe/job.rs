@@ -27,6 +27,7 @@ use colored::Colorize;
 use regex::bytes::Regex;
 
 /// Result from a multi-threaded command
+#[allow(variant_size_differences)]
 pub(crate) enum WorkerResult {
     /// Entry and its' id
     Entry((PathBuf, usize)),

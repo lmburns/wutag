@@ -50,7 +50,7 @@ pub(crate) fn get_tty() -> Option<PathBuf> {
     /// Resolve a symblink but do not traverse deeper than `SYMLINK_MAX_DEPTH`
     fn resolve_symlink(path: &Path, depth: u8) -> Option<PathBuf> {
         assert!(
-            !(depth >= SYMLINK_MAX_DEPTH),
+            (depth < SYMLINK_MAX_DEPTH),
             "failed to resolve symlink because it is too deep, possible loop?"
         );
 

@@ -20,155 +20,143 @@ impl Registry {
     // ====================================================================
 
     /// Retrieve the number of [`Tag`]s within the database
+    #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
     pub(crate) fn tag_count(&self) -> Result<u32> {
-        let txn = self.txn()?;
-        txn.tag_count()
+        self.txn_wrap(|txn| txn.tag_count())
     }
 
     /// Retrieve all [`Tag`]s within the database
+    #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
     pub(crate) fn tags(&self) -> Result<Tags> {
-        let txn = self.txn()?;
-        txn.tags()
+        self.txn_wrap(|txn| txn.tags())
     }
 
     /// Retrieve the [`Tag`] matching the given [`TagId`]
     pub(crate) fn tag(&self, id: TagId) -> Result<Tag> {
-        let txn = self.txn()?;
-        txn.tag(id)
+        self.txn_wrap(|txn| txn.tag(id))
     }
 
     /// Retrieve the [`Tags`] matching the array of [`TagIds`]
     pub(crate) fn tags_by_ids(&self, ids: &TagIds) -> Result<Tags> {
-        let txn = self.txn()?;
-        txn.tags_by_ids(ids.inner()).map_err(Into::into)
+        self.txn_wrap(|txn| txn.tags_by_ids(ids.inner()).map_err(Into::into))
     }
 
     /// Retrieve the [`Tag`] matching the given name
-    pub(crate) fn tag_by_name<S: AsRef<str>>(&self, name: S) -> Result<Tag> {
-        let txn = self.txn()?;
-        txn.tag_by_name(name, false)
+    pub(crate) fn tag_by_name<S: AsRef<str> + Copy>(&self, name: S) -> Result<Tag> {
+        self.txn_wrap(|txn| txn.tag_by_name(name, false))
     }
 
     /// Retrieve the [`Tag`] matching the given name (ignoring case)
-    pub(crate) fn tag_by_name_nocase<S: AsRef<str>>(&self, name: S) -> Result<Tag> {
-        let txn = self.txn()?;
-        txn.tag_by_name(name, true)
+    pub(crate) fn tag_by_name_nocase<S: AsRef<str> + Copy>(&self, name: S) -> Result<Tag> {
+        self.txn_wrap(|txn| txn.tag_by_name(name, true))
     }
 
     /// Retrieve the [`Tags`] matching the given names
     pub(crate) fn tags_by_names<S: AsRef<str>>(&self, names: &[S]) -> Result<Tags> {
-        let txn = self.txn()?;
-        txn.tags_by_names(names, false).map_err(Into::into)
+        self.txn_wrap(|txn| txn.tags_by_names(names, false).map_err(Into::into))
     }
 
     /// Retrieve the [`Tags`] matching the given names (ignoring case)
     pub(crate) fn tags_by_names_nocase<S: AsRef<str>>(&self, names: &[S]) -> Result<Tags> {
-        let txn = self.txn()?;
-        txn.tags_by_names(names, true).map_err(Into::into)
+        self.txn_wrap(|txn| txn.tags_by_names(names, true).map_err(Into::into))
     }
 
     // ========================= Pattern Matching =========================
 
     /// Retrieve the [`Tags`] matching the given `regex`
     pub(crate) fn tags_by_regex_name<S: AsRef<str>>(&self, patt: S) -> Result<Tags> {
-        let txn = self.txn()?;
-        txn.select_tags_by_regex("name", patt.as_ref())
+        self.txn_wrap(|txn| txn.select_tags_by_regex("name", patt.as_ref()))
     }
 
     /// Retrieve the [`Tags`] with the name matching the given `iregex`
     pub(crate) fn tags_by_iregex_name<S: AsRef<str>>(&self, patt: S) -> Result<Tags> {
-        let txn = self.txn()?;
-        txn.select_tags_by_regex("name", patt.as_ref())
+        self.txn_wrap(|txn| txn.select_tags_by_regex("name", patt.as_ref()))
     }
 
     /// Retrieve the [`Tags`] with the name matching the given `regex`
     pub(crate) fn tags_by_glob_name<S: AsRef<str>>(&self, patt: S) -> Result<Tags> {
-        let txn = self.txn()?;
-        txn.select_tags_by_glob("name", patt.as_ref())
+        self.txn_wrap(|txn| txn.select_tags_by_glob("name", patt.as_ref()))
     }
 
     /// Retrieve the [`Tags`] with the name matching the given `iglob`
     pub(crate) fn tags_by_iglob_name<S: AsRef<str>>(&self, patt: S) -> Result<Tags> {
-        let txn = self.txn()?;
-        txn.select_tags_by_glob("name", patt.as_ref())
+        self.txn_wrap(|txn| txn.select_tags_by_glob("name", patt.as_ref()))
     }
 
     /// Retrieve the [`Tags`] with the color matching the given `regex`
     pub(crate) fn tags_by_regex_color<S: AsRef<str>>(&self, patt: S) -> Result<Tags> {
-        let txn = self.txn()?;
-        txn.select_tags_by_regex("color", patt.as_ref())
+        self.txn_wrap(|txn| txn.select_tags_by_regex("color", patt.as_ref()))
     }
 
     /// Retrieve the [`Tags`] with the color matching the given `iregex`
     pub(crate) fn tags_by_iregex_color<S: AsRef<str>>(&self, patt: S) -> Result<Tags> {
-        let txn = self.txn()?;
-        txn.select_tags_by_regex("color", patt.as_ref())
+        self.txn_wrap(|txn| txn.select_tags_by_regex("color", patt.as_ref()))
     }
 
     /// Retrieve the [`Tags`] with the color matching the given `regex`
     pub(crate) fn tags_by_glob_color<S: AsRef<str>>(&self, patt: S) -> Result<Tags> {
-        let txn = self.txn()?;
-        txn.select_tags_by_glob("color", patt.as_ref())
+        self.txn_wrap(|txn| txn.select_tags_by_glob("color", patt.as_ref()))
     }
 
     /// Retrieve the [`Tags`] with the color matching the given `iglob`
     pub(crate) fn tags_by_iglob_color<S: AsRef<str>>(&self, patt: S) -> Result<Tags> {
-        let txn = self.txn()?;
-        txn.select_tags_by_glob("color", patt.as_ref())
+        self.txn_wrap(|txn| txn.select_tags_by_glob("color", patt.as_ref()))
     }
 
     // ============================= Modifying ============================
     // ====================================================================
 
     /// Insert a [`Tag`] into the database
-    pub(crate) fn insert_tag<S: AsRef<str>>(&self, name: S, color: S) -> Result<Tag> {
+    pub(crate) fn insert_tag<S: AsRef<str> + Copy>(&self, name: S, color: S) -> Result<Tag> {
         Tag::validate_name(&name)?;
-        let txn = self.txn()?;
-        // TODO: Decide whether this should express an error
-        let color = parse_color(&color).unwrap_or(Color::BrightWhite);
+        self.wrap_commit(|txn| {
+            // TODO: Decide whether this should express an error
+            let color = parse_color(&color).unwrap_or(Color::BrightWhite);
 
-        txn.insert_tag(name, color)
+            txn.insert_tag(name, color)
+        })
     }
 
     /// Update the [`Tag`] by changing its `name`
-    pub(crate) fn update_tag_name<S: AsRef<str>>(&self, id: TagId, name: S) -> Result<Tag> {
+    pub(crate) fn update_tag_name<S: AsRef<str> + Copy>(&self, id: TagId, name: S) -> Result<Tag> {
         Tag::validate_name(&name)?;
-        let txn = self.txn()?;
-        txn.update_tag_name(id, name).map_err(Into::into)
+
+        self.wrap_commit(|txn| txn.update_tag_name(id, name).map_err(Into::into))
     }
 
     /// Update the [`Tag`] by changing its `color`
     pub(crate) fn update_tag_color<S: AsRef<str>>(&self, id: TagId, color: S) -> Result<Tag> {
-        let txn = self.txn()?;
-        // TODO: Decide whether this should express an error
-        let color = parse_color(&color).unwrap_or(Color::BrightWhite);
-        txn.update_tag_color(id, color).map_err(Into::into)
+        self.wrap_commit(|txn| {
+            // TODO: Decide whether this should express an error
+            let color = parse_color(&color).unwrap_or(Color::BrightWhite);
+            txn.update_tag_color(id, color).map_err(Into::into)
+        })
     }
 
     /// Create a new [`Tag`] and apply it to an existing [`Tag`]
-    pub(crate) fn copy_tag<S: AsRef<str>>(&self, source_id: TagId, name: S) -> Result<Tag> {
+    pub(crate) fn copy_tag<S: AsRef<str> + Copy>(&self, source_id: TagId, name: S) -> Result<Tag> {
         Tag::validate_name(&name)?;
-        let txn = self.txn()?;
 
-        let source_tag = txn.tag(source_id)?;
-        let new_tag = txn.insert_tag(name, source_tag.color())?;
-        txn.copy_filetags(source_id, new_tag.id())?;
+        self.wrap_commit(|txn| {
+            let source_tag = txn.tag(source_id)?;
+            let new_tag = txn.insert_tag(name, source_tag.color())?;
+            txn.copy_filetags(source_id, new_tag.id())?;
 
-        Ok(new_tag)
+            Ok(new_tag)
+        })
     }
 
     /// Delete a [`Tag`] matching the given [`TagId`]
     pub(crate) fn delete_tag<S: AsRef<str>>(&self, id: TagId) -> Result<()> {
-        let txn = self.txn()?;
-        txn.delete_tag(id).map_err(Into::into)
+        self.wrap_commit(|txn| txn.delete_tag(id).map_err(Into::into))
     }
 
     // ============================== Other ===============================
     // ====================================================================
 
     /// Show information about a [`Tag`]
+    #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
     pub(crate) fn tag_info(&self) -> Result<Vec<TagFileCnt>> {
-        let txn = self.txn()?;
-        txn.tag_information()
+        self.txn_wrap(|txn| txn.tag_information())
     }
 }

@@ -3,6 +3,7 @@
 use super::super::{
     common::path::FsPath,
     sqlbuilder::Sort,
+    transaction::Txn,
     types::file::{File, FileId, FileIds, Files},
     Registry,
 };
@@ -15,134 +16,122 @@ impl Registry {
     // ====================================================================
 
     /// Retrieve the number of [`File`]s within the database
+    #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
     pub(crate) fn file_count(&self) -> Result<u32> {
-        let txn = self.txn()?;
-        txn.select_file_count()
+        self.txn_wrap(|txn| txn.select_file_count())
     }
 
     /// Retrieve all tracked [`Files`] within the database
     pub(crate) fn files(&self, sort: Option<Sort>) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files(sort)
+        self.txn_wrap(|txn| txn.select_files(sort))
     }
 
     /// Retrieve all tracked [`Files`] that are directories
+    #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
     pub(crate) fn directories(&self) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_directories()
+        self.txn_wrap(|txn| txn.select_directories())
     }
 
     /// Retrieve a specific [`File`] within the database
     pub(crate) fn file(&self, id: FileId) -> Result<File> {
-        let txn = self.txn()?;
-        txn.select_file(id)
+        self.txn_wrap(|txn| txn.select_file(id))
     }
 
     /// Retrieve a [`File`] that matches the given path
-    pub(crate) fn file_by_path<P: AsRef<Path>>(&self, path: P) -> Result<File> {
-        let txn = self.txn()?;
-        txn.select_file_by_path(path)
+    pub(crate) fn file_by_path<P: AsRef<Path> + Copy>(&self, path: P) -> Result<File> {
+        self.txn_wrap(|txn| txn.select_file_by_path(path))
     }
 
     /// Retrieve all [`File`]s that reside in the given directory
     pub(crate) fn files_by_directory<P: AsRef<Path>>(&self, path: P) -> Result<Files> {
-        let txn = self.txn()?;
-        let path = path.as_ref();
+        self.txn_wrap(|txn| {
+            let path = path.as_ref();
 
-        // TODO: Add relative check
+            // TODO: Add relative check
 
-        if !path.is_dir() {
-            return Err(anyhow!(
-                "{} is not a directory",
-                path.display().to_string().red()
-            ));
-        }
+            if !path.is_dir() {
+                return Err(anyhow!(
+                    "{} is not a directory",
+                    path.display().to_string().red()
+                ));
+            }
 
-        txn.select_files_by_directory(path.to_string_lossy(), false)
+            txn.select_files_by_directory(path.to_string_lossy(), false)
+        })
     }
 
     /// Retrieve all [`File`]s that reside in the given directory
     pub(crate) fn files_by_directories<P: AsRef<Path>>(&self, paths: &[P]) -> Result<Files> {
-        let txn = self.txn()?;
-        // let fspath: FsPath = path.as_ref().into();
-        // let relative = fspath.relative()?;
+        self.txn_wrap(|txn| {
+            // let fspath: FsPath = path.as_ref().into();
+            // let relative = fspath.relative()?;
 
-        let mut files = Files::empty();
-        for p in paths.iter().map(AsRef::as_ref).collect::<Vec<_>>() {
-            files.combine(&txn.select_files_by_directory(p.to_string_lossy(), false)?);
-        }
+            let mut files = Files::empty();
+            for p in paths.iter().map(AsRef::as_ref).collect::<Vec<_>>() {
+                files.combine(&txn.select_files_by_directory(p.to_string_lossy(), false)?);
+            }
 
-        Ok(files)
+            Ok(files)
+        })
     }
 
     /// Retrieve the number of [`Files`] matching a specific `hash`
-    pub(crate) fn file_count_by_hash<S: AsRef<str>>(&self, fp: S) -> Result<u32> {
-        let txn = self.txn()?;
-        txn.select_file_count_by_hash(fp)
+    pub(crate) fn file_count_by_hash<S: AsRef<str> + Copy>(&self, fp: S) -> Result<u32> {
+        self.txn_wrap(|txn| txn.select_file_count_by_hash(fp))
     }
 
     /// Retrieve all [`Files`] matching a specific `hash`
-    pub(crate) fn files_by_hash<S: AsRef<str>>(&self, fp: S) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_hash(fp)
+    pub(crate) fn files_by_hash<S: AsRef<str> + Copy>(&self, fp: S) -> Result<Files> {
+        self.txn_wrap(|txn| txn.select_files_by_hash(fp))
     }
 
     /// Retrieve all [`Files`] matching a specific `MimeType`
-    pub(crate) fn files_by_mime<S: AsRef<str>>(&self, mime: S) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_mime(mime)
+    pub(crate) fn files_by_mime<S: AsRef<str> + Copy>(&self, mime: S) -> Result<Files> {
+        self.txn_wrap(|txn| txn.select_files_by_mime(mime))
     }
 
     // TODO: Parse datetime
 
     /// Retrieve all [`Files`] matching a specific `mtime`
-    pub(crate) fn files_by_mtime<S: AsRef<str>>(&self, mtime: S) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_mtime(mtime)
+    pub(crate) fn files_by_mtime<S: AsRef<str> + Copy>(&self, mtime: S) -> Result<Files> {
+        self.txn_wrap(|txn| txn.select_files_by_mtime(mtime))
     }
 
     /// Retrieve all [`Files`] matching a specific `ctime`
-    pub(crate) fn files_by_ctime<S: AsRef<str>>(&self, ctime: S) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_ctime(ctime)
+    pub(crate) fn files_by_ctime<S: AsRef<str> + Copy>(&self, ctime: S) -> Result<Files> {
+        self.txn_wrap(|txn| txn.select_files_by_ctime(ctime))
     }
 
     /// Retrieve all [`Files`] matching a specific `mode`
-    pub(crate) fn files_by_mode<S: AsRef<str>>(&self, mode: S) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_mode(mode)
+    pub(crate) fn files_by_mode<S: AsRef<str> + Copy>(&self, mode: S) -> Result<Files> {
+        self.txn_wrap(|txn| txn.select_files_by_mode(mode))
     }
 
     /// Retrieve all [`Files`] matching a specific `inode`
     pub(crate) fn files_by_inode(&self, inode: u64) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_inode(inode)
+        self.txn_wrap(|txn| txn.select_files_by_inode(inode))
     }
 
     /// Retrieve all [`Files`] matching a specific `inode`
     pub(crate) fn files_by_links(&self, links: u64) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_links(links)
+        self.txn_wrap(|txn| txn.select_files_by_links(links))
     }
 
     /// Retrieve all [`Files`] matching a specific `UID`
     pub(crate) fn files_by_uid(&self, uid: u64) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_uid(uid)
+        self.txn_wrap(|txn| txn.select_files_by_uid(uid))
     }
 
     /// Retrieve all [`Files`] matching a specific `GID`
     pub(crate) fn files_by_gid(&self, gid: u64) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_gid(gid)
+        self.txn_wrap(|txn| txn.select_files_by_gid(gid))
     }
 
     // TODO: Parse file sizes
 
     /// Retrieve all [`Files`] matching a specific `size`
     pub(crate) fn files_by_size(&self, size: u64) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_size(size)
+        self.txn_wrap(|txn| txn.select_files_by_size(size))
     }
 
     #[cfg(all(
@@ -151,15 +140,14 @@ impl Registry {
         not(target_os = "macos")
     ))]
     /// Retrieve all [`Files`] that have given flags
-    pub(crate) fn files_by_flags<S: AsRef<str>>(&self, given: S) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_flag(given)
+    pub(crate) fn files_by_flags<S: AsRef<str> + Copy>(&self, given: S) -> Result<Files> {
+        self.txn_wrap(|txn| txn.select_files_by_flag(given))
     }
 
     /// Retrieve all [`Files`] that are untagged
+    #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
     pub(crate) fn files_untagged(&self) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_untagged()
+        self.txn_wrap(|txn| txn.select_files_untagged())
     }
 
     /// Retrieve the number of files that match a given query and path
@@ -175,9 +163,9 @@ impl Registry {
     }
 
     /// Retrieve all [`Files`] that are duplicates in the database
+    #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
     pub(crate) fn duplicate_files(&self) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_duplicates()
+        self.txn_wrap(|txn| txn.select_files_duplicates())
     }
 
     // ========================= Pattern Matching =========================
@@ -185,114 +173,103 @@ impl Registry {
 
     /// Retrieve all [`Files`] with a given column matching a `regex`
     pub(crate) fn files_by_regex_generic(&self, column: &str, patt: &str) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_regex(column, patt)
+        self.txn_wrap(|txn| txn.select_files_by_regex(column, patt))
     }
 
     /// Retrieve all [`Files`] with a given column matching a `iregex`
     pub(crate) fn files_by_iregex_generic(&self, column: &str, patt: &str) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_iregex(column, patt)
+        self.txn_wrap(|txn| txn.select_files_by_iregex(column, patt))
     }
 
     /// Retrieve all [`Files`] with a given column matching a `glob`
     pub(crate) fn files_by_glob_generic(&self, column: &str, patt: &str) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_glob(column, patt)
+        self.txn_wrap(|txn| txn.select_files_by_glob(column, patt))
     }
 
     /// Retrieve all [`Files`] with a given column matching a `iglob`
     pub(crate) fn files_by_iglob_generic(&self, column: &str, patt: &str) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_iglob(column, patt)
+        self.txn_wrap(|txn| txn.select_files_by_iglob(column, patt))
     }
 
     // ==================== Most used pattern matching ====================
 
     /// Retrieve all [`Files`] with a 'name' matching a `regex`
     pub(crate) fn files_by_regex_fname(&self, patt: &str) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_regex("name", patt)
+        self.txn_wrap(|txn| txn.select_files_by_regex("name", patt))
     }
 
     /// Retrieve all [`Files`] with a 'name' matching a `regex`
     pub(crate) fn files_by_iregex_fname(&self, patt: &str) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_iregex("name", patt)
+        self.txn_wrap(|txn| txn.select_files_by_iregex("name", patt))
     }
 
     /// Retrieve all [`Files`] that match a given `glob` on the given column
     pub(crate) fn files_by_glob_fname(&self, patt: &str) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_glob("name", patt)
+        self.txn_wrap(|txn| txn.select_files_by_glob("name", patt))
     }
 
     /// Retrieve all [`Files`] that match a given `iglob` on the given column
     pub(crate) fn files_by_iglob_fname(&self, patt: &str) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_iglob("name", patt)
+        self.txn_wrap(|txn| txn.select_files_by_iglob("name", patt))
     }
 
     /// Retrieve all [`Files`] with a full path matching a `regex`
     pub(crate) fn files_by_regex_fp(&self, patt: &str) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_regex_fp(patt)
+        self.txn_wrap(|txn| txn.select_files_by_regex_fp(patt))
     }
 
     /// Retrieve all [`Files`] with a full path matching a `iregex`
     pub(crate) fn files_by_iregex_fp(&self, patt: &str) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_iregex_fp(patt)
+        self.txn_wrap(|txn| txn.select_files_by_iregex_fp(patt))
     }
 
     /// Retrieve all [`Files`] with a full path matching a `glob`
     pub(crate) fn files_by_glob_fp(&self, patt: &str) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_glob_fp(patt)
+        self.txn_wrap(|txn| txn.select_files_by_glob_fp(patt))
     }
 
     /// Retrieve all [`Files`] with a full path matching a `iglob`
     pub(crate) fn files_by_iglob_fp(&self, patt: &str) -> Result<Files> {
-        let txn = self.txn()?;
-        txn.select_files_by_iglob_fp(patt)
+        self.txn_wrap(|txn| txn.select_files_by_iglob_fp(patt))
     }
 
     // ============================= Modifying ============================
     // ====================================================================
 
     /// Add a [`File`] to the database
-    pub(crate) fn insert_file<P: AsRef<Path>>(&self, path: P) -> Result<File> {
-        let txn = self.txn()?;
-        txn.insert_file(path)
+    pub(crate) fn insert_file<P: AsRef<Path> + Copy>(&self, path: P) -> Result<File> {
+        self.wrap_commit(|txn| txn.insert_file(path))
     }
 
     /// Update a [`File`]'s information in the database
-    pub(crate) fn update_file<P: AsRef<Path>>(&self, id: FileId, path: P) -> Result<File> {
-        let txn = self.txn()?;
-        txn.update_file(id, path).map_err(Into::into)
+    pub(crate) fn update_file<P: AsRef<Path> + Copy>(&self, id: FileId, path: P) -> Result<File> {
+        self.wrap_commit(|txn| txn.update_file(id, path).map_err(Into::into))
     }
 
     /// Remove a [`File`] from the database
     pub(crate) fn delete_file(&self, id: FileId) -> Result<()> {
-        let txn = self.txn()?;
-        txn.delete_file(id).map_err(Into::into)
+        self.wrap_commit(|txn| txn.delete_file(id).map_err(Into::into))
     }
 
     /// Remove a [`File`] from the database if it is not tagged
     pub(crate) fn delete_file_if_untagged(&self, id: FileId) -> Result<()> {
-        let txn = self.txn()?;
-        let count = txn.select_filetag_count_by_fileid(id)?;
+        self.wrap_commit(|txn| {
+            let count = txn.select_filetag_count_by_fileid(id)?;
 
-        if count == 0 {
-            txn.delete_file(id)?;
-        }
+            if count == 0 {
+                txn.delete_file(id)?;
+            }
 
-        Ok(())
+            Ok(())
+        })
     }
 
     /// Remove an array of [`File`]s from the database if they're untagged
     pub(crate) fn delete_untagged_files(&self, ids: &FileIds) -> Result<()> {
-        let txn = self.txn()?;
-        txn.delete_files_untagged(ids)
+        self.wrap_commit(|txn| {
+            txn.delete_files_untagged(ids)?;
+
+            Ok(())
+        })
     }
 }

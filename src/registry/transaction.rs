@@ -43,10 +43,15 @@ impl<'t> Txn<'t> {
         Ok(Self { registry, txn })
     }
 
-    /// Return the [`Transaction`]
+    /// Return the [`Transaction`] by taking ownership of `self`
     #[allow(clippy::missing_const_for_fn)]
     pub(crate) fn txn(self) -> Transaction<'t> {
         self.txn
+    }
+
+    /// Return the [`Transaction`] as a reference
+    pub(crate) const fn txn_ref(&'t self) -> &'t Transaction<'t> {
+        &self.txn
     }
 
     /// Return the [`Registry`]

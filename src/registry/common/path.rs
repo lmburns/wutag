@@ -91,7 +91,7 @@ impl FsPath {
         }
 
         let cwd = cwd.parent().context("failed to get parent")?;
-        let prefix = trailing_separator(&cwd.to_path_buf());
+        let prefix = trailing_separator(cwd);
         let s_prefix = path_str!(prefix);
         if s_path.starts_with(&s_prefix) {
             return Ok(PathBuf::from(format!(

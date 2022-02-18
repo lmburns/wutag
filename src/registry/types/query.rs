@@ -48,7 +48,7 @@ impl From<&String> for Query {
 
 impl From<&str> for Query {
     fn from(s: &str) -> Self {
-        Self::new(s.to_owned())
+        Self::new(s)
     }
 }
 

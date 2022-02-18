@@ -194,8 +194,7 @@ fn file_hash(i: Span) -> IResult<Span, Expr> {
 fn not_closing(i: Span) -> IResult<Span, Span> {
     let delim = i.extra.closing_delim().unwrap_or('}');
     recognize(many0(
-        is_not(&*format!("\\{}", delim.to_owned()))
-            .or(is_a(&*delim.to_string()).preceded_by(tag("\\"))),
+        is_not(&*format!("\\{}", delim)).or(is_a(&*delim.to_string()).preceded_by(tag("\\"))),
     ))(i)
 }
 
@@ -755,7 +754,7 @@ fn parse_glob(i: Span) -> IResult<Span, Search> {
         ),
     ))
     .map(|(patt, tobe_flags)| {
-        let flags = SearchFlags::from_vec(&tobe_flags.unwrap_or_else(Vec::new));
+        let flags = SearchFlags::from_vec(&tobe_flags.unwrap_or_default());
         Search::new_glob(patt, &flags)
     })
     .parse(i)

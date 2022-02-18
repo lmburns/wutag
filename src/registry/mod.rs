@@ -321,7 +321,7 @@ impl Registry {
 
         let mut stmt = self
             .conn
-            .prepare(sql)
+            .prepare_cached(sql)
             .context(format!("failed to prepare sql: {}", sql))?;
 
         stmt.insert(params)
@@ -352,7 +352,7 @@ impl Registry {
 
         let mut stmt = self
             .conn
-            .prepare(sql)
+            .prepare_cached(sql)
             .context(format!("failed to prepare sql: {}", sql))?;
 
         stmt.query_row(params, f).context(error)
@@ -378,7 +378,7 @@ impl Registry {
 
         let mut stmt = self
             .conn
-            .prepare(sql)
+            .prepare_cached(sql)
             .context(format!("failed to prepare sql: {}", sql))?;
         let mut rows = stmt
             .query(params)
@@ -442,9 +442,39 @@ impl Registry {
     // ============================ Conversion ============================
     // ====================================================================
 
-    /// Convert to a [`Txn`](self::transaction::Txn)
+    /// Convert to a [`Txn`]
     pub(crate) fn txn(&self) -> Result<Txn<'_>> {
         Txn::new(self).context("failed to build `Txn`")
+    }
+
+    /// Execute a closure on [`Txn`]. This is used to lessen duplicate code
+    pub(crate) fn txn_wrap<F, T>(&self, mut f: F) -> Result<T>
+    where
+        F: FnMut(&Txn) -> Result<T>,
+    {
+        f(&self.txn()?)
+    }
+
+    /// Execute a closure on [`Txn`] and `commit` by executing the `sqlite`
+    /// command `COMMIT` if the closure was successful. Commits only need to be
+    /// done if the database is modified
+    ///
+    /// The `sqlite` command is used instead of the `commit` function due to
+    /// shared reference issues
+    pub(crate) fn wrap_commit<F, T>(&self, mut f: F) -> Result<T>
+    where
+        F: FnMut(&Txn) -> Result<T>,
+    {
+        self.txn_wrap(|txn| {
+            let res = f(txn);
+
+            if res.is_ok() {
+                txn.registry().conn().execute_batch("COMMIT")?;
+                res
+            } else {
+                Ok(res?)
+            }
+        })
     }
 
     // ============================== Other ===============================
@@ -558,7 +588,7 @@ impl Registry {
                                 // The diagnostics must be printed first
                                 // If there are no errors, nothing is printed
                                 for diag in g.diagnostics() {
-                                    wutag_error!("{}", diag.to_owned());
+                                    wutag_error!("{}", diag);
                                 }
 
                                 g.map_or_else(

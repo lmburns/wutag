@@ -223,7 +223,7 @@ impl App {
             .unwrap_or_else(|_| wutag_fatal!("could not flush tmp file: '{}'", tmp_path.display()));
 
         // Option does not need to be given, as it is read from an environment variable
-        process::Command::new(opts.editor.to_string())
+        process::Command::new(&opts.editor)
             .arg(&tmp_path)
             .status()
             .expect("could not spawn editor");

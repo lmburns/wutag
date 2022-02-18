@@ -1726,7 +1726,7 @@ impl UiApp {
                 std::cmp::min(
                     selected
                         .checked_add(self.list_height as usize)
-                        .unwrap_or_else(|| self.registry.entries.len() - 1),
+                        .unwrap_or(self.registry.entries.len() - 1),
                     self.registry.entries.len() - 1,
                 )
             }

@@ -112,14 +112,23 @@ impl App {
         let re = regex_builder(&pat, self.case_insensitive, self.case_sensitive);
         log::debug!("Compiled pattern: {}", re);
 
-        #[allow(clippy::manual_map)]
-        let command = if let Some(cmd) = &opts.execute {
-            Some(CommandTemplate::new(cmd))
-        } else if let Some(cmd) = &opts.execute_batch {
-            Some(CommandTemplate::new_batch(cmd).expect("Invalid batch command"))
-        } else {
-            None
-        };
+        let command = opts.execute.as_ref().map_or_else(
+            || {
+                opts.execute_batch.as_ref().map_or_else(
+                    || None,
+                    |cmd| Some(CommandTemplate::new_batch(cmd).expect("invalid batch command")),
+                )
+            },
+            |cmd| Some(CommandTemplate::new(cmd)),
+        );
+
+        // let command = if let Some(cmd) = &opts.execute {
+        //     Some(CommandTemplate::new(cmd))
+        // } else if let Some(cmd) = &opts.execute_batch {
+        //     Some(CommandTemplate::new_batch(cmd).expect("Invalid batch command"))
+        // } else {
+        //     None
+        // };
 
         let app = Arc::new(self.clone());
         let opts = Arc::new(opts.clone());

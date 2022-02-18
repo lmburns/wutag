@@ -126,66 +126,6 @@ _arguments "${_arguments_options[@]}" \
     ;;
 esac
 ;;
-(list2)
-_arguments "${_arguments_options[@]}" \
-'-r[Output will not be colorized]' \
-'--raw[Output will not be colorized]' \
-'-h[Print help information]' \
-'--help[Print help information]' \
-'*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
-'*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
-":: :_wutag__list2_commands" \
-"*::: :->list2" \
-&& ret=0
-
-    case $state in
-    (list2)
-        words=($line[1] "${words[@]}")
-        (( CURRENT += 1 ))
-        curcontext="${curcontext%:*:*}:wutag-list2-command-$line[1]:"
-        case $line[1] in
-            (tags)
-_arguments "${_arguments_options[@]}" \
-'--version[Print version information]' \
-'-c[Do not display tag count]' \
-'--no-count[Do not display tag count]' \
-'-u[Only display unique occurences. (See --help)]' \
-'--unique[Only display unique occurences. (See --help)]' \
-'-s[Sort the output]' \
-'--sort[Sort the output]' \
-'-i[Do not show implied tags]' \
-'--implied[Do not show implied tags]' \
-'-1[Display one tag per line instead of tags on files]' \
-'--one-per-line[Display one tag per line instead of tags on files]' \
-'(-c --no-count)-b[Use border separators when formatting output]' \
-'(-c --no-count)--border[Use border separators when formatting output]' \
-'-h[Print help information]' \
-'--help[Print help information]' \
-'*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
-'*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
-&& ret=0
-;;
-(files)
-_arguments "${_arguments_options[@]}" \
-'--version[Print version information]' \
-'-t[Display tags along with the files]' \
-'--with-tags[Display tags along with the files]' \
-'(-G --garrulous)-f[Format the tags and files output into columns]' \
-'(-G --garrulous)--format[Format the tags and files output into columns]' \
-'-b[Use border separators when formatting output]' \
-'--border[Use border separators when formatting output]' \
-'(-f --format)-G[Display tags and files on separate lines]' \
-'(-f --format)--garrulous[Display tags and files on separate lines]' \
-'-h[Print help information]' \
-'--help[Print help information]' \
-'*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
-'*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
-&& ret=0
-;;
-        esac
-    ;;
-esac
-;;
 (set|tag)
 _arguments "${_arguments_options[@]}" \
 '-C+[Explicitly select color for tag]:COLOR: ' \
@@ -204,6 +144,24 @@ _arguments "${_arguments_options[@]}" \
 '*::_wutag_tags:' \
 && ret=0
 ;;
+(set2)
+_arguments "${_arguments_options[@]}" \
+'-C+[Explicitly select color for tag]:COLOR: ' \
+'--color=[Explicitly select color for tag]:COLOR: ' \
+'-q[Do not show errors that tag already exists]' \
+'--quiet[Do not show errors that tag already exists]' \
+'-c[Clear all tags before setting them]' \
+'--clear[Clear all tags before setting them]' \
+'-s[]' \
+'--stdin[]' \
+'-h[Print help information]' \
+'--help[Print help information]' \
+'*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
+'*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
+':pattern -- A glob pattern like "*.png":_files' \
+'*::tags:_wutag_tags' \
+&& ret=0
+;;
 (rm)
 _arguments "${_arguments_options[@]}" \
 '-h[Print help information]' \
@@ -211,7 +169,7 @@ _arguments "${_arguments_options[@]}" \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
 ':pattern -- A glob pattern like "*.png" (or regex):' \
-'*::tags:_wutag_tags' \
+'*::tags:' \
 && ret=0
 ;;
 (clear)
@@ -357,8 +315,8 @@ _wutag_commands() {
 'testing:Testing new subcommands' \
 'list:Lists all available tags or files' \
 'ls:Lists all available tags or files' \
-'list2:Lists all available tags or files' \
 'set:Set tag(s) on files that match the given pattern' \
+'set2:Set tag(s) on files that match the given pattern' \
 'rm:Remove tag(s) from the files that match the provided pattern' \
 'clear:Clears all tags of the files that match the provided pattern' \
 'search:Searches for files that have all of the provided '\''tags'\''' \

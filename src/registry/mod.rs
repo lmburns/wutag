@@ -157,12 +157,10 @@ impl Registry {
         self.follow_symlinks
     }
 
-    /// Create a new `Registry`
-    #[allow(clippy::unnecessary_wraps)]
-    pub(crate) fn new(path: &Path, conn: Connection, follow_symlinks: bool) -> Result<Self> {
-        if !path.exists() {
-            wutag_fatal!("database does not exist");
-        }
+    /// Create a new [`Registry`]
+    pub(crate) fn new<P: AsRef<Path>>(path: P, follow_symlinks: bool) -> Result<Self> {
+        let path = path.as_ref();
+        let conn = Connection::open(&path)?;
 
         Ok(Self {
             follow_symlinks,
@@ -170,6 +168,26 @@ impl Registry {
             conn,
             version: 1,
         })
+    }
+
+    /// Create a new [`Registry`] with a default database
+    pub(crate) fn new_default(follow_symlinks: bool) -> Result<Self> {
+        let state_file = {
+            let data_dir = PROJECT_DIRS.data_dir();
+
+            if !data_dir.exists() {
+                fs::create_dir_all(&data_dir).unwrap_or_else(|_| {
+                    wutag_fatal!(
+                        "unable to create tag registry directory: {}",
+                        data_dir.display()
+                    )
+                });
+            }
+
+            data_dir.join(REGISTRY_FILE)
+        };
+
+        Self::new(state_file, follow_symlinks)
     }
 
     /// Initialize the database

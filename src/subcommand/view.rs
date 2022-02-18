@@ -62,7 +62,7 @@ impl App {
     /// View tags within an `$EDITOR`
     pub(crate) fn view(&mut self, opts: &ViewOpts) -> Result<()> {
         log::debug!("ViewOpts: {:#?}", opts);
-        log::debug!("Using registry: {}", self.registry.path.display());
+        log::debug!("Using registry: {}", self.oregistry.path.display());
         let pat = if let Some(pattern) = &opts.pattern {
             if self.pat_regex {
                 String::from(pattern)
@@ -96,8 +96,8 @@ impl App {
                         match entry.has_tags() {
                             Ok(has_tags) =>
                                 if has_tags {
-                                    if let Some(id) = self.registry.find_entry(entry.path()) {
-                                        self.registry
+                                    if let Some(id) = self.oregistry.find_entry(entry.path()) {
+                                        self.oregistry
                                             .list_entry_tags(id)
                                             .unwrap_or_default()
                                             .iter()
@@ -115,7 +115,7 @@ impl App {
                 },
             );
         } else {
-            for (id, entry) in self.registry.list_entries_and_ids() {
+            for (id, entry) in self.oregistry.list_entries_and_ids() {
                 if !self.global && !contained_path(entry.path(), &self.base_dir) {
                     continue;
                 }
@@ -141,7 +141,8 @@ impl App {
                 }
 
                 if re.is_match(&search_bytes) {
-                    if !opts.tags.is_empty() && !self.registry.entry_has_any_tags(*id, &opts.tags) {
+                    if !opts.tags.is_empty() && !self.oregistry.entry_has_any_tags(*id, &opts.tags)
+                    {
                         continue;
                     }
 
@@ -151,7 +152,7 @@ impl App {
                             ? entry.path().display().to_string()
                             : raw_local_path(entry.path(), &self.base_dir)
                         ),
-                        self.registry
+                        self.oregistry
                             .list_entry_tags(*id)
                             .unwrap_or_default()
                             .iter()
@@ -345,8 +346,8 @@ impl App {
                 // Clear all tags before writing new ones so there wouldn't
                 // be a need to check if one is missing and delete it, or vice-versa
                 // with adding it
-                if let Some(id) = self.registry.find_entry(entry) {
-                    self.registry.clear_entry(id);
+                if let Some(id) = self.oregistry.find_entry(entry) {
+                    self.oregistry.clear_entry(id);
                 }
 
                 if !self.quiet {
@@ -369,7 +370,7 @@ impl App {
                 let tags = tags
                     .iter()
                     .map(|t| {
-                        if let Some(t) = self.registry.get_tag(t) {
+                        if let Some(t) = self.oregistry.get_tag(t) {
                             log::debug!("Got tag: {:?}", t);
                             t.clone()
                         } else {
@@ -384,8 +385,8 @@ impl App {
                         wutag_error!("{} {}", e, bold_entry!(entry));
                     } else {
                         let entry = EntryData::new(entry)?;
-                        let id = self.registry.add_or_update_entry(entry);
-                        self.registry.tag_entry(&tag, id);
+                        let id = self.oregistry.add_or_update_entry(entry);
+                        self.oregistry.tag_entry(&tag, id);
                         if !self.quiet {
                             println!("\t{} {}", "+".bold().green(), fmt_tag(&tag));
                         }

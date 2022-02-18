@@ -42,7 +42,7 @@ impl App {
     /// Edit a `Tag` by changing its color
     pub(crate) fn edit(&mut self, opts: &EditOpts) {
         log::debug!("EditOpts: {:#?}", opts);
-        log::debug!("Using registry: {}", self.registry.path.display());
+        log::debug!("Using registry: {}", self.oregistry.path.display());
 
         let mut table = vec![];
 
@@ -51,10 +51,10 @@ impl App {
         /// Macro to update the `Tag`s color
         macro_rules! update_color {
             ($tag:expr, $color:expr) => {
-                let old_tag = self.registry.get_tag($tag).cloned();
-                if self.registry.update_tag_color($tag, $color) {
+                let old_tag = self.oregistry.get_tag($tag).cloned();
+                if self.oregistry.update_tag_color($tag, $color) {
                     if let Some(ref old_tag) = old_tag {
-                        let new_tag = self.registry.get_tag($tag);
+                        let new_tag = self.oregistry.get_tag($tag);
                         table.push(vec![
                             fmt_tag(old_tag).to_string().cell().justify(Justify::Right),
                             "==>".cell().justify(Justify::Center),
@@ -68,12 +68,12 @@ impl App {
             };
         }
 
-        let old_tag = self.registry.get_tag(&opts.tag).cloned();
+        let old_tag = self.oregistry.get_tag(&opts.tag).cloned();
 
         if let Some(rename) = &opts.rename {
-            if self.registry.update_tag_name(&opts.tag, rename) {
+            if self.oregistry.update_tag_name(&opts.tag, rename) {
                 if let Some(ref old_tag) = old_tag {
-                    let new_tag = self.registry.get_tag(&rename);
+                    let new_tag = self.oregistry.get_tag(&rename);
                     table.push(vec![
                         fmt_tag(old_tag).to_string().cell().justify(Justify::Right),
                         "==>".cell().justify(Justify::Center),

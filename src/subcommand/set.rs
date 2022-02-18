@@ -38,7 +38,7 @@ pub(crate) struct SetOpts {
 impl App {
     pub(crate) fn set(&mut self, opts: &SetOpts) -> Result<()> {
         log::debug!("SetOpts: {:#?}", opts);
-        log::debug!("Using registry: {}", self.registry.path.display());
+        log::debug!("Using registry: {}", self.oregistry.path.display());
 
         // Needed because it's not possible (as far as I know) to skip an argument if
         // another is present
@@ -50,7 +50,7 @@ impl App {
         let tags = tags
             .iter()
             .map(|t| {
-                if let Some(t) = self.registry.get_tag(t) {
+                if let Some(t) = self.oregistry.get_tag(t) {
                     t.clone()
                 } else if let Some(color) = &opts.color {
                     Tag::new(
@@ -87,10 +87,10 @@ impl App {
                     if opts.clear {
                         log::debug!(
                             "Using registry in threads: {}",
-                            self.registry.path.display()
+                            self.oregistry.path.display()
                         );
-                        if let Some(id) = self.registry.find_entry(entry) {
-                            self.registry.clear_entry(id);
+                        if let Some(id) = self.oregistry.find_entry(entry) {
+                            self.oregistry.clear_entry(id);
                         }
                         match entry.has_tags() {
                             Ok(has_tags) =>
@@ -113,8 +113,8 @@ impl App {
                     } else {
                         log::debug!("Setting tag for new entry: {}", entry.display());
                         let entry = EntryData::new(entry)?;
-                        let id = self.registry.add_or_update_entry(entry);
-                        self.registry.tag_entry(tag, id);
+                        let id = self.oregistry.add_or_update_entry(entry);
+                        self.oregistry.tag_entry(tag, id);
                         if !self.quiet {
                             print!("\t{} {}", "+".bold().green(), fmt_tag(tag));
                         }
@@ -139,10 +139,10 @@ impl App {
                         if opts.clear {
                             log::debug!(
                                 "Using registry in threads: {}",
-                                self.registry.path.display()
+                                self.oregistry.path.display()
                             );
-                            if let Some(id) = self.registry.find_entry(entry.path()) {
-                                self.registry.clear_entry(id);
+                            if let Some(id) = self.oregistry.find_entry(entry.path()) {
+                                self.oregistry.clear_entry(id);
                             }
                             match entry.has_tags() {
                                 Ok(has_tags) =>
@@ -173,8 +173,8 @@ impl App {
                                     entry.path().display()
                                 );
                             };
-                            let id = self.registry.add_or_update_entry(entry);
-                            self.registry.tag_entry(tag, id);
+                            let id = self.oregistry.add_or_update_entry(entry);
+                            self.oregistry.tag_entry(tag, id);
                             print!("\t{} {}", "+".bold().green(), fmt_tag(tag));
                         }
                     }

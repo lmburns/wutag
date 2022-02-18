@@ -19,7 +19,7 @@ impl App {
     /// Clear `Tag`s from a given path
     pub(crate) fn clear(&mut self, opts: &ClearOpts) {
         log::debug!("ClearOpts: {:#?}", opts);
-        log::debug!("Using registry: {}", self.registry.path.display());
+        log::debug!("Using registry: {}", self.oregistry.path.display());
         let pat = if self.pat_regex {
             String::from(&opts.pattern)
         } else {
@@ -34,7 +34,7 @@ impl App {
                 self.case_insensitive,
                 self.case_sensitive,
             );
-            for (&id, entry) in self.registry.clone().list_entries_and_ids() {
+            for (&id, entry) in self.oregistry.clone().list_entries_and_ids() {
                 let search_str: Cow<OsStr> = Cow::Owned(entry.path().as_os_str().to_os_string());
                 let search_bytes = &osstr_to_bytes(search_str.as_ref());
                 if !self.exclude.is_empty() && exclude_pattern.is_match(search_bytes) {
@@ -48,7 +48,7 @@ impl App {
                 }
 
                 if re.is_match(search_bytes) {
-                    self.registry.clear_entry(id);
+                    self.oregistry.clear_entry(id);
                     match has_tags(entry.path()) {
                         Ok(has_tags) =>
                             if has_tags && !self.quiet {
@@ -75,8 +75,8 @@ impl App {
                 &Arc::new(re),
                 &Arc::new(self.clone()),
                 |entry: &ignore::DirEntry| {
-                    if let Some(id) = self.registry.find_entry(entry.path()) {
-                        self.registry.clear_entry(id);
+                    if let Some(id) = self.oregistry.find_entry(entry.path()) {
+                        self.oregistry.clear_entry(id);
                     }
 
                     match entry.has_tags() {

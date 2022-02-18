@@ -39,11 +39,10 @@ pub(crate) struct TestingOpts {
 impl App {
     #[allow(clippy::unnecessary_wraps)]
     pub(crate) fn testing(&mut self, opts: &TestingOpts) -> Result<()> {
-        log::debug!("Using registry: {}", self.registry.path.display());
+        log::debug!("Using registry: {}", self.oregistry.path.display());
 
         let path = PathBuf::from("./my.db");
-        let conn = rusqlite::Connection::open(&path)?;
-        let reg = crate::registry::Registry::new(&path, conn, self.follow_symlinks)?;
+        let reg = crate::registry::Registry::new(&path, self.follow_symlinks)?;
         reg.init()?;
 
         let txn = crate::registry::transaction::Txn::new(&reg)?;

@@ -102,7 +102,7 @@ impl App {
     /// Find files that match a given query
     pub(crate) fn search(&self, opts: &SearchOpts) {
         log::debug!("SearchOpts: {:#?}", opts);
-        log::debug!("Using registry: {}", self.registry.path.display());
+        log::debug!("Using registry: {}", self.oregistry.path.display());
         let pat = if self.pat_regex {
             String::from(&opts.pattern)
         } else {

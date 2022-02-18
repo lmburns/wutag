@@ -33,8 +33,7 @@ macro_rules! first_idx {
 
 fn setup_db() -> Result<Registry> {
     let path = PathBuf::from(DB_NAME);
-    let conn = Connection::open(&path)?;
-    let reg = Registry::new(&path, conn, false)?;
+    let reg = Registry::new(&path, false)?;
     reg.init()?;
 
     Ok(reg)

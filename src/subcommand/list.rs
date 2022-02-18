@@ -138,7 +138,7 @@ impl App {
     /// List `Tags` or `Files` in the database
     pub(crate) fn list(&self, opts: &ListOpts) {
         log::debug!("ListOpts: {:#?}", opts);
-        log::debug!("Using registry: {}", self.registry.path.display());
+        log::debug!("Using registry: {}", self.oregistry.path.display());
 
         let mut table = vec![];
         let colorchoice = match self.color_when.as_ref() {
@@ -154,7 +154,7 @@ impl App {
                 border,
                 garrulous,
             } => {
-                for (id, file) in self.registry.list_entries_and_ids() {
+                for (id, file) in self.oregistry.list_entries_and_ids() {
                     // Skips paths that are not contained within current directory to respect the
                     // `-d` flag. Global is just another way to specify -d=~
                     // (list files locally by default, i.e., no subcommand is given)
@@ -185,7 +185,7 @@ impl App {
 
                     if with_tags {
                         let tags = self
-                            .registry
+                            .oregistry
                             .list_entry_tags(*id)
                             .unwrap_or_default()
                             .iter()
@@ -248,7 +248,7 @@ impl App {
                 explicit,
             } => {
                 let mut utags = Vec::new();
-                for (&id, file) in self.registry.list_entries_and_ids() {
+                for (&id, file) in self.oregistry.list_entries_and_ids() {
                     if !self.global && !contained_path(file.path(), &self.base_dir) {
                         continue;
                     }
@@ -265,12 +265,12 @@ impl App {
                     }
 
                     if one_per_line {
-                        self.registry.list_entry_tags(id).iter().for_each(|tags| {
+                        self.oregistry.list_entry_tags(id).iter().for_each(|tags| {
                             tags.iter().for_each(|t| utags.push(format!("{}", raw!(t))));
                         });
                     } else {
                         let tags = self
-                            .registry
+                            .oregistry
                             .list_entry_tags(id)
                             .map(|tags| {
                                 tags.iter().fold(String::new(), |mut acc, t| {

@@ -24,19 +24,19 @@ impl App {
     /// Show information about the database
     pub(crate) fn info(&mut self, opts: &InfoOpts) {
         log::debug!("InfoOpts: {:#?}", opts);
-        log::debug!("Using registry: {}", self.registry.path.display());
+        log::debug!("Using registry: {}", self.oregistry.path.display());
 
         println!(
             "{}: {}",
             "Registry".magenta(),
-            self.registry.path.display().to_string().green()
+            self.oregistry.path.display().to_string().green()
         );
 
         // let (w, _) = crossterm::terminal::size().unwrap_or((80, 40));
         //
         // let mut table = vec![];
         //
-        // for tag in self.registry.list_tags() {
+        // for tag in self.oregistry.list_tags() {
         //     let mut row = vec![];
         //     let mut cumulative = 0;
         //
@@ -50,7 +50,7 @@ impl App {
         //     }
         // }
 
-        self.registry
+        self.oregistry
             .list_tags()
             .map(|tag| {
                 if opts.raw {

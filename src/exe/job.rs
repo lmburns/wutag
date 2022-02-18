@@ -138,7 +138,7 @@ pub(crate) fn receiver(
                             println!();
                         } else {
                             let tags = app
-                                .registry
+                                .oregistry
                                 .list_entry_tags(id)
                                 .unwrap_or_default()
                                 .iter()
@@ -191,7 +191,7 @@ pub(crate) fn sender(
         let tx_thread = tx.clone();
         s.spawn(move |_| {
             // Repeated code from calling function to run on multiple threads
-            for (&id, entry) in app.registry.list_entries_and_ids() {
+            for (&id, entry) in app.oregistry.list_entries_and_ids() {
                 if !app.global && !contained_path(entry.path(), &app.base_dir) {
                     continue;
                 }
@@ -221,13 +221,13 @@ pub(crate) fn sender(
                     if !opts.tags.is_empty()
                         && ((opts.only_all
                             && !opts.all
-                            && !app.registry.entry_has_only_all_tags(id, &opts.tags))
+                            && !app.oregistry.entry_has_only_all_tags(id, &opts.tags))
                             || (!opts.only_all
                                 && opts.all
-                                && !app.registry.entry_has_all_tags(id, &opts.tags))
+                                && !app.oregistry.entry_has_all_tags(id, &opts.tags))
                             || (!opts.only_all
                                 && !opts.all
-                                && !app.registry.entry_has_any_tags(id, &opts.tags)))
+                                && !app.oregistry.entry_has_any_tags(id, &opts.tags)))
                     {
                         continue;
                     }

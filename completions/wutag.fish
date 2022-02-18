@@ -61,9 +61,8 @@ complete -c wutag -n "__fish_seen_subcommand_from set" -s s -l stdin
 complete -c wutag -n "__fish_seen_subcommand_from set" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from set" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from set2" -s C -l color -d 'Explicitly select color for tag' -r
-complete -c wutag -n "__fish_seen_subcommand_from set2" -s q -l quiet -d 'Do not show errors that tag already exists'
-complete -c wutag -n "__fish_seen_subcommand_from set2" -s c -l clear -d 'Clear all tags before setting them'
-complete -c wutag -n "__fish_seen_subcommand_from set2" -s s -l stdin
+complete -c wutag -n "__fish_seen_subcommand_from set2" -s c -l clear -d 'Clear the tags on the match(es) before the new one(s) are set'
+complete -c wutag -n "__fish_seen_subcommand_from set2" -s s -l stdin -d 'Arguments are expected to be passed through stdin'
 complete -c wutag -n "__fish_seen_subcommand_from set2" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from set2" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s h -l help -d 'Print help information'

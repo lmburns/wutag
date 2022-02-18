@@ -25,15 +25,47 @@ pub(crate) mod view;
 // TODO: tag value attributes
 
 use uses::{
-    env, oregistry as registry, parse_color, parse_color_cli_table, ui, wutag_error, wutag_fatal,
-    Color, Colorize, Command, Config, Context, EncryptConfig, FileTypes, Opts, PathBuf, RegexSet,
-    RegexSetBuilder, Result, Stream, TagRegistry, DEFAULT_BASE_COLOR, DEFAULT_BORDER_COLOR,
-    DEFAULT_COLORS,
+    env, oregistry, parse_color, parse_color_cli_table, ui, wutag_error, wutag_fatal, Arc, Color,
+    Colorize, Command, Config, Context, EncryptConfig, FileTypes, Mutex, Opts, PathBuf, RegexSet,
+    RegexSetBuilder, Registry, Result, Stream, TagRegistry, DEFAULT_BASE_COLOR,
+    DEFAULT_BORDER_COLOR, DEFAULT_COLORS,
 };
+
+impl Clone for App {
+    fn clone(&self) -> Self {
+        Self {
+            base_color:       self.base_color,
+            base_dir:         self.base_dir.clone(),
+            case_insensitive: self.case_insensitive,
+            case_sensitive:   self.case_sensitive,
+            color_when:       self.color_when.clone(),
+            colors:           self.colors.clone(),
+            exclude:          self.exclude.clone(),
+            extension:        self.extension.clone(),
+            file_type:        self.file_type,
+            follow_symlinks:  self.follow_symlinks,
+            format:           self.format.clone(),
+            global:           self.global,
+            ignores:          self.ignores.clone(),
+            ls_colors:        self.ls_colors,
+            max_depth:        self.max_depth,
+            quiet:            self.quiet,
+            pat_regex:        self.pat_regex,
+            oregistry:        self.oregistry.clone(),
+            registry:         self.registry.clone(),
+
+            #[cfg(feature = "prettify")]
+            border_color:                              self.border_color,
+
+            #[cfg(feature = "encrypt-gpgme")]
+            encrypt:                                   self.encrypt.clone(),
+        }
+    }
+}
 
 /// A structure that is built from a parsed `Config` and parsed `Opts`
 #[allow(clippy::missing_docs_in_private_items)]
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub(crate) struct App {
     pub(crate) base_color:       Color,
     pub(crate) base_dir:         PathBuf,
@@ -52,7 +84,9 @@ pub(crate) struct App {
     pub(crate) max_depth:        Option<usize>,
     pub(crate) quiet:            bool,
     pub(crate) pat_regex:        bool,
-    pub(crate) registry:         TagRegistry,
+    pub(crate) oregistry:        TagRegistry,
+
+    pub(crate) registry: Arc<Mutex<Registry>>,
 
     #[cfg(feature = "prettify")]
     pub(crate) border_color: cli_table::Color,
@@ -136,7 +170,9 @@ impl App {
             },
         );
 
-        let registry = registry::load_registry(opts, &config.encryption)?;
+        let oregistry = oregistry::load_registry(opts, &config.encryption)?;
+
+        let registry = Registry::new_default(config.follow_symlinks)?;
 
         let extensions = opts
             .extension
@@ -206,7 +242,9 @@ impl App {
             },
             pat_regex: opts.regex,
             quiet: opts.quiet,
-            registry,
+            oregistry,
+
+            registry: Arc::new(Mutex::new(registry)),
 
             #[cfg(feature = "prettify")]
             border_color,
@@ -218,7 +256,7 @@ impl App {
 
     /// Save the `TagRegistry` after modifications
     pub(crate) fn save_registry(&mut self) {
-        if let Err(e) = self.registry.save() {
+        if let Err(e) = self.oregistry.save() {
             wutag_error!("failed to save registry - {}", e);
         }
     }
@@ -242,7 +280,8 @@ impl App {
             Command::Repair(ref opts) => self.repair(opts)?,
             Command::Rm(ref opts) => self.rm(opts),
             Command::Search(ref opts) => self.search(opts),
-            Command::Set(opts) | Command::Set2(opts) => self.set(&opts)?,
+            Command::Set(opts) => self.set(&opts)?,
+            Command::Set2(opts) => self.set2(&opts)?,
             Command::Testing(opts) => self.testing(&opts)?,
             Command::View(ref opts) => self.view(opts)?,
 
@@ -252,7 +291,7 @@ impl App {
                 if let Err(e) = ui::start_ui(
                     &self.clone(),
                     config.clone(),
-                    registry::load_registry(&opts, &config.encryption)
+                    oregistry::load_registry(&opts, &config.encryption)
                         .expect("unable to get tag registry"),
                 ) {
                     ui::destruct_terminal();
@@ -269,9 +308,9 @@ impl App {
 
     /// Encryption command to run after every subcommand
     pub(crate) fn handle_encryption(&self) {
-        if self.encrypt.to_encrypt && !registry::is_encrypted(&self.registry.path) {
+        if self.encrypt.to_encrypt && !oregistry::is_encrypted(&self.oregistry.path) {
             log::debug!("Attempting to encrypt registry");
-            if let Err(e) = TagRegistry::crypt_registry(&self.registry.path, &self.encrypt, true) {
+            if let Err(e) = TagRegistry::crypt_registry(&self.oregistry.path, &self.encrypt, true) {
                 wutag_fatal!("{}", e);
             }
         }

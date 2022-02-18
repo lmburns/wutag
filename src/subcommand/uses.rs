@@ -24,7 +24,7 @@ pub(crate) use std::{
     io::prelude::*,
     path::PathBuf,
     process,
-    sync::Arc,
+    sync::{Arc, Mutex},
 };
 
 pub(crate) use crate::{
@@ -40,6 +40,7 @@ pub(crate) use crate::{
     global_opts,
     opt::{Command, Opts},
     oregistry::{self, EntryData, TagRegistry},
+    registry::Registry,
     ui,
     util::{
         collect_stdin_paths, fmt_err, fmt_local_path, fmt_ok, fmt_path, fmt_tag, gen_completions,

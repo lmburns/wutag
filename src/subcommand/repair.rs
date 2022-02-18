@@ -50,7 +50,7 @@ impl App {
         let mut removed = false;
 
         for (id, entry) in self
-            .registry
+            .oregistry
             .list_entries_and_ids()
             .map(|(i, e)| (*i, e.clone()))
             .collect::<Vec<(_, _)>>()
@@ -83,13 +83,13 @@ impl App {
                 ]);
 
                 if !opts.dry_run {
-                    self.registry.repair_registry(id)?;
+                    self.oregistry.repair_registry(id)?;
                 }
             }
 
             if !exists && opts.remove {
                 if !opts.dry_run {
-                    self.registry.clear_entry(id);
+                    self.oregistry.clear_entry(id);
                 }
 
                 if !self.quiet {

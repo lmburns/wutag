@@ -20,7 +20,7 @@ impl App {
         // Global will match a glob only against files that are tagged
         // Could add a fixed string option
         log::debug!("RmOpts: {:#?}", opts);
-        log::debug!("Using registry: {}", self.registry.path.display());
+        log::debug!("Using registry: {}", self.oregistry.path.display());
         let pat = if self.pat_regex {
             String::from(&opts.pattern)
         } else {
@@ -37,7 +37,7 @@ impl App {
                 self.case_insensitive,
                 self.case_sensitive,
             );
-            for (&id, entry) in self.registry.clone().list_entries_and_ids() {
+            for (&id, entry) in self.oregistry.clone().list_entries_and_ids() {
                 let search_str: Cow<OsStr> = Cow::Owned(entry.path().as_os_str().to_os_string());
                 let search_bytes = osstr_to_bytes(search_str.as_ref());
                 if !self.exclude.is_empty() && exclude_pattern.is_match(&search_bytes) {
@@ -66,7 +66,7 @@ impl App {
                         .for_each(|(search, realtag)| {
                             if search.is_some() {
                                 // println!("SEARCH: {:?} REAL: {:?}", search, realtag);
-                                self.registry.untag_by_name(search.unwrap(), id);
+                                self.oregistry.untag_by_name(search.unwrap(), id);
                                 if !self.quiet {
                                     println!(
                                         "{}:",
@@ -95,13 +95,13 @@ impl App {
                 &Arc::new(self.clone()),
                 |entry: &ignore::DirEntry| {
                     log::debug!("Using WalkParallel");
-                    let id = self.registry.find_entry(entry.path());
+                    let id = self.oregistry.find_entry(entry.path());
                     let tags = opts
                         .tags
                         .iter()
                         .map(|tag| {
                             if let Some(id) = id {
-                                self.registry.untag_by_name(tag, id);
+                                self.oregistry.untag_by_name(tag, id);
                             }
                             entry.get_tag(tag)
                         })

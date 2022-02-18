@@ -43,7 +43,7 @@ impl App {
     /// Copy `Tag`s or a `Tag`'s color to another `Tag`
     pub(crate) fn cp(&mut self, opts: &CpOpts) -> Result<()> {
         log::debug!("CpOpts: {:#?}", opts);
-        log::debug!("Using registry: {}", self.registry.path.display());
+        log::debug!("Using registry: {}", self.oregistry.path.display());
 
         let pat = if self.pat_regex {
             String::from(&opts.pattern)
@@ -64,7 +64,7 @@ impl App {
                 self.case_sensitive,
             );
 
-            for (_, entry) in self.registry.clone().list_entries_and_ids() {
+            for (_, entry) in self.oregistry.clone().list_entries_and_ids() {
                 let search_str: Cow<OsStr> = Cow::Owned(entry.path().as_os_str().to_os_string());
                 let search_bytes = osstr_to_bytes(search_str.as_ref());
                 if !self.exclude.is_empty() && exclude_pattern.is_match(&search_bytes) {
@@ -87,8 +87,8 @@ impl App {
                                     err!('\t', e, entry);
                                 } else {
                                     let entry = EntryData::new(entry.path())?;
-                                    let id = self.registry.add_or_update_entry(entry);
-                                    self.registry.tag_entry(tag, id);
+                                    let id = self.oregistry.add_or_update_entry(entry);
+                                    self.oregistry.tag_entry(tag, id);
                                     if !self.quiet {
                                         println!("\t{} {}", "+".bold().green(), fmt_tag(tag));
                                     }
@@ -133,8 +133,8 @@ impl App {
                                             entry.path().display()
                                         );
                                     };
-                                    let id = self.registry.add_or_update_entry(entry);
-                                    self.registry.tag_entry(tag, id);
+                                    let id = self.oregistry.add_or_update_entry(entry);
+                                    self.oregistry.tag_entry(tag, id);
                                     if !self.quiet {
                                         println!("\t{} {}", "+".bold().green(), fmt_tag(tag));
                                     }

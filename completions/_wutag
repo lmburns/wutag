@@ -148,18 +148,14 @@ _arguments "${_arguments_options[@]}" \
 _arguments "${_arguments_options[@]}" \
 '-C+[Explicitly select color for tag]:COLOR: ' \
 '--color=[Explicitly select color for tag]:COLOR: ' \
-'-q[Do not show errors that tag already exists]' \
-'--quiet[Do not show errors that tag already exists]' \
-'-c[Clear all tags before setting them]' \
-'--clear[Clear all tags before setting them]' \
-'-s[]' \
-'--stdin[]' \
+'-c[Clear the tags on the match(es) before the new one(s) are set]' \
+'--clear[Clear the tags on the match(es) before the new one(s) are set]' \
+'-s[Arguments are expected to be passed through stdin]' \
+'--stdin[Arguments are expected to be passed through stdin]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
-':pattern -- A glob pattern like "*.png":_files' \
-'*::tags:_wutag_tags' \
 && ret=0
 ;;
 (rm)
@@ -169,7 +165,7 @@ _arguments "${_arguments_options[@]}" \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
 ':pattern -- A glob pattern like "*.png" (or regex):' \
-'*::tags:' \
+'*::tags:_wutag_tags' \
 && ret=0
 ;;
 (clear)

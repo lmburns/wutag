@@ -20,7 +20,7 @@ use thiserror::Error;
 
 /// FileTypes to filter against when searching (taken from `fd`)
 #[allow(clippy::missing_docs_in_private_items)]
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub(crate) struct FileTypes {
     pub(crate) files:            bool,
     pub(crate) directories:      bool,

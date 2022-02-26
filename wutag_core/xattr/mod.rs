@@ -22,13 +22,16 @@ use crate::Result;
 use std::path::Path;
 
 /// Extended attribute representation
+#[derive(Debug)]
 pub struct Xattr {
+    /// Key of the [`Xattr`] (i.e., `key`.value)
     key: String,
+    /// Value of the [`Xattr`] (i.e., key.`value`)
     val: String,
 }
 
 impl Xattr {
-    /// Create a new `Xattr`
+    /// Create a new [`Xattr`]
     pub fn new<K, V>(key: K, val: V) -> Self
     where
         K: Into<String>,
@@ -40,12 +43,14 @@ impl Xattr {
         }
     }
 
-    /// Return the `key` of the `Xattr`
+    /// Return the `key` of the [`Xattr`]
+    #[must_use]
     pub fn key(&self) -> &str {
         &self.key
     }
 
     /// Return the `val` of the `Xattr`
+    #[must_use]
     pub fn val(&self) -> &str {
         &self.val
     }
@@ -57,7 +62,15 @@ impl From<(String, String)> for Xattr {
     }
 }
 
-/// Set an extended attribute
+/// Set an extended attribute on a file
+/// [`set_xattr`] -> [`_set_xattr`] -> [`__set_xattr`]
+///
+/// # Errors
+/// Will raise an error if an `xattr` is unable to be set on a file/directory
+///
+/// [`set_xattr`]: crate::xattr::unix::set_xattr
+/// [`_set_xattr`]: crate::xattr::unix::_set_xattr
+/// [`__set_xattr`]: crate::xattr::unix::__set_xattr
 pub fn set_xattr<P, S>(path: P, name: S, value: S) -> Result<()>
 where
     P: AsRef<Path>,
@@ -67,6 +80,14 @@ where
 }
 
 /// Get an extended attribute
+/// [`get_xattr`] -> [`_get_xattr`] -> [`__get_xattr`]
+///
+/// # Errors
+/// Will raise an error if an `xattr` is unable to be gotten on a file/directory
+///
+/// [`get_xattr`]: crate::xattr::unix::get_xattr
+/// [`_get_xattr`]: crate::xattr::unix::_get_xattr
+/// [`__get_xattr`]: crate::xattr::unix::__get_xattr
 pub fn get_xattr<P, S>(path: P, name: S) -> Result<String>
 where
     P: AsRef<Path>,
@@ -76,6 +97,14 @@ where
 }
 
 /// List extended attribute(s)
+/// [`list_xattr`] -> [`_list_xattr`] -> [`__list_xattr`]
+///
+/// # Errors
+/// Will raise an error if an `xattr` is unable to be listed on a file/directory
+///
+/// [`list_xattr`]: crate::xattr::unix::list_xattr
+/// [`_list_xattr`]: crate::xattr::unix::_list_xattr
+/// [`__list_xattr`]: crate::xattr::unix::__list_xattr
 pub fn list_xattrs<P>(path: P) -> Result<Vec<Xattr>>
 where
     P: AsRef<Path>,
@@ -84,6 +113,15 @@ where
 }
 
 /// Remove an extended attribute
+/// [`remove_xattr`] -> [`_remove_xattr`] -> [`__remove_xattr`]
+///
+/// # Errors
+/// Will raise an error if an `xattr` is unable to be removed on a
+/// file/directory
+///
+/// [`remove_xattr`]: crate::xattr::unix::remove_xattr
+/// [`_remove_xattr`]: crate::xattr::unix::_remove_xattr
+/// [`__remove_xattr`]: crate::xattr::unix::__remove_xattr
 pub fn remove_xattr<P, S>(path: P, name: S) -> Result<()>
 where
     P: AsRef<Path>,

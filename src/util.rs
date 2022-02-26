@@ -253,7 +253,7 @@ pub(crate) fn prompt<S: AsRef<str>, P: AsRef<Path>>(prompt: S, path: P) -> bool 
 /// Print completions to `stdout` or to a file
 pub(crate) fn gen_completions<G: Generator>(
     gen: G,
-    app: &mut clap::App,
+    app: &mut clap::Command,
     cursor: &mut Cursor<Vec<u8>>,
 ) {
     generate(gen, app, APP_NAME, cursor);
@@ -384,22 +384,24 @@ pub(crate) fn reg_walker(app: &Arc<App>) -> Result<ignore::WalkParallel> {
     Ok(walker.build_parallel())
 }
 
-// Old method to use for `reg_ok` function
+// NOTE: Old method to use for `reg_ok` function
 // type FnMutThread = Box<dyn FnMut(&ignore::DirEntry) + Send>;
 // static FN: Lazy<Mutex<Option<FnMutThread>>> = Lazy::new(|| Mutex::new(None));
+//
+// *FN.lock().expect("broken lock in closure") = Some(Box::new(f));
+// if let Some(ref mut handler) = *FN.lock().expect("poisoned lock") {
+//     handler(&e)
+// }
 
-/// Traverses directories using `ignore::WalkParallel`, sending matches across
+/// Traverses directories using [`WalkParallel`], sending matches across
 /// channels to make the process faster. Executes closure `f` on each matching
 /// entry
+///
+/// [`WalkParallel`]: ignore::WalkParallel
 pub(crate) fn reg_ok<F>(pattern: &Arc<Regex>, app: &Arc<App>, mut f: F)
 where
     F: FnMut(&ignore::DirEntry) + Send + Sync,
 {
-    // *FN.lock().expect("broken lock in closure") = Some(Box::new(f));
-    // if let Some(ref mut handler) = *FN.lock().expect("poisoned lock") {
-    //     handler(&e)
-    // }
-
     let walker = reg_walker(app).expect("failed to get `reg_walker` result");
 
     // TODO: Look into order of execution
@@ -421,7 +423,6 @@ where
                 let app = Arc::clone(app);
 
                 Box::new(move |res| {
-                    //: Result<ignore::DirEntry,ignore::Error>
                     let entry = match res {
                         Ok(entry_) => entry_,
                         Err(err) => {

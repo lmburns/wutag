@@ -350,7 +350,7 @@ pub(crate) fn write_temp_ignore(ignores: &[String], file: &File) -> io::Result<(
     Ok(())
 }
 
-/// Delete the temporarily created ignore-file
+/// Delete any file (used for temporary files)
 pub(crate) fn delete_file<P: AsRef<Path>>(file: P) {
     let path = file.as_ref().to_path_buf();
 
@@ -359,8 +359,6 @@ pub(crate) fn delete_file<P: AsRef<Path>>(file: P) {
             Ok(_) => log::debug!("Ignore file deleted: {}", &path.display()),
             Err(err) => wutag_info!("Unable to delete ignore file: {} {}", &path.display(), err),
         }
-    } else {
-        println!();
     }
 }
 

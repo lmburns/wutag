@@ -29,26 +29,36 @@ const CONFIG_FILE: &str = "wutag.yml";
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(rename_all = "snake_case", default)]
 pub(crate) struct Config {
+    /// Location of where tags are stored
+    #[serde(alias = "database")]
+    pub(crate) registry: Option<PathBuf>,
+
     /// Follow a symlink to real file
     #[serde(alias = "follow-symlinks")]
     pub(crate) follow_symlinks: bool,
+
     /// Max depth a regex/glob with traverse
     #[serde(alias = "max-depth")]
-    pub(crate) max_depth:       Option<usize>,
+    pub(crate) max_depth: Option<usize>,
+
     /// Base color that paths are displayed
     #[serde(alias = "base-color")]
-    pub(crate) base_color:      Option<String>,
+    pub(crate) base_color: Option<String>,
+
     /// Border color used to display tags with border option
     #[cfg(feature = "prettify")]
     #[serde(alias = "border-color")]
-    pub(crate) border_color:    Option<String>,
+    pub(crate) border_color: Option<String>,
+
     /// Array of colors to use as tags
-    pub(crate) colors:          Option<Vec<String>>,
+    pub(crate) colors: Option<Vec<String>>,
+
     #[serde(alias = "ignore")]
     /// Array of file patterns to ignore tagging
-    pub(crate) ignores:         Option<Vec<String>>,
-    /// Format the file is in when using `view` subcommand
-    pub(crate) format:          Option<String>,
+    pub(crate) ignores: Option<Vec<String>>,
+
+    /// The format the file is in when using `view` subcommand
+    pub(crate) format: Option<String>,
 
     // pub(crate) root_path: PathBuf,
     /// Configuration dealing with keys

@@ -128,7 +128,6 @@ mod subcommand;
 mod ui;
 mod util;
 
-use colored::Colorize;
 use config::Config;
 use opt::Opts;
 use subcommand::App;

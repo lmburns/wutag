@@ -176,9 +176,9 @@ pub(crate) mod encrypt {
     #[allow(clippy::unwrap_used)]
     pub(crate) static REGISTRY_UMASK: Lazy<u32> = Lazy::new(|| {
         u32::from_str_radix(
-            &env::var("WUTAG_REGISTRY_UMASK").unwrap_or_else(|_| "077".to_owned()),
+            &env::var("WUTAG_REGISTRY_UMASK").unwrap_or_else(|_| "600".to_owned()),
             8,
         )
-        .unwrap_or_else(|_| u32::from_str_radix("077", 8).unwrap())
+        .unwrap_or_else(|_| u32::from_str_radix("600", 8).unwrap())
     });
 }

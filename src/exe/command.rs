@@ -4,7 +4,6 @@ use std::{io, io::Write, process::Command, sync::Mutex};
 
 use super::exits::ExitCode;
 use crate::wutag_error;
-use colored::Colorize;
 
 /// Execute the given command, writing the output to [`stdout`] and [`stderr`]
 ///

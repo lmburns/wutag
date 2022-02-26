@@ -1,4 +1,4 @@
-//! Using `nom` to parse the query
+//! Using `nom` to parse the query or search into the database
 
 // NOTE: A lot of this can be credited to `rcoh/angle-grinder`
 // I wanted to learn how to use `nom` and used some of their functions

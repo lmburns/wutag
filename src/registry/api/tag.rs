@@ -42,12 +42,12 @@ impl Registry {
     }
 
     /// Retrieve the [`Tag`] matching the given name
-    pub(crate) fn tag_by_name<S: AsRef<str> + Copy>(&self, name: S) -> Result<Tag> {
+    pub(crate) fn tag_by_name<S: AsRef<str>>(&self, name: S) -> Result<Tag> {
         self.txn_wrap(|txn| txn.tag_by_name(name, false))
     }
 
     /// Retrieve the [`Tag`] matching the given name (ignoring case)
-    pub(crate) fn tag_by_name_nocase<S: AsRef<str> + Copy>(&self, name: S) -> Result<Tag> {
+    pub(crate) fn tag_by_name_nocase<S: AsRef<str>>(&self, name: S) -> Result<Tag> {
         self.txn_wrap(|txn| txn.tag_by_name(name, true))
     }
 
@@ -62,6 +62,11 @@ impl Registry {
     }
 
     // ========================= Pattern Matching =========================
+
+    /// Retrieve the [`Tags`] matching the given `pcre` regex
+    pub(crate) fn tags_by_pcre_name<S: AsRef<str>>(&self, patt: S) -> Result<Tags> {
+        self.txn_wrap(|txn| txn.select_tags_by_pcre("name", patt.as_ref()))
+    }
 
     /// Retrieve the [`Tags`] matching the given `regex`
     pub(crate) fn tags_by_regex_name<S: AsRef<str>>(&self, patt: S) -> Result<Tags> {
@@ -81,6 +86,11 @@ impl Registry {
     /// Retrieve the [`Tags`] with the name matching the given `iglob`
     pub(crate) fn tags_by_iglob_name<S: AsRef<str>>(&self, patt: S) -> Result<Tags> {
         self.txn_wrap(|txn| txn.select_tags_by_glob("name", patt.as_ref()))
+    }
+
+    /// Retrieve the [`Tags`] with the color matching the given `pcre` regex
+    pub(crate) fn tags_by_pcre_color<S: AsRef<str>>(&self, patt: S) -> Result<Tags> {
+        self.txn_wrap(|txn| txn.select_tags_by_regex("color", patt.as_ref()))
     }
 
     /// Retrieve the [`Tags`] with the color matching the given `regex`
@@ -107,7 +117,7 @@ impl Registry {
     // ====================================================================
 
     /// Insert a [`Tag`] into the database
-    pub(crate) fn insert_tag<S: AsRef<str> + Copy>(&self, name: S, color: S) -> Result<Tag> {
+    pub(crate) fn insert_tag<S: AsRef<str>>(&self, name: S, color: S) -> Result<Tag> {
         Tag::validate_name(&name)?;
         self.wrap_commit(|txn| {
             // TODO: Decide whether this should express an error
@@ -118,7 +128,7 @@ impl Registry {
     }
 
     /// Update the [`Tag`] by changing its `name`
-    pub(crate) fn update_tag_name<S: AsRef<str> + Copy>(&self, id: TagId, name: S) -> Result<Tag> {
+    pub(crate) fn update_tag_name<S: AsRef<str>>(&self, id: TagId, name: S) -> Result<Tag> {
         Tag::validate_name(&name)?;
 
         self.wrap_commit(|txn| txn.update_tag_name(id, name).map_err(Into::into))
@@ -134,7 +144,7 @@ impl Registry {
     }
 
     /// Create a new [`Tag`] and apply it to an existing [`Tag`]
-    pub(crate) fn copy_tag<S: AsRef<str> + Copy>(&self, source_id: TagId, name: S) -> Result<Tag> {
+    pub(crate) fn copy_tag<S: AsRef<str>>(&self, source_id: TagId, name: S) -> Result<Tag> {
         Tag::validate_name(&name)?;
 
         self.wrap_commit(|txn| {
@@ -147,7 +157,7 @@ impl Registry {
     }
 
     /// Delete a [`Tag`] matching the given [`TagId`]
-    pub(crate) fn delete_tag<S: AsRef<str>>(&self, id: TagId) -> Result<()> {
+    pub(crate) fn delete_tag(&self, id: TagId) -> Result<()> {
         self.wrap_commit(|txn| txn.delete_tag(id).map_err(Into::into))
     }
 

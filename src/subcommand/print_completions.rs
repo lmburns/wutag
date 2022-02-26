@@ -1,13 +1,12 @@
 use super::{
     uses::{
-        comp_helper, fs, gen_completions, io, replace, wutag_info, Args, Colorize, PathBuf,
-        ValueHint, Write,
+        comp_helper, fs, gen_completions, io, replace, wutag_info, Args, PathBuf, ValueHint, Write,
     },
     App,
 };
 use crate::{bold_entry, Opts};
 
-use clap::IntoApp;
+use clap::CommandFactory;
 use clap_complete::{
     shells::{Bash, Elvish, Fish, PowerShell, Zsh},
     Shell,
@@ -43,7 +42,7 @@ impl App {
     #[allow(clippy::unused_self)]
     pub(crate) fn print_completions(&self, opts: &CompletionsOpts) {
         log::debug!("CompletionOpts: {:#?}", opts);
-        let mut app = Opts::into_app();
+        let mut app = Opts::command();
 
         let buffer = Vec::new();
         let mut cursor = io::Cursor::new(buffer);

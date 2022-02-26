@@ -224,6 +224,11 @@ impl Txn<'_> {
         Ok(values.into())
     }
 
+    /// Query for [`Values`] using a the `pcre` regex custom function
+    pub(super) fn select_values_by_pcre(&self, reg: &str) -> Result<Values> {
+        self.select_values_by_func("pcre", reg)
+    }
+
     /// Query for [`Values`] using a the `regex` custom function
     pub(super) fn select_values_by_regex(&self, reg: &str) -> Result<Values> {
         self.select_values_by_func("regex", reg)

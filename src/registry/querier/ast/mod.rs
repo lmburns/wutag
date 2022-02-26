@@ -4,6 +4,7 @@ pub(crate) mod error;
 pub(crate) mod query;
 pub(crate) mod search;
 pub(crate) mod time;
+pub(crate) use query::Query;
 
 use search::Search;
 use std::{

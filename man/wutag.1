@@ -27,7 +27,7 @@ pattern as a positional argument
 Increase maximum recursion depth of filesystem traversal to specified value (default:
 2). Only applies to subcommands that take a pattern as a positional argument.
 .HP
-\fB\-R\fR, \fB\-\-registry\fR <reg>
+\fB\-R\fR, \fB\-\-registry\fR <file>
 .IP
 Specify a different registry to use
 .HP
@@ -41,14 +41,30 @@ Turn the glob into a case sensitive one (default: case sensitive). Overrides \fB
 .HP
 \fB\-r\fR, \fB\-\-regex\fR
 .IP
-Search for files using a regular expressions instead of a glob. Only applies to
+Search for files using a regular expression instead of a glob. Only applies to
 subcommands that take a pattern as a positional argument.
+.HP
+\fB\-G\fR, \fB\-\-glob\fR
+.IP
+Search for files using a glob expression instead of a glob. Only applies to subcommands
+that take a pattern as a positional argument. Note: This is the default behavior
+.HP
+\fB\-F\fR, \fB\-\-fixed\-string\fR
+.IP
+Search using a fixed\-string. It is probably better to use the default pattern searching
+of glob
 .HP
 \fB\-g\fR, \fB\-\-global\fR
 .IP
 Apply operation to files that are already tagged instead of traversing into local
 directories or directories specified with '\-d|\-\-dir'. Only applies to 'search', 'list',
 \&'rm', and 'clear'.
+.HP
+\fB\-L\fR, \fB\-\-follow\fR
+.IP
+Peform the action (set, remove, modify) on the dereferenced file. This option can also
+be set in the configuration file. Overrides configuration and this option can be
+overriden with '\-\-no\-follow'
 .HP
 \fB\-l\fR, \fB\-\-ls\-colors\fR
 .IP
@@ -128,6 +144,10 @@ Print version information
 testing
 .IP
 Testing new subcommands
+.IP
+init
+.IP
+Initialize the database
 .IP
 list
 .IP

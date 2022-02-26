@@ -18,6 +18,8 @@ use super::{
     App,
 };
 
+use crate::registry::types::{FileId, FileTag, TagId, ValueId};
+
 #[derive(Args, Clone, Debug, PartialEq)]
 pub(crate) struct TestingOpts {
     #[rustfmt::skip]
@@ -39,52 +41,28 @@ pub(crate) struct TestingOpts {
 impl App {
     #[allow(clippy::unnecessary_wraps)]
     pub(crate) fn testing(&mut self, opts: &TestingOpts) -> Result<()> {
+        let reg = self.registry.lock().expect("poisioned lock");
         log::debug!("Using registry: {}", self.oregistry.path.display());
 
-        let path = PathBuf::from("./my.db");
-        let reg = crate::registry::Registry::new(&path, self.follow_symlinks)?;
-        reg.init()?;
+        reg.insert_file(PathBuf::from("./cliff.toml"))?;
+        reg.insert_file(PathBuf::from("./LICENSE"))?;
+        reg.insert_file(PathBuf::from("./README.md"))?;
+        reg.insert_file(PathBuf::from("./Cargo.lock"))?;
+        reg.insert_file(PathBuf::from("./CHANGELOG.md"))?;
 
-        let txn = crate::registry::transaction::Txn::new(&reg)?;
+        reg.insert_tag("tag1", "#FF00FF")?;
+        reg.insert_tag("tag2", "red")?;
+        reg.insert_tag("tag2", "blue")?;
 
-        // let test = PathBuf::from("./justfile");
-        // let ret = txn.insert_file(test)?;
+        reg.insert_value("2022")?;
 
-        // let test = PathBuf::from("./LICENSE");
-        // let ret = txn.insert_file(test)?;
-        //
-        // let test = PathBuf::from("./README.md");
-        // let ret = txn.insert_file(test)?;
+        reg.insert_filetag(&FileTag::new(
+            FileId::new(1),
+            TagId::new(1),
+            ValueId::new(1),
+        ))?;
 
-        // let test = PathBuf::from("./Cargo.lock");
-        // let ret = txn.insert_file(test)?;
-        //
-        // let q = crate::registry::querier::ast::query::Query::new(&opts.query.join("
-        // "), None); let parsed = q.parse();
-        //
-        // if let Ok(p) = parsed {
-        //     println!("parsed: {:#?}", p);
-        // }
-
-        // let fs = txn.select_files_by_glob("name", "**/*{.md,.lock}")?;
-        // println!("OG: {:#?}", fs);
-
-        // let fs = txn.select_files_by_links(1)?;
-        // println!("OG: {:#?}", fs);
-
-        // let tag = txn.insert_tag("taghere", "#FF01FF")?;
-        // println!("tag: {:#?}", tag);
-
-        // let val1 = txn.insert_value("vvv1")?;
-        // println!("VAL1: {:#?}", val1);
-        //
-        // let val2 = txn.insert_value("www1")?;
-        // println!("VAL2: {:#?}", val2);
-        //
-        // let values = txn.values()?;
-        // println!("value: {:#?}", values);
-
-        // txn.commit()?;
+        println!("INIT TESTING");
 
         Ok(())
     }

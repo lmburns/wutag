@@ -54,6 +54,7 @@ macro_rules! inner_immute {
 #[macro_export]
 macro_rules! wutag_error {
     ($($err:tt)*) => ({
+        use colored::Colorize;
         eprintln!("{}: {}", "[wutag error]".red().bold(), format!($($err)*));
     })
 }
@@ -62,6 +63,7 @@ macro_rules! wutag_error {
 #[macro_export]
 macro_rules! wutag_fatal {
     ($($err:tt)*) => ({
+        use colored::Colorize;
         eprintln!("{}: {}", "[wutag fatal]".yellow().bold(), format!($($err)*));
         std::process::exit(1);
     })
@@ -71,6 +73,7 @@ macro_rules! wutag_fatal {
 #[macro_export]
 macro_rules! wutag_info {
     ($($err:tt)*) => ({
+        use colored::Colorize;
         eprintln!("{}: {}", "[wutag info]".green().bold(), format!($($err)*));
     })
 }

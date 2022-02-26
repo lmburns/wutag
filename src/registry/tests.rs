@@ -34,7 +34,7 @@ macro_rules! first_idx {
 
 fn setup_db() -> Result<Registry> {
     let path = PathBuf::from(DB_NAME);
-    let reg = Registry::new(&path, false)?;
+    let reg = Registry::new(Some(&path), false)?;
     reg.init()?;
 
     Ok(reg)
@@ -72,7 +72,7 @@ where
 // ====================================================================
 
 #[test]
-fn insert_file() -> Result<()> {
+fn txn_insert_file() -> Result<()> {
     setup_dbfn(|txn| {
         let test = PathBuf::from("./README.md");
         let ret = txn.insert_file(test)?;
@@ -97,8 +97,8 @@ fn insert_file() -> Result<()> {
 }
 
 #[test]
-fn glob_matching() -> Result<()> {
-    setup_dbfn(|txn| {
+fn txn_glob_matching() -> Result<()> {
+    setup_dbfn_wfile(|txn| {
         let files: Vec<File> = txn
             .query_vec(
                 "SELECT * FROM file
@@ -127,8 +127,8 @@ fn glob_matching() -> Result<()> {
 }
 
 #[test]
-fn regex_matching() -> Result<()> {
-    setup_dbfn(|txn| {
+fn txn_regex_matching() -> Result<()> {
+    setup_dbfn_wfile(|txn| {
         let files = txn.select_files_by_regex("name", "READ.*")?;
         first_idx!(files);
 
@@ -146,8 +146,8 @@ fn regex_matching() -> Result<()> {
 }
 
 #[test]
-fn select_files_by() -> Result<()> {
-    setup_dbfn(|txn| {
+fn txn_select_files_by() -> Result<()> {
+    setup_dbfn_wfile(|txn| {
         let mfile = PathBuf::from("./README.md");
         let meta = mfile.metadata()?;
         let cwd = env::current_dir()?.display().to_string();
@@ -228,6 +228,12 @@ fn select_files_by() -> Result<()> {
             assert!(files.is_empty());
         }
 
+        // TODO:
+        // === duplicates ===
+        let dupe = txn.insert_file(&mfile)?;
+        let sel_dupe = txn.select_files_duplicates()?;
+        assert_eq!(sel_dupe.len(), 1);
+
         Ok(())
     })
 }
@@ -238,7 +244,7 @@ fn select_files_by() -> Result<()> {
     not(target_os = "macos")
 ))]
 #[test]
-fn file_flags() -> Result<()> {
+fn txn_file_flags() -> Result<()> {
     use e2p_fileflags::{FileFlags, Flags};
 
     setup_dbfn_wfile(|txn| {
@@ -274,7 +280,7 @@ fn file_flags() -> Result<()> {
 }
 
 #[test]
-fn file_counts() -> Result<()> {
+fn txn_file_counts() -> Result<()> {
     setup_dbfn_wfile(|txn| {
         let c = txn.select_file_count()?;
         assert_eq!(c, 1);
@@ -284,7 +290,7 @@ fn file_counts() -> Result<()> {
 }
 
 #[test]
-fn file_delete() -> Result<()> {
+fn txn_file_delete() -> Result<()> {
     setup_dbfn_wfile(|txn| {
         let pb = PathBuf::from("./README.md").canonicalize()?;
         let f = txn.select_file_by_path(&pb)?;
@@ -317,7 +323,7 @@ where
 }
 
 #[test]
-fn delete_filetag() -> Result<()> {
+fn txn_delete_filetag() -> Result<()> {
     setup_dbfn_wfiletag(|txn| {
         let ftag = FileTag::new(FileId::new(1), TagId::new(1), ValueId::new(1));
         txn.delete_filetag(&ftag)?;
@@ -344,7 +350,7 @@ fn delete_filetag() -> Result<()> {
 }
 
 #[test]
-fn filetag_select() -> Result<()> {
+fn txn_filetag_select() -> Result<()> {
     setup_dbfn_wfiletag(|txn| {
         let ftag = FileTag::new(FileId::new(1), TagId::new(1), ValueId::new(1));
 
@@ -371,7 +377,7 @@ fn filetag_select() -> Result<()> {
 }
 
 #[test]
-fn filetag_count() -> Result<()> {
+fn txn_filetag_count() -> Result<()> {
     setup_dbfn_wfiletag(|txn| {
         let ftag = FileTag::new(FileId::new(1), TagId::new(1), ValueId::new(1));
         assert!(txn.filetag_exists(&ftag)?);
@@ -390,7 +396,7 @@ fn filetag_count() -> Result<()> {
 }
 
 #[test]
-fn filetag_copy() -> Result<()> {
+fn txn_filetag_copy() -> Result<()> {
     setup_dbfn_wfiletag(|txn| {
         let ftag = FileTag::new(FileId::new(1), TagId::new(1), ValueId::new(1));
         assert!(txn.filetag_exists(&ftag)?);
@@ -410,7 +416,7 @@ fn filetag_copy() -> Result<()> {
 // ====================================================================
 
 // #[test]
-// fn implication_tests() -> Result<()> {
+// fn txn_implication_tests() -> Result<()> {
 //     setup_dbfn_wfiletag(|txn| {
 //         let l = "hi";
 //
@@ -422,7 +428,7 @@ fn filetag_copy() -> Result<()> {
 // ====================================================================
 
 #[test]
-fn tag_tests() -> Result<()> {
+fn txn_tag_tests() -> Result<()> {
     setup_dbfn_wfiletag(|txn| {
         use colored::Color;
 
@@ -452,7 +458,7 @@ fn tag_tests() -> Result<()> {
 }
 
 #[test]
-fn tag_query_exact() -> Result<()> {
+fn txn_tag_query_exact() -> Result<()> {
     setup_dbfn_wfiletag(|txn| {
         let t1 = txn.insert_tag("tag1", parse_color("#FF01FF")?)?;
         let t2 = txn.insert_tag("tag2", parse_color("#01FF01")?)?;
@@ -481,11 +487,14 @@ fn tag_query_exact() -> Result<()> {
 }
 
 #[test]
-fn tag_query_pattern() -> Result<()> {
+fn txn_tag_query_pattern() -> Result<()> {
     setup_dbfn_wfiletag(|txn| {
         let t1 = txn.insert_tag("tag1", parse_color("#FF01FF")?)?;
         let t2 = txn.insert_tag("tag2", parse_color("#01FF01")?)?;
         let t3 = txn.insert_tag("tag3", parse_color("#FFFFFF")?)?;
+
+        let tags = txn.select_tags_by_pcre("color", ".*(FF).*\\1")?;
+        assert_eq!(tags.len(), 2);
 
         let tags = txn.select_tags_by_regex("name", "ta.*")?;
         assert_eq!(tags.len(), 3);
@@ -507,7 +516,7 @@ fn tag_query_pattern() -> Result<()> {
 // ====================================================================
 
 #[test]
-fn query_tests() -> Result<()> {
+fn txn_query_tests() -> Result<()> {
     setup_dbfn_wfile(|txn| {
         let qu = txn.insert_query("select * from file;");
         let qu2 = txn.insert_query("set '*.{md,rs}' tag1");
@@ -527,7 +536,7 @@ fn query_tests() -> Result<()> {
 // ====================================================================
 
 #[test]
-fn value_tests() -> Result<()> {
+fn txn_value_tests() -> Result<()> {
     setup_dbfn_wfile(|txn| {
         use itertools::Itertools;
 
@@ -567,7 +576,7 @@ fn value_tests() -> Result<()> {
 }
 
 #[test]
-fn value_query() -> Result<()> {
+fn txn_value_query() -> Result<()> {
     setup_dbfn_wfile(|txn| {
         let val = txn.insert_value("value1")?;
         let val2 = txn.insert_value("vvvv")?;

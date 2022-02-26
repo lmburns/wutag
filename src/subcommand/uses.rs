@@ -1,6 +1,6 @@
 pub(crate) use anyhow::{Context, Result};
 pub(crate) use atty::Stream;
-pub(crate) use clap::{ArgSettings, Args, Subcommand, ValueHint};
+pub(crate) use clap::{Args, Subcommand, ValueHint};
 
 #[cfg(feature = "prettify")]
 pub(crate) use cli_table::{
@@ -8,7 +8,6 @@ pub(crate) use cli_table::{
     print_stdout, Cell, ColorChoice, Style, Table,
 };
 pub(crate) use colored::{Color, Colorize};
-pub(crate) use crossbeam_channel as channel;
 pub(crate) use lexiclean::Lexiclean;
 pub(crate) use regex::{
     bytes::{RegexSet, RegexSetBuilder},
@@ -32,10 +31,6 @@ pub(crate) use crate::{
     config::{Config, EncryptConfig},
     consts::*,
     err,
-    exe::{
-        job::{receiver, sender, WorkerResult},
-        CommandTemplate,
-    },
     filesystem::{contained_path, create_temp_path, osstr_to_bytes, FileTypes},
     global_opts,
     opt::{Command, Opts},

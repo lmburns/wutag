@@ -12,10 +12,15 @@ complete -c wutag -n "__fish_use_subcommand" -s v -l verbose -d 'Display debuggi
 complete -c wutag -n "__fish_use_subcommand" -s i -l case-insensitive -d 'Case insensitively search'
 complete -c wutag -n "__fish_use_subcommand" -s s -l case-sensitive -d 'Case sensitively search'
 complete -c wutag -n "__fish_use_subcommand" -s r -l regex -d 'Search with a regular expressions'
+complete -c wutag -n "__fish_use_subcommand" -s G -l glob -d 'Search with a glob pattern'
+complete -c wutag -n "__fish_use_subcommand" -s F -l fixed-string -d 'Search with a literal fixed-string'
 complete -c wutag -n "__fish_use_subcommand" -s g -l global -d 'Apply operation to all tags and files instead of locally'
+complete -c wutag -n "__fish_use_subcommand" -s L -l follow -d 'Follow symlinks when peforming an action on a file'
+complete -c wutag -n "__fish_use_subcommand" -l no-follow -d 'Do not follow symlinks when peforming an action on a file'
 complete -c wutag -n "__fish_use_subcommand" -s l -l ls-colors -d 'Respect \'LS_COLORS\' environment variable when coloring the output'
 complete -c wutag -n "__fish_use_subcommand" -s q -l quiet -d 'Do not display any output for any command'
 complete -c wutag -n "__fish_use_subcommand" -f -a "testing" -d 'Testing new subcommands'
+complete -c wutag -n "__fish_use_subcommand" -f -a "init" -d 'Initialize the database'
 complete -c wutag -n "__fish_use_subcommand" -f -a "list" -d 'Lists all available tags or files'
 complete -c wutag -n "__fish_use_subcommand" -f -a "set" -d 'Set tag(s) on files that match the given pattern'
 complete -c wutag -n "__fish_use_subcommand" -f -a "set2" -d 'Set tag(s) on files that match the given pattern'
@@ -33,6 +38,8 @@ complete -c wutag -n "__fish_use_subcommand" -f -a "ui" -d 'Open a TUI to manage
 complete -c wutag -n "__fish_seen_subcommand_from testing" -s q -l query -r -f -a "(__fish_complete_command)"
 complete -c wutag -n "__fish_seen_subcommand_from testing" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from testing" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
+complete -c wutag -n "__fish_seen_subcommand_from init" -s h -l help -d 'Print help information'
+complete -c wutag -n "__fish_seen_subcommand_from init" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from list; and not __fish_seen_subcommand_from tags; and not __fish_seen_subcommand_from files" -s r -l raw -d 'Output will not be colorized'
 complete -c wutag -n "__fish_seen_subcommand_from list; and not __fish_seen_subcommand_from tags; and not __fish_seen_subcommand_from files" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from list; and not __fish_seen_subcommand_from tags; and not __fish_seen_subcommand_from files" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
@@ -61,6 +68,8 @@ complete -c wutag -n "__fish_seen_subcommand_from set" -s s -l stdin
 complete -c wutag -n "__fish_seen_subcommand_from set" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from set" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from set2" -s C -l color -d 'Explicitly select color for tag' -r
+complete -c wutag -n "__fish_seen_subcommand_from set2" -s p -l pairs -d 'Specify any number of `tag`=`value` pairs' -r
+complete -c wutag -n "__fish_seen_subcommand_from set2" -s V -l value -d 'Specify a value to set all the tag(s) to' -r
 complete -c wutag -n "__fish_seen_subcommand_from set2" -s c -l clear -d 'Clear the tags on the match(es) before the new one(s) are set'
 complete -c wutag -n "__fish_seen_subcommand_from set2" -s s -l stdin -d 'Arguments are expected to be passed through stdin'
 complete -c wutag -n "__fish_seen_subcommand_from set2" -s h -l help -d 'Print help information'

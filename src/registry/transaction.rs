@@ -31,8 +31,6 @@ pub(crate) struct Txn<'t> {
 }
 
 impl<'t> Txn<'t> {
-    // -- TODO: Checked vs unchecked
-
     /// Create a new [`Txn`]
     pub(crate) fn new(registry: &'t Registry) -> Result<Self> {
         let txn = registry

@@ -19,8 +19,8 @@ _wutag() {
 '--dir=[Specify starting path for filesystem traversal]:dir:_files -/' \
 '-m+[Set maximum depth to recurse into]:num: ' \
 '--max-depth=[Set maximum depth to recurse into]:num: ' \
-'-R+[Specify a different registry to use]:reg:_files' \
-'--registry=[Specify a different registry to use]:reg:_files' \
+'-R+[Specify a different registry to use]:file:_files' \
+'--registry=[Specify a different registry to use]:file:_files' \
 '-c+[When to colorize output]:when:(never auto always)' \
 '--color=[When to colorize output]:when:(never auto always)' \
 '*-t+[File-type(s) to filter by: f|file, d|directory, l|symlink, e|empty]:filetype:(f file d dir l symlink b block c char s socket p fifo x executable e empty)' \
@@ -41,8 +41,15 @@ _wutag() {
 '--case-sensitive[Case sensitively search]' \
 '-r[Search with a regular expressions]' \
 '--regex[Search with a regular expressions]' \
+'-G[Search with a glob pattern]' \
+'--glob[Search with a glob pattern]' \
+'-F[Search with a literal fixed-string]' \
+'--fixed-string[Search with a literal fixed-string]' \
 '-g[Apply operation to all tags and files instead of locally]' \
 '--global[Apply operation to all tags and files instead of locally]' \
+'-L[Follow symlinks when peforming an action on a file]' \
+'--follow[Follow symlinks when peforming an action on a file]' \
+'--no-follow[Do not follow symlinks when peforming an action on a file]' \
 '(-c --color)-l[Respect '\''LS_COLORS'\'' environment variable when coloring the output]' \
 '(-c --color)--ls-colors[Respect '\''LS_COLORS'\'' environment variable when coloring the output]' \
 '-q[Do not display any output for any command]' \
@@ -60,6 +67,14 @@ _wutag() {
 _arguments "${_arguments_options[@]}" \
 '*-q+[]:query:_cmdstring' \
 '*--query=[]:query:_cmdstring' \
+'-h[Print help information]' \
+'--help[Print help information]' \
+'*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
+'*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
+&& ret=0
+;;
+(init)
+_arguments "${_arguments_options[@]}" \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
@@ -148,6 +163,10 @@ _arguments "${_arguments_options[@]}" \
 _arguments "${_arguments_options[@]}" \
 '-C+[Explicitly select color for tag]:COLOR: ' \
 '--color=[Explicitly select color for tag]:COLOR: ' \
+'(-V --value)*-p+[Specify any number of `tag`=`value` pairs]:pairs: ' \
+'(-V --value)*--pairs=[Specify any number of `tag`=`value` pairs]:pairs: ' \
+'-V+[Specify a value to set all the tag(s) to]:value: ' \
+'--value=[Specify a value to set all the tag(s) to]:value: ' \
 '-c[Clear the tags on the match(es) before the new one(s) are set]' \
 '--clear[Clear the tags on the match(es) before the new one(s) are set]' \
 '-s[Arguments are expected to be passed through stdin]' \
@@ -156,6 +175,8 @@ _arguments "${_arguments_options[@]}" \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
+':pattern -- A glob pattern like "*.png":_files' \
+'*::tags -- Tag or tags to set on the result of the pattern:' \
 && ret=0
 ;;
 (rm)
@@ -309,6 +330,7 @@ esac
 _wutag_commands() {
     local commands; commands=(
 'testing:Testing new subcommands' \
+'init:Initialize the database' \
 'list:Lists all available tags or files' \
 'ls:Lists all available tags or files' \
 'set:Set tag(s) on files that match the given pattern' \

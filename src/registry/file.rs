@@ -736,10 +736,12 @@ impl Txn<'_> {
     // }
 
     // TODO: ========================================
-
     // TODO: MAKE A TEST
+
+    // Unsure if duplicates can be entered into the database?
+
     /// Retrieve the set of `Files` that are duplicates in the database
-    pub(super) fn select_files_duplicates(&self) -> Result<Files> {
+    pub(crate) fn select_files_duplicates(&self) -> Result<Files> {
         let files: Vec<File> = self
             .query_vec(
                 format!(
@@ -817,6 +819,11 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
+    /// Query for [`Files`] using a the `pcre` regex function on any column
+    pub(super) fn select_files_by_pcre(&self, column: &str, reg: &str) -> Result<Files> {
+        self.select_files_by_func("pcre", column, reg)
+    }
+
     /// Query for [`Files`] using a the `regex` custom function on any column
     pub(super) fn select_files_by_regex(&self, column: &str, reg: &str) -> Result<Files> {
         self.select_files_by_func("regex", column, reg)
@@ -835,6 +842,11 @@ impl Txn<'_> {
     /// Query for [`Files`] using a the `iglob` custom function on any column
     pub(super) fn select_files_by_iglob(&self, column: &str, glob: &str) -> Result<Files> {
         self.select_files_by_func("iglob", column, glob)
+    }
+
+    /// Query for [`Files`] using the `pcre` custom function on full path
+    pub(super) fn select_files_by_pcre_fp(&self, reg: &str) -> Result<Files> {
+        self.select_files_by_regex("fullpath(directory, name)", reg)
     }
 
     /// Query for [`Files`] using the `regex` custom function on full path
@@ -861,7 +873,7 @@ impl Txn<'_> {
     // ====================================================================
 
     /// Insert a [`File`] into the database
-    pub(super) fn insert_file<P: AsRef<Path>>(&self, path: P) -> Result<File> {
+    pub(crate) fn insert_file<P: AsRef<Path>>(&self, path: P) -> Result<File> {
         let path = path.as_ref();
         let mut f = File::new(&path, self.registry().follow_symlinks())
             .context(fail!("build `File`: {}", cfile!(path)))?;

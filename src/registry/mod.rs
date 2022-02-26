@@ -5,6 +5,8 @@
 // TODO: Add ability to detect files in Db but not with xattr
 // TODO: Add ability to crawl file system to gain db back
 
+// TODO: Add option to simply print database
+
 #![allow(unused)]
 
 pub(crate) mod api;
@@ -42,9 +44,11 @@ use crate::{
 use anyhow::{Context as _, Result};
 use colored::Colorize;
 use regex::{Regex, RegexBuilder};
+use shellexpand::LookupError;
 use std::{
+    borrow::Cow,
     cmp::Ordering,
-    error, fs,
+    env, error, fmt, fs,
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
     sync::Arc,
@@ -133,8 +137,6 @@ pub(crate) struct Registry {
     follow_symlinks: bool,
     /// Path to the database
     path:            PathBuf,
-    /// The version the database is using TODO: Maybe Version struct
-    version:         u32,
     /// The open [`Connection`] for the database
     conn:            Connection,
     // /// Root path of the database
@@ -158,42 +160,86 @@ impl Registry {
     }
 
     /// Create a new [`Registry`]
-    pub(crate) fn new<P: AsRef<Path>>(path: P, follow_symlinks: bool) -> Result<Self> {
-        let path = path.as_ref();
-        let conn = Connection::open(&path)?;
+    pub(crate) fn new<P: AsRef<Path>>(path: Option<P>, follow_symlinks: bool) -> Result<Self> {
+        use rusqlite::OpenFlags;
+        if let Some(p) = path {
+            let path = p.as_ref();
+            let registry = &PathBuf::from(
+                shellexpand::full(&path.display().to_string())
+                    .unwrap_or_else(|_| {
+                        Cow::from(
+                            LookupError {
+                                var_name: "Unknown environment variable".into(),
+                                cause:    env::VarError::NotPresent,
+                            }
+                            .to_string(),
+                        )
+                    })
+                    .to_string(),
+            );
 
-        Ok(Self {
-            follow_symlinks,
-            path: path.to_path_buf(),
-            conn,
-            version: 1,
-        })
+            // let conn = Connection::open(&registry)?;
+
+            /// SQLITE_OPEN_SHARED_CACHE: shared cache enabled
+            /// SQLITE_OPEN_FULL_MUTEX: "serialized" threading mode
+            // Others are default
+            let conn = Connection::open_with_flags(
+                &registry,
+                OpenFlags::SQLITE_OPEN_READ_WRITE
+                    | OpenFlags::SQLITE_OPEN_CREATE
+                    | OpenFlags::SQLITE_OPEN_SHARED_CACHE
+                    | OpenFlags::SQLITE_OPEN_FULL_MUTEX
+                    | OpenFlags::SQLITE_OPEN_URI,
+            )?;
+
+            // The file is created using `Connection`, so set perms after
+            self::set_perms(&registry)?;
+
+            Ok(Self {
+                follow_symlinks,
+                path: registry.clone(),
+                conn,
+            })
+        } else {
+            Self::new_default(follow_symlinks)
+        }
     }
 
     /// Create a new [`Registry`] with a default database
     pub(crate) fn new_default(follow_symlinks: bool) -> Result<Self> {
-        let state_file = {
-            let data_dir = PROJECT_DIRS.data_dir();
+        let state_file = self::db_path()?;
 
-            if !data_dir.exists() {
-                fs::create_dir_all(&data_dir).unwrap_or_else(|_| {
-                    wutag_fatal!(
-                        "unable to create tag registry directory: {}",
-                        data_dir.display()
-                    )
-                });
-            }
+        log::debug!(
+            "using default registry: {}",
+            state_file.display().to_string().green()
+        );
+        Self::new(Some(state_file), follow_symlinks)
+    }
 
-            data_dir.join(REGISTRY_FILE)
-        };
-
-        Self::new(state_file, follow_symlinks)
+    /// Close the SQL connection
+    pub(crate) fn close(self) -> Result<(), Error> {
+        self.conn.close().map_err(|e| Error::CloseConnection(e.1))
     }
 
     /// Initialize the database
+    #[rustfmt::skip]
     pub(crate) fn init(&self) -> Result<()> {
+
+        self.conn.pragma_update(None, "locking_mode", &"exclusive")?;
+        self.conn.pragma_update(None, "legacy_file_format", &false)?;
+        self.conn.pragma_update(None, "page_size", &4096)?;
+        self.conn.pragma_update(None, "cache_size", &(-40 * 1024))?;
+        self.conn.pragma_update(None, "threads", (num_cpus::get() * 3) as u32)?;
+
+        // Stopped working once the Connections were placed in Arc<Mutex<>>
         // Change `atomic commit and rollback` to `Write-Ahead Log`
-        self.conn.pragma_update(None, "journal_mode", &"WAL")?;
+        self.conn.pragma_update(None, "journal_mode", &"wal")?;
+        // self.conn.pragma_update(None, "journal_mode", &"truncate")?;
+
+        // self.conn.pragma_update(None, "synchronous", &"off")?;
+        // self.conn.pragma_update(None, "read_uncommitted", &"true")?;
+        // self.conn.pragma_update(None, "wal_autocheckpoint", &0u32)?;
+        // self.conn.pragma_update(None, "mmap_size", &mmap_size)?;
 
         self.create_tag_table()?;
         self.create_file_table()?;
@@ -207,23 +253,32 @@ impl Registry {
         // self.create_tracker_table()?;
         // self.create_checkpoint_table()?;
 
+        // Add feature?
+        self.add_pcre_function()?;
+
         self.add_regex_funcs()?;
         self.add_blake3_func()?;
         self.add_fullpath_func()?;
 
         self.create_unicase_collation()?;
 
-        /// -
-        /// -
+        self.upgrade()?;
+
+        Ok(())
+    }
+
+    /// Upgrade the database if it needs to be upgraded
+    pub(crate) fn upgrade(&self) -> Result<()> {
         if let Ok(schema_v) = self.get_current_version() {
             log::debug!("checking for correct version");
             let crate_v = Version::build()?;
 
             if schema_v != crate_v {
-                wutag_info!("version mismatch");
+                wutag_info!("version mismatch. Database is outdated with wutag's current version");
 
                 if schema_v.less_than(crate_v) {
-                    self.recreate_version_table()?;
+                    // When updated
+                    // self.recreate_version_table()?;
                 }
             }
         } else {
@@ -232,42 +287,6 @@ impl Registry {
         }
 
         // self.update_current_version()?;
-
-        Ok(())
-    }
-
-    /// Close the SQL connection
-    pub(crate) fn close(self) -> Result<(), Error> {
-        self.conn.close().map_err(|e| Error::CloseConnection(e.1))
-    }
-
-    // TODO:
-    /// Update the `user_version` pragma
-    pub(crate) fn update_pragma_version(&self) -> Result<()> {
-        // let version = self
-        //     .conn
-        //     .prepare("SELECT user_version from pragma_user_version")?
-        //     .query_row(params![], |row| row.get::<usize, i64>(0))? as usize;
-
-        let version: i32 = self
-            .conn
-            .pragma_query_value(None, "user_version", |row| row.get(0))?;
-
-        #[allow(clippy::cast_possible_wrap)]
-        if version != 0_i32
-            && version != self.version as i32
-            && prompt(
-                "Database version mismatch and it needs to be reset. Is that okay?",
-                &self.path,
-            )
-        {
-            self.clean_db()?;
-        }
-
-        if version == 0 {
-            self.conn
-                .pragma_update(None, "user_version", &self.version)?;
-        }
 
         Ok(())
     }
@@ -468,7 +487,7 @@ impl Registry {
     /// Execute a closure on [`Txn`]. This is used to lessen duplicate code
     pub(crate) fn txn_wrap<F, T>(&self, mut f: F) -> Result<T>
     where
-        F: FnMut(&Txn) -> Result<T>,
+        F: FnOnce(&Txn) -> Result<T>,
     {
         f(&self.txn()?)
     }
@@ -481,7 +500,7 @@ impl Registry {
     /// shared reference issues
     pub(crate) fn wrap_commit<F, T>(&self, mut f: F) -> Result<T>
     where
-        F: FnMut(&Txn) -> Result<T>,
+        F: FnOnce(&Txn) -> Result<T>,
     {
         self.txn_wrap(|txn| {
             let res = f(txn);
@@ -660,6 +679,48 @@ impl Registry {
         Ok(())
     }
 
+    /// Add a `pcre` compatible regular expression function to the database
+    fn add_pcre_function(&self) -> Result<()> {
+        use crate::{wutag_error, wutag_fatal};
+        use fancy_regex::{Regex as FancyRegex, RegexBuilder as FancyBuilder};
+
+        self.conn
+            .create_scalar_function(
+                "pcre",
+                2,
+                FunctionFlags::SQLITE_UTF8 | FunctionFlags::SQLITE_DETERMINISTIC,
+                move |ctx| {
+                    assert_eq!(
+                        ctx.len(),
+                        2,
+                        "called pcre with unexpected number of arguments"
+                    );
+                    let regexp: Arc<FancyRegex> =
+                        ctx.get_or_create_aux(0, |vr| -> rsq::Result<FancyRegex, BoxError> {
+                            let s = vr.as_str()?;
+
+                            let reg = FancyBuilder::new(s)
+                                .build()
+                                .map_err(|e| rsq::Error::UserFunctionError(Box::new(e)))?;
+
+                            Ok(reg)
+                        })?;
+
+                    let matched = {
+                        let text = Self::get_string(ctx, "pcre", 1)?;
+                        log::debug!("to match text: {:#?}", text);
+
+                        regexp
+                            .is_match(text)
+                            .map_err(|e| rsq::Error::UserFunctionError(Box::new(e)))?
+                    };
+
+                    Ok(matched)
+                },
+            )
+            .context("failed to create `pcre` function")
+    }
+
     /// Add a [`blake3`] hashing function to the database. This hashes the given
     /// string
     pub(crate) fn add_blake3_func(&self) -> Result<()> {
@@ -716,10 +777,24 @@ impl Registry {
     }
 }
 
+impl fmt::Display for Registry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} (v:{})",
+            self.path.display().to_string().purple().bold(),
+            self.get_current_version()
+                .expect("failed to get current version")
+                .to_string()
+                .green()
+        )
+    }
+}
+
 // ========================= Helper Functions =========================
 // ====================================================================
 
-/// Get the path to the database
+/// Get the path to the registry
 pub(crate) fn db_path() -> Result<PathBuf> {
     let data_dir = PROJECT_DIRS.data_dir();
 
@@ -733,7 +808,12 @@ pub(crate) fn db_path() -> Result<PathBuf> {
     }
 
     let path = data_dir.join(REGISTRY_FILE);
+    self::set_perms(path)
+}
 
+/// Set permissions on the registry file using [`REGISTRY_UMASK`]
+pub(crate) fn set_perms<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
+    let path = path.as_ref();
     let mut perms = fs::metadata(&path)?.permissions();
     perms.set_mode(*REGISTRY_UMASK);
     fs::set_permissions(&path, perms).context(format!(
@@ -741,5 +821,5 @@ pub(crate) fn db_path() -> Result<PathBuf> {
         path.display()
     ))?;
 
-    Ok(path)
+    Ok(path.to_path_buf())
 }

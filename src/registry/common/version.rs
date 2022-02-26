@@ -7,7 +7,7 @@ use rusqlite::{
     self as rsq,
     types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, ValueRef},
 };
-use std::str::FromStr;
+use std::{fmt, str::FromStr};
 use thiserror::Error;
 
 // ===================== Version ======================
@@ -124,6 +124,12 @@ impl From<Version> for ToSqlOutput<'_> {
     #[inline]
     fn from(t: Version) -> Self {
         ToSqlOutput::Owned(t.as_str().into())
+    }
+}
+
+impl fmt::Display for Version {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}.{}.{}", self.minor, self.major, self.patch)
     }
 }
 

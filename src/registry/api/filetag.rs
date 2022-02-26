@@ -122,14 +122,14 @@ impl Registry {
     // ====================================================================
 
     /// Add a [`FileTag`] to the database
-    pub(crate) fn insert_filetag(&self, ft: FileTag) -> Result<FileTag> {
-        self.wrap_commit(|txn| txn.insert_filetag(&ft))
+    pub(crate) fn insert_filetag(&self, ft: &FileTag) -> Result<FileTag> {
+        self.wrap_commit(|txn| txn.insert_filetag(ft))
     }
 
     /// Remove a [`FileTag`] in the database
-    pub(crate) fn delete_filetag(&self, ft: FileTag) -> Result<()> {
+    pub(crate) fn delete_filetag(&self, ft: &FileTag) -> Result<()> {
         self.wrap_commit(|txn| {
-            let exists = self.filetag_exists(&ft)?;
+            let exists = self.filetag_exists(ft)?;
 
             if !exists {
                 return Err(anyhow!(
@@ -140,7 +140,7 @@ impl Registry {
                 ));
             }
 
-            txn.delete_filetag(&ft)?;
+            txn.delete_filetag(ft)?;
             self.delete_file_if_untagged(ft.file_id())?;
 
             Ok(())

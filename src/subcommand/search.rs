@@ -1,11 +1,19 @@
-use super::{
-    uses::{
-        channel, glob_builder, receiver, regex_builder, sender, Arc, Args, CommandTemplate,
-        ValueHint, WorkerResult, EXEC_BATCH_EXPL, EXEC_EXPL,
-    },
-    App,
-};
+//! Search for tags or values within the database
 
+use super::App;
+use crate::{
+    consts::{EXEC_BATCH_EXPL, EXEC_EXPL},
+    exe::{
+        job::{receiver, sender, WorkerResult},
+        CommandTemplate,
+    },
+    util::{glob_builder, regex_builder},
+};
+use clap::{Args, ValueHint};
+use crossbeam_channel as channel;
+use std::sync::Arc;
+
+/// Options used for the `search` subcommand
 #[derive(Args, Clone, Debug, PartialEq)]
 pub(crate) struct SearchOpts {
     /// No colored output. Should be detected automatically on pipe
@@ -86,8 +94,7 @@ pub(crate) struct SearchOpts {
         short,
         long_help = "\
         Limit search results even further by using a tag. To search just by tags use 'wutag search \
-                     '*' --tag <tag>'
-        "
+                     '*' --tag <tag>'"
     )]
     pub(crate) tags: Vec<String>,
 

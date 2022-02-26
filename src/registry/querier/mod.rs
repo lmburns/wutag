@@ -7,6 +7,8 @@ pub(crate) mod parser;
 pub(crate) mod parser_tests;
 pub(crate) mod tracker;
 
+pub(crate) use ast::Query;
+
 use nom_locate::LocatedSpan;
 use once_cell::sync::Lazy;
 use std::ops::Range;
@@ -127,7 +129,7 @@ mod tests {
 
         let mut dollar = vec![];
         for v in &names {
-            dollar.push(v.replace("@", "$"));
+            dollar.push(v.replace('@', "$"));
         }
 
         dollar.extend_from_slice(&names[..]);
@@ -160,7 +162,7 @@ mod tests {
 
         let mut dollar = vec![];
         for v in &names {
-            dollar.push(v.replace("@", "$"));
+            dollar.push(v.replace('@', "$"));
         }
 
         dollar.extend_from_slice(&names[..]);

@@ -23,7 +23,6 @@ use super::{
 use crossbeam_channel::{Receiver, Sender};
 use crossbeam_utils::thread;
 // use rayon::prelude::*;
-use colored::Colorize;
 use regex::bytes::Regex;
 
 /// Result from a multi-threaded command

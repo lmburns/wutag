@@ -2,7 +2,6 @@
 
 use super::Key;
 use crate::wutag_fatal;
-use colored::Colorize;
 
 /// A list of recipients
 ///

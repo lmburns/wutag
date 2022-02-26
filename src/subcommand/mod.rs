@@ -5,6 +5,7 @@ pub(crate) mod clear;
 pub(crate) mod cp;
 pub(crate) mod edit;
 pub(crate) mod info;
+pub(crate) mod init;
 pub(crate) mod list;
 pub(crate) mod print_completions;
 pub(crate) mod repair;
@@ -26,42 +27,10 @@ pub(crate) mod view;
 
 use uses::{
     env, oregistry, parse_color, parse_color_cli_table, ui, wutag_error, wutag_fatal, Arc, Color,
-    Colorize, Command, Config, Context, EncryptConfig, FileTypes, Mutex, Opts, PathBuf, RegexSet,
+    Command, Config, Context, EncryptConfig, FileTypes, Mutex, Opts, PathBuf, RegexSet,
     RegexSetBuilder, Registry, Result, Stream, TagRegistry, DEFAULT_BASE_COLOR,
     DEFAULT_BORDER_COLOR, DEFAULT_COLORS,
 };
-
-impl Clone for App {
-    fn clone(&self) -> Self {
-        Self {
-            base_color:       self.base_color,
-            base_dir:         self.base_dir.clone(),
-            case_insensitive: self.case_insensitive,
-            case_sensitive:   self.case_sensitive,
-            color_when:       self.color_when.clone(),
-            colors:           self.colors.clone(),
-            exclude:          self.exclude.clone(),
-            extension:        self.extension.clone(),
-            file_type:        self.file_type,
-            follow_symlinks:  self.follow_symlinks,
-            format:           self.format.clone(),
-            global:           self.global,
-            ignores:          self.ignores.clone(),
-            ls_colors:        self.ls_colors,
-            max_depth:        self.max_depth,
-            quiet:            self.quiet,
-            pat_regex:        self.pat_regex,
-            oregistry:        self.oregistry.clone(),
-            registry:         self.registry.clone(),
-
-            #[cfg(feature = "prettify")]
-            border_color:                              self.border_color,
-
-            #[cfg(feature = "encrypt-gpgme")]
-            encrypt:                                   self.encrypt.clone(),
-        }
-    }
-}
 
 /// A structure that is built from a parsed `Config` and parsed `Opts`
 #[allow(clippy::missing_docs_in_private_items)]
@@ -84,6 +53,7 @@ pub(crate) struct App {
     pub(crate) max_depth:        Option<usize>,
     pub(crate) quiet:            bool,
     pub(crate) pat_regex:        bool,
+    pub(crate) fixed_string:     bool,
     pub(crate) oregistry:        TagRegistry,
 
     pub(crate) registry: Arc<Mutex<Registry>>,
@@ -118,15 +88,25 @@ impl App {
             std::env::current_dir().context("failed to determine CWD")?
         };
 
-        let colors = if let Some(colors_) = config.colors {
-            let mut colors = Vec::new();
-            for color in colors_.iter().map(parse_color) {
-                colors.push(color?);
-            }
-            colors
-        } else {
-            DEFAULT_COLORS.to_vec()
-        };
+        // This ignores invalid colors (i.e., doesn't crash program)
+        // Could also be done with .fold()
+        let colors = config.colors.map_or_else(
+            || DEFAULT_COLORS.to_vec(),
+            |colors_| {
+                colors_
+                    .iter()
+                    .filter_map(|color| {
+                        let parsed = parse_color(color);
+                        if let Err(e) = parsed {
+                            wutag_error!("{e}");
+                            None
+                        } else {
+                            parsed.ok()
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            },
+        );
 
         let base_color = config
             .base_color
@@ -152,6 +132,8 @@ impl App {
                 },
         };
 
+        let depth = opts.max_depth.or(config.max_depth);
+
         let format = config.format.map_or_else(
             || "toml".to_owned(),
             |format_| {
@@ -170,16 +152,21 @@ impl App {
             },
         );
 
+        let follow_links = opts
+            .no_follow_links
+            .then(|| false)
+            .unwrap_or(opts.follow_links || config.follow_symlinks);
+
         let oregistry = oregistry::load_registry(opts, &config.encryption)?;
 
-        let registry = Registry::new_default(config.follow_symlinks)?;
+        let registry = Registry::new(opts.reg.as_ref().or(config.registry.as_ref()), follow_links)?;
 
         let extensions = opts
             .extension
-            .clone()
+            .as_ref()
             .map(|ext| {
                 RegexSetBuilder::new(
-                    ext.into_iter()
+                    ext.iter()
                         .map(|e| e.trim_start_matches('.').to_owned())
                         .map(|e| format!(r".\.{}$", regex::escape(e.as_str()))),
                 )
@@ -188,11 +175,11 @@ impl App {
             })
             .transpose()?;
 
-        let excludes = opts.exclude.clone().map_or_else(Vec::new, |v| {
+        let excludes = opts.exclude.as_ref().map_or_else(Vec::new, |v| {
             v.iter().map(|p| format!("!{}", p.as_str())).collect()
         });
 
-        let file_types = opts.file_type.clone().map(|vals| {
+        let file_types = opts.file_type.as_ref().map(|vals| {
             let mut ftypes = FileTypes::default();
             for v in vals {
                 match v.as_str() {
@@ -230,17 +217,14 @@ impl App {
             exclude: excludes,
             extension: extensions,
             file_type: file_types,
-            follow_symlinks: config.follow_symlinks,
+            follow_symlinks: follow_links,
             format,
             global: opts.global,
             ignores: config.ignores,
             ls_colors: opts.ls_colors,
-            max_depth: if opts.max_depth.is_some() {
-                opts.max_depth
-            } else {
-                config.max_depth
-            },
+            max_depth: depth,
             pat_regex: opts.regex,
+            fixed_string: opts.fixed_string,
             quiet: opts.quiet,
             oregistry,
 
@@ -275,6 +259,7 @@ impl App {
             Command::Cp(ref opts) => self.cp(opts)?,
             Command::Edit(ref opts) => self.edit(opts),
             Command::Info(ref opts) => self.info(opts),
+            Command::Init(ref opts) => self.init(opts)?,
             Command::List(ref opts) => self.list(opts),
             Command::PrintCompletions(ref opts) => self.print_completions(opts),
             Command::Repair(ref opts) => self.repair(opts)?,
@@ -313,6 +298,40 @@ impl App {
             if let Err(e) = TagRegistry::crypt_registry(&self.oregistry.path, &self.encrypt, true) {
                 wutag_fatal!("{}", e);
             }
+        }
+    }
+}
+
+// Implement a custom clone (specifically for `registry`)
+impl Clone for App {
+    fn clone(&self) -> Self {
+        Self {
+            base_color:       self.base_color,
+            base_dir:         self.base_dir.clone(),
+            case_insensitive: self.case_insensitive,
+            case_sensitive:   self.case_sensitive,
+            color_when:       self.color_when.clone(),
+            colors:           self.colors.clone(),
+            exclude:          self.exclude.clone(),
+            extension:        self.extension.clone(),
+            file_type:        self.file_type,
+            follow_symlinks:  self.follow_symlinks,
+            format:           self.format.clone(),
+            global:           self.global,
+            ignores:          self.ignores.clone(),
+            ls_colors:        self.ls_colors,
+            max_depth:        self.max_depth,
+            quiet:            self.quiet,
+            pat_regex:        self.pat_regex,
+            fixed_string:     self.fixed_string,
+            oregistry:        self.oregistry.clone(),
+            registry:         self.registry.clone(),
+
+            #[cfg(feature = "prettify")]
+            border_color:                              self.border_color,
+
+            #[cfg(feature = "encrypt-gpgme")]
+            encrypt:                                   self.encrypt.clone(),
         }
     }
 }

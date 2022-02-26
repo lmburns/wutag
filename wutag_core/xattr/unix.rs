@@ -1,29 +1,29 @@
+#![allow(clippy::cast_sign_loss)]
 #![cfg(unix)]
 #[cfg(target_os = "macos")]
 use libc::XATTR_NOFOLLOW;
 use libc::{getxattr, listxattr, removexattr, setxattr, XATTR_CREATE};
 #[cfg(target_os = "linux")]
 use libc::{lgetxattr, llistxattr, lremovexattr, lsetxattr};
+
 use std::{
     ffi::{CStr, CString, OsStr},
-    fs, io, mem,
-    os::{
-        raw::{c_char, c_void},
-        unix::ffi::OsStrExt,
-    },
+    fs, io,
+    os::{raw::c_void, unix::ffi::OsStrExt},
     path::Path,
     ptr,
 };
 
 use crate::{Error, Result};
 
+/// Check whether the given `Path` is a symlink
 fn is_symlink(path: &Path) -> bool {
     fs::metadata(path).map_or(false, |f| f.file_type().is_symlink())
 }
 
 /// Sets the value of the extended attribute identified by `name` and associated
 /// with the given `path` in the filesystem.
-pub fn set_xattr<P, S>(path: P, name: S, value: S) -> Result<()>
+pub(crate) fn set_xattr<P, S>(path: P, name: S, value: S) -> Result<()>
 where
     P: AsRef<Path>,
     S: AsRef<str>,
@@ -36,7 +36,7 @@ where
 
 /// Retrieves the value of the extended attribute identified by `name` and
 /// associated with the given `path` in the filesystem.
-pub fn get_xattr<P, S>(path: P, name: S) -> Result<String>
+pub(crate) fn get_xattr<P, S>(path: P, name: S) -> Result<String>
 where
     P: AsRef<Path>,
     S: AsRef<str>,
@@ -47,7 +47,7 @@ where
 
 /// Retrieves a list of all extended attributes with their values associated
 /// with the given `path` in the filesystem.
-pub fn list_xattrs<P>(path: P) -> Result<Vec<(String, String)>>
+pub(crate) fn list_xattrs<P>(path: P) -> Result<Vec<(String, String)>>
 where
     P: AsRef<Path>,
 {
@@ -57,7 +57,7 @@ where
 
 /// Removes the extended attribute identified by `name` and associated with the
 /// given `path` in the filesystem.
-pub fn remove_xattr<P, S>(path: P, name: S) -> Result<()>
+pub(crate) fn remove_xattr<P, S>(path: P, name: S) -> Result<()>
 where
     P: AsRef<Path>,
     S: AsRef<str>,
@@ -67,9 +67,13 @@ where
 }
 
 //################################################################################
-// Wrappers
+// Wrappers - Lowest level functions
 //################################################################################
 
+/// Call to the `C` function to get the extended attribute
+///
+///  - [`lgetxattr`] if the file is a symlink
+///  - [`getxattr`] if the file is not a symlink
 #[cfg(target_os = "linux")]
 unsafe fn __getxattr(
     path: *const i8,
@@ -83,6 +87,10 @@ unsafe fn __getxattr(
     func(path, name, value, size)
 }
 
+/// Call to the `C` function to get the extended attribute
+///
+///  - [`XATTR_NOFOLLOW`] if the file is a symlink
+///  - `0` if the file is not a symlink
 #[cfg(target_os = "macos")]
 unsafe fn __getxattr(
     path: *const i8,
@@ -96,7 +104,12 @@ unsafe fn __getxattr(
     getxattr(path, name, value, size, 0, opts)
 }
 
+/// Call to the `C` function to set the extended attribute
+///
+///  - [`lsetxattr`] if the file is a symlink
+///  - [`setxattr`] if the file is not a symlink
 #[cfg(target_os = "linux")]
+#[allow(clippy::as_conversions)]
 unsafe fn __setxattr(
     path: *const i8,
     name: *const i8,
@@ -109,6 +122,10 @@ unsafe fn __setxattr(
     func(path, name, value, size, XATTR_CREATE) as isize
 }
 
+/// Call to the `C` function to set the extended attribute
+///
+///  - [`XATTR_NOFOLLOW`] if the file is a symlink
+///  - `0` if the file is not a symlink
 #[cfg(target_os = "macos")]
 unsafe fn __setxattr(
     path: *const i8,
@@ -122,13 +139,22 @@ unsafe fn __setxattr(
     setxattr(path, name, value, size, 0, opts | XATTR_CREATE) as isize
 }
 
+/// Call to the `C` function to remove the extended attribute
+///
+///  - [`lremovexattr`] if the file is a symlink
+///  - [`removexattr`] if the file is not a symlink
 #[cfg(target_os = "linux")]
+#[allow(clippy::as_conversions)]
 unsafe fn __removexattr(path: *const i8, name: *const i8, symlink: bool) -> isize {
     let func = if symlink { lremovexattr } else { removexattr };
 
     func(path, name) as isize
 }
 
+/// Call to the `C` function to remove the extended attribute
+///
+///  - [`XATTR_NOFOLLOW`] if the file is a symlink
+///  - `0` if the file is not a symlink
 #[cfg(target_os = "macos")]
 unsafe fn __removexattr(path: *const i8, name: *const i8, symlink: bool) -> isize {
     let opts = if symlink { XATTR_NOFOLLOW } else { 0 };
@@ -136,13 +162,21 @@ unsafe fn __removexattr(path: *const i8, name: *const i8, symlink: bool) -> isiz
     removexattr(path, name, opts) as isize
 }
 
+/// Call to the `C` function to list extended attribute(s)
+///
+///  - [`llistxattr`] if the file is a symlink
+///  - [`listxattr`] if the file is not a symlink
 #[cfg(target_os = "linux")]
 unsafe fn __listxattr(path: *const i8, list: *mut i8, size: usize, symlink: bool) -> isize {
     let func = if symlink { llistxattr } else { listxattr };
 
-    func(path, list, size) as isize
+    func(path, list, size)
 }
 
+/// Call to the `C` function to list extended attribute(s)
+///
+///  - [`XATTR_NOFOLLOW`] if the file is a symlink
+///  - `0` if the file is not a symlink
 #[cfg(target_os = "macos")]
 unsafe fn __listxattr(path: *const i8, list: *mut i8, size: usize, symlink: bool) -> isize {
     let opts = if symlink { XATTR_NOFOLLOW } else { 0 };
@@ -154,10 +188,12 @@ unsafe fn __listxattr(path: *const i8, list: *mut i8, size: usize, symlink: bool
 // Impl
 //################################################################################
 
+/// See [`__removexattr`]
 fn _remove_xattr(path: &Path, name: &str, symlink: bool) -> Result<()> {
     let path = CString::new(path.to_string_lossy().as_bytes())?;
     let name = CString::new(name.as_bytes())?;
 
+    // Unsafe needs to be used to call [`libc`]
     unsafe {
         let ret = __removexattr(path.as_ptr(), name.as_ptr(), symlink);
         if ret != 0 {
@@ -168,14 +204,11 @@ fn _remove_xattr(path: &Path, name: &str, symlink: bool) -> Result<()> {
     Ok(())
 }
 
-fn _set_xattr(
-    path: &Path,
-    name: &str,
-    value: &str,
-    size: usize,
-    symlink: bool, /* if provided path is a symlink set the attribute on the symlink not the
-                    * file/directory it points to */
-) -> Result<()> {
+/// See [`__setxattr`]
+///
+/// If provided path is a symlink, set the attribute on the symlink not the
+/// file/directory it points to
+fn _set_xattr(path: &Path, name: &str, value: &str, size: usize, symlink: bool) -> Result<()> {
     let path = CString::new(path.to_string_lossy().as_bytes())?;
     let name = CString::new(name.as_bytes())?;
     let value = CString::new(value.as_bytes())?;
@@ -184,7 +217,7 @@ fn _set_xattr(
         let ret = __setxattr(
             path.as_ptr(),
             name.as_ptr(),
-            value.as_ptr() as *const c_void,
+            value.as_ptr().cast::<libc::c_void>(),
             size,
             symlink,
         );
@@ -197,6 +230,7 @@ fn _set_xattr(
     Ok(())
 }
 
+/// See [`__getxattr`]
 fn _get_xattr(path: &Path, name: &str, symlink: bool) -> Result<String> {
     let path = CString::new(path.to_string_lossy().as_bytes())?;
     let name = CString::new(name.as_bytes())?;
@@ -204,13 +238,15 @@ fn _get_xattr(path: &Path, name: &str, symlink: bool) -> Result<String> {
     let mut buf = Vec::<u8>::with_capacity(size);
     let buf_ptr = buf.as_mut_ptr();
 
-    mem::forget(buf);
+    drop(buf);
+    // Can cause leaks if destructor isn't ran
+    // mem::forget(buf);
 
     let ret = unsafe {
         __getxattr(
             path.as_ptr(),
             name.as_ptr(),
-            buf_ptr as *mut c_void,
+            buf_ptr.cast::<libc::c_void>(),
             size,
             symlink,
         )
@@ -220,6 +256,7 @@ fn _get_xattr(path: &Path, name: &str, symlink: bool) -> Result<String> {
         return Err(Error::from(io::Error::last_os_error()));
     }
 
+    #[allow(clippy::as_conversions)]
     let ret = ret as usize;
 
     if ret != size {
@@ -233,6 +270,7 @@ fn _get_xattr(path: &Path, name: &str, symlink: bool) -> Result<String> {
         .to_string())
 }
 
+/// See [`__listxattr`]
 fn _list_xattrs(path: &Path, symlink: bool) -> Result<Vec<(String, String)>> {
     let cpath = CString::new(path.to_string_lossy().as_bytes())?;
     let raw = list_xattrs_raw(cpath.as_c_str(), symlink)?;
@@ -248,7 +286,7 @@ fn _list_xattrs(path: &Path, symlink: bool) -> Result<Vec<(String, String)>> {
 }
 
 //################################################################################
-// Other
+// Other - Helper functions
 //################################################################################
 
 fn get_xattr_size(path: &CStr, name: &CStr, symlink: bool) -> Result<usize> {
@@ -258,6 +296,7 @@ fn get_xattr_size(path: &CStr, name: &CStr, symlink: bool) -> Result<usize> {
         return Err(Error::from(io::Error::last_os_error()));
     }
 
+    #[allow(clippy::as_conversions)]
     Ok(ret as usize)
 }
 
@@ -268,6 +307,7 @@ fn get_xattrs_list_size(path: &CStr, symlink: bool) -> Result<usize> {
         return Err(Error::from(io::Error::last_os_error()));
     }
 
+    #[allow(clippy::as_conversions)]
     Ok(ret as usize)
 }
 
@@ -276,14 +316,17 @@ fn list_xattrs_raw(path: &CStr, symlink: bool) -> Result<Vec<u8>> {
     let mut buf = Vec::<u8>::with_capacity(size);
     let buf_ptr = buf.as_mut_ptr();
 
-    mem::forget(buf);
+    drop(buf);
+    // Can cause leaks if destructor isn't ran
+    // mem::forget(buf);
 
-    let ret = unsafe { __listxattr(path.as_ptr(), buf_ptr as *mut c_char, size, symlink) };
+    let ret = unsafe { __listxattr(path.as_ptr(), buf_ptr.cast::<i8>(), size, symlink) };
 
     if ret == -1 {
         return Err(Error::from(io::Error::last_os_error()));
     }
 
+    #[allow(clippy::as_conversions)]
     let ret = ret as usize;
 
     if ret != size {
@@ -318,14 +361,16 @@ fn parses_xattrs_from_raw() {
     let raw = &[
         117, 115, 101, 114, 46, 107, 101, 121, 49, 0, 117, 115, 101, 114, 46, 107, 101, 121, 50, 0,
         117, 115, 101, 114, 46, 107, 101, 121, 51, 0, 115, 101, 99, 117, 114, 105, 116, 121, 46,
-        116, 101, 115, 116, 105, 110, 103, 0,
+        116, 101, 115, 116, 105, 110, 103, 0, 119, 117, 116, 97, 103, 46, 118, 97, 108, 117, 101,
+        0,
     ];
 
     let attrs = parse_xattrs(raw);
     let mut it = attrs.iter();
 
-    assert_eq!(it.next(), Some(&"user.key1".to_string()));
-    assert_eq!(it.next(), Some(&"user.key2".to_string()));
-    assert_eq!(it.next(), Some(&"user.key3".to_string()));
-    assert_eq!(it.next(), Some(&"security.testing".to_string()));
+    assert_eq!(it.next(), Some(&"user.key1".to_owned()));
+    assert_eq!(it.next(), Some(&"user.key2".to_owned()));
+    assert_eq!(it.next(), Some(&"user.key3".to_owned()));
+    assert_eq!(it.next(), Some(&"security.testing".to_owned()));
+    assert_eq!(it.next(), Some(&"wutag.value".to_owned()));
 }

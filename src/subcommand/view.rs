@@ -4,9 +4,8 @@ use super::{
     uses::{
         bold_entry, clear_tags, contained_path, create_temp_path, fmt_path, fmt_tag, fs,
         glob_builder, osstr_to_bytes, process, raw_local_path, reg_ok, regex_builder, wutag_error,
-        wutag_fatal, wutag_info, Arc, ArgSettings, Args, BTreeMap, Captures, Colorize, Cow,
-        DirEntryExt, EntryData, Lexiclean, OsStr, PathBuf, Regex, Result, Tag, Write,
-        DEFAULT_EDITOR,
+        wutag_fatal, wutag_info, Arc, Args, BTreeMap, Captures, Colorize, Cow, DirEntryExt,
+        EntryData, Lexiclean, OsStr, PathBuf, Regex, Result, Tag, Write, DEFAULT_EDITOR,
     },
     App,
 };
@@ -19,8 +18,8 @@ pub(crate) struct ViewOpts {
         env = "EDITOR",
         default_value = DEFAULT_EDITOR.as_ref(),
         value_name = "editor",
-        setting = ArgSettings::HideEnv,
-        setting = ArgSettings::HideDefaultValue,
+        hide_env = true,
+        hide_default_value = true,
     )]
     pub(crate) editor:  String,
     #[clap(long, short = 'a')]
@@ -30,10 +29,10 @@ pub(crate) struct ViewOpts {
         name = "format",
         long, short = 'f',
         possible_values = &["toml", "yaml", "yml", "json"],
-        setting = ArgSettings::HidePossibleValues,
+        hide_possible_values = true,
         long_help = "\
-        Format of the file viewed in the editor with the matching search results.\
-        The possible values are: 'toml', 'yaml|yml', 'json'."
+            Format of the file viewed in the editor with the matching search results.\
+            The possible values are: 'toml', 'yaml|yml', 'json'.",
     )]
     pub(crate) format:  Option<String>,
     /// Search with a tag as a filter
@@ -42,8 +41,8 @@ pub(crate) struct ViewOpts {
         long,
         short,
         long_help = "\
-        Limit search results even further by using a tag as a filter. Can search just for tags by \
-                     not using '--pattern'"
+            Limit search results even further by using a tag as a filter. Can search just for tags \
+                     by not using '--pattern'"
     )]
     pub(crate) tags:    Vec<String>,
     /// Pattern to search for and open result in editor

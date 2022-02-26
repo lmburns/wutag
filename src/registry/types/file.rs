@@ -176,7 +176,7 @@ impl File {
         let path = Self::clean_path(path)?;
         self.hash = {
             if path.is_dir() {
-                hash_dir(follow_links, &path, |p, perm| blake3_hash(p, perm))?
+                hash_dir(follow_links, &path, |p, _perm| blake3_hash(p, None))?
             } else {
                 blake3_hash(&path, None)?
             }

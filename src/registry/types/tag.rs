@@ -85,6 +85,16 @@ impl Tag {
     pub(crate) fn set_id(&mut self, id: TagId) {
         self.id = id;
     }
+
+    /// Change or set the [`Tag`] color
+    pub(crate) fn set_color(&mut self, color: Color) {
+        self.color = color;
+    }
+
+    /// Change or set the [`Tag`] name
+    pub(crate) fn set_name<T: AsRef<str>>(&mut self, name: T) {
+        self.name = name.as_ref().to_string();
+    }
 }
 
 impl TryFrom<&Row<'_>> for Tag {
@@ -100,36 +110,21 @@ impl TryFrom<&Row<'_>> for Tag {
     }
 }
 
-// impl ToSql for Tag {
-//     fn to_sql(&self) -> rsq::Result<ToSqlOutput> {
-//         let string = serde_json::to_string(self)
-//             .map_err(|e| rsq::Error::ToSqlConversionFailure(Box::new(e)))?;
-//         Ok(ToSqlOutput::from(string))
-//     }
-// }
-//
-// // TODO: May error out on ID, or on Color
-//
-// #[allow(clippy::wildcard_enum_match_arm)]
-// impl FromSql for Tag {
-//     fn column_result(value: ValueRef) -> FromSqlResult<Self> {
-//         match value {
-//             ValueRef::Text(d) | ValueRef::Blob(d) =>
-// serde_json::from_slice(d),             _s => {
-//                 // let val = s.as_i64();
-//                 return Err(FromSqlError::InvalidType);
-//             },
-//         }
-//         .map_err(|err| FromSqlError::Other(Box::new(err)))
-//     }
-// }
-
 impl From<WTag> for Tag {
     fn from(w: WTag) -> Self {
         Self {
             id:    ID::null(),
             name:  w.name().to_owned(),
             color: *w.color(),
+        }
+    }
+}
+
+impl From<Tag> for WTag {
+    fn from(w: Tag) -> Self {
+        Self {
+            name:  w.name().clone(),
+            color: w.color(),
         }
     }
 }
@@ -196,8 +191,6 @@ impl TagFileCnt {
         self.count
     }
 }
-
-// TODO: Maybe getting column by index would be better
 
 impl TryFrom<&Row<'_>> for TagFileCnt {
     type Error = rsq::Error;

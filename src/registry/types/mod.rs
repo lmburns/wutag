@@ -9,6 +9,12 @@ pub(crate) mod tag;
 pub(crate) mod tag_color;
 pub(crate) mod value;
 
+pub(crate) use file::{File, FileId, Files};
+pub(crate) use filetag::{FileTag, FileTags};
+pub(crate) use implication::{Implication, Implications};
+pub(crate) use tag::{Tag, TagId, Tags};
+pub(crate) use value::{Value, ValueId, Values};
+
 use chrono::{DateTime, Local};
 use rusqlite::{
     self as rsq,

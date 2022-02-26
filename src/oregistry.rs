@@ -788,7 +788,7 @@ pub(crate) fn load_registry(opts: &Opts, config: &EncryptConfig) -> Result<TagRe
                 .unwrap_or_else(|_| {
                     Cow::from(
                         LookupError {
-                            var_name: "Unkown environment variable".into(),
+                            var_name: "Unknown environment variable".into(),
                             cause:    env::VarError::NotPresent,
                         }
                         .to_string(),

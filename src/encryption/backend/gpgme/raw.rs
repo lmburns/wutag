@@ -5,7 +5,6 @@ use crate::{
     wutag_fatal,
 };
 use anyhow::Result;
-use colored::Colorize;
 use gpgme::{Context, EncryptFlags, Key};
 use thiserror::Error;
 use zeroize::Zeroize;

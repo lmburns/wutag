@@ -1,5 +1,5 @@
 //! Options used by the main executable
-use clap::{crate_version, AppSettings, ArgSettings, Parser, Subcommand, ValueHint};
+use clap::{crate_version, AppSettings, Parser, Subcommand, ValueHint};
 use std::{env, fs, path::PathBuf};
 
 use crate::{
@@ -9,6 +9,7 @@ use crate::{
         cp::CpOpts,
         edit::EditOpts,
         info::InfoOpts,
+        init::InitOpts,
         list::{ListObject, ListOpts},
         print_completions::CompletionsOpts,
         repair::RepairOpts,
@@ -32,15 +33,13 @@ use crate::{
     about = <String as AsRef<str>>::as_ref(&APP_ABOUT),
     after_help =  <String as AsRef<str>>::as_ref(&AFTER_HELP),
     override_usage =  <String as AsRef<str>>::as_ref(&OVERRIDE_HELP),
-    max_term_width = 100,
     color = clap::ColorChoice::Auto,
-    global_setting = AppSettings::DeriveDisplayOrder,           // Display in order listed here
-    global_setting = AppSettings::InferSubcommands,             // l, li, lis == list
-    global_setting = AppSettings::InferLongArgs,             // Same as above but for args
-    global_setting = AppSettings::DisableHelpSubcommand,        // Disables help (use -h)
-    global_setting = AppSettings::DontCollapseArgsInUsage,        // TODO: test
-    global_setting = AppSettings::UseLongFormatForHelpSubcommand, // Use a long help message
-    // global_setting = AppSettings::UnifiedHelpMessage,     // Options/Flags together
+    max_term_width = 100,
+    infer_subcommands = true, // l, li, lis == list
+    infer_long_args = true, // Same as above but for args
+    disable_help_subcommand = true, // Disables help (use -h)
+    dont_collapse_args_in_usage = true,
+    global_setting(AppSettings::DeriveDisplayOrder),           // Display in order listed here
 )]
 pub(crate) struct Opts {
     #[clap(long, short, global = true, parse(from_occurrences))]
@@ -66,7 +65,9 @@ pub(crate) struct Opts {
 
     /// Set maximum depth to recurse into
     #[clap(
-        long, short,
+        name = "max-depth",
+        long = "max-depth",
+        short = 'm',
         value_name = "num",
         validator = |t| t.parse::<usize>()
                             .map_err(|_| "must be a number")
@@ -80,11 +81,13 @@ pub(crate) struct Opts {
 
     /// Specify a different registry to use
     #[clap(
-        long = "registry", short = 'R',
+        name = "registry",
+        long = "registry",
+        short = 'R',
         value_hint = ValueHint::FilePath,
         env = "WUTAG_REGISTRY",
-        value_name = "reg",
-        setting = ArgSettings::HideEnv,
+        value_name = "file",
+        hide_env = true
     )]
     pub(crate) reg: Option<PathBuf>,
 
@@ -117,13 +120,43 @@ pub(crate) struct Opts {
 
     /// Search with a regular expressions
     #[clap(
+        name = "regex",
         long,
         short = 'r',
+        overrides_with = "regex",
         long_help = "\
-        Search for files using a regular expressions instead of a glob. Only applies to \
-                     subcommands that take a pattern as a positional argument."
+        Search for files using a regular expression instead of a glob. Only applies to subcommands \
+                     that take a pattern as a positional argument."
     )]
     pub(crate) regex: bool,
+
+    // TODO: Configuration option for these ^|
+    /// Search with a glob pattern
+    #[clap(
+        name = "glob",
+        long,
+        short = 'G',
+        overrides_with_all = &["glob", "regex"],
+        hide_short_help = true,
+        long_help = "\
+        Search for files using a glob expression instead of a glob. Only applies to subcommands \
+                     that take a pattern as a positional argument. Note: This is the default \
+                     behavior"
+    )]
+    pub(crate) glob: bool,
+
+    /// Search with a literal fixed-string
+    #[clap(
+        name = "fixed_string",
+        long = "fixed-string",
+        short = 'F',
+        overrides_with = "fixed-string",
+        hide_short_help = true,
+        long_help = "\
+        Search using a fixed-string. It is probably better to use the default pattern searching of \
+                     glob"
+    )]
+    pub(crate) fixed_string: bool,
 
     /// Apply operation to all tags and files instead of locally
     #[clap(
@@ -137,13 +170,40 @@ pub(crate) struct Opts {
     )]
     pub(crate) global: bool,
 
+    /// Follow symlinks when peforming an action on a file
+    #[clap(
+        name = "follow",
+        long = "follow",
+        short = 'L',
+        alias = "dereference",
+        overrides_with = "follow",
+        long_help = "\
+        Peform the action (set, remove, modify) on the dereferenced file. This option can also be \
+                     set in the configuration file. Overrides configuration and this option can \
+                     be overriden with '--no-follow'"
+    )]
+    pub(crate) follow_links: bool,
+
+    /// Do not follow symlinks when peforming an action on a file
+    #[clap(
+        hide = true,
+        name = "no_follow",
+        long = "no-follow",
+        alias = "reference",
+        overrides_with = "follow",
+        long_help = "Overrides '--follow' or a configuration option that wants to follow symlinks"
+    )]
+    pub(crate) no_follow_links: bool,
+
     /// Respect 'LS_COLORS' environment variable when coloring the output
     #[clap(long, short = 'l', conflicts_with = "color")]
     pub(crate) ls_colors: bool,
 
     /// When to colorize output
     #[clap(
-        name = "color", long = "color", short = 'c',
+        name = "color",
+        long = "color",
+        short = 'c',
         value_name = "when",
         possible_values = &["never", "auto", "always"],
         long_help = "\
@@ -177,9 +237,10 @@ pub(crate) struct Opts {
     pub(crate) file_type: Option<Vec<String>>,
 
     #[clap(
+        // global = true,
+        name = "extension",
         long = "ext",
         short = 'e',
-        // global = true,
         number_of_values = 1,
         multiple_occurrences = true,
         takes_value = true,
@@ -194,7 +255,9 @@ pub(crate) struct Opts {
     pub(crate) extension: Option<Vec<String>>,
 
     #[clap(
-        long = "exclude", short = 'E',
+        name = "exclude",
+        long = "exclude",
+        short = 'E',
         number_of_values = 1,
         multiple_occurrences = true,
         takes_value = true,
@@ -284,17 +347,25 @@ impl Default for Command {
 // For subcommand inference and aliases to coexist, the subcommand inferences
 // must be listed as aliases
 
-/// All subcommands
+/// All subcommands to `wutag`
 #[derive(Subcommand, Debug, Clone, PartialEq)]
 pub(crate) enum Command {
     /// Testing new subcommands
-    #[clap(
-        aliases = &["t", "te"],
-        override_usage = "wutag [FLAG/OPTIONS] test"
-    )]
+    #[clap(override_usage = "wutag [FLAG/OPTIONS] test")]
     Testing(TestingOpts),
 
-    /// Lists all available tags or files.
+    /// Initialize the database
+    #[clap(
+        aliases = &["setup", "initialize", "start"],
+        override_usage = "wutag [FLAG/OPTIONS] init [FLAG/OPTIONS]",
+        long_about = "\
+            Initialize the database. If a path is given then that path is used, otherwise \
+            the database path in the configuration file is used, and if that is not present, \
+            the default path `$XDG_DATA_HOME/wutag` is used"
+    )]
+    Init(InitOpts),
+
+    /// Lists all available tags or files
     #[clap(
         aliases = &["ls", "l", "li", "lis"],
         override_usage = "wutag [FLAG/OPTIONS] list [FLAG/OPTIONS] <SUBCOMMAND> [FLAG/OPTIONS]",
@@ -322,7 +393,7 @@ pub(crate) enum Command {
 
     /// Remove tag(s) from the files that match the provided pattern
     #[clap(
-        aliases = &["remove", "r", "del", "delete"],
+        aliases = &["remove", "del", "delete"],
         override_usage = "wutag [FLAG/OPTIONS] rm <pattern> <tag>",
         long_about = "\
             Remove tag(s) from the files that match the provided pattern. \
@@ -335,19 +406,31 @@ pub(crate) enum Command {
     Clear(ClearOpts),
 
     /// Searches for files that have all of the provided 'tags'
-    #[clap(override_usage = "wutag [FLAG/OPTIONS] search [FLAG/OPTIONS] <pattern>")]
+    #[clap(
+        aliases = &["query"],
+        override_usage = "wutag [FLAG/OPTIONS] search [FLAG/OPTIONS] <pattern>"
+    )]
     Search(SearchOpts),
 
     /// Copies tags from the specified file to files that match a pattern
-    #[clap(override_usage = "wutag [FLAG/OPTIONS] cp [FLAG/OPTIONS] <input_path> <pattern>")]
+    #[clap(
+        aliases = &["copy"],
+        override_usage = "wutag [FLAG/OPTIONS] cp [FLAG/OPTIONS] <input_path> <pattern>"
+    )]
     Cp(CpOpts),
 
     /// View the results in an editor (optional pattern)
-    #[clap(override_usage = "wutag [FLAG/OPTIONS] view [FLAG/OPTIONS] -p [<pattern>]")]
+    #[clap(
+        aliases = &["see", "view", "v"],
+        override_usage = "wutag [FLAG/OPTIONS] view [FLAG/OPTIONS] -p [<pattern>]"
+    )]
     View(ViewOpts),
 
     /// Edits a tag's color
-    #[clap(override_usage = "wutag edit [FLAG/OPTIONS] <tag>")]
+    #[clap(
+        aliases = &["edit", "e"],
+        override_usage = "wutag edit [FLAG/OPTIONS] <tag>"
+    )]
     Edit(EditOpts),
 
     /// Display information about the wutag environment
@@ -366,20 +449,24 @@ pub(crate) enum Command {
     /// Prints completions for the specified shell to dir or stdout
     #[clap(
         display_order = 1000,
+        aliases = &["comp", "completions", "print-completions"],
         override_usage = "wutag print-completions --shell <shell> [FLAG/OPTIONS]"
     )]
     PrintCompletions(CompletionsOpts),
 
     /// Clean the cached tag registry
-    #[clap(override_usage = "wutag [FLAG/OPTIONS] clean-cache")]
+    #[clap(
+        aliases = &["clean", "cache", "rm-cache"],
+        override_usage = "wutag [FLAG/OPTIONS] clean-cache",
+        long_about = "Clean out the entire registry. Aliases: 'clean', 'cache', 'rm-cache'"
+    )]
     CleanCache,
 
     /// Open a TUI to manage tags
     #[clap(
         aliases = &["tui"],
         override_usage = "wutag [FLAG/OPTIONS] ui",
-        long_about = "\
-        Start the TUI to manage the registry interactively. Alias: tui"
+        long_about = "Start the TUI to manage the registry interactively. Alias: tui"
     )]
     Ui,
 }

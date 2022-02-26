@@ -189,6 +189,11 @@ impl Txn<'_> {
         Ok(tags.into())
     }
 
+    /// Query for tags using a the `pcre` custom function on `name`, or `color`
+    pub(super) fn select_tags_by_pcre<S: AsRef<str>>(&self, column: S, reg: S) -> Result<Tags> {
+        self.select_tags_by_func("regex", column.as_ref(), reg.as_ref())
+    }
+
     /// Query for tags using a the `regex` custom function on `name`, or `color`
     pub(super) fn select_tags_by_regex<S: AsRef<str>>(&self, column: S, reg: S) -> Result<Tags> {
         self.select_tags_by_func("regex", column.as_ref(), reg.as_ref())

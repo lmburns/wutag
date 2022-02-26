@@ -25,7 +25,7 @@
 
 use ansi_to_tui::ansi_to_text;
 use anyhow::{anyhow, Context, Result};
-use clap::IntoApp;
+use clap::CommandFactory;
 use colored::{ColoredString, Colorize};
 use itertools::Itertools;
 use lexiclean::Lexiclean;
@@ -2155,7 +2155,7 @@ impl UiApp {
         // self.command_buffer.as_str()[i..self.command_buffer.pos()].to_string();
 
         if self.mode == AppMode::Command {
-            let app = Opts::into_app();
+            let app = Opts::command();
 
             for item in app.get_subcommands() {
                 match item.to_string().as_str() {
@@ -2193,7 +2193,7 @@ impl UiApp {
         };
 
         if self.mode == AppMode::Command {
-            let app = Opts::into_app();
+            let app = Opts::command();
 
             // Opts:
             //   --dir <dir>
@@ -2256,7 +2256,7 @@ impl UiApp {
             //     )),
             // );
 
-            let match_args = |sub: &clap::App, completion_list: &mut CompletionList| {
+            let match_args = |sub: &clap::Command, completion_list: &mut CompletionList| {
                 for arg in sub.get_arguments() {
                     match arg.to_string().as_str() {
                         "--help" | "--version" | "--color" | "--ls-colors" | "--verbose" => {},

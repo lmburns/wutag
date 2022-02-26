@@ -38,7 +38,7 @@ impl Registry {
     }
 
     /// Retrieve a [`File`] that matches the given path
-    pub(crate) fn file_by_path<P: AsRef<Path> + Copy>(&self, path: P) -> Result<File> {
+    pub(crate) fn file_by_path<P: AsRef<Path>>(&self, path: P) -> Result<File> {
         self.txn_wrap(|txn| txn.select_file_by_path(path))
     }
 
@@ -60,7 +60,7 @@ impl Registry {
         })
     }
 
-    /// Retrieve all [`File`]s that reside in the given directory
+    /// Retrieve all [`File`]s that reside in the given directories
     pub(crate) fn files_by_directories<P: AsRef<Path>>(&self, paths: &[P]) -> Result<Files> {
         self.txn_wrap(|txn| {
             // let fspath: FsPath = path.as_ref().into();
@@ -76,34 +76,34 @@ impl Registry {
     }
 
     /// Retrieve the number of [`Files`] matching a specific `hash`
-    pub(crate) fn file_count_by_hash<S: AsRef<str> + Copy>(&self, fp: S) -> Result<u32> {
+    pub(crate) fn file_count_by_hash<S: AsRef<str>>(&self, fp: S) -> Result<u32> {
         self.txn_wrap(|txn| txn.select_file_count_by_hash(fp))
     }
 
     /// Retrieve all [`Files`] matching a specific `hash`
-    pub(crate) fn files_by_hash<S: AsRef<str> + Copy>(&self, fp: S) -> Result<Files> {
+    pub(crate) fn files_by_hash<S: AsRef<str>>(&self, fp: S) -> Result<Files> {
         self.txn_wrap(|txn| txn.select_files_by_hash(fp))
     }
 
     /// Retrieve all [`Files`] matching a specific `MimeType`
-    pub(crate) fn files_by_mime<S: AsRef<str> + Copy>(&self, mime: S) -> Result<Files> {
+    pub(crate) fn files_by_mime<S: AsRef<str>>(&self, mime: S) -> Result<Files> {
         self.txn_wrap(|txn| txn.select_files_by_mime(mime))
     }
 
     // TODO: Parse datetime
 
     /// Retrieve all [`Files`] matching a specific `mtime`
-    pub(crate) fn files_by_mtime<S: AsRef<str> + Copy>(&self, mtime: S) -> Result<Files> {
+    pub(crate) fn files_by_mtime<S: AsRef<str>>(&self, mtime: S) -> Result<Files> {
         self.txn_wrap(|txn| txn.select_files_by_mtime(mtime))
     }
 
     /// Retrieve all [`Files`] matching a specific `ctime`
-    pub(crate) fn files_by_ctime<S: AsRef<str> + Copy>(&self, ctime: S) -> Result<Files> {
+    pub(crate) fn files_by_ctime<S: AsRef<str>>(&self, ctime: S) -> Result<Files> {
         self.txn_wrap(|txn| txn.select_files_by_ctime(ctime))
     }
 
     /// Retrieve all [`Files`] matching a specific `mode`
-    pub(crate) fn files_by_mode<S: AsRef<str> + Copy>(&self, mode: S) -> Result<Files> {
+    pub(crate) fn files_by_mode<S: AsRef<str>>(&self, mode: S) -> Result<Files> {
         self.txn_wrap(|txn| txn.select_files_by_mode(mode))
     }
 
@@ -140,7 +140,7 @@ impl Registry {
         not(target_os = "macos")
     ))]
     /// Retrieve all [`Files`] that have given flags
-    pub(crate) fn files_by_flags<S: AsRef<str> + Copy>(&self, given: S) -> Result<Files> {
+    pub(crate) fn files_by_flags<S: AsRef<str>>(&self, given: S) -> Result<Files> {
         self.txn_wrap(|txn| txn.select_files_by_flag(given))
     }
 
@@ -171,6 +171,11 @@ impl Registry {
     // ========================= Pattern Matching =========================
     // ====================================================================
 
+    /// Retrieve all [`Files`] with a given column matching a `pcre` regex
+    pub(crate) fn files_by_pcre_generic(&self, column: &str, patt: &str) -> Result<Files> {
+        self.txn_wrap(|txn| txn.select_files_by_pcre(column, patt))
+    }
+
     /// Retrieve all [`Files`] with a given column matching a `regex`
     pub(crate) fn files_by_regex_generic(&self, column: &str, patt: &str) -> Result<Files> {
         self.txn_wrap(|txn| txn.select_files_by_regex(column, patt))
@@ -193,6 +198,11 @@ impl Registry {
 
     // ==================== Most used pattern matching ====================
 
+    /// Retrieve all [`Files`] with a 'name' matching a `pcre` regex
+    pub(crate) fn files_by_pcre_fname(&self, patt: &str) -> Result<Files> {
+        self.txn_wrap(|txn| txn.select_files_by_pcre("name", patt))
+    }
+
     /// Retrieve all [`Files`] with a 'name' matching a `regex`
     pub(crate) fn files_by_regex_fname(&self, patt: &str) -> Result<Files> {
         self.txn_wrap(|txn| txn.select_files_by_regex("name", patt))
@@ -211,6 +221,11 @@ impl Registry {
     /// Retrieve all [`Files`] that match a given `iglob` on the given column
     pub(crate) fn files_by_iglob_fname(&self, patt: &str) -> Result<Files> {
         self.txn_wrap(|txn| txn.select_files_by_iglob("name", patt))
+    }
+
+    /// Retrieve all [`Files`] with a full path matching a `pcre` regex
+    pub(crate) fn files_by_pcre_fp(&self, patt: &str) -> Result<Files> {
+        self.txn_wrap(|txn| txn.select_files_by_pcre_fp(patt))
     }
 
     /// Retrieve all [`Files`] with a full path matching a `regex`
@@ -237,12 +252,12 @@ impl Registry {
     // ====================================================================
 
     /// Add a [`File`] to the database
-    pub(crate) fn insert_file<P: AsRef<Path> + Copy>(&self, path: P) -> Result<File> {
+    pub(crate) fn insert_file<P: AsRef<Path>>(&self, path: P) -> Result<File> {
         self.wrap_commit(|txn| txn.insert_file(path))
     }
 
     /// Update a [`File`]'s information in the database
-    pub(crate) fn update_file<P: AsRef<Path> + Copy>(&self, id: FileId, path: P) -> Result<File> {
+    pub(crate) fn update_file<P: AsRef<Path>>(&self, id: FileId, path: P) -> Result<File> {
         self.wrap_commit(|txn| txn.update_file(id, path).map_err(Into::into))
     }
 

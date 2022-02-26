@@ -44,17 +44,13 @@ impl Registry {
 
     /// Retrieve a [`Value`] by its string name
     ///   - **Exact match** searching
-    pub(crate) fn value_by_name<S: AsRef<str> + Copy>(
-        &self,
-        name: S,
-        ignore_case: bool,
-    ) -> Result<Value> {
+    pub(crate) fn value_by_name<S: AsRef<str>>(&self, name: S, ignore_case: bool) -> Result<Value> {
         self.txn_wrap(|txn| txn.value_by_name(name, ignore_case))
     }
 
     /// Retrieve all [`Value`]s matching a vector of names
     ///   - **Exact match** searching
-    pub(crate) fn values_by_names<S: AsRef<str> + Copy>(
+    pub(crate) fn values_by_names<S: AsRef<str>>(
         &self,
         names: &[S],
         ignore_case: bool,
@@ -70,22 +66,27 @@ impl Registry {
     // ============================== Pattern =============================
     // ====================================================================
 
-    /// Query for [`Values`] using a the `regex` custom function
+    /// Query for [`Values`] using the `pcre` regex custom function
+    pub(crate) fn values_by_pcre(&self, reg: &str) -> Result<Values> {
+        self.txn_wrap(|txn| txn.select_values_by_pcre(reg))
+    }
+
+    /// Query for [`Values`] using the `regex` custom function
     pub(crate) fn values_by_regex(&self, reg: &str) -> Result<Values> {
         self.txn_wrap(|txn| txn.select_values_by_regex(reg))
     }
 
-    /// Query for [`Values`] using a the `regex` custom function
+    /// Query for [`Values`] using the `regex` custom function
     pub(crate) fn values_by_iregex(&self, reg: &str) -> Result<Values> {
         self.txn_wrap(|txn| txn.select_values_by_iregex(reg))
     }
 
-    /// Query for [`Values`] using a the `glob` custom function
+    /// Query for [`Values`] using the `glob` custom function
     pub(crate) fn values_by_glob(&self, glob: &str) -> Result<Values> {
         self.txn_wrap(|txn| txn.select_values_by_glob(glob))
     }
 
-    /// Query for [`Values`] using a the `iglob` custom function
+    /// Query for [`Values`] using the `iglob` custom function
     pub(crate) fn values_by_iglob(&self, glob: &str) -> Result<Values> {
         self.txn_wrap(|txn| txn.select_values_by_iglob(glob))
     }
@@ -94,19 +95,19 @@ impl Registry {
     // ====================================================================
 
     /// Insert a [`Value`] into the database
-    pub(crate) fn insert_value<S: AsRef<str> + Copy>(&self, name: S) -> Result<Value> {
+    pub(crate) fn insert_value<S: AsRef<str>>(&self, name: S) -> Result<Value> {
         Value::validate_name(&name)?;
         self.wrap_commit(|txn| txn.insert_value(name))
     }
 
     /// Update the [`Value`] by changing its' name
-    pub(crate) fn update_value<S: AsRef<str> + Copy>(&self, id: ValueId, name: S) -> Result<Value> {
+    pub(crate) fn update_value<S: AsRef<str>>(&self, id: ValueId, name: S) -> Result<Value> {
         Value::validate_name(&name)?;
         self.wrap_commit(|txn| txn.update_value(id, name).map_err(Into::into))
     }
 
     /// Remove a [`Value`] from the database
-    pub(crate) fn delete_value<S: AsRef<str> + Copy>(&self, id: ValueId) -> Result<()> {
+    pub(crate) fn delete_value(&self, id: ValueId) -> Result<()> {
         self.wrap_commit(|txn| {
             txn.delete_filetag_by_valueid(id)?;
             txn.delete_implication_by_valueid(id)?;

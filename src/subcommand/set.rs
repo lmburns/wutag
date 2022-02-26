@@ -68,6 +68,8 @@ impl App {
 
         let pat = if self.pat_regex {
             String::from(&opts.pattern)
+        } else if self.fixed_string {
+            regex::escape(&opts.pattern)
         } else {
             glob_builder(&opts.pattern)
         };

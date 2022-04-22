@@ -105,19 +105,19 @@ _wutag() {
                     return 0
                     ;;
                 --color)
-                    COMPREPLY=($(compgen -W "never auto always" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "" -- "${cur}"))
                     return 0
                     ;;
                 -c)
-                    COMPREPLY=($(compgen -W "never auto always" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "" -- "${cur}"))
                     return 0
                     ;;
                 --type)
-                    COMPREPLY=($(compgen -W "f file d dir l symlink b block c char s socket p fifo x executable e empty" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "" -- "${cur}"))
                     return 0
                     ;;
                 -t)
-                    COMPREPLY=($(compgen -W "f file d dir l symlink b block c char s socket p fifo x executable e empty" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "" -- "${cur}"))
                     return 0
                     ;;
                 --ext)
@@ -293,7 +293,7 @@ _wutag() {
             fi
             case "${prev}" in
                 --shell)
-                    COMPREPLY=($(compgen -W "bash zsh powershell elvish fish" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "" -- "${cur}"))
                     return 0
                     ;;
                 --dir)
@@ -416,7 +416,7 @@ _wutag() {
             return 0
             ;;
         wutag__set2)
-            opts="-c -C -s -p -V -h -v --clear --color --stdin --pairs --value --help --verbose <PATTERN> <tags>..."
+            opts="-c -C -s -e -Q -p -V -h -v --clear --color --stdin --explicit --query --pairs --value --help --verbose <PATTERN> <tags>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -427,6 +427,14 @@ _wutag() {
                     return 0
                     ;;
                 -C)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --query)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -Q)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
@@ -505,11 +513,11 @@ _wutag() {
                     return 0
                     ;;
                 --format)
-                    COMPREPLY=($(compgen -W "toml yaml yml json" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "" -- "${cur}"))
                     return 0
                     ;;
                 -f)
-                    COMPREPLY=($(compgen -W "toml yaml yml json" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "" -- "${cur}"))
                     return 0
                     ;;
                 --tags)

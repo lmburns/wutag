@@ -108,7 +108,7 @@ impl App {
                         .collect::<Vec<_>>();
 
                     if tags.is_empty() {
-                        return;
+                        return Ok(());
                     }
 
                     if !self.quiet {
@@ -122,7 +122,7 @@ impl App {
                             Ok(tag) => tag,
                             Err(e) => {
                                 err!('\t', e, entry);
-                                return;
+                                return Ok(());
                             },
                         };
                         if let Err(e) = entry.untag(&tag) {
@@ -136,6 +136,8 @@ impl App {
                     }
                     log::debug!("Saving registry...");
                     self.save_registry();
+
+                    Ok(())
                 },
             );
         }

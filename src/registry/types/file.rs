@@ -109,6 +109,7 @@ pub(crate) struct File {
 
 #[rustfmt::skip]
 impl File {
+    inner_immute!(id, FileId, false);
     inner_immute!(directory, String);
     inner_immute!(name, String);
     inner_immute!(hash, String);

@@ -140,6 +140,8 @@ impl App {
                                     }
                                 }
                             }
+
+                            Ok(())
                         },
                     );
                     log::debug!("Saving registry...");

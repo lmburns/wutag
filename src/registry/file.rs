@@ -29,7 +29,6 @@
 //! ```
 
 use super::{
-    common::hash::blake3_hash,
     querier::ast::query::ParsedQuery,
     sqlbuilder::{Sort, SqlBuilder},
     types::{
@@ -259,7 +258,7 @@ impl Txn<'_> {
                     Ok(r)
                 },
             )
-            .context(query_fail!("`File`", "path"))?;
+            .context(query_fail!("`File`", "path", path.display()))?;
         Ok(file)
     }
 
@@ -475,7 +474,7 @@ impl Txn<'_> {
                     is_dir
                     {}
                 FROM file
-                WHERE mode = ?1 or mode = 100 || ?1 or mode = 10 || ?1
+                WHERE mode = ?1 OR mode = 100 || ?1 OR mode = 10 || ?1
                 ORDER BY fullpath(directory, name)",
                     e2p_feature_comma()
                 ),

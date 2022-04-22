@@ -121,7 +121,8 @@ impl Registry {
         Tag::validate_name(&name)?;
         self.wrap_commit(|txn| {
             // TODO: Decide whether this should express an error
-            let color = parse_color(&color).unwrap_or(Color::BrightWhite);
+            // let color = parse_color(&color).unwrap_or(Color::BrightWhite);
+            let color = parse_color(&color)?;
 
             txn.insert_tag(name, color)
         })

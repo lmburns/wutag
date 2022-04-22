@@ -120,7 +120,7 @@ impl Txn<'_> {
         );
 
         builder.nocase_collation(ignore_case);
-        builder.append("?1");
+        builder.append("= ?1");
 
         let tag: Tag = self
             .select(&(builder.utf()?), params![name.as_ref()], |row| {

@@ -165,7 +165,7 @@ impl Registry {
         if let Some(p) = path {
             let path = p.as_ref();
             let registry = &PathBuf::from(
-                shellexpand::full(&path.display().to_string())
+                shellexpand::full(&path.to_string_lossy())
                     .unwrap_or_else(|_| {
                         Cow::from(
                             LookupError {

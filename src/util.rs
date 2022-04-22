@@ -398,9 +398,9 @@ pub(crate) fn reg_walker(app: &Arc<App>) -> Result<ignore::WalkParallel> {
 /// entry
 ///
 /// [`WalkParallel`]: ignore::WalkParallel
-pub(crate) fn reg_ok<F>(pattern: &Arc<Regex>, app: &Arc<App>, mut f: F)
+pub(crate) fn reg_ok<F, T>(pattern: &Arc<Regex>, app: &Arc<App>, mut f: F)
 where
-    F: FnMut(&ignore::DirEntry) + Send + Sync,
+    F: FnMut(&ignore::DirEntry) -> Result<T> + Send + Sync,
 {
     let walker = reg_walker(app).expect("failed to get `reg_walker` result");
 
@@ -412,7 +412,11 @@ where
 
         scope.spawn(|_| {
             let rx = rx;
-            rx.iter().for_each(|e| f(&e));
+            for entry in rx.iter() {
+                if let Err(e) = f(&entry) {
+                    wutag_error!("{e}");
+                }
+            }
         });
 
         scope.spawn(|_| {

@@ -111,6 +111,8 @@ impl App {
                             Err(_) => vec![],
                         },
                     );
+
+                    Ok(())
                 },
             );
         } else {

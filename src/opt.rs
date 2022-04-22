@@ -39,6 +39,7 @@ use crate::{
     infer_long_args = true, // Same as above but for args
     disable_help_subcommand = true, // Disables help (use -h)
     dont_collapse_args_in_usage = true,
+    subcommand_required = false, // A default command has been setup
     global_setting(AppSettings::DeriveDisplayOrder),           // Display in order listed here
 )]
 pub(crate) struct Opts {

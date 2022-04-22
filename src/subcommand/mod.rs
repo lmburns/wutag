@@ -233,7 +233,7 @@ impl App {
             #[cfg(feature = "prettify")]
             border_color,
 
-            #[cfg(any(feature = "encrypt-gpgme"))]
+            #[cfg(feature = "encrypt-gpgme")]
             encrypt: config.encryption,
         })
     }
@@ -334,4 +334,9 @@ impl Clone for App {
             encrypt:                                   self.encrypt.clone(),
         }
     }
+}
+
+/// Debug the registry path
+pub(crate) fn debug_registry_path(p: &Arc<Mutex<Registry>>) {
+    log::debug!("{}", p.lock().expect("poisoned lock").path().display());
 }

@@ -1,4 +1,6 @@
 //! Utility functions used through this crate and by the main executable
+use std::str::FromStr;
+
 use crate::{Error, Result};
 use colored::Color;
 use tui::style as tui;
@@ -126,11 +128,16 @@ pub fn parse_color<S: AsRef<str>>(color: S) -> Result<Color> {
     let color = color.as_ref();
 
     /// If the given item is 6 in length, wrap it in `Some`, else `None`
+    // if $c.len() == 6 { Some($c) } else { None }
     macro_rules! if_6 {
         ($c:ident) => {
             ($c.len() == 6).then(|| $c)
-            // if $c.len() == 6 { Some($c) } else { None }
         };
+    }
+
+    // Needs to be checked first. Some colors may pass hex parse
+    if let Ok(c) = Color::from_str(color) {
+        return Ok(c);
     }
 
     let result = color.strip_prefix("0x").map_or_else(
@@ -170,6 +177,11 @@ pub fn parse_color_cli_table<S: AsRef<str>>(color: S) -> Result<cli_table::Color
         ($c:ident) => {
             ($c.len() == 6).then(|| $c)
         };
+    }
+
+    // Needs to be checked first. Some colors may pass hex parse
+    if let Ok(c) = cli_table::Color::from_str(color) {
+        return Ok(c);
     }
 
     let result = color.strip_prefix("0x").map_or_else(
@@ -278,6 +290,12 @@ impl<'a> From<&'a str> for TuiColor {
     }
 }
 
+impl From<tui::Color> for TuiColor {
+    fn from(t: tui::Color) -> Self {
+        Self { inner: t }
+    }
+}
+
 impl Default for TuiColor {
     #[inline]
     fn default() -> Self {
@@ -290,7 +308,7 @@ impl Default for TuiColor {
 #[cfg(test)]
 mod tests {
     use super::{parse_color, parse_color_cli_table, parse_color_tui, tui};
-    use colored::Color::TrueColor;
+    use colored::Color::{self, TrueColor};
 
     #[test]
     fn parse_colored_colors() {
@@ -309,6 +327,25 @@ mod tests {
             g: 240,
             b: 15,
         });
+
+        assert_eq!(parse_color("black").unwrap(), Color::Black);
+        assert_eq!(parse_color("red").unwrap(), Color::Red);
+        assert_eq!(parse_color("green").unwrap(), Color::Green);
+        assert_eq!(parse_color("yellow").unwrap(), Color::Yellow);
+        assert_eq!(parse_color("bLue").unwrap(), Color::Blue);
+        assert_eq!(parse_color("magenTA").unwrap(), Color::Magenta);
+        assert_eq!(parse_color("purple").unwrap(), Color::Magenta);
+        assert_eq!(parse_color("cyan").unwrap(), Color::Cyan);
+        assert_eq!(parse_color("white").unwrap(), Color::White);
+
+        assert_eq!(parse_color("bright black").unwrap(), Color::BrightBlack);
+        assert_eq!(parse_color("bright red").unwrap(), Color::BrightRed);
+        assert_eq!(parse_color("Bright green").unwrap(), Color::BrightGreen);
+        assert_eq!(parse_color("BrighT YELLOW").unwrap(), Color::BrightYellow);
+        assert_eq!(parse_color("bright bLue").unwrap(), Color::BrightBlue);
+        assert_eq!(parse_color("bright magenTA").unwrap(), Color::BrightMagenta);
+        assert_eq!(parse_color("bright cyan").unwrap(), Color::BrightCyan);
+        assert_eq!(parse_color("BRIght white").unwrap(), Color::BrightWhite);
     }
 
     #[cfg(feature = "prettify")]
@@ -325,6 +362,36 @@ mod tests {
         assert_eq!(
             parse_color_cli_table("0ff00f").unwrap(),
             cli_table::Color::Rgb(15, 240, 15)
+        );
+
+        assert_eq!(
+            parse_color_cli_table("black").unwrap(),
+            cli_table::Color::Black
+        );
+        assert_eq!(
+            parse_color_cli_table("bLue").unwrap(),
+            cli_table::Color::Blue
+        );
+        assert_eq!(
+            parse_color_cli_table("green").unwrap(),
+            cli_table::Color::Green
+        );
+        assert_eq!(parse_color_cli_table("red").unwrap(), cli_table::Color::Red);
+        assert_eq!(
+            parse_color_cli_table("cyan").unwrap(),
+            cli_table::Color::Cyan
+        );
+        assert_eq!(
+            parse_color_cli_table("magenTA").unwrap(),
+            cli_table::Color::Magenta
+        );
+        assert_eq!(
+            parse_color_cli_table("yellow").unwrap(),
+            cli_table::Color::Yellow
+        );
+        assert_eq!(
+            parse_color_cli_table("white").unwrap(),
+            cli_table::Color::White
         );
     }
 

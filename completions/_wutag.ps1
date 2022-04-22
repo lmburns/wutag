@@ -159,6 +159,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
         'wutag;set2' {
             [CompletionResult]::new('-C', 'C', [CompletionResultType]::ParameterName, 'Explicitly select color for tag')
             [CompletionResult]::new('--color', 'color', [CompletionResultType]::ParameterName, 'Explicitly select color for tag')
+            [CompletionResult]::new('-Q', 'Q', [CompletionResultType]::ParameterName, 'Apply tags to the result of a query instead of a pattern match')
+            [CompletionResult]::new('--query', 'query', [CompletionResultType]::ParameterName, 'Apply tags to the result of a query instead of a pattern match')
             [CompletionResult]::new('-p', 'p', [CompletionResultType]::ParameterName, 'Specify any number of `tag`=`value` pairs')
             [CompletionResult]::new('--pairs', 'pairs', [CompletionResultType]::ParameterName, 'Specify any number of `tag`=`value` pairs')
             [CompletionResult]::new('-V', 'V', [CompletionResultType]::ParameterName, 'Specify a value to set all the tag(s) to')
@@ -167,6 +169,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--clear', 'clear', [CompletionResultType]::ParameterName, 'Clear the tags on the match(es) before the new one(s) are set')
             [CompletionResult]::new('-s', 's', [CompletionResultType]::ParameterName, 'Arguments are expected to be passed through stdin')
             [CompletionResult]::new('--stdin', 'stdin', [CompletionResultType]::ParameterName, 'Arguments are expected to be passed through stdin')
+            [CompletionResult]::new('-e', 'e', [CompletionResultType]::ParameterName, 'Explicitly apply given tags even if they''re implicit')
+            [CompletionResult]::new('--explicit', 'explicit', [CompletionResultType]::ParameterName, 'Explicitly apply given tags even if they''re implicit')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')

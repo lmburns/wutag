@@ -135,7 +135,7 @@ impl Txn<'_> {
             WHERE name ",
         );
         builder.nocase_collation(ignore_case);
-        builder.append("?1");
+        builder.append("= ?1");
 
         let value: Value = self
             .select(&(builder.utf()?), params![name.as_ref()], |row| {

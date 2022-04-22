@@ -149,6 +149,8 @@ set edit:completion:arg-completer[wutag] = {|@words|
         &'wutag;set2'= {
             cand -C 'Explicitly select color for tag'
             cand --color 'Explicitly select color for tag'
+            cand -Q 'Apply tags to the result of a query instead of a pattern match'
+            cand --query 'Apply tags to the result of a query instead of a pattern match'
             cand -p 'Specify any number of `tag`=`value` pairs'
             cand --pairs 'Specify any number of `tag`=`value` pairs'
             cand -V 'Specify a value to set all the tag(s) to'
@@ -157,6 +159,8 @@ set edit:completion:arg-completer[wutag] = {|@words|
             cand --clear 'Clear the tags on the match(es) before the new one(s) are set'
             cand -s 'Arguments are expected to be passed through stdin'
             cand --stdin 'Arguments are expected to be passed through stdin'
+            cand -e 'Explicitly apply given tags even if they''re implicit'
+            cand --explicit 'Explicitly apply given tags even if they''re implicit'
             cand -h 'Print help information'
             cand --help 'Print help information'
             cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'

@@ -163,6 +163,8 @@ _arguments "${_arguments_options[@]}" \
 _arguments "${_arguments_options[@]}" \
 '-C+[Explicitly select color for tag]:COLOR: ' \
 '--color=[Explicitly select color for tag]:COLOR: ' \
+'-Q+[Apply tags to the result of a query instead of a pattern match]:query: ' \
+'--query=[Apply tags to the result of a query instead of a pattern match]:query: ' \
 '(-V --value)*-p+[Specify any number of `tag`=`value` pairs]:pairs: ' \
 '(-V --value)*--pairs=[Specify any number of `tag`=`value` pairs]:pairs: ' \
 '-V+[Specify a value to set all the tag(s) to]:value: ' \
@@ -171,6 +173,8 @@ _arguments "${_arguments_options[@]}" \
 '--clear[Clear the tags on the match(es) before the new one(s) are set]' \
 '-s[Arguments are expected to be passed through stdin]' \
 '--stdin[Arguments are expected to be passed through stdin]' \
+'-e[Explicitly apply given tags even if they'\''re implicit]' \
+'--explicit[Explicitly apply given tags even if they'\''re implicit]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \

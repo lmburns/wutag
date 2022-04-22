@@ -64,7 +64,7 @@ macro_rules! wutag_error {
 macro_rules! wutag_fatal {
     ($($err:tt)*) => ({
         use colored::Colorize;
-        eprintln!("{}: {}", "[wutag fatal]".yellow().bold(), format!($($err)*));
+        eprintln!("{}: {}", "[wutag fatal]".magenta().bold(), format!($($err)*));
         std::process::exit(1);
     })
 }
@@ -75,6 +75,24 @@ macro_rules! wutag_info {
     ($($err:tt)*) => ({
         use colored::Colorize;
         eprintln!("{}: {}", "[wutag info]".green().bold(), format!($($err)*));
+    })
+}
+
+/// Expand to a warning message
+#[macro_export]
+macro_rules! wutag_warning {
+    ($($err:tt)*) => ({
+        use colored::Colorize;
+        eprintln!("{}: {}", "[wutag warning]".yellow().bold(), format!($($err)*));
+    })
+}
+
+/// Use for debugging purposes
+#[macro_export]
+macro_rules! wutag_debug {
+    ($($err:tt)*) => ({
+        use colored::Colorize;
+        eprintln!("{}: {}", "[wutag debug]".blue().bold(), format!($($err)*));
     })
 }
 

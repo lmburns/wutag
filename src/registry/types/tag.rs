@@ -16,7 +16,10 @@ use rusqlite::{
 };
 use serde::{Deserialize, Serialize};
 use std::{cmp::Ordering, fmt};
-use wutag_core::{color::parse_color, tag::Tag as WTag};
+use wutag_core::{
+    color::{self, parse_color},
+    tag::Tag as WTag,
+};
 
 // ======================= TagId ======================
 
@@ -73,12 +76,47 @@ impl Tag {
 
     /// Create a new [`Tag`]
     pub(crate) fn new<S: AsRef<str>>(id: TagId, name: S, color: Color) -> Self {
-        // TODO: Parse color here or at a higher level?
         Self {
             id,
             name: name.as_ref().to_owned(),
             color,
         }
+    }
+
+    /// Create a new [`Tag`] with a random [`Color`]
+    pub(crate) fn random<S: AsRef<str>>(id: TagId, name: S, colors: &[Color]) -> Self {
+        use rand::seq::SliceRandom;
+        let mut rng = rand::thread_rng();
+        Self::new(
+            id,
+            name,
+            colors
+                .choose(&mut rng)
+                .copied()
+                .unwrap_or(Color::BrightWhite),
+        )
+    }
+
+    /// Create a new [`Tag`] with no `id`
+    pub(crate) fn new_noid<S: AsRef<str>>(name: S, color: Color) -> Self {
+        Self {
+            id: TagId::null(),
+            name: name.as_ref().to_owned(),
+            color,
+        }
+    }
+
+    /// Create a new [`Tag`] with a random [`Color`] and no `id`
+    pub(crate) fn random_noid<S: AsRef<str>>(name: S, colors: &[Color]) -> Self {
+        use rand::seq::SliceRandom;
+        let mut rng = rand::thread_rng();
+        Self::new_noid(
+            name,
+            colors
+                .choose(&mut rng)
+                .copied()
+                .unwrap_or(Color::BrightWhite),
+        )
     }
 
     /// Set the [`Tag`] id
@@ -104,8 +142,9 @@ impl TryFrom<&Row<'_>> for Tag {
         Ok(Self {
             id:    row.get("id")?,
             name:  row.get("name")?,
-            color: parse_color(row.get::<_, String>("color")?)
-                .map_err(|e| rsq::Error::InvalidColumnName(e.to_string()))?,
+            color: color::color_from_fg_str(&row.get::<_, String>("color")?)
+                .context("color already in table is unable to be parsed; should never happen")
+                .map_err(|e| rsq::Error::InvalidParameterName(e.to_string()))?,
         })
     }
 }

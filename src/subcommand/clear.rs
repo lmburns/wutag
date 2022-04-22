@@ -98,6 +98,8 @@ impl App {
                     }
                     log::debug!("Saving registry...");
                     self.save_registry();
+
+                    Ok(())
                 },
             );
         }

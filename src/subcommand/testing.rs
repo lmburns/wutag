@@ -45,14 +45,15 @@ impl App {
         log::debug!("Using registry: {}", self.oregistry.path.display());
 
         reg.insert_file(PathBuf::from("./cliff.toml"))?;
-        reg.insert_file(PathBuf::from("./LICENSE"))?;
-        reg.insert_file(PathBuf::from("./README.md"))?;
-        reg.insert_file(PathBuf::from("./Cargo.lock"))?;
-        reg.insert_file(PathBuf::from("./CHANGELOG.md"))?;
+        // reg.insert_file(PathBuf::from("./LICENSE"))?;
+        // reg.insert_file(PathBuf::from("./README.md"))?;
+        // reg.insert_file(PathBuf::from("./Cargo.lock"))?;
+        // reg.insert_file(PathBuf::from("./CHANGELOG.md"))?;
 
         reg.insert_tag("tag1", "#FF00FF")?;
-        reg.insert_tag("tag2", "red")?;
-        reg.insert_tag("tag2", "blue")?;
+        reg.insert_tag("tag2", "0xFF5813")?;
+        reg.insert_tag("tag3", "A06469")?;
+        reg.insert_tag("tag4", "red")?;
 
         reg.insert_value("2022")?;
 

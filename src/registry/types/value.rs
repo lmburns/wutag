@@ -52,9 +52,17 @@ impl Value {
         &self.name
     }
 
-    /// Create a new `Value`
+    /// Create a new [`Value`]
     pub(crate) const fn new(id: ValueId, name: String) -> Self {
         Self { id, name }
+    }
+
+    /// Create a new [`Value`] with no id
+    pub(crate) fn new_noid<S: AsRef<str>>(name: S) -> Self {
+        Self {
+            id:   ValueId::null(),
+            name: name.as_ref().to_owned(),
+        }
     }
 }
 

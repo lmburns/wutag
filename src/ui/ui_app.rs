@@ -1082,9 +1082,10 @@ impl UiApp {
             ))]
         };
 
+        // FIX: tui 0.17 breaks this
         let p = Paragraph::new(
-            ansi_to_text(preview.as_bytes().iter().map(Clone::clone)).unwrap_or_else(|_| {
-                Text::from("Error: there was an error parsing ansi escape sequences")
+            ansi_to_text(preview.as_bytes().iter().map(Clone::clone)).unwrap_or_else(|e| {
+                Text::from(format!("Error parsing ansi escape sequences: {e:?}"))
             }),
         )
         .block(

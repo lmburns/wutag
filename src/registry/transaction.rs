@@ -9,16 +9,19 @@ use super::{
     Registry,
 };
 use crate::fail;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use colored::Colorize;
 use rusqlite::{
     self as rsq, params,
     types::{FromSql, ToSql, Value},
-    Connection, Params, ParamsFromIter, Row, Transaction,
+    Connection,
+    Error::SqliteFailure,
+    Params, ParamsFromIter, Row, Transaction,
 };
 
-// =========================== Transaction ============================
-// ====================================================================
+// ╒══════════════════════════════════════════════════════════╕
+//                         Transaction
+// ╘══════════════════════════════════════════════════════════╛
 
 /// This is an intermediate stage betweeen a command and a change to the
 /// database. See [`Transaction`](https://www.sqlite.org/lang_transaction.html)
@@ -71,8 +74,9 @@ impl<'t> Txn<'t> {
         self.txn.rollback().context(fail!("rollback transaction"))
     }
 
-    // ============================ Executing =============================
-    // ====================================================================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                        Executing                         │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Execute a command. Implements the same function as [`execute`].
     /// Returns the number of rows that are affected by the change
@@ -97,6 +101,22 @@ impl<'t> Txn<'t> {
         Ok(())
     }
 
+    /// Return true if the SQL statement returns a row, else false
+    /// Identicial to [`exists`]. Used for checking whether a table exists to
+    /// tell the user it isn't initialized
+    ///
+    /// [`exists`]: /rusqlite/statement/struct.Statement.html#method.exists
+    pub(crate) fn exists(&self, tbl: &str) -> Result<()> {
+        let sql = format!("SELECT * FROM {}", tbl);
+
+        // .context() Didn't show error here
+        if self.txn.prepare(&sql).is_err() {
+            return Err(anyhow!("Please make sure to run 'init' before using wutag"));
+        }
+
+        Ok(())
+    }
+
     /// Insert a row into the database. Implements the same function as
     /// [`insert`]. Returns the [`last_insert_rowid`]
     ///
@@ -104,6 +124,9 @@ impl<'t> Txn<'t> {
     /// [`last_insert_rowid`]: /rusqlite/struct.Connection.html#method.last_insert_rowid
     pub(crate) fn insert<P: Params>(&self, sql: &str, params: P) -> Result<i64> {
         log::debug!("{}({}): {}", "insert".green().bold(), "Txn".purple(), sql);
+
+        // Check whether the tag table exists
+        self.exists("tag")?;
 
         let mut stmt = self
             .txn
@@ -113,8 +136,9 @@ impl<'t> Txn<'t> {
         stmt.insert(params).context(fail!("insert item: {}", sql))
     }
 
-    // ============================ Retrieving ============================
-    // ====================================================================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                        Retrieving                        │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Select a single row. Implements the same function as [`query_row`]
     ///
@@ -232,8 +256,9 @@ impl<'t> Txn<'t> {
         self.query_vec(builder.utf()?, builder.named_params_as_slice(), f)
     }
 
-    // ============================== Version =============================
-    // ====================================================================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                         Version                          │
+    // ╰──────────────────────────────────────────────────────────╯
 
     // TODO: Remove these if not used
 
@@ -275,8 +300,9 @@ impl<'t> Txn<'t> {
         Ok(())
     }
 
-    // ========================= Tracking Actions =========================
-    // ====================================================================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                     Tracking Actions                     │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Insert a change into the `tracker` table, which keeps tracks of actions
     /// modifying anything in the entire database

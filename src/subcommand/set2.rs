@@ -107,7 +107,7 @@ pub(crate) struct Set2Opts {
         long_help = "Use tag=value pairs to individually specify what the tag's value \
             is. If the -V/--value option is used, that value is applied to all mentioned tags",
     )]
-    pub(crate) pairs: Option<Vec<(String, String)>>,
+    pub(crate) pairs: Vec<(String, String)>,
 
     /// Specify a value to set all the tag(s) to
     #[clap(
@@ -146,7 +146,7 @@ impl App {
     #[allow(clippy::unnecessary_wraps)]
     pub(crate) fn set2(&mut self, opts: &Set2Opts) -> Result<()> {
         log::debug!("SetOpts: {:#?}", opts);
-        debug_registry_path(&self.registry);
+        // debug_registry_path(&self.registry);
 
         println!("{:#?}", opts.clone());
 
@@ -169,33 +169,82 @@ impl App {
 
         let reg = self.registry.lock().expect("poisioned lock");
 
-        let pairs = opts.pairs.as_ref().map(|pairs| {
-            pairs
-                .iter()
-                .map(|(t, v)| {
-                    (
-                        reg.tag_by_name(t).or_else(|_| {
-                            reg.insert_tag(t, opts.color.as_ref().unwrap_or(&"white".to_string()))
-                        }),
-                        reg.value_by_name(v, false).or_else(|_| reg.insert_value(t)),
-                    )
-                })
-                .collect::<Vec<_>>()
-        });
+        let ret = reg.insert_tag("hello", "white")?;
+        println!("TAG: {:#?}", ret);
 
-        println!("{pairs:#?}");
+        // let pairs = opts
+        //     .pairs
+        //     .iter()
+        //     .map(|(t, v)| {
+        //         (
+        //             reg.tag_by_name(t).or_else(|_| {
+        //                 reg.insert_tag(t,
+        // opts.color.as_ref().unwrap_or(&"white".to_string()))             }),
+        //             reg.value_by_name(v, false).or_else(|_| reg.insert_value(t)),
+        //         )
+        //     })
+        //     .collect::<Vec<_>>();
+        //
+        // // wutag_debug!("PAIRS: {:#?}", pairs);
+        //
+        // let tags = &opts
+        //     .tags
+        //     .iter()
+        //     .map(|t| {
+        //         reg.tag_by_name(t).or_else(|_| {
+        //             reg.insert_tag(t,
+        // opts.color.as_ref().unwrap_or(&"white".to_string()))         })
+        //     })
+        //     .collect::<Result<Vec<_>>>()?;
+        //
+        // wutag_debug!("TAG: {:#?}", tags);
 
-        let tags = &opts
-            .tags
-            .iter()
-            .map(|t| {
-                reg.tag_by_name(t).or_else(|_| {
-                    reg.insert_tag(t, opts.color.as_ref().unwrap_or(&"white".to_string()))
-                })
-            })
-            .collect::<Result<Vec<_>>>()?;
-
-        wutag_debug!("TAG: {:#?}", tags);
+        // reg_ok(
+        //     &Arc::new(re),
+        //     &Arc::new(self.clone()),
+        //     |entry: &ignore::DirEntry| {
+        //         let reg = self.registry.lock().expect("poisioned lock");
+        //
+        //         // println!("FILES: {:#?}", reg.files_by_flags("e"));
+        //
+        //         // println!("ENTRY: {:#?}", entry);
+        //
+        //         if !self.quiet {
+        //             println!(
+        //                 "{}:",
+        //                 fmt_path(entry.path(), self.base_color, self.ls_colors)
+        //             );
+        //         }
+        //
+        //         let path = entry.path();
+        //
+        //         // println!("RETRIEVED: {:#?}", reg.tag_by_name("t"));
+        //
+        //         // Check if it exists
+        //         // let mut file = reg.file_by_path(path);
+        //         // if file.is_err() {
+        //         //     log::debug!("{}: creating fingerprint", path.display());
+        //         //
+        //         //     // Possibly check --force
+        //         //     let hash = hash::blake3_hash(path, None)?;
+        //         //     let count = reg.file_count_by_hash(hash.to_string())?;
+        //         //
+        //         //     if count != 0 {
+        //         //         wutag_warning!(
+        //         //             "{} is a duplicate entry\n{}: {}",
+        //         //             path.display(),
+        //         //             "b3sum".magenta(),
+        //         //             hash.to_string()
+        //         //         );
+        //         //     }
+        //         //
+        //         //     log::debug!("{}: inserting file", path.display());
+        //         //     file = reg.insert_file(path);
+        //         // }
+        //
+        //         Ok(())
+        //     },
+        // );
 
         // reg_ok(
         //     &Arc::new(re),
@@ -205,62 +254,10 @@ impl App {
         //
         //         println!("FILES: {:#?}", reg.files_by_flags("e"));
 
-        // if !self.quiet {
-        //     println!(
-        //         "{}:",
-        //         fmt_path(entry.path(), self.base_color, self.ls_colors)
-        //     );
-        // }
-
         // let path = entry.path();
 
         // println!("RETRIEVED: {:#?}", reg.tag_by_name("t"));
 
-        // let tv_pairs = opts.pairs.and_then(|pairs| {
-        //     pairs
-        //         .iter()
-        //         .map(|(t, v)| {
-        //             let tag = if let Ok(tag) = reg.tag_by_name(t) {
-        //                 tag
-        //             } else if let Some(color) = &opts.color {
-        //                 reg.insert_tag(t, color)
-        //                     .unwrap_or_else(|e| wutag_error!("{}", e))
-        //             };
-        //
-        //             let value = if let Ok(value) = reg.value_by_name(v, false) {
-        //                 value
-        //             } else {
-        //                 reg.insert_value(v)
-        //                     .unwrap_or_else(|e| wutag_error!("{}", e))
-        //             };
-        //
-        //             (tag, value)
-        //         })
-        //         .collect_vec()
-        // });
-
-        // Check if it exists
-        // let mut file = reg.file_by_path(path);
-        // if file.is_err() {
-        //     log::debug!("{}: creating fingerprint", path.display());
-        //
-        //     // Possibly check --force
-        //     let hash = hash::blake3_hash(path, None)?;
-        //     let count = reg.file_count_by_hash(hash.to_string())?;
-        //
-        //     if count != 0 {
-        //         wutag_warning!(
-        //             "{} is a duplicate entry\n{}: {}",
-        //             path.display(),
-        //             "b3sum".magenta(),
-        //             hash.to_string()
-        //         );
-        //     }
-        //
-        //     log::debug!("{}: inserting file", path.display());
-        //     file = reg.insert_file(path);
-        // }
-        //
         // // The file was either retrieved first or returned after inserting
         // let file = file?;
         //

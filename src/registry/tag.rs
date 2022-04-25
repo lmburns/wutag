@@ -216,12 +216,14 @@ impl Txn<'_> {
         self.select_tags_by_func("iglob", column.as_ref(), glob.as_ref())
     }
 
-    // ============================= Modifying ============================
-    // ====================================================================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                        Modifying                         │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Insert a [`Tag`] into the database
     pub(super) fn insert_tag<S: AsRef<str>>(&self, name: S, color: Color) -> Result<Tag> {
         let name = name.as_ref();
+
         let res = self
             .insert(
                 "INSERT INTO tag (name, color)

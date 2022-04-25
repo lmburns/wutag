@@ -47,13 +47,13 @@ file-flags = ["e2p-fileflags"]
 [dependencies]
 # Used for lscolors
 ansi_term = "0.12.1"
-ansi-to-tui = "0.4.1"
+ansi-to-tui = "0.5.1"
 strip-ansi-escapes = "0.1.1"
-colored = { git = "https://github.com/lmburns/colored", branch = "master", features = ["serde", "rusqlite-sql"] }
-lscolors = "0.7.1"
+colored = { git = "https://github.com/lmburns/colored", branch = "master", version = "2.0.0", features = ["serde", "rusqlite-sql"] }
+lscolors = "0.9.0"
 
-anyhow = "1.0.43"
-thiserror = "1.0.26"
+anyhow = "1.0.57"
+thiserror = "1.0.30"
 
 shellexpand = "2.1.0"
 directories = "4.0.1"
@@ -61,71 +61,71 @@ directories = "4.0.1"
 # Mime information
 mime = "0.3.16"
 xdg-mime = "0.3.3"
-mime-db = "1.3.0" # TODO: USE/DEL
+mime-db = "1.6.0" # TODO: USE/DEL
 
-crossbeam-channel = "0.5.1"
-crossbeam-utils = "0.8.5"
+crossbeam-channel = "0.5.4"
+crossbeam-utils = "0.8.8"
 # rayon = "1.5.1"
 
 # Paths and patterns
-wax = { git = "https://github.com/lmburns/wax", features = ["diagnostics"] }
+wax = { git = "https://github.com/lmburns/wax", version = "0.4.0", features = ["diagnostics"] }
 # wax = { path = "/home/lucas/projects/github/wax", features = ["diagnostics"] }
 # wax = { path = "/home/lucas/projects/rust/repos_example/wax", features = ["diagnostics"] }
 
 # globset = "0.4.8" # TODO: Remove
-regex = "1.5.4"
+regex = "1.5.5"
 unicase = "2.6.0"
 ignore = "0.4.18"
 lexiclean = "0.0.1"
 e2p-fileflags = { git = "https://github.com/michaellass/e2p-fileflags", optional = true, branch = "master" }
 
 # Parsing
-nom = "7.1.0"
-nom-supreme = "0.6.0"
+nom = "7.1.1"
+nom-supreme = "0.8.0"
 nom_locate = "4.0.0"
 
 # Logging
 env_logger = "0.9.0"
-log = "0.4.14"
+log = "0.4.16"
 annotate-snippets = "0.9.1"
 
 # System information
 atty = "0.2.14"
-libc = "0.2.100"
-num_cpus = "1.13.0"
-once_cell = "1.8.0"
+libc = "0.2.124"
+num_cpus = "1.13.1"
+once_cell = "1.10.0"
 
 # Hashing
 base64 = "0.13.0"
-blake3 = "1.2.0"
+blake3 = "1.3.1"
 chrono = { version = "0.4.19", features = ["serde"] }
 humantime = "2.1.0"
-uuid = { version = "0.8", features = ["v4", "serde"] }
+uuid = { version = "1.0.0", features = ["v4", "serde"] }
 
 # Command-line
-clap = { version = "3.0.13", features = ["derive", "default", "cargo", "wrap_help", "env"] }
-clap_complete = "3.0.4"
+clap = { version = "3.1.12", features = ["derive", "default", "cargo", "wrap_help", "env"] }
+clap_complete = "3.1.2"
 
 # Tools
-which = "4.2.2"
-rand = "0.8.4"
-itertools = "0.10.1" # TODO: USE/DEL
-indexmap = { version = "1.7.0", features = ["serde-1"] }
+which = "4.2.5"
+rand = "0.8.5"
+itertools = "0.10.3" # TODO: USE/DEL
+indexmap = { version = "1.8.1", features = ["serde-1"] }
 scopeguard = "1.1.0"
 tern = { git = "https://github.com/lmburns/tern" }
 
 # Option: (default = serde_yaml) -- Serialization
-serde = { version = "1.0.129", features = ["derive"] }
+serde = { version = "1.0.136", features = ["derive"] }
 # serde_json = { version = "1.0.66", optional = true }
 # serde_rusqlite = "0.29.0" # TODO: USE/DEL
-serde_yaml = { version = "0.8.19", optional = true }
-serde_json = "1.0.66"
+serde_yaml = { version = "0.8.23", optional = true }
+serde_json = "1.0.79"
 serde_cbor = "0.11.2" # TODO: Find way not to use this
-toml = { version = "0.5.8", optional = true }
+toml = { version = "0.5.9", optional = true }
 
-notify-rust = { version = "4.0", default-features = false, features = ["z"] } # TODO: USE/DEL
+notify-rust = { version = "4.5", default-features = false, features = ["z"] } # TODO: USE/DEL
 # TODO: Remove serde_json if not used
-rusqlite = { version = "0.26", features = [
+rusqlite = { version = "0.27", features = [
   "bundled",
   "functions",
   "chrono",
@@ -135,31 +135,31 @@ rusqlite = { version = "0.26", features = [
 ] }
 
 # Option: (default) -- Formatting output
-cli-table = { version = "0.4.6", default-features = false, optional = true }
+cli-table = { version = "0.4.7", default-features = false, optional = true }
 
 # Option: (default) -- TUI
-tui = { version = "0.16.0", features = ["crossterm"], optional = true }
-crossterm = { version = "0.20.0", default-features = false, optional = true }
-rustyline = { version = "9.0.0", optional = true }
-rustyline-derive = { version = "0.5.0", optional = true }
-unicode-segmentation = { version = "1.8.0", optional = true }
+tui = { version = "0.17.0", features = ["crossterm"], optional = true }
+crossterm = { version = "0.23.2", default-features = false, optional = true }
+rustyline = { version = "9.1.2", optional = true }
+rustyline-derive = { version = "0.6.0", optional = true }
+unicode-segmentation = { version = "1.9.0", optional = true }
 unicode-width = { version = "0.1.9", optional = true }
 cassowary = { version = "0.3.0", optional = true }
-better-panic = { version = "0.2.0", optional = true }
+better-panic = { version = "0.3.0", optional = true }
 
 # Option: (default) -- Encryption
 gpgme = { version = "0.10.0", optional = true }
-secstr = { version = "0.4.0", optional = true }
-zeroize = { version = "1.4.3", optional = true }
+secstr = { version = "0.5.0", optional = true }
+zeroize = { version = "1.5.4", optional = true }
 bytes = "1.1.0"
 pathdiff = "0.2.1"
-fancy-regex = "0.7.1"
+fancy-regex = "0.9.0"
 
 [dev-dependencies]
-predicates = "2.0.1"
-tempfile = "3.2.0"
-serial_test = "0.5.0"
-assert_cmd = "2.0.0"
+predicates = "2.1.1"
+tempfile = "3.3.0"
+serial_test = "0.6.0"
+assert_cmd = "2.0.4"
 expect-test = "1.2.2"
 # wait-timeout = "0.2.0"
 # tempdir = "0.3.7"

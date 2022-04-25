@@ -21,10 +21,10 @@ impl App {
 
         // The file is created when Connection::open is used
         if reg.get_current_version().is_ok() {
-            wutag_error!("The database {} has already been initialized", reg);
+            wutag_error!("Database {} has already been initialized", reg);
         } else {
             reg.init()?;
-            wutag_info!("Just initialized a registry at: {}", reg);
+            wutag_info!("Initialized registry at: {}", reg);
         }
 
         Ok(())

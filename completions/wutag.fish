@@ -69,7 +69,7 @@ complete -c wutag -n "__fish_seen_subcommand_from set" -s h -l help -d 'Print he
 complete -c wutag -n "__fish_seen_subcommand_from set" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from set2" -s C -l color -d 'Explicitly select color for tag' -r
 complete -c wutag -n "__fish_seen_subcommand_from set2" -s Q -l query -d 'Apply tags to the result of a query instead of a pattern match' -r
-complete -c wutag -n "__fish_seen_subcommand_from set2" -s p -l pairs -d 'Specify any number of `tag`=`value` pairs' -r
+complete -c wutag -n "__fish_seen_subcommand_from set2" -s p -l pairs -d 'Specify any number of tag=value pairs' -r
 complete -c wutag -n "__fish_seen_subcommand_from set2" -s V -l value -d 'Specify a value to set all the tag(s) to' -r
 complete -c wutag -n "__fish_seen_subcommand_from set2" -s c -l clear -d 'Clear the tags on the match(es) before the new one(s) are set'
 complete -c wutag -n "__fish_seen_subcommand_from set2" -s s -l stdin -d 'Arguments are expected to be passed through stdin'

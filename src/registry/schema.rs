@@ -5,6 +5,7 @@
 use super::{common::version::Version, Registry};
 use anyhow::{Context, Result};
 use rusqlite::params;
+use tern::t;
 
 // ================== Initialization ==================
 
@@ -24,8 +25,8 @@ impl Registry {
         .context("failed to create table `tag`")?;
 
         self.exec_no_params(
-            "CREATE INDEX IF NOT EXISTS idx_tag_name
-            ON tag(name)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_tag_name
+            ON tag(name, color)",
         )
         .context("failed to create index `idx_tag_name`")?;
 
@@ -56,16 +57,12 @@ impl Registry {
                 {}
                 CONSTRAINT con_file_path UNIQUE (directory, name)
             )",
-            if cfg!(feature = "file-flags") {
-                "e2pflags INTEGER NOT NULL,"
-            } else {
-                ""
-            }
+            t!((cfg!(feature = "file-flags")) ? "e2pflags INTEGER NOT NULL," : ""),
         ))
         .context("failed to create table `file`")?;
 
         self.exec_no_params(
-            "CREATE INDEX IF NOT EXISTS idx_file_hash
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_file_hash
             ON file(hash)",
         )
         .context("failed to create index `idx_file_hash`")?;

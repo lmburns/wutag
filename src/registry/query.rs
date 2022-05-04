@@ -81,8 +81,7 @@ impl Txn<'_> {
             "INSERT INTO query (text)
             VALUES (?1)",
             params![q],
-        )
-        .context(fail!("insert `Query`"))?;
+        )?;
 
         Ok(Query::new(q))
     }

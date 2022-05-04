@@ -25,7 +25,7 @@ fn query_ok(query_in: &str, expect: &Expect) {
     let errors = Rc::new(RefCell::new(vec![]));
     let parsed = {
         let q = Query::new(
-            query_in.to_string(),
+            query_in,
             Some(Box::new(TestErrorReporter::new(errors.clone()))),
         );
         let pq = parse_query(&q);

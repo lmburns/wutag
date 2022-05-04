@@ -20,7 +20,8 @@ NOTE: This program uses the nightly compiler for the feature `adt_const_params`,
 ## Flags
 These flags apply to mostly all all commands. If the command involves a pattern, then all flags will apply.
 Also, see `--help` for the main binary or any subcommand for longer explanations of most options.
-```sh
+
+```
 OPTIONS:
     -v, --verbose              Display debugging messages on 4 levels (i.e., -vv..)
     -d, --dir <dir>            Specify starting path for filesystem traversal

@@ -52,13 +52,11 @@ impl Registry {
             if explicit {
                 txn.select_filetag_count_by_fileid(id)
             } else {
-                // let ftags = self.filetags_by_fileid();
-                // if ftags.is_err() {
-                //     Ok(0)
-                // } else {
-                //     Ok(ftags.len())
-                // }
-                todo!()
+                if let Ok(ftags) = self.filetags_by_fileid(id, false) {
+                    return Ok(ftags.len() as u32);
+                }
+
+                Ok(0)
             }
         })
     }
@@ -69,13 +67,11 @@ impl Registry {
             if explicit {
                 txn.select_filetag_count_by_tagid(id)
             } else {
-                // let ftags = self.filetags_by_tagid();
-                // if ftags.is_err() {
-                //     Ok(0)
-                // } else {
-                //     Ok(ftags.len())
-                // }
-                todo!()
+                if let Ok(ftags) = self.filetags_by_fileid(id, false) {
+                    return Ok(ftags.len() as u32);
+                }
+
+                Ok(0)
             }
         })
     }
@@ -88,8 +84,7 @@ impl Registry {
             if explicit {
                 Ok(ftags)
             } else {
-                // add_implied_filetags
-                todo!()
+                Ok(self.add_implied_filetags(ftags)?)
             }
         })
     }
@@ -112,8 +107,7 @@ impl Registry {
             if explicit {
                 Ok(ftags)
             } else {
-                // add_implied_filetags
-                todo!()
+                Ok(self.add_implied_filetags(ftags)?)
             }
         })
     }
@@ -184,30 +178,33 @@ impl Registry {
         self.wrap_commit(|txn| txn.copy_filetags(src, dest))
     }
 
-    // fn add_implied_filetags(&self, mut ftags: FileTags) -> Result<FileTags> {
-    //     for f in ftags.iter() {
-    //         let implications =
-    // self.implications_for(&[&f.to_tag_value_combo()])?;
-    //
-    //         for implication in implications.iter() {
-    //             let mut implied_ftag = ftags
-    //                 .filter(|ftag| {
-    //                     ftag.file_id() == f.file_id()
-    //                         && ftag.tag_id() == implication.implied_tag().id()
-    //                         && ftag.value_id() == implication.implied_val().id()
-    //                 })
-    //                 .first();
-    //
-    //             if let Some(ref mut iftag) = implied_ftag {
-    //                 // Does nothing?
-    //                 iftag.implicit = true;
-    //             } else {
-    //                 let implied_ftag = FileTag::new(f.file_id(), f.tag_id(),
-    // f.value_id());                 ftags.push(implied_ftag);
-    //             }
-    //         }
-    //     }
-    //
-    //     Ok(ftags)
-    // }
+    /// Add [`FileTags`] that are implied
+    fn add_implied_filetags(&self, mut ftags: FileTags) -> Result<FileTags> {
+        let mut tags = vec![];
+
+        for f in ftags.iter() {
+            let implications = self.implications_for(&[f.to_tag_value_combo()])?;
+
+            for implication in implications.iter() {
+                let implied_ftag = ftags
+                    .iter()
+                    .find(|ftag| {
+                        ftag.file_id() == f.file_id()
+                            && ftag.tag_id() == implication.implied_tag().id()
+                            && ftag.value_id() == implication.implied_val().id()
+                    })
+                    .copied();
+
+                if let Some(mut iftag) = implied_ftag {
+                    iftag.implicit = true;
+                    tags.push(iftag);
+                } else {
+                    let implied = FileTag::new(f.file_id(), f.tag_id(), f.value_id());
+                    tags.push(implied);
+                }
+            }
+        }
+
+        Ok(FileTags::from(tags))
+    }
 }

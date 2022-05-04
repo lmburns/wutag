@@ -46,6 +46,7 @@ pub(crate) struct App {
     pub(crate) extension:        Option<RegexSet>,
     pub(crate) file_type:        Option<FileTypes>,
     pub(crate) follow_symlinks:  bool,
+    pub(crate) show_duplicates:  bool,
     pub(crate) format:           String,
     pub(crate) global:           bool,
     pub(crate) ignores:          Option<Vec<String>>,
@@ -160,6 +161,8 @@ impl App {
         let oregistry = oregistry::load_registry(opts, &config.encryption)?;
 
         let registry = Registry::new(opts.reg.as_ref().or(config.registry.as_ref()), follow_links)?;
+        // Must be called each time to create user-defined functions
+        registry.init()?;
 
         let extensions = opts
             .extension
@@ -218,6 +221,7 @@ impl App {
             extension: extensions,
             file_type: file_types,
             follow_symlinks: follow_links,
+            show_duplicates: config.show_duplicates,
             format,
             global: opts.global,
             ignores: config.ignores,
@@ -260,7 +264,7 @@ impl App {
             Command::Edit(ref opts) => self.edit(opts),
             Command::Info(ref opts) => self.info(opts),
             Command::Init(ref opts) => self.init(opts)?,
-            Command::List(ref opts) => self.list(opts),
+            Command::List(ref opts) => self.list(opts)?,
             Command::PrintCompletions(ref opts) => self.print_completions(opts),
             Command::Repair(ref opts) => self.repair(opts)?,
             Command::Rm(ref opts) => self.rm(opts),
@@ -316,6 +320,7 @@ impl Clone for App {
             extension:        self.extension.clone(),
             file_type:        self.file_type,
             follow_symlinks:  self.follow_symlinks,
+            show_duplicates:  self.show_duplicates,
             format:           self.format.clone(),
             global:           self.global,
             ignores:          self.ignores.clone(),

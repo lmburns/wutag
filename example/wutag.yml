@@ -6,6 +6,8 @@
 registry: "$XDG_DATA_HOME/wutag/wutag.XXX"
 # Follow symlinks to the real files
 follow_symlinks: false
+# Should duplicate file hashes be reported?
+show_duplicates: false
 # Max depth for glob/regex pattern to traverse when matching files
 max_depth: 10
 # File path color

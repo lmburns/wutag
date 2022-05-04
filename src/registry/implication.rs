@@ -201,8 +201,7 @@ impl Txn<'_> {
                 implied.tag_id(),
                 implied.value_id()
             ],
-        )
-        .context(fail!("`Implication`"))?;
+        )?;
 
         Ok(())
     }

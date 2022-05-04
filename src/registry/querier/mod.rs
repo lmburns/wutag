@@ -1,4 +1,8 @@
 //! Parser to the query into the database
+//!
+//! This module is really overkill for what `wutag` actually is. The query
+//! module was written for exploration purposes. I wanted to learn more about
+//! how parsers work.
 
 pub(crate) mod ast;
 pub(crate) mod combinator;

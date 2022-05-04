@@ -129,10 +129,10 @@ pub(crate) enum Function {
     Print { term: Box<Expr> },
 }
 
-// ===================================
-// These were created as their own structs to be able to
-// implement `Display`, which translates to an SQL query
-// ===================================
+// ╓                                                          ╖
+// ║  These were created as their own structs to be able to   ║
+// ║  implement `Display`, which translates to an SQL query   ║
+// ╙                                                          ╜
 
 /// A unary expression with a given operator
 #[derive(Debug, Clone, PartialEq)]

@@ -255,13 +255,11 @@ impl Txn<'_> {
     /// Insert a `Value` into the database
     pub(super) fn insert_value<S: AsRef<str>>(&self, name: S) -> Result<Value> {
         let name = name.as_ref();
-        let res = self
-            .insert(
-                "INSERT INTO value (name)
+        let res = self.insert(
+            "INSERT INTO value (name)
                 VALUES (?1)",
-                params![name],
-            )
-            .context(fail!("insert `Value`"))?;
+            params![name],
+        )?;
 
         Ok(Value::new(ID::new(res), name.to_owned()))
     }

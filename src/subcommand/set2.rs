@@ -10,12 +10,13 @@ use crate::{
             filetag::FileTag,
             tag::{Tag as DbTag, TagId, TagValueCombo},
             value::{Value, ValueId},
+            ID,
         },
     },
     util::{collect_stdin_paths, fmt_err, fmt_path, fmt_tag, glob_builder, reg_ok, regex_builder},
     wutag_debug, wutag_error, wutag_fatal, wutag_info, wutag_warning,
 };
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::{Args, ValueHint};
 use colored::{Color, Colorize};
 use itertools::Itertools;
@@ -95,7 +96,7 @@ pub(crate) struct Set2Opts {
     )]
     pub(crate) query: Option<String>,
 
-    /// Specify any number of `tag`=`value` pairs
+    /// Specify any number of tag=value pairs
     #[clap(
         name = "pairs",
         long,
@@ -146,7 +147,7 @@ impl App {
     #[allow(clippy::unnecessary_wraps)]
     pub(crate) fn set2(&mut self, opts: &Set2Opts) -> Result<()> {
         log::debug!("SetOpts: {:#?}", opts);
-        // debug_registry_path(&self.registry);
+        debug_registry_path(&self.registry);
 
         println!("{:#?}", opts.clone());
 
@@ -169,109 +170,193 @@ impl App {
 
         let reg = self.registry.lock().expect("poisioned lock");
 
-        let ret = reg.insert_tag("hello", "white")?;
-        println!("TAG: {:#?}", ret);
+        // A vector of <Tag, Value> combinations
+        // let mut pairs = vec![];
 
-        // let pairs = opts
-        //     .pairs
-        //     .iter()
-        //     .map(|(t, v)| {
-        //         (
-        //             reg.tag_by_name(t).or_else(|_| {
-        //                 reg.insert_tag(t,
-        // opts.color.as_ref().unwrap_or(&"white".to_string()))             }),
-        //             reg.value_by_name(v, false).or_else(|_| reg.insert_value(t)),
-        //         )
-        //     })
-        //     .collect::<Vec<_>>();
-        //
-        // // wutag_debug!("PAIRS: {:#?}", pairs);
-        //
-        // let tags = &opts
-        //     .tags
-        //     .iter()
-        //     .map(|t| {
-        //         reg.tag_by_name(t).or_else(|_| {
-        //             reg.insert_tag(t,
-        // opts.color.as_ref().unwrap_or(&"white".to_string()))         })
-        //     })
-        //     .collect::<Result<Vec<_>>>()?;
-        //
-        // wutag_debug!("TAG: {:#?}", tags);
+        /// A vector of <TagValueCombo>, containing each Tag id and Value id
+        let mut combos = opts
+            .pairs
+            .iter()
+            .map(|(t, v)| -> Result<TagValueCombo> {
+                let tag = reg.tag_by_name(t).or_else(|_| {
+                    reg.insert_tag(t, opts.color.as_ref().unwrap_or(&"white".to_string()))
+                })?;
 
-        // reg_ok(
-        //     &Arc::new(re),
-        //     &Arc::new(self.clone()),
-        //     |entry: &ignore::DirEntry| {
-        //         let reg = self.registry.lock().expect("poisioned lock");
-        //
-        //         // println!("FILES: {:#?}", reg.files_by_flags("e"));
-        //
-        //         // println!("ENTRY: {:#?}", entry);
-        //
-        //         if !self.quiet {
-        //             println!(
-        //                 "{}:",
-        //                 fmt_path(entry.path(), self.base_color, self.ls_colors)
-        //             );
-        //         }
-        //
-        //         let path = entry.path();
-        //
-        //         // println!("RETRIEVED: {:#?}", reg.tag_by_name("t"));
-        //
-        //         // Check if it exists
-        //         // let mut file = reg.file_by_path(path);
-        //         // if file.is_err() {
-        //         //     log::debug!("{}: creating fingerprint", path.display());
-        //         //
-        //         //     // Possibly check --force
-        //         //     let hash = hash::blake3_hash(path, None)?;
-        //         //     let count = reg.file_count_by_hash(hash.to_string())?;
-        //         //
-        //         //     if count != 0 {
-        //         //         wutag_warning!(
-        //         //             "{} is a duplicate entry\n{}: {}",
-        //         //             path.display(),
-        //         //             "b3sum".magenta(),
-        //         //             hash.to_string()
-        //         //         );
-        //         //     }
-        //         //
-        //         //     log::debug!("{}: inserting file", path.display());
-        //         //     file = reg.insert_file(path);
-        //         // }
-        //
-        //         Ok(())
-        //     },
-        // );
+                let value = reg
+                    .value_by_name(v, false)
+                    .or_else(|_| reg.insert_value(t))?;
 
-        // reg_ok(
-        //     &Arc::new(re),
-        //     &Arc::new(self.clone()),
-        //     |entry: &ignore::DirEntry| {
-        //         let reg = self.registry.lock().expect("poisioned lock");
-        //
-        //         println!("FILES: {:#?}", reg.files_by_flags("e"));
+                // Specifying combo here prevents having to clone each tag and value
+                let combo = TagValueCombo::new(tag.id(), value.id());
 
-        // let path = entry.path();
+                // pairs.push((tag, value));
 
-        // println!("RETRIEVED: {:#?}", reg.tag_by_name("t"));
+                Ok(combo)
+            })
+            .collect::<Result<Vec<_>>>()?;
 
-        // // The file was either retrieved first or returned after inserting
-        // let file = file?;
-        //
-        // if !opts.explicit {
-        //     log::debug!("{}: determining existing file tags", path.display());
-        //     let existing_ft = reg.filetags_by_fileid(file.id(), false)?;
-        //
-        //     log::debug!("{}: determining implied tags", path.display());
-        //     // let new_implications = reg.implications_for()
-        // }
+        let tags = &opts
+            .tags
+            .iter()
+            .map(|t| {
+                reg.tag_by_name(t).or_else(|_| {
+                    reg.insert_tag(t, opts.color.as_ref().unwrap_or(&"white".to_string()))
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
 
-        //         Ok(())
-        //     },
-        // );
+        // Extend the combos, setting value ID to 0
+        let mut remapped = tags
+            .iter()
+            .map(|t| TagValueCombo::new(t.id(), ID::null()))
+            .collect::<Vec<_>>();
+
+        combos.append(&mut remapped);
+
+        println!("COMBOS: {:#?}", combos);
+
+        // Drop the lock, otherwise this closure loop below will hang forever
+        drop(reg);
+
+        if (opts.stdin || atty::isnt(atty::Stream::Stdin)) && atty::is(atty::Stream::Stdout) {
+            log::debug!("Using STDIN");
+            for entry in &collect_stdin_paths(&self.base_dir) {
+                if !self.quiet {
+                    println!("{}:", fmt_path(entry, self.base_color, self.ls_colors));
+                }
+
+                // for tag in &tags {
+                //     if opts.clear {
+                //         log::debug!(
+                //             "Using registry in threads: {}",
+                //             self.oregistry.path.display()
+                //         );
+                //         if let Some(id) = self.oregistry.find_entry(entry) {
+                //             self.oregistry.clear_entry(id);
+                //         }
+                //         match entry.has_tags() {
+                //             Ok(has_tags) =>
+                //                 if has_tags {
+                //                     if let Err(e) = entry.clear_tags() {
+                //                         wutag_error!("\t{} {}", e,
+                // bold_entry!(entry));                     }
+                //                 },
+                //             Err(e) => {
+                //                 wutag_error!("{} {}", e, bold_entry!(entry));
+                //             },
+                //         }
+                //     }
+                //
+                //     if let Err(e) = entry.tag(tag) {
+                //         log::debug!("Error setting tag for: {}",
+                // entry.display());         if !opts.quiet {
+                //             wutag_error!("{} {}", e, bold_entry!(entry));
+                //         }
+                //     } else {
+                //         log::debug!("Setting tag for new entry: {}",
+                // entry.display());         let entry =
+                // EntryData::new(entry)?;         let id =
+                // self.oregistry.add_or_update_entry(entry);
+                //         self.oregistry.tag_entry(tag, id);
+                //         if !self.quiet {
+                //             print!("\t{} {}", "+".bold().green(),
+                // fmt_tag(tag));         }
+                //     }
+                // }
+                // if !self.quiet {
+                //     println!();
+                // }
+            }
+        } else {
+            reg_ok(
+                &Arc::new(re),
+                &Arc::new(self.clone()),
+                |entry: &ignore::DirEntry| {
+                    let reg = self.registry.lock().expect("poisioned lock");
+
+                    // println!("ENTRY: {:#?}", entry);
+
+                    if !self.quiet {
+                        println!(
+                            "{}:",
+                            fmt_path(entry.path(), self.base_color, self.ls_colors)
+                        );
+                    }
+
+                    let path = entry.path();
+                    let path_d = path.display();
+
+                    // Check if file path exists
+                    let mut file = reg.file_by_path(path);
+                    if file.is_err() {
+                        log::debug!("{}: creating fingerprint", path.display());
+
+                        // Possibly check --force
+                        let hash = hash::blake3_hash(path, None)?;
+
+                        if self.show_duplicates && !self.quiet {
+                            let count = reg.file_count_by_hash(hash.to_string())?;
+
+                            if count != 0 {
+                                wutag_warning!(
+                                    "{} is a duplicate entry\n{}: {}",
+                                    path.display(),
+                                    "b3sum".magenta(),
+                                    hash.to_string()
+                                );
+                            }
+                        }
+
+                        log::debug!("{}: inserting file", path_d);
+                        file = reg.insert_file(path);
+                    }
+
+                    if opts.clear {
+                        log::debug!("{}: clearing tags", path_d);
+                    }
+
+                    let file = file?;
+
+                    if !opts.explicit {
+                        log::debug!("{}: determining existing file tags", path_d);
+                        let existing_ft =
+                            reg.filetags_by_fileid(file.id(), false).map_err(|e| {
+                                anyhow!("{}: could not determine file tags: {}", path_d, e)
+                            })?;
+
+                        let new_impls = reg.implications_for(&combos).map_err(|e| {
+                            anyhow!("{}: couldn't determine implied tags: {}", path_d, e)
+                        })?;
+
+                        let mut revised = vec![];
+                        for pair in &combos {
+                            if existing_ft.any(|ft| {
+                                ft.tag_id() == pair.tag_id() && ft.value_id() == pair.value_id()
+                            }) || new_impls.implies(pair)
+                            {
+                                continue;
+                            }
+
+                            revised.push(pair.clone());
+                        }
+
+                        combos = revised;
+                    }
+
+                    for pair in &combos {
+                        if let Err(e) = reg.insert_filetag(&FileTag::new(
+                            file.id(),
+                            pair.tag_id(),
+                            pair.value_id(),
+                        )) {
+                            return Err(anyhow!("{}: could not apply tags: {}", path_d, e));
+                        }
+                    }
+
+                    Ok(())
+                },
+            );
+        }
 
         Ok(())
     }

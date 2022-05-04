@@ -60,6 +60,10 @@ pub(crate) struct Config {
     /// The format the file is in when using `view` subcommand
     pub(crate) format: Option<String>,
 
+    /// Should duplicate file hashes be reported?
+    #[serde(alias = "show-duplicates")]
+    pub(crate) show_duplicates: bool,
+
     // pub(crate) root_path: PathBuf,
     /// Configuration dealing with keys
     #[cfg(feature = "ui")]

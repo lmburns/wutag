@@ -28,18 +28,23 @@ use rusqlite::{
 #[derive(Debug)]
 pub(crate) struct Txn<'t> {
     /// The registry that created the transaction
-    registry: &'t Registry,
+    registry:       &'t Registry,
     /// A [`Transaction`] on a database, which allows for modifications
-    txn:      Transaction<'t>,
+    pub(crate) txn: Transaction<'t>,
 }
 
 impl<'t> Txn<'t> {
     /// Create a new [`Txn`]
     pub(crate) fn new(registry: &'t Registry) -> Result<Self> {
+        log::debug!("new transaction");
+        println!("======== NEW TRANSACTION ============");
+
         let txn = registry
             .conn()
             .unchecked_transaction()
             .context(fail!("get transaction"))?;
+
+        println!("ERROR TRANSACTION: {:#?}", txn);
 
         Ok(Self { registry, txn })
     }
@@ -133,7 +138,19 @@ impl<'t> Txn<'t> {
             .prepare(sql)
             .context(fail!("prepare sql: {}", sql))?;
 
-        stmt.insert(params).context(fail!("insert item: {}", sql))
+        let res = stmt.insert(params).context(fail!("insert item: {}", sql));
+
+        if let Err(err) = res {
+            // Check if it is a unique constraint violation
+            match err.downcast::<rsq::Error>() {
+                Ok(SqliteFailure(e, Some(ctx))) => {
+                    return Err(anyhow!("{}: {}", e, ctx));
+                },
+                _ => return Err(anyhow!("failed to insert item")),
+            }
+        }
+
+        res
     }
 
     // ╭──────────────────────────────────────────────────────────╮
@@ -150,6 +167,8 @@ impl<'t> Txn<'t> {
     {
         log::debug!("{}({}): {}", "select".green().bold(), "Txn".purple(), sql);
         let error = fail!("select row: {}", sql);
+
+        self.exists("tag")?;
 
         let mut stmt = self
             .txn
@@ -186,6 +205,8 @@ impl<'t> Txn<'t> {
             sql
         );
 
+        self.exists("tag")?;
+
         let mut stmt = self
             .txn
             .prepare_cached(sql)
@@ -220,6 +241,8 @@ impl<'t> Txn<'t> {
             sql
         );
         let error = fail!("select row: {}", sql);
+
+        self.exists("tag")?;
 
         let mut stmt = self
             .txn
@@ -266,6 +289,7 @@ impl<'t> Txn<'t> {
     pub(crate) fn insert_version(&self) -> Result<()> {
         let v = Version::build().context("failed to get current version")?;
 
+        // TODO: Should context wrap this?
         self.insert(
             "INSERT INTO version (major, minor, patch)
                 VALUES (?1, ?2, ?3)",

@@ -12,6 +12,11 @@ use super::{
     },
     App,
 };
+
+use crate::registry::querier::Query;
+use anyhow::{Context, Result};
+
+use cli_table::CellStruct;
 use itertools::Itertools;
 
 #[cfg(feature = "prettify")]
@@ -20,7 +25,9 @@ use super::uses::{print_stdout, Border, Cell, Justify, Separator, Style, Table};
 /// Subcommands used for the `list` subcommand
 #[derive(Subcommand, Debug, Clone, PartialEq)]
 pub(crate) enum ListObject {
-    // ========================== Tags ==========================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                           Tags                           │
+    // ╰──────────────────────────────────────────────────────────╯
     /// List the `Tags` within the database
     Tags {
         /// Do not display tag count
@@ -37,6 +44,7 @@ pub(crate) enum ListObject {
         )]
         unique: bool,
 
+        // TODO: Add sort kinds
         /// Sort the output
         #[clap(
             long = "sort",
@@ -76,7 +84,9 @@ pub(crate) enum ListObject {
         border: bool,
     },
 
-    // ========================== Files ==========================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                          Files                           │
+    // ╰──────────────────────────────────────────────────────────╯
     /// List the `Files` within the database
     Files {
         /// Display tags along with the files
@@ -116,6 +126,10 @@ pub(crate) enum ListObject {
         )]
         garrulous: bool,
     },
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                          Values                          │
+    // ╰──────────────────────────────────────────────────────────╯
+    // Values,
 }
 
 /// Arguments used for the `list` subcommand
@@ -136,16 +150,19 @@ pub(crate) struct ListOpts {
 
 impl App {
     /// List `Tags` or `Files` in the database
-    pub(crate) fn list(&self, opts: &ListOpts) {
+    #[allow(clippy::unnecessary_wraps)]
+    pub(crate) fn list(&self, opts: &ListOpts) -> Result<()> {
         log::debug!("ListOpts: {:#?}", opts);
         log::debug!("Using registry: {}", self.oregistry.path.display());
 
-        let mut table = vec![];
+        let mut table = Vec::<Vec<CellStruct>>::new();
         let colorchoice = match self.color_when.as_ref() {
             "always" => ColorChoice::Always,
             "never" => ColorChoice::Never,
             _ => ColorChoice::Auto,
         };
+
+        let reg = self.registry.lock().expect("poisioned lock");
 
         match opts.object {
             ListObject::Files {
@@ -154,17 +171,24 @@ impl App {
                 border,
                 garrulous,
             } => {
-                for (id, file) in self.oregistry.list_entries_and_ids() {
+                let files = reg.files(None)?;
+
+                // let query = Query::new("XXX", None);
+                // if let Ok(q) = query.parse() {
+                //     println!("{:#?}", q.parsed());
+                // }
+
+                for file in files.iter() {
                     // Skips paths that are not contained within current directory to respect the
-                    // `-d` flag. Global is just another way to specify -d=~
-                    // (list files locally by default, i.e., no subcommand is given)
-                    if !self.global && !contained_path(file.path(), &self.base_dir) {
+                    // `-d` flag. Global is just another way to specify -d=~ (list files locally by
+                    // default, i.e., no subcommand is given)
+                    if !self.global && !contained_path(&file.path(), &self.base_dir) {
                         continue;
                     }
 
                     if opts.raw {
                         global_opts!(
-                            raw_local_path(file.path(), &self.base_dir),
+                            raw_local_path(&file.path(), &self.base_dir),
                             file.path().display().to_string(),
                             self,
                             garrulous
@@ -172,7 +196,7 @@ impl App {
                     } else if !formatted {
                         global_opts!(
                             fmt_local_path(
-                                file.path(),
+                                &file.path(),
                                 &self.base_dir,
                                 self.base_color,
                                 self.ls_colors,
@@ -182,43 +206,43 @@ impl App {
                             garrulous
                         );
                     }
-
                     if with_tags {
-                        let tags = self
-                            .oregistry
-                            .list_entry_tags(*id)
-                            .unwrap_or_default()
-                            .iter()
-                            .map(|t| {
-                                if opts.raw {
-                                    t.name().to_owned()
-                                } else {
-                                    fmt_tag(t).to_string()
-                                }
-                            })
-                            .collect::<Vec<_>>()
-                            .join(" ");
-
-                        if formatted {
-                            table.push(vec![
-                                tern::t!(
-                                    self.global
-                                    ? fmt_path(file.path(), self.base_color, self.ls_colors)
-                                    : fmt_local_path(
-                                        file.path(),
-                                        &self.base_dir,
-                                        self.base_color,
-                                        self.ls_colors,
-                                    )
-                                )
-                                .cell(),
-                                tags.cell().justify(Justify::Right),
-                            ]);
-                        } else if garrulous {
-                            println!("\t{}", tags);
-                        } else {
-                            println!(": {}", tags);
-                        }
+                        // let tags = self
+                        //     .oregistry
+                        //     .list_entry_tags(*id)
+                        //     .unwrap_or_default()
+                        //     .iter()
+                        //     .map(|t| {
+                        //         if opts.raw {
+                        //             t.name().to_owned()
+                        //         } else {
+                        //             fmt_tag(t).to_string()
+                        //         }
+                        //     })
+                        //     .collect::<Vec<_>>()
+                        //     .join(" ");
+                        //
+                        // if formatted {
+                        //     table.push(vec![
+                        //         tern::t!(
+                        //          self.global
+                        //   ? fmt_path(file.path(), self.base_color,
+                        // self.ls_colors)
+                        //   : fmt_local_path(
+                        //          &file.path(),
+                        //          &self.base_dir,
+                        //          self.base_color,
+                        //          self.ls_colors,
+                        //         )
+                        //         )
+                        //         .cell(),
+                        //         tags.cell().justify(Justify::Right),
+                        //     ]);
+                        // } else if garrulous {
+                        //     println!("\t{}", tags);
+                        // } else {
+                        //     println!(": {}", tags);
+                        // }
                     } else {
                         println!();
                     }
@@ -236,7 +260,7 @@ impl App {
                             .border(Border::builder().build())
                             .separator(Separator::builder().build())
                     ))
-                    .expect("Unable to print table");
+                    .context("unable to print table")?;
                 }
             },
             ListObject::Tags {
@@ -246,118 +270,9 @@ impl App {
                 unique,
                 sort,
                 explicit,
-            } => {
-                let mut utags = Vec::new();
-                for (&id, file) in self.oregistry.list_entries_and_ids() {
-                    if !self.global && !contained_path(file.path(), &self.base_dir) {
-                        continue;
-                    }
-
-                    /// If the `raw` option is given, do not colorize
-                    macro_rules! raw {
-                        ($t:ident) => {
-                            if opts.raw {
-                                $t.name().white()
-                            } else {
-                                fmt_tag($t)
-                            }
-                        };
-                    }
-
-                    if one_per_line {
-                        self.oregistry.list_entry_tags(id).iter().for_each(|tags| {
-                            tags.iter().for_each(|t| utags.push(format!("{}", raw!(t))));
-                        });
-                    } else {
-                        let tags = self
-                            .oregistry
-                            .list_entry_tags(id)
-                            .map(|tags| {
-                                tags.iter().fold(String::new(), |mut acc, t| {
-                                    acc.push_str(&format!("{} ", raw!(t)));
-                                    acc
-                                })
-                            })
-                            .unwrap_or_default()
-                            .clone();
-
-                        utags.push(tags);
-                    }
-                }
-
-                let mut vec = utags
-                    .iter()
-                    .fold(HashMap::new(), |mut acc, t| {
-                        *acc.entry(t.clone()).or_insert(0_i32) += 1_i32;
-                        acc
-                    })
-                    .iter()
-                    .map(|(s, i)| (s.clone(), *i))
-                    .collect::<Vec<(String, i32)>>();
-
-                // Sort numerically if count is included
-                if sort {
-                    vec = vec.iter().sorted_by_key(|a| -a.1).cloned().collect();
-                }
-
-                for (tag, count) in vec {
-                    table.push(vec![
-                        tag.cell(),
-                        tern::t!(
-                            opts.raw
-                                ? count.to_string().white()
-                                : count.to_string().green().bold()
-                        )
-                        .cell()
-                        .justify(Justify::Right),
-                    ]);
-                }
-
-                if no_count {
-                    if unique {
-                        utags = utags.iter().unique().cloned().collect_vec();
-                    }
-                    // Sort alphabetically if no count
-                    if sort {
-                        utags = utags
-                            .iter()
-                            .sorted_unstable_by(|a, b| {
-                                /// Strip ansi escape sequences from a string
-                                macro_rules! strip_ansi {
-                                    ($cmp:ident) => {
-                                        &String::from_utf8(
-                                            strip_ansi_escapes::strip($cmp.as_bytes())
-                                                .unwrap_or_default(),
-                                        )
-                                        .expect("invalid UTF-8")
-                                        .to_ascii_lowercase()
-                                    };
-                                }
-
-                                Ord::cmp(strip_ansi!(b), strip_ansi!(a))
-                            })
-                            .rev()
-                            .cloned()
-                            .collect_vec();
-                    }
-                    for tag in utags {
-                        println!("{}", tag);
-                    }
-                } else {
-                    print_stdout(tern::t!(
-                        border
-                        ? table
-                            .table()
-                            .foreground_color(Some(self.border_color))
-                            .color_choice(colorchoice)
-                        : table
-                            .table()
-                            .border(Border::builder().build())
-                            .separator(Separator::builder().build())
-                    ))
-                    .expect("Unable to print table");
-                }
-            },
+            } => {},
         }
+
+        Ok(())
     }
 }

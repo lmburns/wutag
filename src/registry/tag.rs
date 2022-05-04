@@ -23,15 +23,16 @@ use super::{
     },
     Error, Txn,
 };
-use crate::{conv_fail, fail, failure, query_fail, retr_fail};
-use anyhow::{Context, Result};
+use crate::{conv_fail, fail, failure, query_fail, retr_fail, wutag_error};
+use anyhow::{anyhow, Context, Result};
 use colored::{Color, Colorize};
 use std::{convert::TryInto, time::SystemTime};
 
 use rusqlite::{
     self as rsq, params,
     types::{FromSql, FromSqlResult, ToSql, ToSqlOutput},
-    Row,
+    Error::SqliteFailure,
+    ErrorCode, Row,
 };
 
 // ================================ Txn ===============================
@@ -191,7 +192,7 @@ impl Txn<'_> {
 
     /// Query for tags using a the `pcre` custom function on `name`, or `color`
     pub(super) fn select_tags_by_pcre<S: AsRef<str>>(&self, column: S, reg: S) -> Result<Tags> {
-        self.select_tags_by_func("regex", column.as_ref(), reg.as_ref())
+        self.select_tags_by_func("pcre", column.as_ref(), reg.as_ref())
     }
 
     /// Query for tags using a the `regex` custom function on `name`, or `color`
@@ -224,13 +225,11 @@ impl Txn<'_> {
     pub(super) fn insert_tag<S: AsRef<str>>(&self, name: S, color: Color) -> Result<Tag> {
         let name = name.as_ref();
 
-        let res = self
-            .insert(
-                "INSERT INTO tag (name, color)
+        let res = self.insert(
+            "INSERT INTO tag (name, color)
                 VALUES (?1, ?2)",
-                params![name, color.to_fg_str().as_ref().to_string()],
-            )
-            .context(fail!("insert `Tag`"))?;
+            params![name, color.to_fg_str().as_ref().to_string()],
+        )?;
 
         Ok(Tag::new(ID::new(res), name, color))
     }

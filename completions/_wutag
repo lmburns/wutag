@@ -165,8 +165,8 @@ _arguments "${_arguments_options[@]}" \
 '--color=[Explicitly select color for tag]:COLOR: ' \
 '-Q+[Apply tags to the result of a query instead of a pattern match]:query: ' \
 '--query=[Apply tags to the result of a query instead of a pattern match]:query: ' \
-'(-V --value)*-p+[Specify any number of `tag`=`value` pairs]:pairs: ' \
-'(-V --value)*--pairs=[Specify any number of `tag`=`value` pairs]:pairs: ' \
+'(-V --value)*-p+[Specify any number of tag=value pairs]:pairs: ' \
+'(-V --value)*--pairs=[Specify any number of tag=value pairs]:pairs: ' \
 '-V+[Specify a value to set all the tag(s) to]:value: ' \
 '--value=[Specify a value to set all the tag(s) to]:value: ' \
 '-c[Clear the tags on the match(es) before the new one(s) are set]' \

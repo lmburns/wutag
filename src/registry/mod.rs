@@ -221,20 +221,19 @@ impl Registry {
         self.conn.close().map_err(|e| Error::CloseConnection(e.1))
     }
 
-    /// Initialize the database
+    /// Initialize the database. This function has to be ran **every** time a call
+    /// is made which may involve a call to a `regex`/`glob` function
     #[rustfmt::skip]
     pub(crate) fn init(&self) -> Result<()> {
-
+        self.conn.busy_timeout(std::time::Duration::from_secs(0))?;
         self.conn.pragma_update(None, "locking_mode", &"exclusive")?;
         self.conn.pragma_update(None, "legacy_file_format", &false)?;
         self.conn.pragma_update(None, "page_size", &4096)?;
         self.conn.pragma_update(None, "cache_size", &(-40 * 1024))?;
         self.conn.pragma_update(None, "threads", (num_cpus::get() * 3) as u32)?;
-
-        // Stopped working once the Connections were placed in Arc<Mutex<>>
-        // Change `atomic commit and rollback` to `Write-Ahead Log`
+        self.conn.pragma_update(None, "foreign_keys", &false)?;
+        // TODO: Enable once development is done
         // self.conn.pragma_update(None, "journal_mode", &"wal")?;
-        // self.conn.pragma_update(None, "journal_mode", &"truncate")?;
 
         // self.conn.pragma_update(None, "synchronous", &"off")?;
         // self.conn.pragma_update(None, "read_uncommitted", &"true")?;
@@ -253,9 +252,8 @@ impl Registry {
         // self.create_tracker_table()?;
         // self.create_checkpoint_table()?;
 
-        // Add feature?
+        // Add feature for this function?
         self.add_pcre_function()?;
-
         self.add_regex_funcs()?;
         self.add_blake3_func()?;
         self.add_fullpath_func()?;
@@ -483,7 +481,7 @@ impl Registry {
 
     /// Convert to a [`Txn`]
     pub(crate) fn txn(&self) -> Result<Txn<'_>> {
-        Txn::new(self).context("failed to build `Txn`")
+        Txn::new(self)
     }
 
     /// Execute a closure on [`Txn`]. This is used to lessen duplicate code
@@ -508,11 +506,12 @@ impl Registry {
             let res = f(txn);
 
             if res.is_ok() {
+                log::debug!("committing");
+                println!("===== COMITTING =====");
                 txn.registry().conn().execute_batch("COMMIT")?;
-                res
-            } else {
-                Ok(res?)
             }
+
+            res
         })
     }
 

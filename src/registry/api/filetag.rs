@@ -104,11 +104,11 @@ impl Registry {
         self.txn_wrap(|txn| {
             let ftags = txn.select_filetags_by_fileid(id)?;
 
-            if explicit {
-                Ok(ftags)
-            } else {
-                Ok(self.add_implied_filetags(ftags)?)
-            }
+            // if explicit {
+            Ok(ftags)
+            // } else {
+            // Ok(self.add_implied_filetags(ftags)?)
+            // }
         })
     }
 

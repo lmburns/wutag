@@ -47,6 +47,7 @@ use regex::{Regex, RegexBuilder};
 use shellexpand::LookupError;
 use std::{
     borrow::Cow,
+    cell::RefCell,
     cmp::Ordering,
     env, error, fmt, fs,
     os::unix::fs::PermissionsExt,
@@ -138,9 +139,7 @@ pub(crate) struct Registry {
     /// Path to the database
     path:            PathBuf,
     /// The open [`Connection`] for the database
-    conn:            Connection,
-    // /// Root path of the database
-    // root_path: PathBuf,
+    pub(crate) conn: Connection,
 }
 
 impl Registry {
@@ -481,7 +480,12 @@ impl Registry {
 
     /// Convert to a [`Txn`]
     pub(crate) fn txn(&self) -> Result<Txn<'_>> {
-        Txn::new(self)
+        Txn::new(self.conn(), self.follow_symlinks())
+    }
+
+    /// Check whether there is an active transaction
+    pub(crate) fn active_transaction(&self) -> bool {
+        !self.conn().is_autocommit()
     }
 
     /// Execute a closure on [`Txn`]. This is used to lessen duplicate code
@@ -508,7 +512,8 @@ impl Registry {
             if res.is_ok() {
                 log::debug!("committing");
                 println!("===== COMITTING =====");
-                txn.registry().conn().execute_batch("COMMIT")?;
+                // txn.commit()?;
+                txn.txn.execute_batch("COMMIT");
             }
 
             res

@@ -911,7 +911,7 @@ impl Txn<'_> {
     /// Insert a [`File`] into the database
     pub(crate) fn insert_file<P: AsRef<Path>>(&self, path: P) -> Result<File> {
         let path = path.as_ref();
-        let mut f = File::new(&path, self.registry().follow_symlinks())
+        let mut f = File::new(&path, self.follow_symlinks())
             .context(fail!("build `File`: {}", cfile!(path)))?;
 
         log::debug!("{}: inserting file:\n{:#?}", cfile!(path), f);
@@ -996,7 +996,7 @@ impl Txn<'_> {
     /// Update a [`File`] that is in the database
     pub(super) fn update_file<P: AsRef<Path>>(&self, id: FileId, path: P) -> Result<File, Error> {
         let path = path.as_ref();
-        let mut f = File::new(&path, self.registry().follow_symlinks())
+        let mut f = File::new(&path, self.follow_symlinks())
             .context(fail!("build `File`: {}", cfile!(path)))?;
 
         log::debug!("{}: updating file:\n{:#?}", cfile!(path), f);

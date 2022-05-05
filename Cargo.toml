@@ -49,7 +49,10 @@ file-flags = ["e2p-fileflags"]
 ansi_term = "0.12.1"
 ansi-to-tui = "0.5.1"
 strip-ansi-escapes = "0.1.1"
-colored = { git = "https://github.com/lmburns/colored", branch = "master", version = "2.0.0", features = ["serde", "rusqlite-sql"] }
+colored = { git = "https://github.com/lmburns/colored", branch = "master", version = "2.0.0", features = [
+  "serde",
+  "rusqlite-sql",
+] }
 lscolors = "0.9.0"
 
 anyhow = "1.0.57"
@@ -61,14 +64,16 @@ directories = "4.0.1"
 # Mime information
 mime = "0.3.16"
 xdg-mime = "0.3.3"
-mime-db = "1.6.0" # TODO: USE/DEL
+mime-db = "1.6.0"  # TODO: USE/DEL
 
 crossbeam-channel = "0.5.4"
 crossbeam-utils = "0.8.8"
 # rayon = "1.5.1"
 
 # Paths and patterns
-wax = { git = "https://github.com/lmburns/wax", version = "0.4.0", features = ["diagnostics"] }
+wax = { git = "https://github.com/lmburns/wax", version = "0.4.0", features = [
+  "diagnostics",
+] }
 # wax = { path = "/home/lucas/projects/github/wax", features = ["diagnostics"] }
 # wax = { path = "/home/lucas/projects/rust/repos_example/wax", features = ["diagnostics"] }
 
@@ -103,13 +108,19 @@ humantime = "2.1.0"
 uuid = { version = "1.0.0", features = ["v4", "serde"] }
 
 # Command-line
-clap = { version = "3.1.12", features = ["derive", "default", "cargo", "wrap_help", "env"] }
+clap = { version = "3.1.12", features = [
+  "derive",
+  "default",
+  "cargo",
+  "wrap_help",
+  "env",
+] }
 clap_complete = "3.1.2"
 
 # Tools
 which = "4.2.5"
 rand = "0.8.5"
-itertools = "0.10.3" # TODO: USE/DEL
+itertools = "0.10.3"                                     # TODO: USE/DEL
 indexmap = { version = "1.8.1", features = ["serde-1"] }
 scopeguard = "1.1.0"
 tern = { git = "https://github.com/lmburns/tern" }
@@ -120,10 +131,12 @@ serde = { version = "1.0.136", features = ["derive"] }
 # serde_rusqlite = "0.29.0" # TODO: USE/DEL
 serde_yaml = { version = "0.8.23", optional = true }
 serde_json = "1.0.79"
-serde_cbor = "0.11.2" # TODO: Find way not to use this
+serde_cbor = "0.11.2"                                # TODO: Find way not to use this
 toml = { version = "0.5.9", optional = true }
 
-notify-rust = { version = "4.5", default-features = false, features = ["z"] } # TODO: USE/DEL
+notify-rust = { version = "4.5", default-features = false, features = [
+  "z",
+] } # TODO: USE/DEL
 # TODO: Remove serde_json if not used
 rusqlite = { version = "0.27", features = [
   "bundled",

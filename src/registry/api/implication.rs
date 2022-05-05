@@ -24,29 +24,32 @@ impl Registry {
 
     // TODO: Needs testing
     /// Retrieve the [`Implications`] matching the given [`TagValueCombo`]
+    #[allow(clippy::unused_self)]
     pub(crate) fn implications_for(&self, tvc: &[TagValueCombo]) -> Result<Implications> {
         println!("INIT!");
         self.txn_wrap(|txn| {
+            // let sp = self.conn.savepoint()?;
+
             let mut res_implications = Implications::new(vec![]);
             let mut implied_pairs = TagValueCombos::new(tvc.to_vec());
 
             println!("IMPLIED PAIRs: {:#?}", implied_pairs);
 
-            // for tv in tvc.iter() {
-            //     let implications = txn.implications_for(implied_pairs.inner())?;
-            //     // implied_pairs = TagValueCombos::new(vec![]);
-            //     implied_pairs.clear();
-            //
-            //     for implication in implications.iter() {
-            //         if !res_implications.contains(implication) {
-            //             res_implications.push(implication.clone());
-            //             implied_pairs.push(TagValueCombo::new(
-            //                 implication.implied_tag().id(),
-            //                 implication.implied_val().id(),
-            //             ));
-            //         }
-            //     }
-            // }
+            for tv in tvc.iter() {
+                let implications = txn.implications_for(implied_pairs.inner())?;
+                // implied_pairs = TagValueCombos::new(vec![]);
+                implied_pairs.clear();
+
+                for implication in implications.iter() {
+                    if !res_implications.contains(implication) {
+                        res_implications.push(implication.clone());
+                        implied_pairs.push(TagValueCombo::new(
+                            implication.implied_tag().id(),
+                            implication.implied_val().id(),
+                        ));
+                    }
+                }
+            }
 
             Ok(res_implications)
         })

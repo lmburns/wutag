@@ -46,7 +46,7 @@ where
 {
     scopeguard::defer!(wfs::delete_file(DB_NAME));
     let reg = setup_db()?;
-    let txn = Txn::new(&reg)?;
+    let txn = Txn::new(reg.conn(), reg.follow_symlinks())?;
     f(&txn);
 
     txn.commit()?;

@@ -14,10 +14,17 @@ use colored::Colorize;
 use rusqlite::{
     self as rsq, params,
     types::{FromSql, ToSql, Value},
-    Connection,
+    Connection, DropBehavior,
     Error::SqliteFailure,
-    Params, ParamsFromIter, Row, Transaction,
+    Params, ParamsFromIter, Row, Savepoint, Transaction,
 };
+use std::{cell::RefCell, fmt};
+
+use once_cell::unsync::{Lazy, OnceCell};
+
+// #[allow(clippy::declare_interior_mutable_const)]
+// pub(crate) const TXN: RefCell<Option<Transaction>> = RefCell::new(None);
+// pub(crate) const TXN: OnceCell<Transaction> = OnceCell::new();
 
 // ╒══════════════════════════════════════════════════════════╕
 //                         Transaction
@@ -27,26 +34,25 @@ use rusqlite::{
 /// database. See [`Transaction`](https://www.sqlite.org/lang_transaction.html)
 #[derive(Debug)]
 pub(crate) struct Txn<'t> {
-    /// The registry that created the transaction
-    registry:       &'t Registry,
+    /// Should symlinks be followed?
+    follow_symlinks: bool,
     /// A [`Transaction`] on a database, which allows for modifications
-    pub(crate) txn: Transaction<'t>,
+    pub(crate) txn:  Transaction<'t>,
 }
 
 impl<'t> Txn<'t> {
     /// Create a new [`Txn`]
-    pub(crate) fn new(registry: &'t Registry) -> Result<Self> {
+    pub(crate) fn new(conn: &'t Connection, follow_symlinks: bool) -> Result<Self> {
         log::debug!("new transaction");
         println!("======== NEW TRANSACTION ============");
 
-        let txn = registry
-            .conn()
-            .unchecked_transaction()
-            .context(fail!("get transaction"))?;
+        let mut txn = conn.unchecked_transaction()?;
+        txn.set_drop_behavior(DropBehavior::Commit);
 
-        println!("ERROR TRANSACTION: {:#?}", txn);
-
-        Ok(Self { registry, txn })
+        Ok(Self {
+            follow_symlinks,
+            txn,
+        })
     }
 
     /// Return the [`Transaction`] by taking ownership of `self`
@@ -60,9 +66,9 @@ impl<'t> Txn<'t> {
         &self.txn
     }
 
-    /// Return the [`Registry`]
-    pub(crate) const fn registry(&self) -> &'t Registry {
-        self.registry
+    /// Return whether the user prefers to follow symlinks
+    pub(crate) const fn follow_symlinks(&self) -> bool {
+        self.follow_symlinks
     }
 
     /// Commit a [`Transaction`]

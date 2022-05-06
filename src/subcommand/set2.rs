@@ -324,9 +324,10 @@ impl App {
                                 anyhow!("{}: could not determine file tags: {}", path_d, e)
                             })?;
 
-                        let new_impls = reg.implications_for(&combos).map_err(|e| {
-                            anyhow!("{}: couldn't determine implied tags: {}", path_d, e)
-                        })?;
+                        let new_impls =
+                            reg.implications_for(&reg.txn()?, &combos).map_err(|e| {
+                                anyhow!("{}: couldn't determine implied tags: {}", path_d, e)
+                            })?;
 
                         let mut revised = vec![];
                         for pair in &combos {

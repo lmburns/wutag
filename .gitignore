@@ -6,4 +6,6 @@ Cargo.lock
 exec/
 count/
 rusty-tags.vi
+my.db
+tags
 # /todo

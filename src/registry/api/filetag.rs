@@ -84,7 +84,7 @@ impl Registry {
             if explicit {
                 Ok(ftags)
             } else {
-                Ok(self.add_implied_filetags(ftags)?)
+                Ok(self.add_implied_filetags(txn, ftags)?)
             }
         })
     }
@@ -104,11 +104,11 @@ impl Registry {
         self.txn_wrap(|txn| {
             let ftags = txn.select_filetags_by_fileid(id)?;
 
-            // if explicit {
-            Ok(ftags)
-            // } else {
-            // Ok(self.add_implied_filetags(ftags)?)
-            // }
+            if explicit {
+                Ok(ftags)
+            } else {
+                Ok(self.add_implied_filetags(txn, ftags)?)
+            }
         })
     }
 
@@ -179,11 +179,11 @@ impl Registry {
     }
 
     /// Add [`FileTags`] that are implied
-    fn add_implied_filetags(&self, mut ftags: FileTags) -> Result<FileTags> {
+    fn add_implied_filetags(&self, txn: &Txn, mut ftags: FileTags) -> Result<FileTags> {
         let mut tags = vec![];
 
         for f in ftags.iter() {
-            let implications = self.implications_for(&[f.to_tag_value_combo()])?;
+            let implications = self.implications_for(txn, &[f.to_tag_value_combo()])?;
 
             for implication in implications.iter() {
                 let implied_ftag = ftags

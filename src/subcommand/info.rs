@@ -3,13 +3,16 @@
 // TODO: Entire subcommand
 
 #![allow(unused)]
-use super::{
-    uses::{
-        fmt_tag, Args, Border, Cell, ColorChoice, Colorize, HashMap, Justify, Separator, Style,
-        Subcommand, Table,
-    },
-    App,
+
+use super::App;
+use crate::util::fmt_tag;
+use clap::{Args, Subcommand};
+use cli_table::{
+    format::{Border, Justify, Separator},
+    print_stdout, Cell, ColorChoice, Style, Table,
 };
+use colored::Colorize;
+use std::collections::HashMap;
 
 /// Arguments used for the `info` subcommand
 #[derive(Args, Debug, Clone, PartialEq)]

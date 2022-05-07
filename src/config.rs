@@ -46,7 +46,6 @@ pub(crate) struct Config {
     pub(crate) base_color: Option<String>,
 
     /// Border color used to display tags with border option
-    #[cfg(feature = "prettify")]
     #[serde(alias = "border-color")]
     pub(crate) border_color: Option<String>,
 
@@ -259,7 +258,6 @@ impl Config {
 
     inner_immute!(format, Option<String>);
 
-    #[cfg(feature = "prettify")]
     inner_immute!(border_color, Option<String>);
 
     #[cfg(feature = "ui")]

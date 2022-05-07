@@ -5,22 +5,24 @@
 // TODO: list files relative to directory as an option
 // TODO: take into account color of tag for combinations
 
-use super::{
-    uses::{
-        contained_path, fmt_local_path, fmt_path, fmt_tag, global_opts, raw_local_path, Args,
-        ColorChoice, Colorize, HashMap, Subcommand,
-    },
-    App,
+use super::App;
+use crate::{
+    filesystem::contained_path,
+    global_opts,
+    registry::{querier::Query, types::Tag},
+    util::{fmt_local_path, fmt_path, fmt_tag, raw_local_path},
 };
 
-use crate::registry::querier::Query;
 use anyhow::{Context, Result};
-
-use cli_table::CellStruct;
+use clap::{Args, Subcommand};
+use cli_table::{
+    format::{Border, Justify, Separator},
+    print_stdout, Cell, CellStruct, ColorChoice, Style, Table,
+};
+use colored::Colorize;
 use itertools::Itertools;
-
-#[cfg(feature = "prettify")]
-use super::uses::{print_stdout, Border, Cell, Justify, Separator, Style, Table};
+use std::collections::HashMap;
+use wutag_core::tag::Tag as WTag;
 
 /// Subcommands used for the `list` subcommand
 #[derive(Subcommand, Debug, Clone, PartialEq)]
@@ -94,7 +96,6 @@ pub(crate) enum ListObject {
         with_tags: bool,
 
         /// Format the tags and files output into columns
-        #[cfg(feature = "prettify")]
         #[clap(
             name = "formatted",
             long = "format",
@@ -173,11 +174,6 @@ impl App {
             } => {
                 let files = reg.files(None)?;
 
-                // let query = Query::new("XXX", None);
-                // if let Ok(q) = query.parse() {
-                //     println!("{:#?}", q.parsed());
-                // }
-
                 for file in files.iter() {
                     // Skips paths that are not contained within current directory to respect the
                     // `-d` flag. Global is just another way to specify -d=~ (list files locally by
@@ -206,43 +202,41 @@ impl App {
                             garrulous
                         );
                     }
+
                     if with_tags {
-                        // let tags = self
-                        //     .oregistry
-                        //     .list_entry_tags(*id)
-                        //     .unwrap_or_default()
-                        //     .iter()
-                        //     .map(|t| {
-                        //         if opts.raw {
-                        //             t.name().to_owned()
-                        //         } else {
-                        //             fmt_tag(t).to_string()
-                        //         }
-                        //     })
-                        //     .collect::<Vec<_>>()
-                        //     .join(" ");
-                        //
-                        // if formatted {
-                        //     table.push(vec![
-                        //         tern::t!(
-                        //          self.global
-                        //   ? fmt_path(file.path(), self.base_color,
-                        // self.ls_colors)
-                        //   : fmt_local_path(
-                        //          &file.path(),
-                        //          &self.base_dir,
-                        //          self.base_color,
-                        //          self.ls_colors,
-                        //         )
-                        //         )
-                        //         .cell(),
-                        //         tags.cell().justify(Justify::Right),
-                        //     ]);
-                        // } else if garrulous {
-                        //     println!("\t{}", tags);
-                        // } else {
-                        //     println!(": {}", tags);
-                        // }
+                        let tags = reg
+                            .tags_for_file(file)?
+                            .iter()
+                            .map(|t| {
+                                if opts.raw {
+                                    t.name().clone()
+                                } else {
+                                    fmt_tag(&WTag::from(t)).to_string()
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join(" ");
+
+                        if formatted {
+                            table.push(vec![
+                                tern::t!(
+                                    self.global
+                                        ? fmt_path(file.path(), self.base_color, self.ls_colors)
+                                        : fmt_local_path(
+                                            &file.path(),
+                                            &self.base_dir,
+                                            self.base_color,
+                                            self.ls_colors
+                                        )
+                                )
+                                .cell(),
+                                tags.cell().justify(Justify::Right),
+                            ]);
+                        } else if garrulous {
+                            println!("\t{}", tags);
+                        } else {
+                            println!(": {}", tags);
+                        }
                     } else {
                         println!();
                     }

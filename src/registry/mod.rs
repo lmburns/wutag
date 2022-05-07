@@ -511,7 +511,6 @@ impl Registry {
 
             if res.is_ok() {
                 log::debug!("committing");
-                println!("===== COMITTING =====");
                 // txn.commit()?;
                 txn.txn.execute_batch("COMMIT");
             }

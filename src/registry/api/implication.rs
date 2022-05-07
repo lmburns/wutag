@@ -38,11 +38,8 @@ impl Registry {
         txn: &Txn,
         tvc: &[TagValueCombo],
     ) -> Result<Implications> {
-        println!("INIT!");
         let mut res_implications = Implications::new(vec![]);
         let mut implied_pairs = TagValueCombos::new(tvc.to_vec());
-
-        println!("IMPLIED PAIRs: {:#?}", implied_pairs);
 
         for tv in tvc.iter() {
             let implications = txn.implications_for(implied_pairs.inner())?;

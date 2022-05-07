@@ -44,7 +44,6 @@ impl<'t> Txn<'t> {
     /// Create a new [`Txn`]
     pub(crate) fn new(conn: &'t Connection, follow_symlinks: bool) -> Result<Self> {
         log::debug!("new transaction");
-        println!("======== NEW TRANSACTION ============");
 
         let mut txn = conn.unchecked_transaction()?;
         txn.set_drop_behavior(DropBehavior::Commit);

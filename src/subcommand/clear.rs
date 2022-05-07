@@ -1,12 +1,15 @@
 //! `clear` - Clear tags from a given path
 
-use super::{
-    uses::{
-        clear_tags, err, fmt_err, fmt_ok, fmt_path, glob_builder, has_tags, osstr_to_bytes, reg_ok,
-        regex_builder, Arc, Args, Colorize, Cow, DirEntryExt, OsStr,
-    },
-    App,
+use super::App;
+use crate::{
+    err,
+    filesystem::osstr_to_bytes,
+    util::{fmt_err, fmt_ok, fmt_path, glob_builder, reg_ok, regex_builder},
 };
+use clap::Args;
+use colored::Colorize;
+use std::{borrow::Cow, ffi::OsStr, sync::Arc};
+use wutag_core::tag::{clear_tags, has_tags, DirEntryExt};
 
 /// Arguments used for the `clear` subcommand
 #[derive(Args, Debug, Clone, PartialEq)]

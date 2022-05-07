@@ -1,10 +1,14 @@
-use super::{
-    uses::{
-        err, fmt_err, fmt_path, fmt_tag, glob_builder, list_tags, osstr_to_bytes, reg_ok,
-        regex_builder, Arc, Args, Colorize, Cow, DirEntryExt, OsStr,
-    },
-    App,
+/// Remove subcommand
+use super::App;
+use crate::{
+    err,
+    filesystem::osstr_to_bytes,
+    util::{fmt_err, fmt_path, fmt_tag, glob_builder, reg_ok, regex_builder},
 };
+use clap::Args;
+use colored::Colorize;
+use std::{borrow::Cow, ffi::OsStr, sync::Arc};
+use wutag_core::tag::{list_tags, DirEntryExt};
 
 /// Arguments to the `rm` subcommand
 #[derive(Args, Clone, Debug, PartialEq)]

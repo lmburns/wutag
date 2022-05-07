@@ -14,7 +14,6 @@ use super::{
 };
 use itertools::Itertools;
 
-#[cfg(feature = "prettify")]
 use super::uses::{print_stdout, Border, Cell, Justify, Separator, Style, Table};
 
 /// Subcommands used for the `list` subcommand
@@ -84,7 +83,6 @@ pub(crate) enum ListObject {
         with_tags: bool,
 
         /// Format the tags and files output into columns
-        #[cfg(feature = "prettify")]
         #[clap(
             name = "formatted",
             long = "format",

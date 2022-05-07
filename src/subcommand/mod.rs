@@ -14,7 +14,6 @@ pub(crate) mod search;
 pub(crate) mod set;
 pub(crate) mod set2;
 pub(crate) mod testing;
-pub(crate) mod uses;
 pub(crate) mod view;
 
 // TODO: Virtual filesystem
@@ -25,12 +24,26 @@ pub(crate) mod view;
 // TODO: merge tags
 // TODO: tag value attributes
 
-use uses::{
-    env, oregistry, parse_color, parse_color_cli_table, ui, wutag_error, wutag_fatal, Arc, Color,
-    Command, Config, Context, EncryptConfig, FileTypes, Mutex, Opts, PathBuf, RegexSet,
-    RegexSetBuilder, Registry, Result, Stream, TagRegistry, DEFAULT_BASE_COLOR,
-    DEFAULT_BORDER_COLOR, DEFAULT_COLORS,
+use crate::{
+    config::{Config, EncryptConfig},
+    consts::{DEFAULT_BASE_COLOR, DEFAULT_BORDER_COLOR, DEFAULT_COLORS},
+    filesystem::FileTypes,
+    opt::{Command, Opts},
+    oregistry,
+    oregistry::TagRegistry,
+    registry::Registry,
+    ui, wutag_error, wutag_fatal,
 };
+use anyhow::{Context, Result};
+use atty::Stream;
+use colored::Color;
+use regex::bytes::{RegexSet, RegexSetBuilder};
+use std::{
+    env,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
+use wutag_core::color::{parse_color, parse_color_cli_table};
 
 /// A structure that is built from a parsed `Config` and parsed `Opts`
 #[allow(clippy::missing_docs_in_private_items)]
@@ -59,7 +72,6 @@ pub(crate) struct App {
 
     pub(crate) registry: Arc<Mutex<Registry>>,
 
-    #[cfg(feature = "prettify")]
     pub(crate) border_color: cli_table::Color,
 
     #[cfg(feature = "encrypt-gpgme")]
@@ -115,7 +127,6 @@ impl App {
             .transpose()?
             .unwrap_or(DEFAULT_BASE_COLOR);
 
-        #[cfg(feature = "prettify")]
         let border_color = config
             .border_color
             .map(parse_color_cli_table)
@@ -234,7 +245,6 @@ impl App {
 
             registry: Arc::new(Mutex::new(registry)),
 
-            #[cfg(feature = "prettify")]
             border_color,
 
             #[cfg(feature = "encrypt-gpgme")]
@@ -332,8 +342,7 @@ impl Clone for App {
             oregistry:        self.oregistry.clone(),
             registry:         self.registry.clone(),
 
-            #[cfg(feature = "prettify")]
-            border_color:                              self.border_color,
+            border_color: self.border_color,
 
             #[cfg(feature = "encrypt-gpgme")]
             encrypt:                                   self.encrypt.clone(),

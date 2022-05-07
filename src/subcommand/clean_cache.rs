@@ -1,9 +1,8 @@
 //! `clean-cache` - Remove all paths that are found within the `Registry`
 
-use super::{
-    uses::{prompt, wutag_error, wutag_info, Colorize},
-    App,
-};
+use super::App;
+use crate::{util::prompt, wutag_error, wutag_info};
+use colored::Colorize;
 
 impl App {
     /// Clean the database by removing all old entries and start from a clean

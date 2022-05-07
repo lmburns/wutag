@@ -19,7 +19,7 @@ name = "wutag_core"
 path = "wutag_core/lib.rs"
 
 [features]
-default = ["encrypt-gpgme", "ui", "yaml-backend", "prettify", "file-flags"]
+default = ["encrypt-gpgme", "ui", "yaml-backend", "file-flags"]
 
 _encrypt-gpg = []
 encrypt-gpgme = ["gpgme", "secstr", "zeroize"]
@@ -37,8 +37,6 @@ ui = [
 
 yaml-backend = ["serde_yaml"]
 toml-backend = ["toml"]
-
-prettify = ["cli-table"]
 
 file-flags = ["e2p-fileflags"]
 
@@ -147,8 +145,7 @@ rusqlite = { version = "0.27", features = [
   "trace",
 ] }
 
-# Option: (default) -- Formatting output
-cli-table = { version = "0.4.7", default-features = false, optional = true }
+cli-table = { version = "0.4.7", default-features = false }
 
 # Option: (default) -- TUI
 tui = { version = "0.17.0", features = ["crossterm"], optional = true }

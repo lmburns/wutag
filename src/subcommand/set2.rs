@@ -8,7 +8,7 @@ use crate::{
         types::{
             file::{File, FileId},
             filetag::FileTag,
-            tag::{Tag as DbTag, TagId, TagValueCombo},
+            tag::{Tag, TagId, TagValueCombo},
             value::{Value, ValueId},
             ID,
         },
@@ -27,7 +27,7 @@ use std::{
 };
 use wutag_core::{
     color::parse_color,
-    tag::{DirEntryExt, Tag, DEFAULT_COLOR},
+    tag::{DirEntryExt, Tag as WTag, DEFAULT_COLOR},
 };
 
 /// Options used for the `set` subcommand
@@ -179,7 +179,12 @@ impl App {
             .iter()
             .map(|(t, v)| -> Result<TagValueCombo> {
                 let tag = reg.tag_by_name(t).or_else(|_| {
-                    reg.insert_tag(t, opts.color.as_ref().unwrap_or(&"white".to_string()))
+                    let tag = opts.color.as_ref().map_or_else(
+                        || Tag::random_noid(t, &self.colors),
+                        |color| Tag::new_noid(t, color),
+                    );
+
+                    reg.insert_tag(&tag)
                 })?;
 
                 let value = reg
@@ -200,7 +205,12 @@ impl App {
             .iter()
             .map(|t| {
                 reg.tag_by_name(t).or_else(|_| {
-                    reg.insert_tag(t, opts.color.as_ref().unwrap_or(&"white".to_string()))
+                    let tag = opts.color.as_ref().map_or_else(
+                        || Tag::random_noid(t, &self.colors),
+                        |color| Tag::new_noid(t, color),
+                    );
+
+                    reg.insert_tag(&tag)
                 })
             })
             .collect::<Result<Vec<_>>>()?;
@@ -212,8 +222,6 @@ impl App {
             .collect::<Vec<_>>();
 
         combos.append(&mut remapped);
-
-        println!("COMBOS: {:#?}", combos);
 
         // Drop the lock, otherwise this closure loop below will hang forever
         drop(reg);

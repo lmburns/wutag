@@ -7,6 +7,7 @@ use super::{
     filetag::FileTag, from_vec, impl_vec, implication::Implication, validate_name, value::ValueId,
     ID,
 };
+use crate::wutag_error;
 use anyhow::{anyhow, Context, Result};
 use colored::{Color, Colorize};
 use rusqlite::{
@@ -18,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use std::{cmp::Ordering, fmt};
 use wutag_core::{
     color::{self, parse_color},
-    tag::Tag as WTag,
+    tag::{Tag as WTag, DEFAULT_COLOR},
 };
 
 // ======================= TagId ======================
@@ -83,40 +84,37 @@ impl Tag {
         }
     }
 
-    /// Create a new [`Tag`] with a random [`Color`]
-    pub(crate) fn random<S: AsRef<str>>(id: TagId, name: S, colors: &[Color]) -> Self {
+    /// Choose a random [`Color`]
+    pub(crate) fn random_color(colors: &[Color]) -> Color {
         use rand::seq::SliceRandom;
         let mut rng = rand::thread_rng();
-        Self::new(
-            id,
-            name,
-            colors
-                .choose(&mut rng)
-                .copied()
-                .unwrap_or(Color::BrightWhite),
-        )
+        colors.choose(&mut rng).copied().unwrap_or(DEFAULT_COLOR)
+    }
+
+    /// Create a new [`Tag`] with a random [`Color`]
+    pub(crate) fn random<S: AsRef<str>>(id: TagId, name: S, colors: &[Color]) -> Self {
+        Self::new(id, name, Self::random_color(colors))
     }
 
     /// Create a new [`Tag`] with no `id`
-    pub(crate) fn new_noid<S: AsRef<str>>(name: S, color: Color) -> Self {
+    pub(crate) fn new_noid<S: AsRef<str>>(name: S, color: S) -> Self {
         Self {
-            id: TagId::null(),
-            name: name.as_ref().to_owned(),
-            color,
+            id:    TagId::null(),
+            name:  name.as_ref().to_owned(),
+            color: parse_color(color).unwrap_or_else(|e| {
+                wutag_error!("{}", e);
+                DEFAULT_COLOR
+            }),
         }
     }
 
     /// Create a new [`Tag`] with a random [`Color`] and no `id`
     pub(crate) fn random_noid<S: AsRef<str>>(name: S, colors: &[Color]) -> Self {
-        use rand::seq::SliceRandom;
-        let mut rng = rand::thread_rng();
-        Self::new_noid(
-            name,
-            colors
-                .choose(&mut rng)
-                .copied()
-                .unwrap_or(Color::BrightWhite),
-        )
+        Self {
+            id:    TagId::null(),
+            name:  name.as_ref().to_owned(),
+            color: Self::random_color(colors),
+        }
     }
 
     /// Set the [`Tag`] id
@@ -159,8 +157,27 @@ impl From<WTag> for Tag {
     }
 }
 
+impl From<&WTag> for Tag {
+    fn from(w: &WTag) -> Self {
+        Self {
+            id:    ID::null(),
+            name:  w.name().to_owned(),
+            color: *w.color(),
+        }
+    }
+}
+
 impl From<Tag> for WTag {
     fn from(w: Tag) -> Self {
+        Self {
+            name:  w.name().clone(),
+            color: w.color(),
+        }
+    }
+}
+
+impl From<&Tag> for WTag {
+    fn from(w: &Tag) -> Self {
         Self {
             name:  w.name().clone(),
             color: w.color(),

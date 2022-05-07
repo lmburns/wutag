@@ -168,7 +168,6 @@ pub fn parse_color<S: AsRef<str>>(color: S) -> Result<Color> {
 ///
 /// [`Color`]: cli_table::Color
 #[inline]
-#[cfg(feature = "prettify")]
 pub fn parse_color_cli_table<S: AsRef<str>>(color: S) -> Result<cli_table::Color> {
     let color = color.as_ref();
 
@@ -348,7 +347,6 @@ mod tests {
         assert_eq!(parse_color("BRIght white").unwrap(), Color::BrightWhite);
     }
 
-    #[cfg(feature = "prettify")]
     #[test]
     fn parse_clitable_colors() {
         assert_eq!(
@@ -422,7 +420,6 @@ mod tests {
         assert!(parse_color("0x1234567").is_err());
     }
 
-    #[cfg(feature = "prettify")]
     #[test]
     fn invalid_clitable_colors() {
         assert!(parse_color_cli_table("0ff00").is_err());

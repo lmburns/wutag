@@ -1,21 +1,25 @@
 #![allow(unused)]
 
-use anyhow::Context;
+use super::App;
+use crate::{
+    bold_entry, err,
+    oregistry::EntryData,
+    registry::types::{Tag, ID},
+    util::{collect_stdin_paths, fmt_err, fmt_path, fmt_tag, glob_builder, reg_ok, regex_builder},
+    wutag_error, wutag_fatal,
+};
+use anyhow::{Context, Result};
+use clap::{Args, ValueHint};
+use colored::Colorize;
+use e2p_fileflags::{FileFlags, Flags};
 use std::{
     os::unix::fs::{MetadataExt, PermissionsExt},
     path::PathBuf,
+    sync::Arc,
 };
-
-use crate::registry::types::ID;
-use e2p_fileflags::{FileFlags, Flags};
-
-use super::{
-    uses::{
-        bold_entry, collect_stdin_paths, err, fmt_err, fmt_path, fmt_tag, glob_builder,
-        parse_color, reg_ok, regex_builder, wutag_error, wutag_fatal, Arc, Args, Colorize,
-        DirEntryExt, EntryData, Result, Tag, ValueHint, DEFAULT_COLOR,
-    },
-    App,
+use wutag_core::{
+    color::parse_color,
+    tag::{DirEntryExt, Tag as WTag, DEFAULT_COLOR},
 };
 
 use crate::registry::types::{FileId, FileTag, TagId, ValueId};
@@ -50,10 +54,10 @@ impl App {
         // reg.insert_file(PathBuf::from("./Cargo.lock"))?;
         // reg.insert_file(PathBuf::from("./CHANGELOG.md"))?;
 
-        reg.insert_tag("tag1", "#FF00FF")?;
-        reg.insert_tag("tag2", "0xFF5813")?;
-        reg.insert_tag("tag3", "A06469")?;
-        reg.insert_tag("tag4", "red")?;
+        reg.insert_tag(&Tag::new_noid("tag1", "#FF00FF"))?;
+        reg.insert_tag(&Tag::new_noid("tag2", "0xFF5813"))?;
+        reg.insert_tag(&Tag::new_noid("tag3", "A06469"))?;
+        reg.insert_tag(&Tag::new_noid("tag4", "red"))?;
 
         reg.insert_value("2022")?;
 

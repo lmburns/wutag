@@ -109,38 +109,6 @@ impl Txn<'_> {
         .context(retr_fail!("`File` count", "hash"))
     }
 
-    pub(super) fn select_files_tags(&self) -> Result<Files> {
-        let mut builder = SqlBuilder::new();
-        builder.append(format!(
-            "SELECT
-                id,
-                directory,
-                name,
-                hash,
-                mime,
-                mtime,
-                ctime,
-                mode,
-                inode,
-                links,
-                uid,
-                gid,
-                size,
-                is_dir
-                {}
-            FROM file",
-            e2p_feature_comma()
-        ));
-
-        let files: Vec<File> = self
-            .query_vec(builder.utf()?, params![], |row| {
-                row.try_into().expect("failed to convert to `File`")
-            })
-            .context(query_fail!("`File`"))?;
-
-        Ok(files.into())
-    }
-
     /// Retrieve all tracked [`Files`] within the database
     pub(super) fn select_files(&self, sort: Option<Sort>) -> Result<Files> {
         let mut builder = SqlBuilder::new();

@@ -1,13 +1,19 @@
 // TODO: Manual
 // TODO: confirm all options work
 
-use super::{
-    uses::{
-        contained_path, fmt_local_path, fmt_path, fs, print_stdout, systemtime_to_datetime, Args,
-        Border, Cell, Colorize, Context, Justify, Result, Separator, Table, ValueHint,
-    },
-    App,
+use super::App;
+use crate::{
+    filesystem::contained_path,
+    util::{fmt_local_path, fmt_path, systemtime_to_datetime},
 };
+use anyhow::{Context, Result};
+use clap::{Args, ValueHint};
+use cli_table::{
+    format::{Border, Justify, Separator},
+    print_stdout, Cell, Table,
+};
+use colored::Colorize;
+use std::fs;
 
 use lexiclean::Lexiclean;
 

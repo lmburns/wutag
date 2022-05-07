@@ -1,14 +1,24 @@
 // TODO: Prevent clearing of file beforehand to keep previous tag colors
 
-use super::{
-    uses::{
-        bold_entry, clear_tags, contained_path, create_temp_path, fmt_path, fmt_tag, fs,
-        glob_builder, osstr_to_bytes, process, raw_local_path, reg_ok, regex_builder, wutag_error,
-        wutag_fatal, wutag_info, Arc, Args, BTreeMap, Captures, Colorize, Cow, DirEntryExt,
-        EntryData, Lexiclean, OsStr, PathBuf, Regex, Result, Tag, Write, DEFAULT_EDITOR,
-    },
-    App,
+use super::App;
+use crate::{
+    bold_entry,
+    consts::DEFAULT_EDITOR,
+    filesystem::{contained_path, create_temp_path, osstr_to_bytes},
+    oregistry::EntryData,
+    util::{fmt_path, fmt_tag, glob_builder, raw_local_path, reg_ok, regex_builder},
+    wutag_error, wutag_fatal, wutag_info,
 };
+use anyhow::Result;
+use clap::Args;
+use colored::Colorize;
+use lexiclean::Lexiclean;
+use regex::{Captures, Regex};
+use std::{
+    borrow::Cow, collections::BTreeMap, ffi::OsStr, fs, io::Write, path::PathBuf, process,
+    sync::Arc,
+};
+use wutag_core::tag::{clear_tags, DirEntryExt, Tag};
 
 #[derive(Args, Debug, Clone, PartialEq, Default)]
 pub(crate) struct ViewOpts {

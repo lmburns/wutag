@@ -437,7 +437,7 @@ fn reg_tag_tests() -> Result<()> {
     setup_dbfn_wfiletag(|reg| {
         use colored::Color;
 
-        let t1 = reg.insert_tag("tag1", "#FF01FF")?;
+        let t1 = reg.insert_tag(&Tag::new_noid("tag1", "#FF01FF"))?;
         assert_eq!(t1.color(), Color::truecolor(255, 1, 255));
 
         let t2 = reg.update_tag_name(t1.id(), "tag2")?;
@@ -452,8 +452,8 @@ fn reg_tag_tests() -> Result<()> {
         reg.delete_tag(t3.id())?;
         assert_eq!(reg.tags()?.len(), 0);
 
-        let t1 = reg.insert_tag("foo1", "#BBAABB")?;
-        let t2 = reg.insert_tag("foo2", "#AABBAA")?;
+        let t1 = reg.insert_tag(&Tag::new_noid("foo1", "#BBAABB"))?;
+        let t2 = reg.insert_tag(&Tag::new_noid("foo2", "#AABBAA"))?;
 
         let info = reg.tag_info()?;
         assert!(!info.into_iter().any(|tf| tf.count() > 0));
@@ -465,9 +465,9 @@ fn reg_tag_tests() -> Result<()> {
 #[test]
 fn reg_tag_query_exact() -> Result<()> {
     setup_dbfn_wfiletag(|reg| {
-        let t1 = reg.insert_tag("tag1", "#FF01FF")?;
-        let t2 = reg.insert_tag("tag2", "#01FF01")?;
-        let t3 = reg.insert_tag("tag3", "#FFFFFF")?;
+        let t1 = reg.insert_tag(&Tag::new_noid("tag1", "#FF01FF"))?;
+        let t2 = reg.insert_tag(&Tag::new_noid("tag2", "#01FF01"))?;
+        let t3 = reg.insert_tag(&Tag::new_noid("tag3", "#FFFFFF"))?;
 
         let tag = reg.tag_by_name("tag1")?;
         assert_eq!(tag.name(), "tag1");
@@ -494,9 +494,9 @@ fn reg_tag_query_exact() -> Result<()> {
 #[test]
 fn reg_tag_query_pattern() -> Result<()> {
     setup_dbfn_wfiletag(|reg| {
-        let t1 = reg.insert_tag("tag1", "#FF01FF")?;
-        let t2 = reg.insert_tag("tag2", "#01FF01")?;
-        let t3 = reg.insert_tag("tag3", "#FFFFFF")?;
+        let t1 = reg.insert_tag(&Tag::new_noid("tag1", "#FF01FF"))?;
+        let t2 = reg.insert_tag(&Tag::new_noid("tag2", "#01FF01"))?;
+        let t3 = reg.insert_tag(&Tag::new_noid("tag3", "#FFFFFF"))?;
 
         let tags = reg.tags_by_pcre_name("tag\\d")?;
         assert_eq!(tags.len(), 3);

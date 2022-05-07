@@ -14,7 +14,7 @@
 use super::{
     sqlbuilder::{Sort, SqlBuilder},
     types::{
-        file::FileId,
+        file::{File, FileId},
         filetag::{FileTag, FileTags},
         implication::{Implication, Implications},
         tag::{Tag, TagFileCnt, TagId, Tags},
@@ -165,6 +165,37 @@ impl Txn<'_> {
                 row.try_into().expect("failed to convert to `Tag`")
             })
             .context(query_fail!("`Tags`"))?;
+
+        Ok(tags.into())
+    }
+
+    /// Select a [`File`]'s' [`Tag`]s
+    pub(super) fn select_files_tags(&self, file: &File) -> Result<Tags> {
+        let tags: Vec<Tag> = self
+            .query_vec(
+                "SELECT *
+                     FROM   tag
+                     WHERE
+                      id IN (
+                        SELECT
+                          tag_id
+                        FROM
+                          file_tag
+                        WHERE
+                          file_id = (
+                            SELECT
+                              id
+                            FROM
+                              file
+                            WHERE
+                              name = ?1
+                              AND directory = ?2
+                          )
+                      )",
+                params![file.name(), file.directory()],
+                |row| row.try_into().expect("failed to convert to `Tag`"),
+            )
+            .context(format!("failed to query for tags matching {}", file.name()))?;
 
         Ok(tags.into())
     }

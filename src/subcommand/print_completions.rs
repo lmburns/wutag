@@ -1,17 +1,16 @@
-use super::{
-    uses::{
-        comp_helper, fs, gen_completions, io, replace, wutag_info, Args, PathBuf, ValueHint, Write,
-    },
-    App,
+use super::App;
+use crate::{
+    bold_entry, comp_helper,
+    util::{gen_completions, replace},
+    wutag_info, Opts,
 };
-use crate::{bold_entry, Opts};
-
-use clap::CommandFactory;
+use clap::{Args, CommandFactory, ValueHint};
 use clap_complete::{
     shells::{Bash, Elvish, Fish, PowerShell, Zsh},
     Shell,
 };
 use lexiclean::Lexiclean;
+use std::{fs, io, io::Write, path::PathBuf};
 
 // Shell::arg_values()
 

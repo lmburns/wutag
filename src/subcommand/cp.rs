@@ -2,14 +2,20 @@
 
 // TODO: Add mv option
 // TODO: Add global option to cp
-use super::{
-    uses::{
-        err, fmt_err, fmt_path, fmt_tag, glob_builder, list_tags, osstr_to_bytes, parse_path,
-        reg_ok, regex_builder, wutag_error, wutag_fatal, Arc, Args, Colorize, Cow, DirEntryExt,
-        EntryData, OsStr, PathBuf, Result, ValueHint,
-    },
-    App,
+
+use super::App;
+use crate::{
+    err,
+    filesystem::osstr_to_bytes,
+    oregistry::EntryData,
+    util::{fmt_err, fmt_path, fmt_tag, glob_builder, parse_path, reg_ok, regex_builder},
+    wutag_error, wutag_fatal,
 };
+use anyhow::Result;
+use clap::{Args, ValueHint};
+use colored::Colorize;
+use std::{borrow::Cow, ffi::OsStr, path::PathBuf, sync::Arc};
+use wutag_core::tag::{list_tags, DirEntryExt};
 
 /// Arguments used for the `cp` subcommand
 #[derive(Args, Debug, Clone, PartialEq)]

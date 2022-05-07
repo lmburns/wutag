@@ -1,12 +1,10 @@
 //! Interactions with the [`Tag`] object
 
-use crate::registry::types::tag::TagFileCnt;
-
 use super::super::{
     types::{
-        file::FileId,
+        file::{File, FileId},
         implication::{Implication, Implications},
-        tag::{Tag, TagId, TagIds, Tags},
+        tag::{Tag, TagFileCnt, TagId, TagIds, Tags},
         value::ValueId,
     },
     Registry,
@@ -59,6 +57,11 @@ impl Registry {
     /// Retrieve the [`Tags`] matching the given names (ignoring case)
     pub(crate) fn tags_by_names_nocase<S: AsRef<str>>(&self, names: &[S]) -> Result<Tags> {
         self.txn_wrap(|txn| txn.tags_by_names(names, true).map_err(Into::into))
+    }
+
+    /// Retrieve the [`Tags`] matching the given [`File`]
+    pub(crate) fn tags_for_file(&self, file: &File) -> Result<Tags> {
+        self.txn_wrap(|txn| txn.select_files_tags(file))
     }
 
     // ========================= Pattern Matching =========================
@@ -117,21 +120,14 @@ impl Registry {
     // ====================================================================
 
     /// Insert a [`Tag`] into the database
-    pub(crate) fn insert_tag<S: AsRef<str>>(&self, name: S, color: S) -> Result<Tag> {
-        Tag::validate_name(&name)?;
-        self.wrap_commit(|txn| {
-            // TODO: Decide whether this should express an error
-            // let color = parse_color(&color).unwrap_or(Color::BrightWhite);
-            let color = parse_color(&color)?;
-
-            txn.insert_tag(name, color)
-        })
+    pub(crate) fn insert_tag(&self, tag: &Tag) -> Result<Tag> {
+        Tag::validate_name(&tag.name())?;
+        self.wrap_commit(|txn| txn.insert_tag(tag.name(), tag.color()))
     }
 
     /// Update the [`Tag`] by changing its `name`
     pub(crate) fn update_tag_name<S: AsRef<str>>(&self, id: TagId, name: S) -> Result<Tag> {
         Tag::validate_name(&name)?;
-
         self.wrap_commit(|txn| txn.update_tag_name(id, name).map_err(Into::into))
     }
 

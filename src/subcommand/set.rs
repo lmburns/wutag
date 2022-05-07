@@ -1,10 +1,17 @@
-use super::{
-    uses::{
-        bold_entry, collect_stdin_paths, err, fmt_err, fmt_path, fmt_tag, glob_builder,
-        parse_color, reg_ok, regex_builder, wutag_error, wutag_fatal, Arc, Args, Colorize,
-        DirEntryExt, EntryData, Result, Tag, ValueHint, DEFAULT_COLOR,
-    },
-    App,
+use super::App;
+use crate::{
+    bold_entry, err,
+    oregistry::EntryData,
+    util::{collect_stdin_paths, fmt_err, fmt_path, fmt_tag, glob_builder, reg_ok, regex_builder},
+    wutag_error, wutag_fatal,
+};
+use anyhow::Result;
+use clap::{Args, ValueHint};
+use colored::Colorize;
+use std::sync::Arc;
+use wutag_core::{
+    color::parse_color,
+    tag::{DirEntryExt, Tag, DEFAULT_COLOR},
 };
 
 #[derive(Args, Clone, Debug, PartialEq)]

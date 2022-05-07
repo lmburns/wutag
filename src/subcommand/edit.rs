@@ -1,9 +1,13 @@
 //! `edit` - Edit a `Tag` by changing its `Color`
 
-use super::{
-    uses::{fmt_tag, parse_color, print_stdout, Args, Border, Cell, Justify, Separator, Table},
-    App,
+use super::App;
+use crate::util::fmt_tag;
+use clap::Args;
+use cli_table::{
+    format::{Border, Justify, Separator},
+    print_stdout, Cell, Table,
 };
+use wutag_core::color::parse_color;
 
 /// Arguments used for the `edit` subcommand
 #[derive(Args, Debug, Clone, PartialEq)]

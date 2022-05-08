@@ -180,8 +180,6 @@ impl Txn<'_> {
             params![ft.file_id(), ft.tag_id(), ft.value_id()],
         )?;
 
-        println!("INIT");
-
         Ok(*ft)
     }
 

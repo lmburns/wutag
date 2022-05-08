@@ -200,6 +200,7 @@ impl App {
             })
             .collect::<Result<Vec<_>>>()?;
 
+        // TODO: Prevent tag from being added if the file doesn't exist
         let tags = &opts
             .tags
             .iter()
@@ -321,7 +322,9 @@ impl App {
 
                     if opts.clear {
                         log::debug!("{}: clearing tags", path_d);
+                        println!("CLEARING");
 
+                        // TODO: Don't want to delete a tag if it is connected to another file
                         let ftags = reg.tags_for_file(&file)?;
                         for t in ftags.iter() {
                             reg.delete_tag(t.id());
@@ -330,8 +333,9 @@ impl App {
 
                     if !opts.explicit {
                         log::debug!("{}: determining existing file tags", path_d);
-                        let existing_ft =
-                            reg.filetags_by_fileid(file.id(), false).map_err(|e| {
+                        let existing_ft = reg
+                            .filetags_by_fileid(&reg.txn()?, file.id(), false)
+                            .map_err(|e| {
                                 anyhow!("{}: could not determine file tags: {}", path_d, e)
                             })?;
 

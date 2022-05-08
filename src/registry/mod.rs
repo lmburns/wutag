@@ -519,6 +519,23 @@ impl Registry {
         })
     }
 
+    /// Execute a closure on the passed by value [`Txn`]. This is used to
+    /// prevent duplicate transactions and is kind of sloppy.
+    #[allow(clippy::unused_self)]
+    pub(crate) fn wrap_commit_by<F, T>(&self, txn: &Txn, mut f: F) -> Result<T>
+    where
+        F: FnOnce(&Txn) -> Result<T>,
+    {
+        let res = f(txn);
+
+        if res.is_ok() {
+            log::debug!("committing");
+            txn.txn.execute_batch("COMMIT");
+        }
+
+        res
+    }
+
     // ╭──────────────────────────────────────────────────────────╮
     // │                          Other                           │
     // ╰──────────────────────────────────────────────────────────╯

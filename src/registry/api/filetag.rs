@@ -24,8 +24,9 @@ impl Registry {
     ///
     /// [`File`]: ../types/file/struct.File.html
     /// [`Tag`]: ../types/tag/struct.Tag.html
-    pub(crate) fn filetag_exists(&self, ft: &FileTag) -> Result<bool> {
-        self.txn_wrap(|txn| txn.filetag_exists(ft))
+    #[allow(clippy::unused_self)]
+    pub(crate) fn filetag_exists(&self, txn: &Txn, ft: &FileTag) -> Result<bool> {
+        txn.filetag_exists(ft)
     }
 
     /// Retrieve the number of [`FileTag`]s within the database
@@ -52,7 +53,7 @@ impl Registry {
             if explicit {
                 txn.select_filetag_count_by_fileid(id)
             } else {
-                if let Ok(ftags) = self.filetags_by_fileid(id, false) {
+                if let Ok(ftags) = self.filetags_by_fileid(txn, id, false) {
                     return Ok(ftags.len() as u32);
                 }
 
@@ -67,7 +68,7 @@ impl Registry {
             if explicit {
                 txn.select_filetag_count_by_tagid(id)
             } else {
-                if let Ok(ftags) = self.filetags_by_fileid(id, false) {
+                if let Ok(ftags) = self.filetags_by_fileid(txn, id, false) {
                     return Ok(ftags.len() as u32);
                 }
 
@@ -100,16 +101,19 @@ impl Registry {
     }
 
     /// Retrieve the [`FileTags`] matching a [`FileId`]
-    pub(crate) fn filetags_by_fileid(&self, id: FileId, explicit: bool) -> Result<FileTags> {
-        self.txn_wrap(|txn| {
-            let ftags = txn.select_filetags_by_fileid(id)?;
+    pub(crate) fn filetags_by_fileid(
+        &self,
+        txn: &Txn,
+        id: FileId,
+        explicit: bool,
+    ) -> Result<FileTags> {
+        let ftags = txn.select_filetags_by_fileid(id)?;
 
-            if explicit {
-                Ok(ftags)
-            } else {
-                Ok(self.add_implied_filetags(txn, ftags)?)
-            }
-        })
+        if explicit {
+            Ok(ftags)
+        } else {
+            Ok(self.add_implied_filetags(txn, ftags)?)
+        }
     }
 
     // ============================= Modifying ============================
@@ -123,7 +127,7 @@ impl Registry {
     /// Remove a [`FileTag`] in the database
     pub(crate) fn delete_filetag(&self, ft: &FileTag) -> Result<()> {
         self.wrap_commit(|txn| {
-            let exists = self.filetag_exists(ft)?;
+            let exists = self.filetag_exists(txn, ft)?;
 
             if !exists {
                 return Err(anyhow!(
@@ -135,7 +139,7 @@ impl Registry {
             }
 
             txn.delete_filetag(ft)?;
-            self.delete_file_if_untagged(ft.file_id())?;
+            self.delete_file_if_untagged(txn, ft.file_id())?;
 
             Ok(())
         })
@@ -145,18 +149,18 @@ impl Registry {
     pub(crate) fn delete_filetag_by_fileid(&self, id: FileId) -> Result<()> {
         self.wrap_commit(|txn| {
             txn.delete_filetag_by_fileid(id)?;
-            self.delete_file_if_untagged(id)?;
+            self.delete_file_if_untagged(txn, id)?;
 
             Ok(())
         })
     }
 
     /// Remove all [`FileTag`]s matching a given [`TagId`]
-    pub(crate) fn delete_filetag_by_tagid(&self, id: TagId) -> Result<()> {
-        self.wrap_commit(|txn| {
+    pub(crate) fn delete_filetag_by_tagid(&self, tx: &Txn, id: TagId) -> Result<()> {
+        self.wrap_commit_by(tx, |txn| {
             let ftags = txn.select_filetags_by_tagid(id)?;
             txn.delete_filetag_by_tagid(id)?;
-            self.delete_untagged_files(&ftags.file_ids())?;
+            self.delete_untagged_files(txn, &ftags.file_ids())?;
 
             Ok(())
         })
@@ -167,7 +171,7 @@ impl Registry {
         self.wrap_commit(|txn| {
             let ftags = txn.select_filetags_by_valueid(id)?;
             txn.delete_filetag_by_valueid(id)?;
-            self.delete_untagged_files(&ftags.file_ids())?;
+            self.delete_untagged_files(txn, &ftags.file_ids())?;
 
             Ok(())
         })

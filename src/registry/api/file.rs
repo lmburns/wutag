@@ -267,8 +267,8 @@ impl Registry {
     }
 
     /// Remove a [`File`] from the database if it is not tagged
-    pub(crate) fn delete_file_if_untagged(&self, id: FileId) -> Result<()> {
-        self.wrap_commit(|txn| {
+    pub(crate) fn delete_file_if_untagged(&self, tx: &Txn, id: FileId) -> Result<()> {
+        self.wrap_commit_by(tx, |txn| {
             let count = txn.select_filetag_count_by_fileid(id)?;
 
             if count == 0 {
@@ -280,11 +280,7 @@ impl Registry {
     }
 
     /// Remove an array of [`File`]s from the database if they're untagged
-    pub(crate) fn delete_untagged_files(&self, ids: &FileIds) -> Result<()> {
-        self.wrap_commit(|txn| {
-            txn.delete_files_untagged(ids)?;
-
-            Ok(())
-        })
+    pub(crate) fn delete_untagged_files(&self, tx: &Txn, ids: &FileIds) -> Result<()> {
+        self.wrap_commit_by(tx, |txn| txn.delete_files_untagged(ids))
     }
 }

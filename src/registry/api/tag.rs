@@ -156,8 +156,8 @@ impl Registry {
     /// Delete a [`Tag`] matching the given [`TagId`]
     pub(crate) fn delete_tag(&self, id: TagId) -> Result<()> {
         self.wrap_commit(|txn| {
-            txn.delete_filetag_by_tagid(id)?;
-            txn.delete_implication_by_tagid(id)?;
+            self.delete_filetag_by_tagid(txn, id)?;
+            self.delete_implication_by_tagid(txn, id)?;
             txn.delete_tag(id).map_err(Into::into)
         })
     }

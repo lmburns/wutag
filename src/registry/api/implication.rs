@@ -127,8 +127,8 @@ impl Registry {
     }
 
     /// Remove the [`Implication`] matching [`TagId`]
-    pub(crate) fn delete_implication_by_tagid(&self, id: TagId) -> Result<()> {
-        self.wrap_commit(|txn| txn.delete_implication_by_tagid(id))
+    pub(crate) fn delete_implication_by_tagid(&self, tx: &Txn, id: TagId) -> Result<()> {
+        self.wrap_commit_by(tx, |txn| txn.delete_implication_by_tagid(id))
     }
 
     /// Remove the [`Implication`] matching [`ValueId`]

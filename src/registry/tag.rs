@@ -325,6 +325,36 @@ impl Txn<'_> {
         Ok(())
     }
 
+    /// Delete a [`File`]'s' [`Tag`]s
+    pub(super) fn delete_files_tags(&self, file: &File) -> Result<Tags> {
+        let tags: Vec<Tag> = self
+            .query_vec(
+                "DELETE FROM tag
+                     WHERE
+                      id IN (
+                        SELECT
+                          tag_id
+                        FROM
+                          file_tag
+                        WHERE
+                          file_id = (
+                            SELECT
+                              id
+                            FROM
+                              file
+                            WHERE
+                              name = ?1
+                              AND directory = ?2
+                          )
+                      )",
+                params![file.name(), file.directory()],
+                |row| row.try_into().expect("failed to convert to `Tag`"),
+            )
+            .context(format!("failed to query for tags matching {}", file.name()))?;
+
+        Ok(tags.into())
+    }
+
     // BETTER TEST:
     /// Retrieve information about each [`Tag`]. Returns a vector of
     /// [`TagFileCnt`], which contains information about the number of files the

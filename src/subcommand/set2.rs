@@ -43,6 +43,7 @@ pub(crate) struct Set2Opts {
     )]
     pub(crate) clear: bool,
 
+    // XXX: Done
     /// Explicitly select color for tag
     #[clap(
         long,
@@ -62,6 +63,7 @@ pub(crate) struct Set2Opts {
     )]
     pub(crate) color: Option<String>,
 
+    // XXX: Done
     /// Arguments are expected to be passed through stdin
     #[clap(
         name = "stdin",
@@ -73,6 +75,7 @@ pub(crate) struct Set2Opts {
     )]
     pub(crate) stdin: bool,
 
+    // XXX: Done
     /// Explicitly apply given tags even if they're implicit
     #[clap(
         name = "explicit",
@@ -96,6 +99,7 @@ pub(crate) struct Set2Opts {
     )]
     pub(crate) query: Option<String>,
 
+    // XXX: Done
     /// Specify any number of tag=value pairs
     #[clap(
         name = "pairs",
@@ -121,6 +125,7 @@ pub(crate) struct Set2Opts {
     )]
     pub(crate) value: Option<String>,
 
+    // XXX: Done
     /// A glob pattern like "*.png".
     #[clap(
         required_unless_present = "stdin",
@@ -128,6 +133,7 @@ pub(crate) struct Set2Opts {
     )]
     pub(crate) pattern: String,
 
+    // XXX: Done
     /// Tag or tags to set on the result of the pattern
     #[clap(
         name = "tags",
@@ -170,9 +176,6 @@ impl App {
 
         let reg = self.registry.lock().expect("poisioned lock");
 
-        // A vector of <Tag, Value> combinations
-        // let mut pairs = vec![];
-
         /// A vector of <TagValueCombo>, containing each Tag id and Value id
         let mut combos = opts
             .pairs
@@ -191,10 +194,7 @@ impl App {
                     .value_by_name(v, false)
                     .or_else(|_| reg.insert_value(t))?;
 
-                // Specifying combo here prevents having to clone each tag and value
                 let combo = TagValueCombo::new(tag.id(), value.id());
-
-                // pairs.push((tag, value));
 
                 Ok(combo)
             })
@@ -281,8 +281,7 @@ impl App {
                 &Arc::new(self.clone()),
                 |entry: &ignore::DirEntry| {
                     let reg = self.registry.lock().expect("poisioned lock");
-
-                    // println!("ENTRY: {:#?}", entry);
+                    let txn = reg.txn()?;
 
                     if !self.quiet {
                         println!(
@@ -316,14 +315,19 @@ impl App {
                         }
 
                         log::debug!("{}: inserting file", path_d);
-                        file = reg.insert_file(path);
-                    }
-
-                    if opts.clear {
-                        log::debug!("{}: clearing tags", path_d);
+                        file = reg.insert_file(&txn, path);
                     }
 
                     let file = file?;
+
+                    if opts.clear {
+                        log::debug!("{}: clearing tags", path_d);
+
+                        let ftags = reg.tags_for_file(&file)?;
+                        for t in ftags.iter() {
+                            reg.delete_tag(&txn, t.id())?;
+                        }
+                    }
 
                     if !opts.explicit {
                         log::debug!("{}: determining existing file tags", path_d);
@@ -353,11 +357,10 @@ impl App {
                     }
 
                     for pair in &combos {
-                        if let Err(e) = reg.insert_filetag(&FileTag::new(
-                            file.id(),
-                            pair.tag_id(),
-                            pair.value_id(),
-                        )) {
+                        if let Err(e) = reg.insert_filetag(
+                            &txn,
+                            &FileTag::new(file.id(), pair.tag_id(), pair.value_id()),
+                        ) {
                             return Err(anyhow!("{}: could not apply tags: {}", path_d, e));
                         }
                     }

@@ -502,21 +502,20 @@ impl Registry {
     ///
     /// The `sqlite` command is used instead of the `commit` function due to
     /// shared reference issues
-    pub(crate) fn wrap_commit<F, T>(&self, mut f: F) -> Result<T>
+    #[allow(clippy::unused_self)]
+    pub(crate) fn wrap_commit<F, T>(&self, txn: &Txn, mut f: F) -> Result<T>
     where
         F: FnOnce(&Txn) -> Result<T>,
     {
-        self.txn_wrap(|txn| {
-            let res = f(txn);
+        let res = f(txn);
 
-            if res.is_ok() {
-                log::debug!("committing");
-                // txn.commit()?;
-                txn.txn.execute_batch("COMMIT");
-            }
+        if res.is_ok() {
+            log::debug!("committing");
+            // txn.commit()?;
+            txn.txn.execute_batch("COMMIT");
+        }
 
-            res
-        })
+        res
     }
 
     // ╭──────────────────────────────────────────────────────────╮

@@ -85,7 +85,7 @@ where
                     if let Ok(hash) = f(path, Some(mode)) {
                         h.push(hash.to_string());
                     } else {
-                        log::error!("unable to calculate hash: {}", path.display());
+                        log::error!("unable to calculate hash with perms: {}", path.display());
                     }
                 } else {
                     log::error!("unable to get metadata: {}", path.display());
@@ -120,7 +120,7 @@ where
     });
 
     let hashes = Arc::try_unwrap(hashes)
-        .expect("failed to unwrap Arc")
+        .expect("failed to unwrap Arc") // Cannot use anyhow here
         .into_inner()
         .context("failed to get inner Mutex")?;
 

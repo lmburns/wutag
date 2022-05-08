@@ -1,6 +1,7 @@
 //! Interactions with the [`Query`] object
 
 use super::super::{
+    transaction::Txn,
     types::{
         file::FileId,
         implication::{Implication, Implications},
@@ -34,12 +35,12 @@ impl Registry {
     // ╘══════════════════════════════════════════════════════════╛
 
     /// Insert a [`Query`] into the query table. Returns a [`Query`]
-    pub(crate) fn insert_query<S: AsRef<str>>(&self, q: S) -> Result<Query> {
-        self.wrap_commit(|txn| txn.insert_query(q))
+    pub(crate) fn insert_query<S: AsRef<str>>(&self, txn: &Txn, q: S) -> Result<Query> {
+        self.wrap_commit(txn, |t| t.insert_query(q))
     }
 
     /// Delete a [`Query`] from the query table
-    pub(crate) fn delete_query<S: AsRef<str>>(&self, q: S) -> Result<()> {
-        self.wrap_commit(|txn| txn.delete_query(q))
+    pub(crate) fn delete_query<S: AsRef<str>>(&self, txn: &Txn, q: S) -> Result<()> {
+        self.wrap_commit(txn, |t| t.delete_query(q))
     }
 }

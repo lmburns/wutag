@@ -1,7 +1,6 @@
 //! Interactions with the [`Tag`] object
 
 use super::super::{
-    transaction::Txn,
     types::{
         file::{File, FileId},
         implication::{Implication, Implications},
@@ -123,59 +122,43 @@ impl Registry {
     /// Insert a [`Tag`] into the database
     pub(crate) fn insert_tag(&self, tag: &Tag) -> Result<Tag> {
         Tag::validate_name(&tag.name())?;
-        let txn = self.txn()?;
-        self.wrap_commit(&txn, |t| t.insert_tag(tag.name(), tag.color()))
+        self.wrap_commit(|txn| txn.insert_tag(tag.name(), tag.color()))
     }
 
     /// Update the [`Tag`] by changing its `name`
-    pub(crate) fn update_tag_name<S: AsRef<str>>(
-        &self,
-        txn: &Txn,
-        id: TagId,
-        name: S,
-    ) -> Result<Tag> {
+    pub(crate) fn update_tag_name<S: AsRef<str>>(&self, id: TagId, name: S) -> Result<Tag> {
         Tag::validate_name(&name)?;
-        self.wrap_commit(txn, |t| t.update_tag_name(id, name).map_err(Into::into))
+        self.wrap_commit(|txn| txn.update_tag_name(id, name).map_err(Into::into))
     }
 
     /// Update the [`Tag`] by changing its `color`
-    pub(crate) fn update_tag_color<S: AsRef<str>>(
-        &self,
-        txn: &Txn,
-        id: TagId,
-        color: S,
-    ) -> Result<Tag> {
-        self.wrap_commit(txn, |t| {
+    pub(crate) fn update_tag_color<S: AsRef<str>>(&self, id: TagId, color: S) -> Result<Tag> {
+        self.wrap_commit(|txn| {
             // TODO: Decide whether this should express an error
             let color = parse_color(&color).unwrap_or(Color::BrightWhite);
-            t.update_tag_color(id, color).map_err(Into::into)
+            txn.update_tag_color(id, color).map_err(Into::into)
         })
     }
 
     /// Create a new [`Tag`] and apply it to an existing [`Tag`]
-    pub(crate) fn copy_tag<S: AsRef<str>>(
-        &self,
-        txn: &Txn,
-        source_id: TagId,
-        name: S,
-    ) -> Result<Tag> {
+    pub(crate) fn copy_tag<S: AsRef<str>>(&self, source_id: TagId, name: S) -> Result<Tag> {
         Tag::validate_name(&name)?;
 
-        self.wrap_commit(txn, |t| {
-            let source_tag = t.tag(source_id)?;
-            let new_tag = t.insert_tag(name, source_tag.color())?;
-            t.copy_filetags(source_id, new_tag.id())?;
+        self.wrap_commit(|txn| {
+            let source_tag = txn.tag(source_id)?;
+            let new_tag = txn.insert_tag(name, source_tag.color())?;
+            txn.copy_filetags(source_id, new_tag.id())?;
 
             Ok(new_tag)
         })
     }
 
     /// Delete a [`Tag`] matching the given [`TagId`]
-    pub(crate) fn delete_tag(&self, txn: &Txn, id: TagId) -> Result<()> {
-        self.wrap_commit(txn, |t| {
-            t.delete_filetag_by_tagid(id)?;
-            t.delete_implication_by_tagid(id)?;
-            t.delete_tag(id).map_err(Into::into)
+    pub(crate) fn delete_tag(&self, id: TagId) -> Result<()> {
+        self.wrap_commit(|txn| {
+            txn.delete_filetag_by_tagid(id)?;
+            txn.delete_implication_by_tagid(id)?;
+            txn.delete_tag(id).map_err(Into::into)
         })
     }
 

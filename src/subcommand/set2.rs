@@ -281,7 +281,6 @@ impl App {
                 &Arc::new(self.clone()),
                 |entry: &ignore::DirEntry| {
                     let reg = self.registry.lock().expect("poisioned lock");
-                    let txn = reg.txn()?;
 
                     if !self.quiet {
                         println!(
@@ -315,7 +314,7 @@ impl App {
                         }
 
                         log::debug!("{}: inserting file", path_d);
-                        file = reg.insert_file(&txn, path);
+                        file = reg.insert_file(path);
                     }
 
                     let file = file?;
@@ -325,7 +324,7 @@ impl App {
 
                         let ftags = reg.tags_for_file(&file)?;
                         for t in ftags.iter() {
-                            reg.delete_tag(&txn, t.id())?;
+                            reg.delete_tag(t.id());
                         }
                     }
 
@@ -357,10 +356,11 @@ impl App {
                     }
 
                     for pair in &combos {
-                        if let Err(e) = reg.insert_filetag(
-                            &txn,
-                            &FileTag::new(file.id(), pair.tag_id(), pair.value_id()),
-                        ) {
+                        if let Err(e) = reg.insert_filetag(&FileTag::new(
+                            file.id(),
+                            pair.tag_id(),
+                            pair.value_id(),
+                        )) {
                             return Err(anyhow!("{}: could not apply tags: {}", path_d, e));
                         }
                     }

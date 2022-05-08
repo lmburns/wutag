@@ -1,7 +1,6 @@
 //! Interactions with the [`Value`] object
 
 use super::super::{
-    transaction::Txn,
     types::{
         file::FileId,
         tag::TagId,
@@ -98,27 +97,21 @@ impl Registry {
     /// Insert a [`Value`] into the database
     pub(crate) fn insert_value<S: AsRef<str>>(&self, name: S) -> Result<Value> {
         Value::validate_name(&name)?;
-        let txn = self.txn()?;
-        self.wrap_commit(&txn, |t| t.insert_value(name))
+        self.wrap_commit(|txn| txn.insert_value(name))
     }
 
     /// Update the [`Value`] by changing its' name
-    pub(crate) fn update_value<S: AsRef<str>>(
-        &self,
-        txn: &Txn,
-        id: ValueId,
-        name: S,
-    ) -> Result<Value> {
+    pub(crate) fn update_value<S: AsRef<str>>(&self, id: ValueId, name: S) -> Result<Value> {
         Value::validate_name(&name)?;
-        self.wrap_commit(txn, |t| t.update_value(id, name).map_err(Into::into))
+        self.wrap_commit(|txn| txn.update_value(id, name).map_err(Into::into))
     }
 
     /// Remove a [`Value`] from the database
-    pub(crate) fn delete_value(&self, txn: &Txn, id: ValueId) -> Result<()> {
-        self.wrap_commit(txn, |t| {
-            t.delete_filetag_by_valueid(id)?;
-            t.delete_implication_by_valueid(id)?;
-            t.delete_value(id).map_err(Into::into)
+    pub(crate) fn delete_value(&self, id: ValueId) -> Result<()> {
+        self.wrap_commit(|txn| {
+            txn.delete_filetag_by_valueid(id)?;
+            txn.delete_implication_by_valueid(id)?;
+            txn.delete_value(id).map_err(Into::into)
         })
     }
 }

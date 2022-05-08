@@ -46,10 +46,9 @@ impl App {
     #[allow(clippy::unnecessary_wraps)]
     pub(crate) fn testing(&mut self, opts: &TestingOpts) -> Result<()> {
         let reg = self.registry.lock().expect("poisioned lock");
-        let txn = reg.txn()?;
         log::debug!("Using registry: {}", self.oregistry.path.display());
 
-        reg.insert_file(&txn, PathBuf::from("./cliff.toml"))?;
+        reg.insert_file(PathBuf::from("./cliff.toml"))?;
         // reg.insert_file(PathBuf::from("./LICENSE"))?;
         // reg.insert_file(PathBuf::from("./README.md"))?;
         // reg.insert_file(PathBuf::from("./Cargo.lock"))?;
@@ -62,10 +61,11 @@ impl App {
 
         reg.insert_value("2022")?;
 
-        reg.insert_filetag(
-            &txn,
-            &FileTag::new(FileId::new(1), TagId::new(1), ValueId::new(1)),
-        )?;
+        reg.insert_filetag(&FileTag::new(
+            FileId::new(1),
+            TagId::new(1),
+            ValueId::new(1),
+        ))?;
 
         println!("INIT TESTING");
 

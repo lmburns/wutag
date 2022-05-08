@@ -117,23 +117,22 @@ impl Registry {
     /// Remove the [`Implication`] from the database
     pub(crate) fn delete_implication(
         &self,
-        txn: &Txn,
         pair: &TagValueCombo,
         implied_pair: &TagValueCombo,
     ) -> Result<()> {
-        self.wrap_commit(txn, |t| {
-            t.delete_implication(pair, implied_pair)?;
+        self.wrap_commit(|txn| {
+            txn.delete_implication(pair, implied_pair)?;
             Ok(())
         })
     }
 
     /// Remove the [`Implication`] matching [`TagId`]
-    pub(crate) fn delete_implication_by_tagid(&self, txn: &Txn, id: TagId) -> Result<()> {
-        self.wrap_commit(txn, |t| t.delete_implication_by_tagid(id))
+    pub(crate) fn delete_implication_by_tagid(&self, id: TagId) -> Result<()> {
+        self.wrap_commit(|txn| txn.delete_implication_by_tagid(id))
     }
 
     /// Remove the [`Implication`] matching [`ValueId`]
-    pub(crate) fn delete_implication_by_valueid(&self, txn: &Txn, id: ValueId) -> Result<()> {
-        self.wrap_commit(txn, |t| t.delete_implication_by_valueid(id))
+    pub(crate) fn delete_implication_by_valueid(&self, id: ValueId) -> Result<()> {
+        self.wrap_commit(|txn| txn.delete_implication_by_valueid(id))
     }
 }

@@ -252,32 +252,27 @@ impl Registry {
     // ====================================================================
 
     /// Add a [`File`] to the database
-    pub(crate) fn insert_file<P: AsRef<Path>>(&self, txn: &Txn, path: P) -> Result<File> {
-        self.wrap_commit(txn, |t| t.insert_file(path))
+    pub(crate) fn insert_file<P: AsRef<Path>>(&self, path: P) -> Result<File> {
+        self.wrap_commit(|txn| txn.insert_file(path))
     }
 
     /// Update a [`File`]'s information in the database
-    pub(crate) fn update_file<P: AsRef<Path>>(
-        &self,
-        txn: &Txn,
-        id: FileId,
-        path: P,
-    ) -> Result<File> {
-        self.wrap_commit(txn, |t| t.update_file(id, path).map_err(Into::into))
+    pub(crate) fn update_file<P: AsRef<Path>>(&self, id: FileId, path: P) -> Result<File> {
+        self.wrap_commit(|txn| txn.update_file(id, path).map_err(Into::into))
     }
 
     /// Remove a [`File`] from the database
-    pub(crate) fn delete_file(&self, txn: &Txn, id: FileId) -> Result<()> {
-        self.wrap_commit(txn, |t| t.delete_file(id).map_err(Into::into))
+    pub(crate) fn delete_file(&self, id: FileId) -> Result<()> {
+        self.wrap_commit(|txn| txn.delete_file(id).map_err(Into::into))
     }
 
     /// Remove a [`File`] from the database if it is not tagged
-    pub(crate) fn delete_file_if_untagged(&self, txn: &Txn, id: FileId) -> Result<()> {
-        self.wrap_commit(txn, |t| {
-            let count = t.select_filetag_count_by_fileid(id)?;
+    pub(crate) fn delete_file_if_untagged(&self, id: FileId) -> Result<()> {
+        self.wrap_commit(|txn| {
+            let count = txn.select_filetag_count_by_fileid(id)?;
 
             if count == 0 {
-                t.delete_file(id)?;
+                txn.delete_file(id)?;
             }
 
             Ok(())
@@ -285,9 +280,9 @@ impl Registry {
     }
 
     /// Remove an array of [`File`]s from the database if they're untagged
-    pub(crate) fn delete_untagged_files(&self, txn: &Txn, ids: &FileIds) -> Result<()> {
-        self.wrap_commit(txn, |t| {
-            t.delete_files_untagged(ids)?;
+    pub(crate) fn delete_untagged_files(&self, ids: &FileIds) -> Result<()> {
+        self.wrap_commit(|txn| {
+            txn.delete_files_untagged(ids)?;
 
             Ok(())
         })

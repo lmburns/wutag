@@ -82,9 +82,9 @@ impl Txn<'_> {
         &self,
         tvpairs: &[TagValueCombo],
     ) -> Result<Implications, Error> {
-        if tvpairs.is_empty() {
-            return Err(Error::EmptyArray);
-        }
+        // if tvpairs.is_empty() {
+        //     return Err(Error::EmptyArray);
+        // }
 
         let mut builder = SqlBuilder::new();
         builder.append(

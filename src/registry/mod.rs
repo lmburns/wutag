@@ -118,6 +118,10 @@ pub(crate) enum Error {
     #[error("too many items were modified with this action: id = {0}")]
     TooManyChanges(String),
 
+    /// No rows were modified. This is okay sometimes too though
+    #[error("no rows were modified with this action")]
+    NoChangedRows,
+
     /// No arguments in the array
     #[error("no arguments were given")]
     EmptyArray,

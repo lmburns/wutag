@@ -74,6 +74,7 @@ complete -c wutag -n "__fish_seen_subcommand_from set2" -s V -l value -d 'Specif
 complete -c wutag -n "__fish_seen_subcommand_from set2" -s c -l clear -d 'Clear the tags on the match(es) before the new one(s) are set'
 complete -c wutag -n "__fish_seen_subcommand_from set2" -s s -l stdin -d 'Arguments are expected to be passed through stdin'
 complete -c wutag -n "__fish_seen_subcommand_from set2" -s e -l explicit -d 'Explicitly apply given tags even if they\'re implicit'
+complete -c wutag -n "__fish_seen_subcommand_from set2" -s f -l force -d 'Force the creation of a new tag'
 complete -c wutag -n "__fish_seen_subcommand_from set2" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from set2" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s h -l help -d 'Print help information'

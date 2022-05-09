@@ -6,7 +6,7 @@ use super::{
     common::version::Version,
     sqlbuilder::SqlBuilder,
     types::{file::File, ModType, Table, ID},
-    Registry,
+    Error, Registry,
 };
 use crate::fail;
 use anyhow::{anyhow, Context, Result};
@@ -15,7 +15,7 @@ use rusqlite::{
     self as rsq, params,
     types::{FromSql, ToSql, Value},
     Connection, DropBehavior,
-    Error::SqliteFailure,
+    Error::{SqliteFailure, StatementChangedRows},
     Params, ParamsFromIter, Row, Savepoint, Transaction,
 };
 use std::{cell::RefCell, fmt};
@@ -151,7 +151,10 @@ impl<'t> Txn<'t> {
                 Ok(SqliteFailure(e, Some(ctx))) => {
                     return Err(anyhow!("{}: {}", e, ctx));
                 },
-                _ => return Err(anyhow!("failed to insert item")),
+                Ok(e) => return Err(anyhow::Error::from(e)),
+                _ => {
+                    return Err(anyhow!("failed to insert item"));
+                },
             }
         }
 

@@ -43,8 +43,8 @@ impl Registry {
 
         for tv in tvc.iter() {
             let implications = txn.implications_for(implied_pairs.inner())?;
-            // implied_pairs = TagValueCombos::new(vec![]);
-            implied_pairs.clear();
+            // NOTE: Might need cleared
+            // implied_pairs.clear();
 
             for implication in implications.iter() {
                 if !res_implications.contains(implication) {

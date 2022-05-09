@@ -16,7 +16,9 @@ use rusqlite::{
     Row,
 };
 
-// ====================== FileTag =====================
+// ╭──────────────────────────────────────────────────────────╮
+// │                         FileTag                          │
+// ╰──────────────────────────────────────────────────────────╯
 
 /// Relation between [`File`], [`Tag`], and [`Value`]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
@@ -80,7 +82,7 @@ impl FileTag {
 
     /// Convert a [`FileTag`] to a [`TagValueCombo`]
     pub(crate) const fn to_tag_value_combo(self) -> TagValueCombo {
-        TagValueCombo::new(self.tag_id, self.file_id)
+        TagValueCombo::new(self.tag_id, self.value_id)
     }
 }
 
@@ -98,7 +100,9 @@ impl TryFrom<&Row<'_>> for FileTag {
     }
 }
 
-// ===================== FileTags =====================
+// ╭──────────────────────────────────────────────────────────╮
+// │                         FileTags                         │
+// ╰──────────────────────────────────────────────────────────╯
 
 /// A vector of [`FileTag`]s
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]

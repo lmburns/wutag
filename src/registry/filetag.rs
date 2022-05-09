@@ -30,7 +30,7 @@ use super::{
     Error, Txn,
 };
 use crate::{fail, query_fail, retr_fail};
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use colored::Colorize;
 use std::{convert::TryInto, time::SystemTime};
 
@@ -175,7 +175,7 @@ impl Txn<'_> {
     /// Insert a `File`-`Tag` pair to the database
     /// Returns the same [`FileTag`] that is passed
     pub(super) fn insert_filetag(&self, ft: &FileTag) -> Result<FileTag> {
-        self.insert(
+        let res = self.insert(
             "INSERT OR IGNORE INTO file_tag (file_id, tag_id, value_id) VALUES (?1, ?2, ?3)",
             params![ft.file_id(), ft.tag_id(), ft.value_id()],
         )?;

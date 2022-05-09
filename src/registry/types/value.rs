@@ -14,7 +14,9 @@ use rusqlite::{
 };
 use serde::{Deserialize, Serialize};
 
-// ====================== ValueId =====================
+// ╭──────────────────────────────────────────────────────────╮
+// │                         ValueId                          │
+// ╰──────────────────────────────────────────────────────────╯
 
 /// Alias to [`ID`](super::ID)
 pub(crate) type ValueId = ID;
@@ -28,7 +30,9 @@ pub(crate) struct ValueIds {
 from_vec!(ValueId, ValueIds);
 impl_vec!(ValueIds, ValueId);
 
-// ======================= Value ======================
+// ╭──────────────────────────────────────────────────────────╮
+// │                          Value                           │
+// ╰──────────────────────────────────────────────────────────╯
 
 /// The representation of a "`Tag`'s tag"
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
@@ -98,7 +102,9 @@ impl TryFrom<&Row<'_>> for Value {
     }
 }
 
-// ====================== Values ======================
+// ╭──────────────────────────────────────────────────────────╮
+// │                          Values                          │
+// ╰──────────────────────────────────────────────────────────╯
 
 /// A vector of [`Value`]s
 #[derive(Debug, Clone, Ord, PartialOrd, PartialEq, Eq)]

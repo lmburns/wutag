@@ -14,7 +14,9 @@ use rusqlite::{
     Row,
 };
 
-// =================== Implication ====================
+// ╭──────────────────────────────────────────────────────────╮
+// │                       Implication                        │
+// ╰──────────────────────────────────────────────────────────╯
 
 /// Representation of one [`Tag`] implementing another [`Tag`]
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -87,7 +89,9 @@ impl TryFrom<&Row<'_>> for Implication {
     }
 }
 
-// =================== Implications ===================
+// ╭──────────────────────────────────────────────────────────╮
+// │                       Implications                       │
+// ╰──────────────────────────────────────────────────────────╯
 
 /// Vector of [`Implication`]s
 #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]

@@ -171,6 +171,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--stdin', 'stdin', [CompletionResultType]::ParameterName, 'Arguments are expected to be passed through stdin')
             [CompletionResult]::new('-e', 'e', [CompletionResultType]::ParameterName, 'Explicitly apply given tags even if they''re implicit')
             [CompletionResult]::new('--explicit', 'explicit', [CompletionResultType]::ParameterName, 'Explicitly apply given tags even if they''re implicit')
+            [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Force the creation of a new tag')
+            [CompletionResult]::new('--force', 'force', [CompletionResultType]::ParameterName, 'Force the creation of a new tag')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')

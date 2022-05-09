@@ -161,6 +161,8 @@ set edit:completion:arg-completer[wutag] = {|@words|
             cand --stdin 'Arguments are expected to be passed through stdin'
             cand -e 'Explicitly apply given tags even if they''re implicit'
             cand --explicit 'Explicitly apply given tags even if they''re implicit'
+            cand -f 'Force the creation of a new tag'
+            cand --force 'Force the creation of a new tag'
             cand -h 'Print help information'
             cand --help 'Print help information'
             cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'

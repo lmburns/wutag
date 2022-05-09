@@ -119,8 +119,9 @@ where
         });
     });
 
+    // Cannot use anyhow here
     let hashes = Arc::try_unwrap(hashes)
-        .expect("failed to unwrap Arc") // Cannot use anyhow here
+        .expect("failed to unwrap Arc")
         .into_inner()
         .context("failed to get inner Mutex")?;
 

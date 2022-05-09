@@ -20,6 +20,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::{Args, ValueHint};
 use colored::{Color, Colorize};
 use itertools::Itertools;
+use rusqlite::{self as rsq};
 use std::{
     error::Error,
     str::FromStr,
@@ -83,6 +84,16 @@ pub(crate) struct Set2Opts {
     )]
     pub(crate) explicit: bool,
 
+    /// Force the creation of a new tag
+    #[clap(
+        name = "force",
+        long,
+        short = 'f',
+        takes_value = false,
+        long_help = "Force a tag to be created even if the file does not exist"
+    )]
+    pub(crate) force: bool,
+
     // TODO: Implement
     /// Apply tags to the result of a query instead of a pattern match
     #[clap(
@@ -140,6 +151,7 @@ pub(crate) struct Set2Opts {
     pub(crate) tags: Vec<String>,
 }
 
+// TODO: Deal with symlinks
 // TODO: Write extended attribute to file
 // TODO: Use max-depth, explicit
 // TODO: new: force
@@ -155,6 +167,8 @@ impl App {
         if (opts.stdin || atty::isnt(atty::Stream::Stdin)) && atty::is(atty::Stream::Stdout) {
             tags.push(opts.pattern.clone());
         }
+
+        println!("SETOPTS: {:#?}", opts);
 
         let pat = if self.pat_regex {
             String::from(&opts.pattern)
@@ -195,6 +209,7 @@ impl App {
             .collect::<Result<Vec<_>>>()?;
 
         // TODO: Prevent tag from being added if the file doesn't exist
+        //       configuration option: only_create_tags_if_valid
         let tags = &opts
             .tags
             .iter()
@@ -437,11 +452,22 @@ impl App {
                     }
 
                     for pair in &combos {
-                        if let Err(e) = reg.insert_filetag(&FileTag::new(
+                        let res = reg.insert_filetag(&FileTag::new(
                             file.id(),
                             pair.tag_id(),
                             pair.value_id(),
-                        )) {
+                        ));
+
+                        // TODO: Maybe remove this after extended attributes are written
+                        if let Err(e) = res {
+                            if let Some(rsq::Error::StatementChangedRows(n)) =
+                                e.downcast_ref::<rsq::Error>()
+                            {
+                                if n == &0 {
+                                    return Err(anyhow!("duplicate entry"));
+                                }
+                            }
+
                             return Err(anyhow!("{}: could not apply tags: {}", path_d, e));
                         }
 

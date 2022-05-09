@@ -63,6 +63,11 @@ pub(crate) struct Config {
     #[serde(alias = "show-duplicates")]
     pub(crate) show_duplicates: bool,
 
+    /// Tags should only be added to the database if the pattern/file that is
+    /// specified when setting the tag actually exists
+    #[serde(alias = "only-create-tags-if-valid")]
+    pub(crate) only_create_tags_if_valid: bool,
+
     // pub(crate) root_path: PathBuf,
     /// Configuration dealing with keys
     #[cfg(feature = "ui")]

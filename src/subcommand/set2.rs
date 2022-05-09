@@ -43,7 +43,6 @@ pub(crate) struct Set2Opts {
     )]
     pub(crate) clear: bool,
 
-    // XXX: Done
     /// Explicitly select color for tag
     #[clap(
         long,
@@ -63,7 +62,6 @@ pub(crate) struct Set2Opts {
     )]
     pub(crate) color: Option<String>,
 
-    // XXX: Done
     /// Arguments are expected to be passed through stdin
     #[clap(
         name = "stdin",
@@ -75,7 +73,6 @@ pub(crate) struct Set2Opts {
     )]
     pub(crate) stdin: bool,
 
-    // XXX: Done
     /// Explicitly apply given tags even if they're implicit
     #[clap(
         name = "explicit",
@@ -86,7 +83,7 @@ pub(crate) struct Set2Opts {
     )]
     pub(crate) explicit: bool,
 
-    // TODO:
+    // TODO: Implement
     /// Apply tags to the result of a query instead of a pattern match
     #[clap(
         name = "query",
@@ -99,7 +96,6 @@ pub(crate) struct Set2Opts {
     )]
     pub(crate) query: Option<String>,
 
-    // XXX: Done
     /// Specify any number of tag=value pairs
     #[clap(
         name = "pairs",
@@ -114,6 +110,7 @@ pub(crate) struct Set2Opts {
     )]
     pub(crate) pairs: Vec<(String, String)>,
 
+    // TODO: Implement
     /// Specify a value to set all the tag(s) to
     #[clap(
         name = "value",
@@ -125,7 +122,6 @@ pub(crate) struct Set2Opts {
     )]
     pub(crate) value: Option<String>,
 
-    // XXX: Done
     /// A glob pattern like "*.png".
     #[clap(
         required_unless_present = "stdin",
@@ -133,7 +129,6 @@ pub(crate) struct Set2Opts {
     )]
     pub(crate) pattern: String,
 
-    // XXX: Done
     /// Tag or tags to set on the result of the pattern
     #[clap(
         name = "tags",
@@ -145,8 +140,9 @@ pub(crate) struct Set2Opts {
     pub(crate) tags: Vec<String>,
 }
 
-// TODO: Use max-depth, quiet,
-// TODO: new: explicit, force
+// TODO: Write extended attribute to file
+// TODO: Use max-depth, explicit
+// TODO: new: force
 
 impl App {
     /// Set tags on a file
@@ -154,8 +150,6 @@ impl App {
     pub(crate) fn set2(&mut self, opts: &Set2Opts) -> Result<()> {
         log::debug!("SetOpts: {:#?}", opts);
         debug_registry_path(&self.registry);
-
-        println!("{:#?}", opts.clone());
 
         let mut tags = opts.tags.clone();
         if (opts.stdin || atty::isnt(atty::Stream::Stdin)) && atty::is(atty::Stream::Stdout) {
@@ -224,59 +218,118 @@ impl App {
 
         combos.append(&mut remapped);
 
-        // Drop the lock, otherwise this closure loop below will hang forever
-        drop(reg);
+        // TODO: Condense all this duplicate code
 
         if (opts.stdin || atty::isnt(atty::Stream::Stdin)) && atty::is(atty::Stream::Stdout) {
             log::debug!("Using STDIN");
-            for entry in &collect_stdin_paths(&self.base_dir) {
+            for path in &collect_stdin_paths(&self.base_dir) {
                 if !self.quiet {
-                    println!("{}:", fmt_path(entry, self.base_color, self.ls_colors));
+                    println!("{}:", fmt_path(path, self.base_color, self.ls_colors));
                 }
 
-                // for tag in &tags {
-                //     if opts.clear {
-                //         log::debug!(
-                //             "Using registry in threads: {}",
-                //             self.oregistry.path.display()
-                //         );
-                //         if let Some(id) = self.oregistry.find_entry(entry) {
-                //             self.oregistry.clear_entry(id);
-                //         }
-                //         match entry.has_tags() {
-                //             Ok(has_tags) =>
-                //                 if has_tags {
-                //                     if let Err(e) = entry.clear_tags() {
-                //                         wutag_error!("\t{} {}", e,
-                // bold_entry!(entry));                     }
-                //                 },
-                //             Err(e) => {
-                //                 wutag_error!("{} {}", e, bold_entry!(entry));
-                //             },
-                //         }
-                //     }
-                //
-                //     if let Err(e) = entry.tag(tag) {
-                //         log::debug!("Error setting tag for: {}",
-                // entry.display());         if !opts.quiet {
-                //             wutag_error!("{} {}", e, bold_entry!(entry));
-                //         }
-                //     } else {
-                //         log::debug!("Setting tag for new entry: {}",
-                // entry.display());         let entry =
-                // EntryData::new(entry)?;         let id =
-                // self.oregistry.add_or_update_entry(entry);
-                //         self.oregistry.tag_entry(tag, id);
-                //         if !self.quiet {
-                //             print!("\t{} {}", "+".bold().green(),
-                // fmt_tag(tag));         }
-                //     }
-                // }
-                // if !self.quiet {
-                //     println!();
-                // }
+                let path_d = path.display();
+
+                let mut file = reg.file_by_path(path);
+                if file.is_err() {
+                    log::debug!("{}: creating fingerprint", path.display());
+
+                    // Possibly check --force
+                    let hash = hash::blake3_hash(path, None)?;
+
+                    if self.show_duplicates && !self.quiet {
+                        let count = reg.file_count_by_hash(hash.to_string())?;
+
+                        if count != 0 {
+                            wutag_warning!(
+                                "{} is a duplicate entry\n{}: {}",
+                                path.display(),
+                                "b3sum".magenta(),
+                                hash.to_string()
+                            );
+                        }
+                    }
+
+                    log::debug!("{}: inserting file", path_d);
+                    file = reg.insert_file(path);
+                }
+
+                let file = file?;
+
+                if opts.clear {
+                    log::debug!("{}: clearing tags", path_d);
+                    let ftags = reg.tags_for_file(&file)?;
+
+                    for t in ftags.iter() {
+                        // TODO: Check whether implications need deleted when > 1
+                        if let Ok(values) = reg.values_by_tagid(t.id()) {
+                            for value in values.iter() {
+                                if reg.value_count_by_id(value.id())? == 1 {
+                                    reg.delete_value(value.id())?;
+                                } else {
+                                    reg.delete_filetag(&FileTag::new(
+                                        file.id(),
+                                        t.id(),
+                                        value.id(),
+                                    ))?;
+                                }
+                            }
+                        } else {
+                            // If the number of associated files is only 1, delete the whole tag
+                            if reg.tag_count_by_id(t.id())? == 1 {
+                                reg.delete_tag(t.id())?;
+                            } else {
+                                reg.delete_filetag(&FileTag::new(file.id(), t.id(), ID::null()))?;
+                            }
+                        }
+                    }
+                }
+
+                if !opts.explicit {
+                    log::debug!("{}: determining existing file tags", path_d);
+                    let existing_ft = reg
+                        .filetags_by_fileid(&reg.txn()?, file.id(), false)
+                        .map_err(|e| anyhow!("{}: could not determine file tags: {}", path_d, e))?;
+
+                    let new_impls = reg.implications_for(&reg.txn()?, &combos).map_err(|e| {
+                        anyhow!("{}: couldn't determine implied tags: {}", path_d, e)
+                    })?;
+
+                    let mut revised = vec![];
+                    for pair in &combos {
+                        if existing_ft.any(|ft| {
+                            ft.tag_id() == pair.tag_id() && ft.value_id() == pair.value_id()
+                        }) || new_impls.implies(pair)
+                        {
+                            continue;
+                        }
+
+                        revised.push(pair.clone());
+                    }
+
+                    combos = revised;
+                }
+
+                for pair in &combos {
+                    if let Err(e) =
+                        reg.insert_filetag(&FileTag::new(file.id(), pair.tag_id(), pair.value_id()))
+                    {
+                        return Err(anyhow!("{}: could not apply tags: {}", path_d, e));
+                    }
+
+                    if !self.quiet {
+                        let tag = reg.tag(pair.tag_id())?;
+                        print!("\t{} {}", "+".bold().green(), fmt_tag(&WTag::from(tag)));
+                    }
+                }
+
+                if !self.quiet {
+                    println!();
+                }
             }
         } else {
+            // Drop the lock, otherwise this closure loop below will hang forever
+            drop(reg);
+
             reg_ok(
                 &Arc::new(re),
                 &Arc::new(self.clone()),
@@ -322,13 +375,37 @@ impl App {
 
                     if opts.clear {
                         log::debug!("{}: clearing tags", path_d);
-                        println!("CLEARING");
-
-                        // TODO: Don't want to delete a tag if it is connected to another file
                         let ftags = reg.tags_for_file(&file)?;
+
                         for t in ftags.iter() {
-                            reg.delete_tag(t.id());
+                            // TODO: Check whether implications need deleted when > 1
+                            if let Ok(values) = reg.values_by_tagid(t.id()) {
+                                for value in values.iter() {
+                                    if reg.value_count_by_id(value.id())? == 1 {
+                                        reg.delete_value(value.id())?;
+                                    } else {
+                                        reg.delete_filetag(&FileTag::new(
+                                            file.id(),
+                                            t.id(),
+                                            value.id(),
+                                        ))?;
+                                    }
+                                }
+                            } else {
+                                // If the number of associated files is only 1, delete the whole tag
+                                if reg.tag_count_by_id(t.id())? == 1 {
+                                    reg.delete_tag(t.id())?;
+                                } else {
+                                    reg.delete_filetag(&FileTag::new(
+                                        file.id(),
+                                        t.id(),
+                                        ID::null(),
+                                    ))?;
+                                }
+                            }
                         }
+
+                        // reg.delete_filetag_by_fileid(file.id())?;
                     }
 
                     if !opts.explicit {
@@ -367,6 +444,15 @@ impl App {
                         )) {
                             return Err(anyhow!("{}: could not apply tags: {}", path_d, e));
                         }
+
+                        if !self.quiet {
+                            let tag = reg.tag(pair.tag_id())?;
+                            print!("\t{} {}", "+".bold().green(), fmt_tag(&WTag::from(tag)));
+                        }
+                    }
+
+                    if !self.quiet {
+                        println!();
                     }
 
                     Ok(())

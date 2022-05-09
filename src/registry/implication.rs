@@ -215,7 +215,7 @@ impl Txn<'_> {
         let affected = self
             .execute(
                 "DELETE FROM
-                  implication
+                  impl
                 WHERE
                   tag_id = ?1
                   AND value_id = ?2
@@ -250,7 +250,7 @@ impl Txn<'_> {
     /// Remove an [`Implication`] from the `impl` table given a [`TagId`]
     pub(super) fn delete_implication_by_tagid(&self, tid: TagId) -> Result<()> {
         self.execute(
-            "DELETE FROM implication
+            "DELETE FROM impl
             WHERE tag_id = ?1 OR implied_tag_id = ?1",
             params![tid],
         )
@@ -262,7 +262,7 @@ impl Txn<'_> {
     /// Remove an [`Implication`] from the `impl` table given a [`ValueId`]
     pub(super) fn delete_implication_by_valueid(&self, vid: ValueId) -> Result<()> {
         self.execute(
-            "DELETE FROM implication
+            "DELETE FROM impl
             WHERE value_id = ?1 OR implied_value_id = ?1",
             params![vid],
         )

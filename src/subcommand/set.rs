@@ -168,7 +168,6 @@ impl App {
 
                         if let Err(e) = entry.tag(tag) {
                             log::debug!("Error setting tag for: {}", entry.path().display());
-                            // TODO: Make this skip printing path too
                             if !self.quiet {
                                 err!('\t', e, entry);
                             }

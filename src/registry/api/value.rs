@@ -20,6 +20,11 @@ impl Registry {
         self.txn_wrap(|txn| txn.value_count())
     }
 
+    /// Retrieve the number of [`Tag`]s a given [`Value`] is associated with
+    pub(crate) fn value_count_by_id(&self, id: ValueId) -> Result<u32> {
+        self.txn_wrap(|txn| txn.value_count_by_id(id))
+    }
+
     /// Retrieve all [`Value`]s in the database
     #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
     pub(crate) fn values(&self) -> Result<Values> {

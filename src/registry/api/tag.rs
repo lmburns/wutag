@@ -23,6 +23,11 @@ impl Registry {
         self.txn_wrap(|txn| txn.tag_count())
     }
 
+    /// Retrieve the number of files a given [`Tag`] is associated with
+    pub(crate) fn tag_count_by_id(&self, id: TagId) -> Result<u32> {
+        self.txn_wrap(|txn| txn.tag_count_by_id(id))
+    }
+
     /// Retrieve all [`Tag`]s within the database
     #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
     pub(crate) fn tags(&self) -> Result<Tags> {

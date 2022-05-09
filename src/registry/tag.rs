@@ -51,6 +51,21 @@ impl Txn<'_> {
         .context(retr_fail!("`Tag` count"))
     }
 
+    /// Retrieve the number of files a given [`Tag`] is associated with
+    pub(super) fn tag_count_by_id(&self, id: TagId) -> Result<u32> {
+        let count: u32 = self
+            .select(
+                "SELECT count(tag_id)
+                FROM file_tag
+                WHERE tag_id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .context("failed to query file_tag for tag id count")?;
+
+        Ok(count)
+    }
+
     /// Retrieve all [`Tag`]s within the database
     pub(super) fn tags(&self) -> Result<Tags> {
         let tags: Vec<Tag> = self

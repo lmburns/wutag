@@ -46,6 +46,21 @@ impl Txn<'_> {
         .context(retr_fail!("`Value` count"))
     }
 
+    /// Retrieve the number of tags a given [`Value`] is associated with
+    pub(super) fn value_count_by_id(&self, id: ValueId) -> Result<u32> {
+        let count: u32 = self
+            .select(
+                "SELECT count(value_id)
+                FROM file_tag
+                WHERE value_id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .context("failed to query file_tag for value id count")?;
+
+        Ok(count)
+    }
+
     /// Retrieve all `Value`s in the database
     pub(super) fn values(&self) -> Result<Values> {
         let values: Vec<Value> = self
@@ -198,7 +213,7 @@ impl Txn<'_> {
                 params![],
                 |row| row.try_into().expect("failed to convert to `Value`"),
             )
-            .context(query_fail!("`Values`"))?;
+            .context("failed to query for values by TagId")?;
 
         Ok(values.into())
     }

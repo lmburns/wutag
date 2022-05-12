@@ -19,10 +19,11 @@ pub(crate) mod view;
 // TODO: Virtual filesystem
 // TODO: Repair database
 // TODO: Finish info command
+
 // TODO: imply tags
 // TODO: rename tags
 // TODO: merge tags
-// TODO: tag value attributes
+// TODO: Repair database by crawling a given directory looking to xattrs
 
 use crate::{
     config::{Config, EncryptConfig},
@@ -36,11 +37,13 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use atty::Stream;
-use colored::Color;
+use colored::{Color, Colorize};
 use regex::bytes::{RegexSet, RegexSetBuilder};
 use std::{
     env,
+    error::Error,
     path::PathBuf,
+    str::FromStr,
     sync::{Arc, Mutex},
 };
 use wutag_core::color::{parse_color, parse_color_cli_table};
@@ -353,4 +356,35 @@ impl Clone for App {
 /// Debug the registry path
 pub(crate) fn debug_registry_path(p: &Arc<Mutex<Registry>>) {
     log::debug!("{}", p.lock().expect("poisoned lock").path().display());
+}
+
+/// Parse a single tag-value pair
+pub(crate) fn parse_tag_val<T>(s: &str) -> Result<(T, T), Box<dyn Error + Send + Sync + 'static>>
+where
+    T: FromStr,
+    T::Err: Error + Send + Sync + 'static,
+{
+    use std::io::{Error as IoError, ErrorKind};
+    let tagval = format!("expected {}", "tag=value".green());
+
+    let pos = s.find('=').ok_or_else(|| {
+        format!(
+            "{}: no `{}` found in `{}`",
+            tagval,
+            "=".yellow(),
+            s.magenta()
+        )
+    })?;
+
+    let tag = &s[..pos];
+    let value = &s[pos + 1..];
+
+    let io_err = |s: String| -> Box<IoError> { Box::new(IoError::new(ErrorKind::InvalidInput, s)) };
+
+    match (tag.is_empty(), value.is_empty()) {
+        (true, true) => Err(io_err(format!("{}: tag or value cannot be empty", tagval))),
+        (true, false) => Err(io_err(format!("{}: tag cannot be empty", tagval))),
+        (false, true) => Err(io_err(format!("{}: value cannot be empty", tagval))),
+        (false, false) => Ok((tag.parse()?, value.parse()?)),
+    }
 }

@@ -156,7 +156,7 @@ _arguments "${_arguments_options[@]}" \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
 ':pattern -- A glob pattern like "*.png":_files' \
-'*::_wutag_tags:' \
+'*::tags:' \
 && ret=0
 ;;
 (set2)
@@ -182,11 +182,17 @@ _arguments "${_arguments_options[@]}" \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
 ':pattern -- A glob pattern like "*.png":_files' \
-'*::tags -- Tag or tags to set on the result of the pattern:' \
+'*::_wutag_tags:' \
 && ret=0
 ;;
 (rm)
 _arguments "${_arguments_options[@]}" \
+'(-V --value)*-p+[Specify any number of tag=value pairs to delete]:pairs: ' \
+'(-V --value)*--pairs=[Specify any number of tag=value pairs to delete]:pairs: ' \
+'-V+[Specify a value to remove]:value: ' \
+'--value=[Specify a value to remove]:value: ' \
+'-a[Delete all tags on a file]' \
+'--all[Delete all tags on a file]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \

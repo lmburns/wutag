@@ -180,6 +180,12 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             break
         }
         'wutag;rm' {
+            [CompletionResult]::new('-p', 'p', [CompletionResultType]::ParameterName, 'Specify any number of tag=value pairs to delete')
+            [CompletionResult]::new('--pairs', 'pairs', [CompletionResultType]::ParameterName, 'Specify any number of tag=value pairs to delete')
+            [CompletionResult]::new('-V', 'V', [CompletionResultType]::ParameterName, 'Specify a value to remove')
+            [CompletionResult]::new('--value', 'value', [CompletionResultType]::ParameterName, 'Specify a value to remove')
+            [CompletionResult]::new('-a', 'a', [CompletionResultType]::ParameterName, 'Delete all tags on a file')
+            [CompletionResult]::new('--all', 'all', [CompletionResultType]::ParameterName, 'Delete all tags on a file')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')

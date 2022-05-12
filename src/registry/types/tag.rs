@@ -86,9 +86,16 @@ pub(crate) trait DirEntryExt {
     /// # Errors
     /// If the directory entry does not have any tags
     fn has_tags(&self) -> Result<bool, Error>;
+    /// Nothing more than a helper trait function to assist in writing generics
+    fn path(&self) -> &Path;
 }
 
 impl DirEntryExt for &PathBuf {
+    #[inline]
+    fn path(&self) -> &Path {
+        self.as_path()
+    }
+
     #[inline]
     fn tag(&self, tag: &Tag) -> Result<(), Error> {
         tag.save_to(self)
@@ -126,6 +133,11 @@ impl DirEntryExt for &PathBuf {
 }
 
 impl DirEntryExt for ignore::DirEntry {
+    #[inline]
+    fn path(&self) -> &Path {
+        self.path()
+    }
+
     #[inline]
     fn tag(&self, tag: &Tag) -> Result<(), Error> {
         tag.save_to(self.path())

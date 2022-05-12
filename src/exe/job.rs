@@ -11,7 +11,7 @@ pub(crate) use crate::{
     filesystem::{contained_path, osstr_to_bytes},
     global_opts,
     subcommand::{search::SearchOpts, App},
-    util::{fmt_local_path, fmt_path, fmt_tag, raw_local_path, regex_builder},
+    util::{fmt_local_path, fmt_path, fmt_tag_old, raw_local_path, regex_builder},
     wutag_error,
 };
 
@@ -145,7 +145,7 @@ pub(crate) fn receiver(
                                     if opts.raw {
                                         t.name().to_owned()
                                     } else {
-                                        fmt_tag(t).to_string()
+                                        fmt_tag_old(t).to_string()
                                     }
                                 })
                                 .collect::<Vec<_>>()

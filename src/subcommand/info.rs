@@ -5,7 +5,7 @@
 #![allow(unused)]
 
 use super::App;
-use crate::util::fmt_tag;
+use crate::util::{fmt_tag, fmt_tag_old};
 use clap::{Args, Subcommand};
 use cli_table::{
     format::{Border, Justify, Separator},
@@ -59,7 +59,7 @@ impl App {
                 if opts.raw {
                     tag.name().white()
                 } else {
-                    fmt_tag(tag)
+                    fmt_tag_old(tag)
                 }
             })
             .for_each(|t| println!("{}", t));

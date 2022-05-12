@@ -2,7 +2,9 @@ use super::App;
 use crate::{
     bold_entry, err,
     oregistry::EntryData,
-    util::{collect_stdin_paths, fmt_err, fmt_path, fmt_tag, glob_builder, reg_ok, regex_builder},
+    util::{
+        collect_stdin_paths, fmt_err, fmt_path, fmt_tag_old, glob_builder, reg_ok, regex_builder,
+    },
     wutag_error, wutag_fatal,
 };
 use anyhow::Result;
@@ -125,7 +127,7 @@ impl App {
                         let id = self.oregistry.add_or_update_entry(entry);
                         self.oregistry.tag_entry(tag, id);
                         if !self.quiet {
-                            print!("\t{} {}", "+".bold().green(), fmt_tag(tag));
+                            print!("\t{} {}", "+".bold().green(), fmt_tag_old(tag));
                         }
                     }
                 }
@@ -183,7 +185,7 @@ impl App {
                             };
                             let id = self.oregistry.add_or_update_entry(entry);
                             self.oregistry.tag_entry(tag, id);
-                            print!("\t{} {}", "+".bold().green(), fmt_tag(tag));
+                            print!("\t{} {}", "+".bold().green(), fmt_tag_old(tag));
                         }
                     }
                     if !self.quiet {

@@ -169,6 +169,12 @@ set edit:completion:arg-completer[wutag] = {|@words|
             cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
         }
         &'wutag;rm'= {
+            cand -p 'Specify any number of tag=value pairs to delete'
+            cand --pairs 'Specify any number of tag=value pairs to delete'
+            cand -V 'Specify a value to remove'
+            cand --value 'Specify a value to remove'
+            cand -a 'Delete all tags on a file'
+            cand --all 'Delete all tags on a file'
             cand -h 'Print help information'
             cand --help 'Print help information'
             cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'

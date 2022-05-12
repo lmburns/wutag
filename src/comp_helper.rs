@@ -119,8 +119,14 @@ _wutag_tags() {
     return ret
 }"#,
     ),
-    (r#"'*::tags:' \"#, r#"'*::_wutag_tags:' \"#),
-    (r#"'*::tags:' \"#, r#"'*::tags:_wutag_tags' \"#),
+    (
+        r#"'*::tags -- Tag or tags to set on the result of the pattern:' \"#,
+        r#"'*::_wutag_tags:' \"#,
+    ),
+    (
+        r#"'*::tags -- Tags to remove from the matching pattern:' \"#,
+        r#"'*::tags:_wutag_tags' \"#,
+    ),
     (
         r#"':tag -- The tag to edit:' \"#,
         r#"':tag -- The tag to edit:_wutag_tags' \"#,

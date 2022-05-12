@@ -132,6 +132,13 @@ impl From<i64> for ID {
     }
 }
 
+impl From<ID> for i64 {
+    #[inline]
+    fn from(id: ID) -> Self {
+        id.id()
+    }
+}
+
 impl From<ID> for ToSqlOutput<'_> {
     #[inline]
     fn from(t: ID) -> Self {

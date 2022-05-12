@@ -8,8 +8,11 @@ use libc::{lgetxattr, llistxattr, lremovexattr, lsetxattr};
 
 use std::{
     ffi::{CStr, CString, OsStr},
-    fs, io,
-    os::{raw::c_void, unix::ffi::OsStrExt},
+    fs, io, mem,
+    os::{
+        raw::{c_char, c_void},
+        unix::ffi::OsStrExt,
+    },
     path::Path,
     ptr,
 };
@@ -109,7 +112,6 @@ unsafe fn __getxattr(
 ///  - [`lsetxattr`] if the file is a symlink
 ///  - [`setxattr`] if the file is not a symlink
 #[cfg(target_os = "linux")]
-#[allow(clippy::as_conversions)]
 unsafe fn __setxattr(
     path: *const i8,
     name: *const i8,
@@ -156,6 +158,7 @@ unsafe fn __removexattr(path: *const i8, name: *const i8, symlink: bool) -> isiz
 ///  - [`XATTR_NOFOLLOW`] if the file is a symlink
 ///  - `0` if the file is not a symlink
 #[cfg(target_os = "macos")]
+#[allow(clippy::as_conversions)]
 unsafe fn __removexattr(path: *const i8, name: *const i8, symlink: bool) -> isize {
     let opts = if symlink { XATTR_NOFOLLOW } else { 0 };
 
@@ -170,7 +173,7 @@ unsafe fn __removexattr(path: *const i8, name: *const i8, symlink: bool) -> isiz
 unsafe fn __listxattr(path: *const i8, list: *mut i8, size: usize, symlink: bool) -> isize {
     let func = if symlink { llistxattr } else { listxattr };
 
-    func(path, list, size)
+    func(path, list, size) as isize
 }
 
 /// Call to the `C` function to list extended attribute(s)
@@ -217,7 +220,8 @@ fn _set_xattr(path: &Path, name: &str, value: &str, size: usize, symlink: bool) 
         let ret = __setxattr(
             path.as_ptr(),
             name.as_ptr(),
-            value.as_ptr().cast::<libc::c_void>(),
+            // value.as_ptr().cast::<libc::c_void>(),
+            value.as_ptr() as *const c_void,
             size,
             symlink,
         );
@@ -238,15 +242,14 @@ fn _get_xattr(path: &Path, name: &str, symlink: bool) -> Result<String> {
     let mut buf = Vec::<u8>::with_capacity(size);
     let buf_ptr = buf.as_mut_ptr();
 
-    drop(buf);
-    // Can cause leaks if destructor isn't ran
-    // mem::forget(buf);
+    mem::forget(buf);
 
     let ret = unsafe {
         __getxattr(
             path.as_ptr(),
             name.as_ptr(),
-            buf_ptr.cast::<libc::c_void>(),
+            // buf_ptr.cast::<libc::c_void>(),
+            buf_ptr as *mut c_void,
             size,
             symlink,
         )
@@ -316,11 +319,9 @@ fn list_xattrs_raw(path: &CStr, symlink: bool) -> Result<Vec<u8>> {
     let mut buf = Vec::<u8>::with_capacity(size);
     let buf_ptr = buf.as_mut_ptr();
 
-    drop(buf);
-    // Can cause leaks if destructor isn't ran
-    // mem::forget(buf);
+    mem::forget(buf);
 
-    let ret = unsafe { __listxattr(path.as_ptr(), buf_ptr.cast::<i8>(), size, symlink) };
+    let ret = unsafe { __listxattr(path.as_ptr(), buf_ptr as *mut c_char, size, symlink) };
 
     if ret == -1 {
         return Err(Error::from(io::Error::last_os_error()));

@@ -1,7 +1,7 @@
 //! `edit` - Edit a `Tag` by changing its `Color`
 
 use super::App;
-use crate::util::fmt_tag;
+use crate::util::fmt_tag_old;
 use clap::Args;
 use cli_table::{
     format::{Border, Justify, Separator},
@@ -60,9 +60,12 @@ impl App {
                     if let Some(ref old_tag) = old_tag {
                         let new_tag = self.oregistry.get_tag($tag);
                         table.push(vec![
-                            fmt_tag(old_tag).to_string().cell().justify(Justify::Right),
+                            fmt_tag_old(old_tag)
+                                .to_string()
+                                .cell()
+                                .justify(Justify::Right),
                             "==>".cell().justify(Justify::Center),
-                            fmt_tag(new_tag.unwrap())
+                            fmt_tag_old(new_tag.unwrap())
                                 .to_string()
                                 .cell()
                                 .justify(Justify::Left),
@@ -79,9 +82,12 @@ impl App {
                 if let Some(ref old_tag) = old_tag {
                     let new_tag = self.oregistry.get_tag(&rename);
                     table.push(vec![
-                        fmt_tag(old_tag).to_string().cell().justify(Justify::Right),
+                        fmt_tag_old(old_tag)
+                            .to_string()
+                            .cell()
+                            .justify(Justify::Right),
                         "==>".cell().justify(Justify::Center),
-                        fmt_tag(new_tag.expect("failed to get `new_tag`"))
+                        fmt_tag_old(new_tag.expect("failed to get `new_tag`"))
                             .to_string()
                             .cell()
                             .justify(Justify::Left),

@@ -11,6 +11,11 @@ show_duplicates: false
 # Tags will only be added to the database if the file/pattern that is specified
 # when creating the tag actually returns a match, indicating that the file exists
 only_create_tags_if_valid: true
+# Keep tags and/or values in the database if there is no corresponding entry
+# This would mean:
+#     - If a tag does not have a corresponding file, it will be removed
+#     - If a value does not have a corresponding tag, it will be removed
+keep_dangling: false
 # Max depth for glob/regex pattern to traverse when matching files
 max_depth: 10
 # File path color

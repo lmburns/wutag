@@ -28,10 +28,11 @@ use std::{
 use crate::{
     consts::{APP_NAME, DEFAULT_MAX_DEPTH},
     filesystem::{create_temp_ignore, delete_file, osstr_to_bytes, write_temp_ignore},
+    registry::types::Tag,
     subcommand::App,
     wutag_error, wutag_fatal, Opts,
 };
-use wutag_core::tag::Tag;
+use wutag_core::tag::Tag as WTag;
 
 /// Run `initialize_logging` one time
 static ONCE: Once = Once::new();
@@ -157,8 +158,14 @@ pub(crate) fn fmt_local_path<P: AsRef<Path>>(
 }
 
 /// Format the tag by coloring it the specified color
-pub(crate) fn fmt_tag(tag: &Tag) -> ColoredString {
+// XXX: Remove once ready
+pub(crate) fn fmt_tag_old(tag: &WTag) -> ColoredString {
     tag.name().color(*tag.color()).bold()
+}
+
+/// Format the tag by coloring it the specified color
+pub(crate) fn fmt_tag(tag: &Tag) -> ColoredString {
+    tag.name().color(tag.color()).bold()
 }
 
 /// Return a local path with no color, i.e., one in which /home/user/... is not
@@ -297,8 +304,8 @@ pub(crate) fn glob_builder(pattern: &str) -> String {
         .expect("failed to build glob")
 }
 
-/// Match uppercase characters against Unicode characters as well. Tags can also
-/// be any valid Unicode character
+/// Match uppercase characters against Unicode characters as well. WTags can
+/// also be any valid Unicode character
 pub(crate) fn contains_upperchar(pattern: &str) -> bool {
     let cow_pat: Cow<OsStr> = Cow::Owned(OsString::from(pattern));
     UPPER_REG

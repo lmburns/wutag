@@ -26,7 +26,7 @@ use wutag_core::color::TuiColor;
 const CONFIG_FILE: &str = "wutag.yml";
 
 /// Configuration file options
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "snake_case", default)]
 pub(crate) struct Config {
     /// Location of where tags are stored
@@ -67,6 +67,13 @@ pub(crate) struct Config {
     /// specified when setting the tag actually exists
     #[serde(alias = "only-create-tags-if-valid")]
     pub(crate) only_create_tags_if_valid: bool,
+
+    /// Keep tags and/or values in the database if there is no corresponding
+    /// entry This would mean:
+    ///     - If a tag does not have a corresponding file, it will be removed
+    ///     - If a value does not have a corresponding tag, it will be removed
+    #[serde(alias = "keep-dangling")]
+    pub(crate) keep_dangling: bool,
 
     // pub(crate) root_path: PathBuf,
     /// Configuration dealing with keys
@@ -273,6 +280,31 @@ impl Config {
 
     #[cfg(feature = "encrypt-gpgme")]
     inner_immute!(encryption, EncryptConfig);
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            follow_symlinks:           true,
+            only_create_tags_if_valid: true,
+            keep_dangling:             false,
+            show_duplicates:           true,
+            format:                    None,
+            ignores:                   None,
+            colors:                    None,
+            registry:                  None,
+            max_depth:                 None,
+            base_color:                None,
+            border_color:              None,
+
+            #[cfg(feature = "ui")]
+            keys:                                         KeyConfig::default(),
+            #[cfg(feature = "ui")]
+            ui:                                           UiConfig::default(),
+            #[cfg(feature = "encrypt-gpgme")]
+            encryption:                                   EncryptConfig::default(),
+        }
+    }
 }
 
 impl Default for KeyConfig {

@@ -6,7 +6,7 @@ use crate::{
     consts::DEFAULT_EDITOR,
     filesystem::{contained_path, create_temp_path, osstr_to_bytes},
     oregistry::EntryData,
-    util::{fmt_path, fmt_tag, glob_builder, raw_local_path, reg_ok, regex_builder},
+    util::{fmt_path, fmt_tag_old, glob_builder, raw_local_path, reg_ok, regex_builder},
     wutag_error, wutag_fatal, wutag_info,
 };
 use anyhow::Result;
@@ -399,7 +399,7 @@ impl App {
                         let id = self.oregistry.add_or_update_entry(entry);
                         self.oregistry.tag_entry(&tag, id);
                         if !self.quiet {
-                            println!("\t{} {}", "+".bold().green(), fmt_tag(&tag));
+                            println!("\t{} {}", "+".bold().green(), fmt_tag_old(&tag));
                         }
                     }
                 }

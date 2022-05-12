@@ -77,6 +77,9 @@ complete -c wutag -n "__fish_seen_subcommand_from set2" -s e -l explicit -d 'Exp
 complete -c wutag -n "__fish_seen_subcommand_from set2" -s f -l force -d 'Force the creation of a new tag'
 complete -c wutag -n "__fish_seen_subcommand_from set2" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from set2" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
+complete -c wutag -n "__fish_seen_subcommand_from rm" -s p -l pairs -d 'Specify any number of tag=value pairs to delete' -r
+complete -c wutag -n "__fish_seen_subcommand_from rm" -s V -l value -d 'Specify a value to remove' -r
+complete -c wutag -n "__fish_seen_subcommand_from rm" -s a -l all -d 'Delete all tags on a file'
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from clear" -s h -l help -d 'Print help information'

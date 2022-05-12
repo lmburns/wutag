@@ -147,15 +147,12 @@ impl<'t> Txn<'t> {
 
         if let Err(err) = res {
             // Check if it is a unique constraint violation
-            match err.downcast::<rsq::Error>() {
-                Ok(SqliteFailure(e, Some(ctx))) => {
-                    return Err(anyhow!("{}: {}", e, ctx));
-                },
+            return match err.downcast::<rsq::Error>() {
+                Ok(SqliteFailure(e, Some(ctx))) => return Err(anyhow!("{}: {}", e, ctx)),
                 Ok(e) => return Err(anyhow::Error::from(e)),
-                _ => {
-                    return Err(anyhow!("failed to insert item"));
-                },
-            }
+                // Ok(StatementChangedRows(n)) => Ok(n as i64),
+                _ => Err(anyhow!("failed to downcast error")),
+            };
         }
 
         res

@@ -5,7 +5,7 @@
 // TODO: list files relative to directory as an option
 // TODO: take into account color of tag for combinations
 
-use super::App;
+use super::{debug_registry_path, App};
 use crate::{
     filesystem::contained_path,
     global_opts,
@@ -154,7 +154,7 @@ impl App {
     #[allow(clippy::unnecessary_wraps)]
     pub(crate) fn list(&self, opts: &ListOpts) -> Result<()> {
         log::debug!("ListOpts: {:#?}", opts);
-        log::debug!("Using registry: {}", self.oregistry.path.display());
+        debug_registry_path(&self.registry);
 
         let mut table = Vec::<Vec<CellStruct>>::new();
         let colorchoice = match self.color_when.as_ref() {
@@ -172,6 +172,7 @@ impl App {
                 border,
                 garrulous,
             } => {
+                // TODO: Allow sorting here
                 let files = reg.files(None)?;
 
                 for file in files.iter() {
@@ -211,7 +212,7 @@ impl App {
                                 if opts.raw {
                                     t.name().clone()
                                 } else {
-                                    fmt_tag(&WTag::from(t)).to_string()
+                                    fmt_tag(t).to_string()
                                 }
                             })
                             .collect::<Vec<_>>()
@@ -264,8 +265,121 @@ impl App {
                 unique,
                 sort,
                 explicit,
-            } => {},
+            } => {
+                let mut utags = Vec::new();
+
+                let files = reg.files(None)?;
+
+                for file in files.iter() {
+                    if !self.global && !contained_path(&file.path(), &self.base_dir) {
+                        continue;
+                    }
+
+                    /// If the `raw` option is given, do not colorize
+                    let raw = |t: &Tag| -> colored::ColoredString {
+                        if opts.raw {
+                            t.name().white()
+                        } else {
+                            fmt_tag(t)
+                        }
+                    };
+
+                    if one_per_line {
+                        reg.tags_for_file(file)?.iter().for_each(|tag| {
+                            utags.push(format!("{}", raw(tag)));
+                        });
+                    } else {
+                        let tags = reg
+                            .tags_for_file(file)
+                            .map(|tags| {
+                                tags.iter().fold(String::new(), |mut acc, t| {
+                                    acc.push_str(&format!("{} ", raw(t)));
+                                    acc
+                                })
+                            })
+                            .unwrap_or_default()
+                            .clone();
+
+                        utags.push(tags);
+                    }
+                }
+
+                let mut vec = utags
+                    .iter()
+                    .fold(HashMap::new(), |mut acc, t| {
+                        *acc.entry(t.clone()).or_insert(0_i32) += 1_i32;
+                        acc
+                    })
+                    .iter()
+                    .map(|(s, i)| (s.clone(), *i))
+                    .collect::<Vec<(String, i32)>>();
+
+                // Sort numerically if count is included
+                if sort {
+                    vec = vec.iter().sorted_by_key(|a| -a.1).cloned().collect();
+                }
+
+                for (tag, count) in vec {
+                    table.push(vec![
+                        tag.cell(),
+                        tern::t!(
+                            opts.raw
+                                ? count.to_string().white()
+                                : count.to_string().green().bold()
+                        )
+                        .cell()
+                        .justify(Justify::Right),
+                    ]);
+                }
+
+                if no_count {
+                    if unique {
+                        utags = utags.iter().unique().cloned().collect_vec();
+                    }
+                    // Sort alphabetically if no count
+                    if sort {
+                        utags = utags
+                            .iter()
+                            .sorted_unstable_by(|a, b| {
+                                /// Strip ansi escape sequences from a string
+                                macro_rules! strip_ansi {
+                                    ($cmp:ident) => {
+                                        &String::from_utf8(
+                                            strip_ansi_escapes::strip($cmp.as_bytes())
+                                                .unwrap_or_default(),
+                                        )
+                                        .expect("invalid UTF-8")
+                                        .to_ascii_lowercase()
+                                    };
+                                }
+
+                                Ord::cmp(strip_ansi!(b), strip_ansi!(a))
+                            })
+                            .rev()
+                            .cloned()
+                            .collect_vec();
+                    }
+                    for tag in utags {
+                        println!("{}", tag);
+                    }
+                } else {
+                    print_stdout(tern::t!(
+                        border
+                        ? table
+                            .table()
+                            .foreground_color(Some(self.border_color))
+                            .color_choice(colorchoice)
+                        : table
+                            .table()
+                            .border(Border::builder().build())
+                            .separator(Separator::builder().build())
+                    ))
+                    .expect("Unable to print table");
+                }
+            },
         }
+
+        // TODO: Values
 
         Ok(())
     }

@@ -16,7 +16,6 @@ use crate::{
         rm::RmOpts,
         search::SearchOpts,
         set::SetOpts,
-        set2::Set2Opts,
         testing::TestingOpts,
         view::ViewOpts,
     },
@@ -383,14 +382,6 @@ pub(crate) enum Command {
         long_about = "Set tag(s) on files that match a given pattern. Alias: tag"
     )]
     Set(SetOpts),
-
-    /// Set tag(s) on files that match the given pattern
-    #[clap(
-        aliases = &["set", "tag"],
-        override_usage = "wutag [FLAG/OPTIONS] set2 [FLAG/OPTIONS] <pattern> <tag>",
-        long_about = "Set tag(s) on files that match a given pattern. Alias: tag"
-    )]
-    Set2(Set2Opts),
 
     /// Remove tag(s) from the files that match the provided pattern
     #[clap(

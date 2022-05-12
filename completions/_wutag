@@ -145,24 +145,6 @@ esac
 _arguments "${_arguments_options[@]}" \
 '-C+[Explicitly select color for tag]:COLOR: ' \
 '--color=[Explicitly select color for tag]:COLOR: ' \
-'-q[Do not show errors that tag already exists]' \
-'--quiet[Do not show errors that tag already exists]' \
-'-c[Clear all tags before setting them]' \
-'--clear[Clear all tags before setting them]' \
-'-s[]' \
-'--stdin[]' \
-'-h[Print help information]' \
-'--help[Print help information]' \
-'*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
-'*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
-':pattern -- A glob pattern like "*.png":_files' \
-'*::tags:' \
-&& ret=0
-;;
-(set2)
-_arguments "${_arguments_options[@]}" \
-'-C+[Explicitly select color for tag]:COLOR: ' \
-'--color=[Explicitly select color for tag]:COLOR: ' \
 '-Q+[Apply tags to the result of a query instead of a pattern match]:query: ' \
 '--query=[Apply tags to the result of a query instead of a pattern match]:query: ' \
 '(-V --value)*-p+[Specify any number of tag=value pairs]:pairs: ' \
@@ -191,8 +173,8 @@ _arguments "${_arguments_options[@]}" \
 '(-V --value)*--pairs=[Specify any number of tag=value pairs to delete]:pairs: ' \
 '-V+[Specify a value to remove]:value: ' \
 '--value=[Specify a value to remove]:value: ' \
-'-a[Delete all tags on a file]' \
-'--all[Delete all tags on a file]' \
+'-a[Remove all tags on a file]' \
+'--all[Remove all tags on a file]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
@@ -346,7 +328,6 @@ _wutag_commands() {
 'list:Lists all available tags or files' \
 'ls:Lists all available tags or files' \
 'set:Set tag(s) on files that match the given pattern' \
-'set2:Set tag(s) on files that match the given pattern' \
 'rm:Remove tag(s) from the files that match the provided pattern' \
 'clear:Clears all tags of the files that match the provided pattern' \
 'search:Searches for files that have all of the provided '\''tags'\''' \

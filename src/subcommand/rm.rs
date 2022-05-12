@@ -15,13 +15,13 @@ use wutag_core::tag::{list_tags, DirEntryExt};
 /// Arguments to the `rm` subcommand
 #[derive(Args, Clone, Debug, PartialEq)]
 pub(crate) struct RmOpts {
-    /// Delete all tags on a file
+    /// Remove all tags on a file
     #[clap(
         name = "all",
         long,
         short = 'a',
         takes_value = false,
-        long_help = "Delete all tags on the matching pattern's results"
+        long_help = "Remove all tags on the from the matches provided by the glob or regex"
     )]
     pub(crate) all: bool,
 

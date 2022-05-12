@@ -21,7 +21,7 @@ use std::{
     collections::BTreeSet,
     fmt,
     hash::{Hash, Hasher},
-    path::{Path, PathBuf},
+    path::{Display, Path, PathBuf},
 };
 use wutag_core::{
     color::{self, parse_color},
@@ -86,16 +86,16 @@ pub(crate) trait DirEntryExt {
     /// # Errors
     /// If the directory entry does not have any tags
     fn has_tags(&self) -> Result<bool, Error>;
-    /// Nothing more than a helper trait function to assist in writing generics
+
+    /// Nothing more than a helper function for this trait to assist in writing
+    /// generics
     fn path(&self) -> &Path;
+    /// Nothing more than a helper function for this trait to assist in writing
+    /// generics
+    fn display(&self) -> Display;
 }
 
 impl DirEntryExt for &PathBuf {
-    #[inline]
-    fn path(&self) -> &Path {
-        self.as_path()
-    }
-
     #[inline]
     fn tag(&self, tag: &Tag) -> Result<(), Error> {
         tag.save_to(self)
@@ -130,14 +130,21 @@ impl DirEntryExt for &PathBuf {
     fn has_tags(&self) -> Result<bool, Error> {
         has_tags(self)
     }
+
+    #[inline]
+    fn path(&self) -> &Path {
+        self.as_path()
+    }
+
+    #[inline]
+    fn display(&self) -> Display {
+        // How to use fully qualified syntax here to prevent recursion?
+        // <&PathBuf>::display(self)
+        self.path().display()
+    }
 }
 
 impl DirEntryExt for ignore::DirEntry {
-    #[inline]
-    fn path(&self) -> &Path {
-        self.path()
-    }
-
     #[inline]
     fn tag(&self, tag: &Tag) -> Result<(), Error> {
         tag.save_to(self.path())
@@ -171,6 +178,16 @@ impl DirEntryExt for ignore::DirEntry {
     #[inline]
     fn has_tags(&self) -> Result<bool, Error> {
         has_tags(self.path())
+    }
+
+    #[inline]
+    fn path(&self) -> &Path {
+        self.path()
+    }
+
+    #[inline]
+    fn display(&self) -> Display {
+        self.path().display()
     }
 }
 

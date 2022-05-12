@@ -12,7 +12,6 @@ pub(crate) mod repair;
 pub(crate) mod rm;
 pub(crate) mod search;
 pub(crate) mod set;
-pub(crate) mod set2;
 pub(crate) mod testing;
 pub(crate) mod view;
 
@@ -283,7 +282,6 @@ impl App {
             Command::Rm(ref opts) => self.rm(opts),
             Command::Search(ref opts) => self.search(opts),
             Command::Set(opts) => self.set(&opts)?,
-            Command::Set2(opts) => self.set2(&opts)?,
             Command::Testing(opts) => self.testing(&opts)?,
             Command::View(ref opts) => self.view(opts)?,
 

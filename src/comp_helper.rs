@@ -73,11 +73,6 @@ _wutag__set_commands() {
     local commands; commands=()
     _describe -t commands 'wutag set commands' commands \"$@\"
 }
-(( $+functions[_wutag__set2_commands] )) ||
-_wutag__set2_commands() {
-    local commands; commands=()
-    _describe -t commands 'wutag set2 commands' commands \"$@\"
-}
 (( $+functions[_wutag__list__tags_commands] )) ||
 _wutag__list__tags_commands() {
     local commands; commands=()

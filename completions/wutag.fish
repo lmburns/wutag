@@ -23,7 +23,6 @@ complete -c wutag -n "__fish_use_subcommand" -f -a "testing" -d 'Testing new sub
 complete -c wutag -n "__fish_use_subcommand" -f -a "init" -d 'Initialize the database'
 complete -c wutag -n "__fish_use_subcommand" -f -a "list" -d 'Lists all available tags or files'
 complete -c wutag -n "__fish_use_subcommand" -f -a "set" -d 'Set tag(s) on files that match the given pattern'
-complete -c wutag -n "__fish_use_subcommand" -f -a "set2" -d 'Set tag(s) on files that match the given pattern'
 complete -c wutag -n "__fish_use_subcommand" -f -a "rm" -d 'Remove tag(s) from the files that match the provided pattern'
 complete -c wutag -n "__fish_use_subcommand" -f -a "clear" -d 'Clears all tags of the files that match the provided pattern'
 complete -c wutag -n "__fish_use_subcommand" -f -a "search" -d 'Searches for files that have all of the provided \'tags\''
@@ -62,24 +61,18 @@ complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcomma
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from files" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from files" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from set" -s C -l color -d 'Explicitly select color for tag' -r
-complete -c wutag -n "__fish_seen_subcommand_from set" -s q -l quiet -d 'Do not show errors that tag already exists'
-complete -c wutag -n "__fish_seen_subcommand_from set" -s c -l clear -d 'Clear all tags before setting them'
-complete -c wutag -n "__fish_seen_subcommand_from set" -s s -l stdin
+complete -c wutag -n "__fish_seen_subcommand_from set" -s Q -l query -d 'Apply tags to the result of a query instead of a pattern match' -r
+complete -c wutag -n "__fish_seen_subcommand_from set" -s p -l pairs -d 'Specify any number of tag=value pairs' -r
+complete -c wutag -n "__fish_seen_subcommand_from set" -s V -l value -d 'Specify a value to set all the tag(s) to' -r
+complete -c wutag -n "__fish_seen_subcommand_from set" -s c -l clear -d 'Clear the tags on the match(es) before the new one(s) are set'
+complete -c wutag -n "__fish_seen_subcommand_from set" -s s -l stdin -d 'Arguments are expected to be passed through stdin'
+complete -c wutag -n "__fish_seen_subcommand_from set" -s e -l explicit -d 'Explicitly apply given tags even if they\'re implicit'
+complete -c wutag -n "__fish_seen_subcommand_from set" -s f -l force -d 'Force the creation of a new tag'
 complete -c wutag -n "__fish_seen_subcommand_from set" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from set" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
-complete -c wutag -n "__fish_seen_subcommand_from set2" -s C -l color -d 'Explicitly select color for tag' -r
-complete -c wutag -n "__fish_seen_subcommand_from set2" -s Q -l query -d 'Apply tags to the result of a query instead of a pattern match' -r
-complete -c wutag -n "__fish_seen_subcommand_from set2" -s p -l pairs -d 'Specify any number of tag=value pairs' -r
-complete -c wutag -n "__fish_seen_subcommand_from set2" -s V -l value -d 'Specify a value to set all the tag(s) to' -r
-complete -c wutag -n "__fish_seen_subcommand_from set2" -s c -l clear -d 'Clear the tags on the match(es) before the new one(s) are set'
-complete -c wutag -n "__fish_seen_subcommand_from set2" -s s -l stdin -d 'Arguments are expected to be passed through stdin'
-complete -c wutag -n "__fish_seen_subcommand_from set2" -s e -l explicit -d 'Explicitly apply given tags even if they\'re implicit'
-complete -c wutag -n "__fish_seen_subcommand_from set2" -s f -l force -d 'Force the creation of a new tag'
-complete -c wutag -n "__fish_seen_subcommand_from set2" -s h -l help -d 'Print help information'
-complete -c wutag -n "__fish_seen_subcommand_from set2" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s p -l pairs -d 'Specify any number of tag=value pairs to delete' -r
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s V -l value -d 'Specify a value to remove' -r
-complete -c wutag -n "__fish_seen_subcommand_from rm" -s a -l all -d 'Delete all tags on a file'
+complete -c wutag -n "__fish_seen_subcommand_from rm" -s a -l all -d 'Remove all tags on a file'
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from clear" -s h -l help -d 'Print help information'

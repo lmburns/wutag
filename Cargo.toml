@@ -164,6 +164,8 @@ zeroize = { version = "1.5.4", optional = true }
 bytes = "1.1.0"
 pathdiff = "0.2.1"
 fancy-regex = "0.10.0"
+# exattr = {version = "0.2.3", package = "xattr"}
+xattr = "0.2.3"
 
 [dev-dependencies]
 predicates = "2.1.1"

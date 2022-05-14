@@ -54,6 +54,7 @@ impl Registry {
                 gid INTEGER NOT NULL,
                 size INTEGER NOT NULL,
                 is_dir BOOLEAN NOT NULL,
+                is_symlink BOOLEAN NOT NULL,
                 {}
                 CONSTRAINT con_file_path UNIQUE (directory, name)
             )",

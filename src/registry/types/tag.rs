@@ -269,6 +269,33 @@ impl Tag {
         }
     }
 
+    /// Create an empty [`Tag`] to be used in a closure usually
+    ///
+    /// This prevents a vector of [`Result`]s and allows the developer to later
+    /// check the [`Tag`]'s name
+    pub(crate) fn null<M: AsRef<str>>(name: M) -> Self {
+        Self {
+            id:    TagId::null(),
+            name:  name.as_ref().to_owned(),
+            color: parse_color("white").unwrap_or(DEFAULT_COLOR),
+        }
+    }
+
+    /// Check whether the [`Tag`] ID is null
+    pub(crate) fn is_null_id(&self) -> bool {
+        self.id == TagId::null()
+    }
+
+    /// Check whether the [`Tag`] name is null
+    pub(crate) fn is_null_name(&self) -> bool {
+        self.name.is_empty()
+    }
+
+    /// Check whether the [`Tag`] is null
+    pub(crate) fn is_null(&self) -> bool {
+        self.is_null_id() && self.is_null_name()
+    }
+
     /// Set the [`Tag`] id
     pub(crate) fn set_id(&mut self, id: TagId) {
         self.id = id;

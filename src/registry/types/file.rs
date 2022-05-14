@@ -97,6 +97,8 @@ pub(crate) struct File {
     size:          u64,
     /// Is the file name a directory?
     is_dir:        bool,
+    /// Is the file or directory a symbolic link?
+    is_symlink:    bool,
 
     #[cfg(all(
         feature = "file-flags",
@@ -123,6 +125,7 @@ impl File {
     inner_immute!(gid, u32, false);
     inner_immute!(size, u64, false);
     inner_immute!(is_dir, bool, false);
+    inner_immute!(is_symlink, bool, false);
 
     #[cfg(all(
         feature = "file-flags",
@@ -131,12 +134,14 @@ impl File {
     ))]
     inner_immute!(e2pflags, FileFlag);
 
-    // TODO: Test following symlinks
-    fn clean_path<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
-        path.as_ref()
-            .lexiclean()
-            .canonicalize()
-            .context("failed to canonicalize")
+    fn clean_path<P: AsRef<Path>>(path: P, follow_links: bool) -> Result<PathBuf> {
+        let mut p = path.as_ref().lexiclean();
+
+        if follow_links {
+            p = p.canonicalize().context("failed to canonicalize path")?;
+        }
+
+        Ok(p)
     }
 
     /// Set the `id` field of the [`File`]
@@ -174,7 +179,9 @@ impl File {
 
     /// Modify the [`File`]s hash, due to a file modification
     pub(crate) fn set_hash(mut self, path: &Path, follow_links: bool) -> Result<Self> {
-        let path = Self::clean_path(path)?;
+        // Doesn't matter if symlink is followed when calculating the hash
+        // It's needed for another function however
+        let path = Self::clean_path(path, follow_links)?;
         self.hash = {
             if path.is_dir() {
                 hash_dir(follow_links, &path, |p, _perm| blake3_hash(p, None))?
@@ -189,7 +196,8 @@ impl File {
 
     /// Modify the [`File`]s mime, due to file type changes
     pub(crate) fn set_mime(mut self, path: &Path) -> Result<Self> {
-        let path = Self::clean_path(path)?;
+        // Doesn't matter if symlink is followed when finding the mime
+        let path = Self::clean_path(path, true)?;
         self.mime = MimeType::try_from(&path).context("failed to get mimetype")?;
 
         Ok(self)
@@ -252,6 +260,12 @@ impl File {
         self
     }
 
+    /// Modify the [`File`]s `is_symlink` attribute
+    pub(crate) fn set_is_symlink(mut self, path: &Path) -> Self {
+        self.is_symlink = path.is_symlink();
+        self
+    }
+
     /// Modify the [`File`]s [`Metadata`] attributes
     pub(crate) fn set_metadata(mut self, meta: &Metadata) -> Result<Self> {
         self.mtime =
@@ -270,6 +284,8 @@ impl File {
     }
 
     /// Modify the [`File`]s `ext4` flags, due to flag chagnes
+    ///
+    /// Note that symlinks are empty
     #[cfg(all(
         feature = "file-flags",
         target_family = "unix",
@@ -282,9 +298,10 @@ impl File {
 
     /// Create a new `File`. A file can be a directory
     pub(crate) fn new<P: AsRef<Path>>(path: P, follow_links: bool) -> Result<Self> {
-        let path = Self::clean_path(path)?;
+        let path = Self::clean_path(path, follow_links)?;
+        // let meta = file.metadata().context("failed to get file metadata")?;
         let file = fs::File::open(&path).context("failed to open file")?;
-        let meta = file.metadata().context("failed to get file metadata")?;
+        let meta = fs::symlink_metadata(&path).context("failed to get symlink metadata")?;
 
         let mut f = Self::default()
             .set_directory(&path)?
@@ -292,7 +309,8 @@ impl File {
             .set_hash(&path, follow_links)?
             .set_mime(&path)?
             .set_metadata(&meta)?
-            .set_is_dir(&path);
+            .set_is_dir(&path)
+            .set_is_symlink(&path);
 
         #[cfg(all(
             feature = "file-flags",
@@ -324,20 +342,21 @@ impl TryFrom<&Row<'_>> for File {
 
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         Ok(Self {
-            id:        row.get("id")?,
-            directory: row.get("directory")?,
-            name:      row.get("name")?,
-            hash:      row.get("hash")?,
-            mime:      row.get("mime")?,
-            mtime:     row.get("mtime")?,
-            ctime:     row.get("ctime")?,
-            mode:      row.get("mode")?,
-            inode:     row.get("inode")?,
-            links:     row.get("links")?,
-            uid:       row.get("uid")?,
-            gid:       row.get("gid")?,
-            size:      row.get("size")?,
-            is_dir:    row.get("is_dir")?,
+            id:         row.get("id")?,
+            directory:  row.get("directory")?,
+            name:       row.get("name")?,
+            hash:       row.get("hash")?,
+            mime:       row.get("mime")?,
+            mtime:      row.get("mtime")?,
+            ctime:      row.get("ctime")?,
+            mode:       row.get("mode")?,
+            inode:      row.get("inode")?,
+            links:      row.get("links")?,
+            uid:        row.get("uid")?,
+            gid:        row.get("gid")?,
+            size:       row.get("size")?,
+            is_dir:     row.get("is_dir")?,
+            is_symlink: row.get("is_symlink")?,
 
             #[rustfmt::skip]
             #[cfg(all(
@@ -353,21 +372,22 @@ impl TryFrom<&Row<'_>> for File {
 impl Default for File {
     fn default() -> Self {
         Self {
-            id:        ID::null(),
-            directory: String::default(),
-            name:      String::default(),
-            hash:      String::default(),
-            mime:      MimeType::default(),
-            mtime:     Local::now(),
-            ctime:     Local::now(),
-            mode:      u32::default(),
-            inode:     u64::default(),
-            links:     u64::default(),
-            uid:       u32::default(),
-            gid:       u32::default(),
-            size:      u64::default(),
-            is_dir:    bool::default(),
-            e2pflags:  FileFlag::from(Flags::default()),
+            id:         ID::null(),
+            directory:  String::default(),
+            name:       String::default(),
+            hash:       String::default(),
+            mime:       MimeType::default(),
+            mtime:      Local::now(),
+            ctime:      Local::now(),
+            mode:       u32::default(),
+            inode:      u64::default(),
+            links:      u64::default(),
+            uid:        u32::default(),
+            gid:        u32::default(),
+            size:       u64::default(),
+            is_dir:     bool::default(),
+            is_symlink: bool::default(),
+            e2pflags:   FileFlag::from(Flags::default()),
         }
     }
 }

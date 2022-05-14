@@ -346,25 +346,28 @@ pub(crate) fn regex_builder(
 /// files, and uses max CPU's. If a `max_depth` is specified, the parallel
 /// walker will not traverse deeper than that, else if no `max_depth` is
 /// specified, it will use [DEFAULT_MAX_DEPTH](DEFAULT_MAX_DEPTH).
-pub(crate) fn reg_walker(app: &Arc<App>) -> Result<ignore::WalkParallel> {
+pub(crate) fn reg_walker(app: &Arc<App>, follow_links: bool) -> Result<ignore::WalkParallel> {
     let mut override_builder = OverrideBuilder::new(&app.base_dir);
     for excluded in &app.exclude {
         override_builder
             .add(excluded.as_str())
-            .map_err(|e| anyhow!("Malformed exclude pattern: {}", e))?;
+            .map_err(|e| anyhow!("Exclude pattern failed to compile: {}", e))?;
     }
 
     let overrides = override_builder
         .build()
-        .map_err(|_e| anyhow!("Mismatch in exclude patterns"))?;
+        .map_err(|e| anyhow!("Exclude pattern mismatch: {}", e))?;
 
     // if app.ignores.is_some() &&
     // app.ignores.clone().unwrap_or_else(Vec::new).len() > 0 { }
 
     let mut walker = WalkBuilder::new(&app.base_dir);
+
+    // NOTE: I don't see a difference whether symlinks is true or false
+    //       The same result is returned for single files.
     walker
         .threads(num_cpus::get())
-        .follow_links(false)
+        .follow_links(follow_links || app.follow_symlinks)
         .hidden(false)
         .ignore(false)
         .overrides(overrides)
@@ -405,11 +408,11 @@ pub(crate) fn reg_walker(app: &Arc<App>) -> Result<ignore::WalkParallel> {
 /// entry
 ///
 /// [`WalkParallel`]: ignore::WalkParallel
-pub(crate) fn reg_ok<F, T>(pattern: &Arc<Regex>, app: &Arc<App>, mut f: F)
+pub(crate) fn reg_ok<F, T>(pattern: &Arc<Regex>, app: &Arc<App>, follow_links: bool, mut f: F)
 where
     F: FnMut(&ignore::DirEntry) -> Result<T> + Send + Sync,
 {
-    let walker = reg_walker(app).expect("failed to get `reg_walker` result");
+    let walker = reg_walker(app, follow_links).expect("failed to get `reg_walker` result");
 
     // TODO: Look into order of execution
     // Scope here does not require ownership of all the variables, or the use of a

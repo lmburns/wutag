@@ -127,7 +127,8 @@ impl Txn<'_> {
                 uid,
                 gid,
                 size,
-                is_dir
+                is_dir,
+                is_symlink
                 {}
             FROM file",
             e2p_feature_comma()
@@ -163,7 +164,8 @@ impl Txn<'_> {
                     uid,
                     gid,
                     size,
-                    is_dir
+                    is_dir,
+                    is_symlink
                     {}
                 FROM file
                 WHERE is_dir = true
@@ -210,7 +212,8 @@ impl Txn<'_> {
                     uid,
                     gid,
                     size,
-                    is_dir
+                    is_dir,
+                    is_symlink
                     {}
                 FROM file
                 WHERE id = ?1",
@@ -247,7 +250,8 @@ impl Txn<'_> {
                     uid,
                     gid,
                     size,
-                    is_dir
+                    is_dir,
+                    is_symlink
                     {}
                 FROM file
                 WHERE directory = ?1 AND name = ?2",
@@ -288,7 +292,8 @@ impl Txn<'_> {
                 uid,
                 gid,
                 size,
-                is_dir
+                is_dir,
+                is_symlink
                 {}
             FROM file
             WHERE directory = ?1 OR directory LIKE ?2",
@@ -331,7 +336,8 @@ impl Txn<'_> {
                     uid,
                     gid,
                     size,
-                    is_dir
+                    is_dir,
+                    is_symlink
                     {}
                 FROM file
                 WHERE hash = ?1
@@ -367,7 +373,8 @@ impl Txn<'_> {
                     uid,
                     gid,
                     size,
-                    is_dir
+                    is_dir,
+                    is_symlink
                     {}
                 FROM file
                 WHERE mime = ?1
@@ -403,7 +410,8 @@ impl Txn<'_> {
                     uid,
                     gid,
                     size,
-                    is_dir
+                    is_dir,
+                    is_symlink
                     {}
                 FROM file
                 WHERE mtime = ?1
@@ -439,7 +447,8 @@ impl Txn<'_> {
                     uid,
                     gid,
                     size,
-                    is_dir
+                    is_dir,
+                    is_symlink
                     {}
                 FROM file
                 WHERE ctime = ?1
@@ -475,7 +484,8 @@ impl Txn<'_> {
                     uid,
                     gid,
                     size,
-                    is_dir
+                    is_dir,
+                    is_symlink
                     {}
                 FROM file
                 WHERE mode = ?1 OR mode = 100 || ?1 OR mode = 10 || ?1
@@ -509,7 +519,8 @@ impl Txn<'_> {
                     uid,
                     gid,
                     size,
-                    is_dir
+                    is_dir,
+                    is_symlink
                     {}
                 FROM file
                 WHERE inode = ?1
@@ -543,7 +554,8 @@ impl Txn<'_> {
                     uid,
                     gid,
                     size,
-                    is_dir
+                    is_dir,
+                    is_symlink
                     {}
                 FROM file
                 WHERE links = ?1
@@ -577,7 +589,8 @@ impl Txn<'_> {
                     uid,
                     gid,
                     size,
-                    is_dir
+                    is_dir,
+                    is_symlink
                     {}
                 FROM file
                 WHERE uid = ?1
@@ -611,7 +624,8 @@ impl Txn<'_> {
                     uid,
                     gid,
                     size,
-                    is_dir
+                    is_dir,
+                    is_symlink
                     {}
                 FROM file
                 WHERE gid = ?1
@@ -645,7 +659,8 @@ impl Txn<'_> {
                     uid,
                     gid,
                     size,
-                    is_dir
+                    is_dir,
+                    is_symlink
                     {}
                 FROM file
                 WHERE size = ?1
@@ -693,7 +708,8 @@ impl Txn<'_> {
                     uid,
                     gid,
                     size,
-                    is_dir
+                    is_dir,
+                    is_symlink
                     {}
                 FROM file
                 WHERE id NOT IN (
@@ -762,7 +778,8 @@ impl Txn<'_> {
                     uid,
                     gid,
                     size,
-                    is_dir
+                    is_dir,
+                    is_symlink
                     {}
                 FROM file
                 WHERE hash IN (
@@ -806,7 +823,8 @@ impl Txn<'_> {
                     uid,
                     gid,
                     size,
-                    is_dir
+                    is_dir,
+                    is_symlink
                     {}
                 FROM file
                 WHERE {}('{}', {}) == 1",
@@ -900,9 +918,10 @@ impl Txn<'_> {
                     gid,
                     size,
                     is_dir,
+                    is_symlink,
                     e2pflags
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
                 params![
                     f.directory(),
                     f.name(),
@@ -917,6 +936,7 @@ impl Txn<'_> {
                     f.gid(),
                     f.size(),
                     f.is_dir(),
+                    f.is_symlink(),
                     f.e2pflags()
                 ],
             )?
@@ -935,9 +955,10 @@ impl Txn<'_> {
                     uid,
                     gid,
                     size,
-                    is_dir
+                    is_dir,
+                    is_symlink
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
                 params![
                     f.directory(),
                     f.name(),
@@ -952,6 +973,7 @@ impl Txn<'_> {
                     f.gid(),
                     f.size(),
                     f.is_dir(),
+                    f.is_symlink(),
                 ],
             )?
         };
@@ -986,8 +1008,9 @@ impl Txn<'_> {
                     gid = ?11,
                     size = ?12,
                     is_dir = ?13,
-                    e2pflags = ?14
-                WHERE id = ?15",
+                    is_symlink = ?14,
+                    e2pflags = ?15
+                WHERE id = ?16",
                 params![
                     f.directory(),
                     f.name(),
@@ -1002,6 +1025,7 @@ impl Txn<'_> {
                     f.gid(),
                     f.size(),
                     f.is_dir(),
+                    f.is_symlink(),
                     f.e2pflags(),
                     id
                 ],
@@ -1023,8 +1047,9 @@ impl Txn<'_> {
                     uid = ?10,
                     gid = ?11,
                     size = ?12,
-                    is_dir = ?13
-                WHERE id = ?14",
+                    is_dir = ?13,
+                    is_symlink = ?14
+                WHERE id = ?15",
                 params![
                     f.directory(),
                     f.name(),
@@ -1039,6 +1064,7 @@ impl Txn<'_> {
                     f.gid(),
                     f.size(),
                     f.is_dir(),
+                    f.is_symlink(),
                     id
                 ],
             )

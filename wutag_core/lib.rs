@@ -31,6 +31,27 @@ pub enum Error {
     #[error("error: {0}")]
     Other(String),
 
+    /// OS Error 95
+    #[error("setting xattrs on symlinks is unavailable: {0}")]
+    SymlinkUnavailable95(String),
+
+    /// OS Error 1. Two strings are used only for bolding the word `privileged`
+    #[error(
+        r#"to set an extended attribute on a symlink,
+the 'trusted' namespace must be used instead of 'user'. Also, a {1} user must perform
+this action: {0}.
+
+For regular files the permission bits definite access to the file's contents, whereas for special
+files they define access to the device described by the special file. File permissions of symbolic
+links are not used in access checks.
+
+For this reason, user extended attributes are allowed only for regular files
+and directories, and access to user extended attributes is restricted to
+the owner and to users with appropriate capabilities for directories with the
+sticky bit set. See xattr(7), attr(1), setfattr(1), lsetxattr(2)"#
+    )]
+    SymlinkUnavailable1(String, String),
+
     /// Invalid string was given
     #[error("provided string was invalid - {0}")]
     InvalidString(#[from] ffi::NulError),

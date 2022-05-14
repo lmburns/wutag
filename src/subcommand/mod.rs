@@ -279,7 +279,7 @@ impl App {
             Command::List(ref opts) => self.list(opts)?,
             Command::PrintCompletions(ref opts) => self.print_completions(opts),
             Command::Repair(ref opts) => self.repair(opts)?,
-            Command::Rm(ref opts) => self.rm(opts),
+            Command::Rm(ref opts) => self.rm(opts)?,
             Command::Search(ref opts) => self.search(opts),
             Command::Set(opts) => self.set(&opts)?,
             Command::Testing(opts) => self.testing(&opts)?,

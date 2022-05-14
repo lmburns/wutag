@@ -157,8 +157,10 @@ _arguments "${_arguments_options[@]}" \
 '--stdin[Arguments are expected to be passed through stdin]' \
 '-e[Explicitly apply given tags even if they'\''re implicit]' \
 '--explicit[Explicitly apply given tags even if they'\''re implicit]' \
-'-f[Force the creation of a new tag]' \
+'-F[Force the creation of a new tag]' \
 '--force[Force the creation of a new tag]' \
+'-f[Follow symlinks before setting tags]' \
+'--follow-symlinks[Follow symlinks before setting tags]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
@@ -171,10 +173,16 @@ _arguments "${_arguments_options[@]}" \
 _arguments "${_arguments_options[@]}" \
 '(-V --value)*-p+[Specify any number of tag=value pairs to delete]:pairs: ' \
 '(-V --value)*--pairs=[Specify any number of tag=value pairs to delete]:pairs: ' \
-'-V+[Specify a value to remove]:value: ' \
-'--value=[Specify a value to remove]:value: ' \
+'-V+[Specify a value to remove from from a tag. Requires --tag]:value: ' \
+'--value=[Specify a value to remove from from a tag. Requires --tag]:value: ' \
+'*-J+[]:values: ' \
+'*--values=[]:values: ' \
+'-t+[Specify a tag to remove from the database (default behavior)]:tag: ' \
+'--tag=[Specify a tag to remove from the database (default behavior)]:tag: ' \
 '-a[Remove all tags on a file]' \
 '--all[Remove all tags on a file]' \
+'-u[Do not remove the tag or value from the database]' \
+'--untag[Do not remove the tag or value from the database]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \

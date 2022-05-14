@@ -68,6 +68,21 @@ impl Value {
             name: name.as_ref().to_owned(),
         }
     }
+
+    /// Check whether the [`Value`] ID is null
+    pub(crate) fn is_null_id(&self) -> bool {
+        self.id == ValueId::null()
+    }
+
+    /// Check whether the [`Value`] name is null
+    pub(crate) fn is_null_name(&self) -> bool {
+        self.name.is_empty()
+    }
+
+    /// Check whether the [`Value`] is null
+    pub(crate) fn is_null(&self) -> bool {
+        self.is_null_id() && self.is_null_name()
+    }
 }
 
 impl ToSql for Value {

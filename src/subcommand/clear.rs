@@ -77,6 +77,8 @@ impl App {
             reg_ok(
                 &Arc::new(re),
                 &Arc::new(self.clone()),
+                // TODO: Add CLI option for symlinks
+                true,
                 |entry: &ignore::DirEntry| {
                     if let Some(id) = self.oregistry.find_entry(entry.path()) {
                         self.oregistry.clear_entry(id);

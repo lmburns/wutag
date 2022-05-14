@@ -1,18 +1,19 @@
 #![allow(clippy::cast_sign_loss)]
 #![cfg(unix)]
+
+use colored::Colorize;
 #[cfg(target_os = "macos")]
 use libc::XATTR_NOFOLLOW;
-use libc::{getxattr, listxattr, removexattr, setxattr, XATTR_CREATE};
+
 #[cfg(target_os = "linux")]
-use libc::{lgetxattr, llistxattr, lremovexattr, lsetxattr};
+use libc::{c_char, c_void, lgetxattr, llistxattr, lremovexattr, lsetxattr, size_t, ssize_t};
+
+use libc::{getxattr, listxattr, removexattr, setxattr, XATTR_CREATE};
 
 use std::{
     ffi::{CStr, CString, OsStr},
     fs, io, mem,
-    os::{
-        raw::{c_char, c_void},
-        unix::ffi::OsStrExt,
-    },
+    os::unix::ffi::OsStrExt,
     path::Path,
     ptr,
 };
@@ -21,7 +22,7 @@ use crate::{Error, Result};
 
 /// Check whether the given `Path` is a symlink
 fn is_symlink(path: &Path) -> bool {
-    fs::metadata(path).map_or(false, |f| f.file_type().is_symlink())
+    fs::symlink_metadata(path).map_or(false, |f| f.file_type().is_symlink())
 }
 
 /// Sets the value of the extended attribute identified by `name` and associated
@@ -113,15 +114,15 @@ unsafe fn __getxattr(
 ///  - [`setxattr`] if the file is not a symlink
 #[cfg(target_os = "linux")]
 unsafe fn __setxattr(
-    path: *const i8,
-    name: *const i8,
+    path: *const c_char,
+    name: *const c_char,
     value: *const c_void,
-    size: usize,
+    size: size_t,
     symlink: bool,
-) -> isize {
+) -> ssize_t {
     let func = if symlink { lsetxattr } else { setxattr };
 
-    func(path, name, value, size, XATTR_CREATE) as isize
+    func(path, name, value, size, XATTR_CREATE) as ssize_t
 }
 
 /// Call to the `C` function to set the extended attribute
@@ -211,24 +212,73 @@ fn _remove_xattr(path: &Path, name: &str, symlink: bool) -> Result<()> {
 ///
 /// If provided path is a symlink, set the attribute on the symlink not the
 /// file/directory it points to
+///
+/// NOTE: When setting an extended attribute on a symlink:
+///       - Using 'user.' prefix => Operation not supported (Errno 1)
+///       - Using any other prefix => Operation not permitted (Errno 95)
+///       - For this to work, a privileged user must use 'trusted.' prefix
+///
+/// See: https://unix.stackexchange.com/questions/16537
+/// See: https://stackoverflow.com/questions/65985725
+///
+/// In user.* namespace, only regular files and directories can have extended
+/// attributes. For sticky directories, only the owner and privileged user
+/// can write attributes.
+// The  file  permission  bits of regular files and directories are interpreted
+// differently from the file permission bits of special files and
+// symbolic links.  For regular files and directories the file permission bits
+// define access to the file's contents, while for device  special files  they
+// define  access  to  the  device  described by the special file.  The file
+// permissions of symbolic links are not used in access checks.  These
+// differences would allow users to consume filesystem resources in a way not
+// controllable by disk quotas for  group  or  world writable special files and
+// directories.
+//
+// For this reason, user extended attributes are allowed only for regular files
+// and directories, and access to user extended attributes is restricted to
+// the owner and to users with appropriate capabilities for directories with the
+// sticky bit set (see the chmod(1) manual page  for an explanation of the
+// sticky bit).
 fn _set_xattr(path: &Path, name: &str, value: &str, size: usize, symlink: bool) -> Result<()> {
-    let path = CString::new(path.to_string_lossy().as_bytes())?;
-    let name = CString::new(name.as_bytes())?;
+    // ::xattr::set(&path, "user", value.as_bytes())?;
+
+    let path = CString::new(path.as_os_str().as_bytes())?;
+    let name = {
+        if symlink {
+            CString::new(format!("trusted.{}", name).as_bytes())?
+        } else {
+            CString::new(name.as_bytes())?
+        }
+    };
     let value = CString::new(value.as_bytes())?;
 
-    unsafe {
-        let ret = __setxattr(
+    // value.as_ptr().cast::<libc::c_void>(),
+    let ret = unsafe {
+        __setxattr(
             path.as_ptr(),
             name.as_ptr(),
-            // value.as_ptr().cast::<libc::c_void>(),
             value.as_ptr() as *const c_void,
             size,
             symlink,
-        );
+        )
+    };
 
-        if ret != 0 {
-            return Err(Error::from(io::Error::last_os_error()));
+    if ret != 0 {
+        let last_os = io::Error::last_os_error();
+        if let Some(95) = last_os.raw_os_error() {
+            return Err(Error::SymlinkUnavailable95(last_os.to_string()));
         }
+
+        if let Some(1) = last_os.raw_os_error() {
+            if symlink {
+                return Err(Error::SymlinkUnavailable1(
+                    last_os.to_string(),
+                    "privileged".green().bold().to_string(),
+                ));
+            }
+        }
+
+        return Err(Error::from(io::Error::last_os_error()));
     }
 
     Ok(())

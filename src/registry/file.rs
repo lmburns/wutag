@@ -734,7 +734,6 @@ impl Txn<'_> {
         expr: &ParsedQuery,
         path: P,
         cwd: bool,
-        explicit: bool,
         ignore_case: bool,
     ) -> Result<u32> {
         todo!()
@@ -747,7 +746,6 @@ impl Txn<'_> {
     //     expr: S,
     //     path: S,
     //     cwd: bool,
-    //     explicit: bool,
     //     ignore_case: bool,
     //     sort: bool,
     // ) -> Result<Files> {

@@ -55,14 +55,6 @@ pub(crate) enum ListObject {
         )]
         sort: bool,
 
-        /// Do not show implied tags
-        #[clap(
-            long = "implied",
-            short = 'i',
-            long_help = "Only display tags that were explicitly set"
-        )]
-        explicit: bool,
-
         /// Display one tag per line instead of tags on files
         #[clap(
             long = "one-per-line",
@@ -264,7 +256,6 @@ impl App {
                 one_per_line,
                 unique,
                 sort,
-                explicit,
             } => {
                 let mut utags = Vec::new();
 

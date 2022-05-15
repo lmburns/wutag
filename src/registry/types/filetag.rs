@@ -29,11 +29,6 @@ pub(crate) struct FileTag {
     tag_id:   TagId,
     /// ID of the [`Value`]
     value_id: ValueId,
-
-    /// Is it explicitly tagged?
-    explicit:            bool,
-    /// Is it implicitly tagged?
-    pub(crate) implicit: bool,
 }
 
 impl FileTag {
@@ -43,25 +38,6 @@ impl FileTag {
             file_id:  fid,
             tag_id:   tid,
             value_id: vid,
-            explicit: true,
-            implicit: false,
-        }
-    }
-
-    /// Create a new [`FileTag`] with `explicit` and `implicit` specified
-    pub(crate) const fn new_full(
-        fid: FileId,
-        tid: TagId,
-        vid: ValueId,
-        exp: bool,
-        imp: bool,
-    ) -> Self {
-        Self {
-            file_id:  fid,
-            tag_id:   tid,
-            value_id: vid,
-            explicit: exp,
-            implicit: imp,
         }
     }
 
@@ -94,8 +70,6 @@ impl TryFrom<&Row<'_>> for FileTag {
             file_id:  row.get("file_id")?,
             tag_id:   row.get("tag_id")?,
             value_id: row.get("value_id")?,
-            explicit: true,
-            implicit: false,
         })
     }
 }

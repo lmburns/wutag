@@ -48,33 +48,13 @@ impl Registry {
     }
 
     /// Retrieve the number of [`FileTag`]s matching a [`FileId`]
-    pub(crate) fn filetag_count_by_fileid(&self, id: FileId, explicit: bool) -> Result<u32> {
-        self.txn_wrap(|txn| {
-            if explicit {
-                txn.select_filetag_count_by_fileid(id)
-            } else {
-                if let Ok(ftags) = self.filetags_by_fileid(txn, id, false) {
-                    return Ok(ftags.len() as u32);
-                }
-
-                Ok(0)
-            }
-        })
+    pub(crate) fn filetag_count_by_fileid(&self, id: FileId) -> Result<u32> {
+        self.txn_wrap(|txn| txn.select_filetag_count_by_fileid(id))
     }
 
     /// Retrieve the number of [`FileTag`]s matching a [`TagId`]
-    pub(crate) fn filetag_count_by_tagid(&self, id: TagId, explicit: bool) -> Result<u32> {
-        self.txn_wrap(|txn| {
-            if explicit {
-                txn.select_filetag_count_by_tagid(id)
-            } else {
-                if let Ok(ftags) = self.filetags_by_fileid(txn, id, false) {
-                    return Ok(ftags.len() as u32);
-                }
-
-                Ok(0)
-            }
-        })
+    pub(crate) fn filetag_count_by_tagid(&self, id: TagId) -> Result<u32> {
+        self.txn_wrap(|txn| txn.select_filetag_count_by_tagid(id))
     }
 
     /// Retrieve all tracked [`FileTags`] matching a [`TagId`]
@@ -93,19 +73,8 @@ impl Registry {
     }
 
     /// Retrieve the [`FileTags`] matching a [`FileId`]
-    pub(crate) fn filetags_by_fileid(
-        &self,
-        txn: &Txn,
-        id: FileId,
-        explicit: bool,
-    ) -> Result<FileTags> {
-        let ftags = txn.select_filetags_by_fileid(id)?;
-
-        if explicit {
-            Ok(ftags)
-        } else {
-            Ok(self.add_implied_filetags(txn, ftags)?)
-        }
+    pub(crate) fn filetags_by_fileid(&self, id: FileId) -> Result<FileTags> {
+        self.txn_wrap(|txn| txn.select_filetags_by_fileid(id))
     }
 
     // ============================= Modifying ============================
@@ -173,35 +142,5 @@ impl Registry {
     /// Copy one [`FileTag`] to another
     pub(crate) fn copy_filetags(&self, src: TagId, dest: TagId) -> Result<()> {
         self.wrap_commit(|txn| txn.copy_filetags(src, dest))
-    }
-
-    /// Add [`FileTags`] that are implied
-    fn add_implied_filetags(&self, txn: &Txn, mut ftags: FileTags) -> Result<FileTags> {
-        let mut tags = vec![];
-
-        for f in ftags.iter() {
-            let implications = self.implications_for(txn, &[f.to_tag_value_combo()])?;
-
-            for implication in implications.iter() {
-                let implied_ftag = ftags
-                    .iter()
-                    .find(|ftag| {
-                        ftag.file_id() == f.file_id()
-                            && ftag.tag_id() == implication.implied_tag().id()
-                            && ftag.value_id() == implication.implied_val().id()
-                    })
-                    .copied();
-
-                if let Some(mut iftag) = implied_ftag {
-                    iftag.implicit = true;
-                    tags.push(iftag);
-                } else {
-                    let implied = FileTag::new(f.file_id(), f.tag_id(), f.value_id());
-                    tags.push(implied);
-                }
-            }
-        }
-
-        Ok(FileTags::from(tags))
     }
 }

@@ -48,7 +48,6 @@ complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcomma
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s c -l no-count -d 'Do not display tag count'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s u -l unique -d 'Only display unique occurences. (See --help)'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s s -l sort -d 'Sort the output'
-complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s i -l implied -d 'Do not show implied tags'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s 1 -l one-per-line -d 'Display one tag per line instead of tags on files'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s b -l border -d 'Use border separators when formatting output'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s h -l help -d 'Print help information'
@@ -66,7 +65,6 @@ complete -c wutag -n "__fish_seen_subcommand_from set" -s p -l pairs -d 'Specify
 complete -c wutag -n "__fish_seen_subcommand_from set" -s V -l value -d 'Specify a value to set all the tag(s) to' -r
 complete -c wutag -n "__fish_seen_subcommand_from set" -s c -l clear -d 'Clear the tags on the match(es) before the new one(s) are set'
 complete -c wutag -n "__fish_seen_subcommand_from set" -s s -l stdin -d 'Arguments are expected to be passed through stdin'
-complete -c wutag -n "__fish_seen_subcommand_from set" -s e -l explicit -d 'Explicitly apply given tags even if they\'re implicit'
 complete -c wutag -n "__fish_seen_subcommand_from set" -s F -l force -d 'Force the creation of a new tag'
 complete -c wutag -n "__fish_seen_subcommand_from set" -s f -l follow-symlinks -d 'Follow symlinks before setting tags'
 complete -c wutag -n "__fish_seen_subcommand_from set" -s h -l help -d 'Print help information'

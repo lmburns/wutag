@@ -115,7 +115,6 @@ impl Registry {
     pub(crate) fn delete_value(&self, id: ValueId) -> Result<()> {
         self.wrap_commit(|txn| {
             txn.delete_filetag_by_valueid(id)?;
-            txn.delete_implication_by_valueid(id)?;
             txn.delete_value(id).map_err(Into::into)
         })
     }

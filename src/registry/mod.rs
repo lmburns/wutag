@@ -13,7 +13,6 @@ pub(crate) mod api;
 pub(crate) mod common;
 pub(crate) mod file;
 pub(crate) mod filetag;
-pub(crate) mod implication;
 pub(crate) mod querier;
 pub(crate) mod query;
 pub(crate) mod schema;
@@ -230,8 +229,8 @@ impl Registry {
         self.conn.busy_timeout(std::time::Duration::from_secs(0))?;
         self.conn.pragma_update(None, "locking_mode", &"exclusive")?;
         self.conn.pragma_update(None, "legacy_file_format", &false)?;
-        self.conn.pragma_update(None, "page_size", &4096)?;
-        self.conn.pragma_update(None, "cache_size", &(-40 * 1024))?;
+        self.conn.pragma_update(None, "page_size", &4096_i32)?;
+        self.conn.pragma_update(None, "cache_size", &(-4096_i32 * 1024))?;
         self.conn.pragma_update(None, "threads", (num_cpus::get() * 3) as u32)?;
         self.conn.pragma_update(None, "foreign_keys", &false)?;
         // TODO: Enable once development is done
@@ -246,7 +245,6 @@ impl Registry {
         self.create_file_table()?;
         self.create_value_table()?;
         self.create_file_tag_table()?;
-        self.create_impl_table()?;
         self.create_query_table()?;
         self.create_version_table()?;
 
@@ -439,29 +437,6 @@ impl Registry {
             "failed to remove database: {}",
             self.path.display()
         ))?;
-
-        Ok(())
-    }
-
-    /// Recreate the `impl` table
-    pub(crate) fn recreate_impl_table(&self) -> Result<()> {
-        self.exec_no_params(
-            "ALTER TABLE impl
-            RENAME TO impl_old",
-        )
-        .context("failed to alter `impl` table")?;
-
-        self.create_impl_table()?;
-
-        self.exec_no_params(
-            "INSERT INTO implication
-            SELECT tag_id, 0, implied_tag_id, 0
-            FROM impl_old",
-        )
-        .context("failed to move items from old `impl` to new")?;
-
-        self.exec_no_params("DROP TABLE impl_old")
-            .context("failed to drop old `impl` table")?;
 
         Ok(())
     }

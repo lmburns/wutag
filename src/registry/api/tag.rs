@@ -3,7 +3,6 @@
 use super::super::{
     types::{
         file::{File, FileId},
-        implication::{Implication, Implications},
         tag::{Tag, TagFileCnt, TagId, TagIds, Tags},
         value::ValueId,
     },
@@ -162,7 +161,6 @@ impl Registry {
     pub(crate) fn delete_tag(&self, id: TagId) -> Result<()> {
         self.wrap_commit(|txn| {
             self.delete_filetag_by_tagid(txn, id)?;
-            self.delete_implication_by_tagid(txn, id)?;
             txn.delete_tag(id).map_err(Into::into)
         })
     }

@@ -63,17 +63,6 @@ pub(crate) struct SetOpts {
     )]
     pub(crate) stdin: bool,
 
-    // CHECK: Implementation
-    /// Explicitly apply given tags even if they're implicit
-    #[clap(
-        name = "explicit",
-        long,
-        short = 'e',
-        takes_value = false,
-        long_help = "Change an implicitly set tag to an explicitly set one"
-    )]
-    pub(crate) explicit: bool,
-
     // TODO: Implement
     /// Force the creation of a new tag
     #[clap(
@@ -153,7 +142,6 @@ pub(crate) struct SetOpts {
 }
 
 // FEATURE: Force if no permissions. Write to database but no xattr
-// CHECK: Explicit
 
 // TODO: Condense all this duplicate code
 // TODO: Collect errors; print path or error, not both
@@ -377,31 +365,6 @@ impl App {
                     }
                 }
 
-                if !opts.explicit {
-                    log::debug!("{}: determining existing file tags", path_d);
-                    let existing_ft = reg
-                        .filetags_by_fileid(&reg.txn()?, file.id(), false)
-                        .map_err(|e| anyhow!("{}: could not determine file tags: {}", path_d, e))?;
-
-                    let new_impls = reg.implications_for(&reg.txn()?, &combos).map_err(|e| {
-                        anyhow!("{}: couldn't determine implied tags: {}", path_d, e)
-                    })?;
-
-                    let mut revised = vec![];
-                    for pair in &combos {
-                        if existing_ft.any(|ft| {
-                            ft.tag_id() == pair.tag_id() && ft.value_id() == pair.value_id()
-                        }) || new_impls.implies(pair)
-                        {
-                            continue;
-                        }
-
-                        revised.push(pair.clone());
-                    }
-
-                    combos = revised;
-                }
-
                 // Collecting these in a vector to print later makes it look better
                 let mut duplicate_errors = vec![];
                 // Try and do better about tracking whether newline should be added
@@ -578,34 +541,6 @@ impl App {
                                 },
                             }
                         }
-                    }
-
-                    if !opts.explicit {
-                        log::debug!("{}: determining existing file tags", path_d);
-                        let existing_ft = reg
-                            .filetags_by_fileid(&reg.txn()?, file.id(), false)
-                            .map_err(|e| {
-                                anyhow!("{}: could not determine file tags: {}", path_d, e)
-                            })?;
-
-                        let new_impls =
-                            reg.implications_for(&reg.txn()?, &combos).map_err(|e| {
-                                anyhow!("{}: couldn't determine implied tags: {}", path_d, e)
-                            })?;
-
-                        let mut revised = vec![];
-                        for pair in &combos {
-                            if existing_ft.any(|ft| {
-                                ft.tag_id() == pair.tag_id() && ft.value_id() == pair.value_id()
-                            }) || new_impls.implies(pair)
-                            {
-                                continue;
-                            }
-
-                            revised.push(pair.clone());
-                        }
-
-                        combos = revised;
                     }
 
                     // Collecting these in a vector to print later makes it look better

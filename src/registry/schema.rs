@@ -130,26 +130,6 @@ impl Registry {
         Ok(())
     }
 
-    /// Create the `impl` table
-    ///
-    /// An `impl` in this context is a tag that when set to a file, **implies**
-    /// another tag
-    pub(crate) fn create_impl_table(&self) -> Result<()> {
-        log::debug!("creating impl table");
-        self.exec_no_params(
-            "CREATE TABLE IF NOT EXISTS impl (
-                tag_id INTEGER NOT NULL,
-                value_id INTEGER NOT NULL,
-                implied_tag_id INTEGER NOT NULL,
-                implied_value_id INTEGER NOT NULL,
-                PRIMARY KEY (tag_id, value_id, implied_tag_id, implied_value_id)
-            )",
-        )
-        .context("failed to create table `impl`")?;
-
-        Ok(())
-    }
-
     /// Create the `query` table
     ///
     /// This table is used to query other tables

@@ -149,7 +149,6 @@ impl<'a> SqlBuilder<'a> {
         expr: &ParsedQuery,
         path: P,
         cwd: bool,
-        explicit: bool,
         ignore_case: bool,
     ) -> Self {
         let mut builder = Self::new();
@@ -159,7 +158,7 @@ impl<'a> SqlBuilder<'a> {
             WHERE",
         );
 
-        builder.file_handle_branch(expr.parsed(), explicit, ignore_case);
+        builder.file_handle_branch(expr.parsed(), ignore_case);
         // build_path_clause
 
         builder
@@ -170,7 +169,6 @@ impl<'a> SqlBuilder<'a> {
         expr: &ParsedQuery,
         path: P,
         cwd: bool,
-        explicit: bool,
         ignore_case: bool,
         sort: Sort,
     ) -> Self {
@@ -196,7 +194,7 @@ impl<'a> SqlBuilder<'a> {
             super::file::e2p_feature_comma()
         ));
 
-        builder.file_handle_branch(expr.parsed(), explicit, ignore_case);
+        builder.file_handle_branch(expr.parsed(), ignore_case);
         // build_path_clause
         // build_sort
 
@@ -204,10 +202,10 @@ impl<'a> SqlBuilder<'a> {
     }
 
     /// Handle query branch statements by appending the corresponding SQL
-    pub(crate) fn file_handle_branch(&mut self, expr: &Expr, explicit: bool, ignore_case: bool) {
+    pub(crate) fn file_handle_branch(&mut self, expr: &Expr, ignore_case: bool) {
         match expr {
             Expr::Pattern(ref search) => match search.inner_t() {
-                SearchKind::Exact => self.build_tag_pattern_branch(search, explicit, ignore_case),
+                SearchKind::Exact => self.build_tag_pattern_branch(search, ignore_case),
                 SearchKind::Regex => println!("Regex query: {:#?}", expr.clone()),
                 SearchKind::Glob => println!("Glob query: {:#?}", expr.clone()),
             },
@@ -216,7 +214,7 @@ impl<'a> SqlBuilder<'a> {
     }
 
     /// Handle a comparison expression for a file query
-    pub(crate) fn build_comparison_branch(&mut self, cmp: Expr, explicit: bool, ignore_case: bool) {
+    pub(crate) fn build_comparison_branch(&mut self, cmp: Expr, ignore_case: bool) {
         let case = Self::return_nocase_collation(ignore_case);
 
         if let Expr::Comparison(BinaryExpr {
@@ -233,163 +231,65 @@ impl<'a> SqlBuilder<'a> {
                 self.append(" not ");
             }
 
-            if explicit {
-                self.append(format!(
-                    "id IN (
+            self.append(format!(
+                "id IN (
                         SELECT file_id
                         FROM file_tag
                         WHERE tag_id = (
                             SELECT id
                             FROM tag
                             WHERE name {} = ",
-                    case
-                ));
+                case
+            ));
 
-                // FIX: Finish
-                // value
-                // self.append_param();
-                self.appendln("))");
-            } else {
-                self.append(format!(
-                    "id IN (
-                        WITH RECURSIVE impft (tag_id, value_id) AS
-                       (
-                           SELECT t.id, v.id
-                           FROM tag t, value v
-                           WHERE t.name {} = ",
-                    case
-                ));
-
-                // FIX: Finish
-                // tag
-                // self.append_param();
-
-                self.appendln(format!(" AND {} {} {} ", value, case, operator));
-
-                // FIX: Finish
-                // value
-                // self.append_param();
-
-                self.appendln(
-                    "UNION ALL
-                    SELECT b.tag_id, b.value_id
-                    FROM implication b, impft
-                    WHERE b.implied_tag_id = impft.tag_id AND
-                    (
-                        b.implied_value_id = impft.value_id
-                        OR
-                        impft.value_id = 0
-                    )
-                )
-
-               SELECT file_id
-               FROM file_tag
-               INNER JOIN impft
-               ON file_tag.tag_id = impft.tag_id
-               AND
-               file_tag.value_id = impft.value_id
-               )",
-                );
-            }
+            // FIX: Finish
+            // value
+            // self.append_param();
+            self.appendln("))");
         }
     }
 
     /// Handle a [`Search`] pattern for files
-    pub(crate) fn build_tag_pattern_branch(
-        &mut self,
-        patt: &Search,
-        explicit: bool,
-        ignore_case: bool,
-    ) {
+    pub(crate) fn build_tag_pattern_branch(&mut self, patt: &Search, ignore_case: bool) {
         let case = Self::return_nocase_collation(ignore_case);
 
-        if explicit {
-            self.appendln(format!(
-                "id IN (
+        self.appendln(format!(
+            "id IN (
                     SELECT file_id
                     FROM file_tag
                     WHERE tag_id = (
                         SELECT id
                         FROM tag
                         WHERE name {} = ",
-                case
-            ));
-            self.append_param(patt.inner().clone());
-            self.appendln("))");
-        } else {
-            self.appendln(format!(
-                "id IN (
-                    SELECT file_id
-                    FROM file_tag
-                    INNER JOIN (
-                        WITH RECURSIVE working (tag_id, value_id) AS
-                            (
-                                SELECT id, 0
-                                FROM tag
-                                WHERE name {} = ",
-                case
-            ));
-            self.append_param(patt.inner().clone());
-            self.appendln(
-                "UNION ALL
-                    SELECT i.tag_id, i.value_id
-                    FROM impl i, working
-                    WHERE i.implied_tag_id = working.tag_id
-                    AND
-                    (
-                        i.implied_value_id = working.value_id
-                        OR
-                        working.value_id = 0
-                    )
-                )
-                SELECT tag_id, value_id
-                FROM working
-                ) imps
-                ON file_tag.tag_id = imps.tag_id
-                AND
-                (
-                    file_tag.value_id = imps.value_id
-                    OR
-                    imps.value_id = 0
-                )
-                )",
-            );
-        }
+            case
+        ));
+        self.append_param(patt.inner().clone());
+        self.appendln("))");
     }
 
     /// Handle a [`UnaryExpr`]. The only operator is `not`
-    pub(crate) fn build_not_branch(
-        &mut self,
-        expr: UnaryExpr<UnaryOp>,
-        explicit: bool,
-        ignore_case: bool,
-    ) {
+    pub(crate) fn build_not_branch(&mut self, expr: UnaryExpr<UnaryOp>, ignore_case: bool) {
         self.append(" NOT ");
 
         let UnaryExpr { operand, .. } = expr;
-        self.file_handle_branch(&*operand, explicit, ignore_case);
+        self.file_handle_branch(&*operand, ignore_case);
     }
 
     /// Handle a [`BinaryExpr`] with a [`LogicalOp`]
-    pub(crate) fn build_and_branch(
-        &mut self,
-        expr: BinaryExpr<LogicalOp>,
-        explicit: bool,
-        ignore_case: bool,
-    ) {
+    pub(crate) fn build_and_branch(&mut self, expr: BinaryExpr<LogicalOp>, ignore_case: bool) {
         let BinaryExpr { operator, lhs, rhs } = expr;
 
         if operator == LogicalOp::And {
-            self.file_handle_branch(&*lhs, explicit, ignore_case);
+            self.file_handle_branch(&*lhs, ignore_case);
             self.append(" AND ");
-            self.file_handle_branch(&*rhs, explicit, ignore_case);
+            self.file_handle_branch(&*rhs, ignore_case);
         }
 
         if operator == LogicalOp::Or {
             self.append("(");
-            self.file_handle_branch(&*lhs, explicit, ignore_case);
+            self.file_handle_branch(&*lhs, ignore_case);
             self.append(" OR ");
-            self.file_handle_branch(&*rhs, explicit, ignore_case);
+            self.file_handle_branch(&*rhs, ignore_case);
             self.append(")");
         }
     }

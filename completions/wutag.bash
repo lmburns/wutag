@@ -269,7 +269,7 @@ _wutag() {
             return 0
             ;;
         wutag__list__tags)
-            opts="-c -u -s -i -1 -b -h -v --version --no-count --unique --sort --implied --one-per-line --border --help --verbose"
+            opts="-c -u -s -1 -b -h -v --version --no-count --unique --sort --one-per-line --border --help --verbose"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -399,7 +399,7 @@ _wutag() {
             return 0
             ;;
         wutag__set)
-            opts="-c -C -s -e -F -f -Q -p -V -h -v --clear --color --stdin --explicit --force --follow-symlinks --query --pairs --value --help --verbose <PATTERN> <tags>..."
+            opts="-c -C -s -F -f -Q -p -V -h -v --clear --color --stdin --force --follow-symlinks --query --pairs --value --help --verbose <PATTERN> <tags>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

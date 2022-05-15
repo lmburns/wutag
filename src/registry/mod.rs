@@ -21,7 +21,6 @@ pub(crate) mod sqlbuilder;
 pub(crate) mod tag;
 pub(crate) mod transaction;
 pub(crate) mod types;
-pub(crate) mod upgrade;
 pub(crate) mod value;
 
 #[cfg(test)]

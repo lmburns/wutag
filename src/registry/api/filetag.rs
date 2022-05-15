@@ -78,16 +78,8 @@ impl Registry {
     }
 
     /// Retrieve all tracked [`FileTags`] matching a [`TagId`]
-    pub(crate) fn filetags_by_tagid(&self, id: TagId, explicit: bool) -> Result<FileTags> {
-        self.txn_wrap(|txn| {
-            let ftags = txn.select_filetags_by_tagid(id)?;
-
-            if explicit {
-                Ok(ftags)
-            } else {
-                Ok(self.add_implied_filetags(txn, ftags)?)
-            }
-        })
+    pub(crate) fn filetags_by_tagid(&self, id: TagId) -> Result<FileTags> {
+        self.txn_wrap(|txn| txn.select_filetags_by_tagid(id))
     }
 
     /// Retrieve the number of [`FileTag`]s matching a [`ValueId`]

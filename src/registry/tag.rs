@@ -16,7 +16,6 @@ use super::{
     types::{
         file::{File, FileId},
         filetag::{FileTag, FileTags},
-        implication::{Implication, Implications},
         tag::{Tag, TagFileCnt, TagId, Tags},
         value::ValueId,
         ID,

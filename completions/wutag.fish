@@ -72,11 +72,9 @@ complete -c wutag -n "__fish_seen_subcommand_from set" -s f -l follow-symlinks -
 complete -c wutag -n "__fish_seen_subcommand_from set" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from set" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s p -l pairs -d 'Specify any number of tag=value pairs to delete' -r
-complete -c wutag -n "__fish_seen_subcommand_from rm" -s V -l value -d 'Specify a value to remove from from a tag. Requires --tag' -r
-complete -c wutag -n "__fish_seen_subcommand_from rm" -s J -l values -r
-complete -c wutag -n "__fish_seen_subcommand_from rm" -s t -l tag -d 'Specify a tag to remove from the database (default behavior)' -r
+complete -c wutag -n "__fish_seen_subcommand_from rm" -s f -l follow-symlinks -d 'Follow symlinks before removing tags'
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s a -l all -d 'Remove all tags on a file'
-complete -c wutag -n "__fish_seen_subcommand_from rm" -s u -l untag -d 'Do not remove the tag or value from the database'
+complete -c wutag -n "__fish_seen_subcommand_from rm" -s V -l values -d 'Indicate the item(s) in the given list are values intead of tags'
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from clear" -s h -l help -d 'Print help information'

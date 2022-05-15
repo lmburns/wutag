@@ -8,7 +8,7 @@ use crate::{
     err,
     filesystem::osstr_to_bytes,
     oregistry::EntryData,
-    util::{fmt_err, fmt_path, fmt_tag_old, glob_builder, parse_path, reg_ok, regex_builder},
+    util::{crawler, fmt_err, fmt_path, fmt_tag_old, glob_builder, parse_path, regex_builder},
     wutag_error, wutag_fatal,
 };
 use anyhow::Result;
@@ -117,7 +117,7 @@ impl App {
 
             match list_tags(path) {
                 Ok(tags) => {
-                    reg_ok(
+                    crawler(
                         &Arc::new(re),
                         &Arc::new(self.clone()),
                         // TODO: Add CLI option for symlinks

@@ -6,7 +6,7 @@ use crate::{
     consts::DEFAULT_EDITOR,
     filesystem::{contained_path, create_temp_path, osstr_to_bytes},
     oregistry::EntryData,
-    util::{fmt_path, fmt_tag_old, glob_builder, raw_local_path, reg_ok, regex_builder},
+    util::{crawler, fmt_path, fmt_tag_old, glob_builder, raw_local_path, regex_builder},
     wutag_error, wutag_fatal, wutag_info,
 };
 use anyhow::Result;
@@ -92,7 +92,7 @@ impl App {
         let mut map: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
         if opts.all {
-            reg_ok(
+            crawler(
                 &Arc::new(re),
                 &Arc::new(self.clone()),
                 // TODO: Add CLI option for symlinks

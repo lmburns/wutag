@@ -171,18 +171,14 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (rm)
 _arguments "${_arguments_options[@]}" \
-'(-V --value)*-p+[Specify any number of tag=value pairs to delete]:pairs: ' \
-'(-V --value)*--pairs=[Specify any number of tag=value pairs to delete]:pairs: ' \
-'-V+[Specify a value to remove from from a tag. Requires --tag]:value: ' \
-'--value=[Specify a value to remove from from a tag. Requires --tag]:value: ' \
-'*-J+[]:values: ' \
-'*--values=[]:values: ' \
-'-t+[Specify a tag to remove from the database (default behavior)]:tag: ' \
-'--tag=[Specify a tag to remove from the database (default behavior)]:tag: ' \
+'(-V --values)*-p+[Specify any number of tag=value pairs to delete]:pairs: ' \
+'(-V --values)*--pairs=[Specify any number of tag=value pairs to delete]:pairs: ' \
+'-f[Follow symlinks before removing tags]' \
+'--follow-symlinks[Follow symlinks before removing tags]' \
 '-a[Remove all tags on a file]' \
 '--all[Remove all tags on a file]' \
-'-u[Do not remove the tag or value from the database]' \
-'--untag[Do not remove the tag or value from the database]' \
+'-V[Indicate the item(s) in the given list are values intead of tags]' \
+'--values[Indicate the item(s) in the given list are values intead of tags]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \

@@ -5,7 +5,7 @@ use crate::{
     bold_entry, err,
     oregistry::EntryData,
     registry::types::{Tag, ID},
-    util::{collect_stdin_paths, fmt_err, fmt_path, fmt_tag, glob_builder, reg_ok, regex_builder},
+    util::{collect_stdin_paths, crawler, fmt_err, fmt_path, fmt_tag, glob_builder, regex_builder},
     wutag_error, wutag_fatal,
 };
 use anyhow::{Context, Result};

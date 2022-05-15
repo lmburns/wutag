@@ -119,7 +119,7 @@ _wutag_tags() {
         r#"'*::_wutag_tags:' \"#,
     ),
     (
-        r#"'*::tags -- Tags to remove from the matching pattern:' \"#,
+        r#"'*::tags -- Tags or values (requires --values) to remove from the matching pattern:' \"#,
         r#"'*::tags:_wutag_tags' \"#,
     ),
     (

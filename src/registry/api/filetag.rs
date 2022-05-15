@@ -125,9 +125,10 @@ impl Registry {
     }
 
     /// Remove a [`FileTag`] in the database
-    pub(crate) fn delete_filetag(&self, ft: &FileTag) -> Result<()> {
+    pub(crate) fn delete_filetag(&self, fid: FileId, tid: TagId, vid: ValueId) -> Result<()> {
         self.wrap_commit(|txn| {
-            let exists = self.filetag_exists(txn, ft)?;
+            let ft = FileTag::new(fid, tid, vid);
+            let exists = self.filetag_exists(txn, &ft)?;
 
             if !exists {
                 return Err(anyhow!(
@@ -138,7 +139,7 @@ impl Registry {
                 ));
             }
 
-            txn.delete_filetag(ft)?;
+            txn.delete_filetag(&ft)?;
             self.delete_file_if_untagged(txn, ft.file_id())?;
 
             Ok(())

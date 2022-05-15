@@ -10,7 +10,7 @@ use crate::{
             ID,
         },
     },
-    util::{collect_stdin_paths, fmt_path, fmt_tag, glob_builder, reg_ok, regex_builder},
+    util::{collect_stdin_paths, crawler, fmt_path, fmt_tag, glob_builder, regex_builder},
     wutag_error, wutag_warning,
 };
 use anyhow::{anyhow, Context, Result};
@@ -91,8 +91,7 @@ pub(crate) struct SetOpts {
         long,
         short = 'f',
         takes_value = false,
-        long_help = "Should the symlink be followed and the tag set on that resulting file. This \
-                     overrides the configuration option"
+        long_help = "Should the symlink be dereferenced before the tag is set on the file"
     )]
     pub(crate) follow_symlinks: bool,
 
@@ -153,16 +152,13 @@ pub(crate) struct SetOpts {
     pub(crate) tags: Vec<String>,
 }
 
-// FEATURE: Force
+// FEATURE: Force if no permissions. Write to database but no xattr
 // CHECK: Explicit
 
 // TODO: Condense all this duplicate code
 // TODO: Collect errors; print path or error, not both
 
 // MAYBE: Create tag and add to database without writing to file
-
-// DONE: Deal with symlinks
-// DONE: Allow process to continue so xattr can be written
 
 impl App {
     /// Set tags on a file
@@ -286,19 +282,35 @@ impl App {
         if (opts.stdin || atty::isnt(atty::Stream::Stdin)) && atty::is(atty::Stream::Stdout) {
             log::debug!("Using STDIN");
             for entry in &collect_stdin_paths(&self.base_dir) {
+                let path = &(|| -> Result<PathBuf> {
+                    if (opts.follow_symlinks || self.follow_symlinks)
+                        && fs::symlink_metadata(entry.path())
+                            .ok()
+                            .map_or(false, |f| f.file_type().is_symlink())
+                    {
+                        log::debug!("{}: resolving symlink", entry.path().display());
+                        return fs::canonicalize(entry.path()).context(format!(
+                            "{}: failed to canonicalize",
+                            entry.path().display()
+                        ));
+                    }
+
+                    return Ok(entry.path().to_path_buf());
+                })()?;
+
                 if !self.quiet {
-                    println!("{}:", fmt_path(entry, self.base_color, self.ls_colors));
+                    println!("{}:", fmt_path(path, self.base_color, self.ls_colors));
                 }
 
-                let path_d = entry.display();
+                let path_d = path.display();
 
                 // Check if file path exists in the database
-                let mut file = reg.file_by_path(entry);
-                if file.is_err() {
-                    log::debug!("{}: creating fingerprint", path_d);
+                let mut file = reg.file_by_path(path);
 
+                if file.is_err() {
                     // Possibly check --force
-                    let hash = hash::blake3_hash(entry, None)?;
+                    log::debug!("{}: creating fingerprint", path_d);
+                    let hash = hash::blake3_hash(&path, None)?;
 
                     if self.show_duplicates
                         && !self.quiet
@@ -313,10 +325,12 @@ impl App {
                     }
 
                     log::debug!("{}: inserting file", path_d);
-                    file = reg.insert_file(entry);
+                    file = reg.insert_file(path);
                 }
 
                 let file = file?;
+                let path = &file.path();
+                let path_d = path.display();
 
                 if opts.clear {
                     log::debug!("{}: clearing tags", path_d);
@@ -332,11 +346,7 @@ impl App {
                                 if reg.value_count_by_id(value.id())? == 1 {
                                     reg.delete_value(value.id())?;
                                 } else {
-                                    reg.delete_filetag(&FileTag::new(
-                                        file.id(),
-                                        t.id(),
-                                        value.id(),
-                                    ))?;
+                                    reg.delete_filetag(file.id(), t.id(), value.id())?;
                                 }
                                 if reg.tag_count_by_id(t.id())? == 1 {
                                     reg.delete_tag(t.id())?;
@@ -350,18 +360,18 @@ impl App {
                                 }
                             }
                         } else {
-                            reg.delete_filetag(&FileTag::new(file.id(), t.id(), ID::null()))?;
+                            reg.delete_filetag(file.id(), t.id(), ID::null())?;
                         }
 
-                        match entry.has_tags() {
+                        match path.has_tags() {
                             Ok(has_tags) =>
                                 if has_tags {
-                                    if let Err(e) = entry.clear_tags() {
-                                        wutag_error!("\t{} {}", e, bold_entry!(entry));
+                                    if let Err(e) = path.clear_tags() {
+                                        wutag_error!("\t{} {}", e, bold_entry!(path));
                                     }
                                 },
                             Err(e) => {
-                                wutag_error!("{} {}", e, bold_entry!(entry));
+                                wutag_error!("{} {}", e, bold_entry!(path));
                             },
                         }
                     }
@@ -407,37 +417,38 @@ impl App {
                         if let Some(rsq::Error::StatementChangedRows(n)) =
                             e.downcast_ref::<rsq::Error>()
                         {
-                            if let Err(e) = entry.get_tag(tag.name()) {
+                            if let Err(e) = path.get_tag(tag.name()) {
                                 wutag_error!(
                                     "{}: found in database, though file has no xattrs: {}",
-                                    path_d,
+                                    bold_entry!(path),
                                     e
                                 );
 
-                                if let Err(e) = entry.tag(&tag) {
-                                    wutag_error!("{} {}", e, bold_entry!(entry));
+                                if let Err(e) = path.tag(&tag) {
+                                    wutag_error!("{}:j {}", bold_entry!(path), e);
                                 }
                             }
 
                             // Don't return an error so the xattrs can be written
                             if n == &0 {
                                 duplicate_errors.push(format!(
-                                    "duplicate entry: path: {}, tag: {}",
-                                    path_d,
+                                    "{}: duplicate entry with tag: {}",
+                                    bold_entry!(path),
                                     fmt_tag(&reg.tag(pair.tag_id())?),
                                 ));
-                                continue;
                             }
+
+                            continue;
                         }
 
                         return Err(anyhow!("{}: could not apply tags: {}", path_d, e));
                     }
 
-                    if let Err(e) = entry.tag(&tag) {
-                        wutag_error!("{} {}", e, bold_entry!(entry));
+                    if let Err(e) = path.tag(&tag) {
+                        wutag_error!("{} {}", e, bold_entry!(path));
                     } else {
                         log::debug!("{}: writing xattrs", path_d);
-                        // NOTE: Entry was created here
+                        // TODO: Create entry here?
 
                         if !self.quiet {
                             print!("\t{} {}", "+".bold().green(), fmt_tag(&tag));
@@ -464,7 +475,7 @@ impl App {
             // Drop the lock, otherwise this closure loop below will hang forever
             drop(reg);
 
-            reg_ok(
+            crawler(
                 &Arc::new(re),
                 &Arc::new(self.clone()),
                 opts.follow_symlinks,
@@ -538,11 +549,7 @@ impl App {
                                     if reg.value_count_by_id(value.id())? == 1 {
                                         reg.delete_value(value.id())?;
                                     } else {
-                                        reg.delete_filetag(&FileTag::new(
-                                            file.id(),
-                                            t.id(),
-                                            value.id(),
-                                        ))?;
+                                        reg.delete_filetag(file.id(), t.id(), value.id())?;
                                     }
                                     if reg.tag_count_by_id(t.id())? == 1 {
                                         reg.delete_tag(t.id())?;
@@ -556,7 +563,7 @@ impl App {
                                     }
                                 }
                             } else {
-                                reg.delete_filetag(&FileTag::new(file.id(), t.id(), ID::null()))?;
+                                reg.delete_filetag(file.id(), t.id(), ID::null())?;
                             }
 
                             match path.has_tags() {

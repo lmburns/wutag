@@ -272,7 +272,7 @@ impl Tag {
     /// Create an empty [`Tag`] to be used in a closure usually
     ///
     /// This prevents a vector of [`Result`]s and allows the developer to later
-    /// check the [`Tag`]'s name
+    /// check the [`Tag`]'s name to report an error
     pub(crate) fn null<M: AsRef<str>>(name: M) -> Self {
         Self {
             id:    TagId::null(),

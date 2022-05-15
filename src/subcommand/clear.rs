@@ -4,7 +4,7 @@ use super::App;
 use crate::{
     err,
     filesystem::osstr_to_bytes,
-    util::{fmt_err, fmt_ok, fmt_path, glob_builder, reg_ok, regex_builder},
+    util::{crawler, fmt_err, fmt_ok, fmt_path, glob_builder, regex_builder},
 };
 use clap::Args;
 use colored::Colorize;
@@ -74,7 +74,7 @@ impl App {
             log::debug!("Saving registry...");
             self.save_registry();
         } else {
-            reg_ok(
+            crawler(
                 &Arc::new(re),
                 &Arc::new(self.clone()),
                 // TODO: Add CLI option for symlinks

@@ -408,7 +408,7 @@ pub(crate) fn reg_walker(app: &Arc<App>, follow_links: bool) -> Result<ignore::W
 /// entry
 ///
 /// [`WalkParallel`]: ignore::WalkParallel
-pub(crate) fn reg_ok<F, T>(pattern: &Arc<Regex>, app: &Arc<App>, follow_links: bool, mut f: F)
+pub(crate) fn crawler<F, T>(pattern: &Arc<Regex>, app: &Arc<App>, follow_links: bool, mut f: F)
 where
     F: FnMut(&ignore::DirEntry) -> Result<T> + Send + Sync,
 {

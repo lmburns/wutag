@@ -11,7 +11,6 @@ use crate::{
         cp::CpOpts,
         edit::EditOpts,
         info::InfoOpts,
-        init::InitOpts,
         list::{ListObject, ListOpts},
         print_completions::CompletionsOpts,
         repair::RepairOpts,
@@ -40,7 +39,6 @@ use crate::{
     disable_help_subcommand = true, // Disables help (use -h)
     dont_collapse_args_in_usage = true,
     subcommand_required = false, // A default command has been setup
-    next_line_help = true,
     global_setting(AppSettings::DeriveDisplayOrder), // Display in order listed here
 )]
 pub(crate) struct Opts {
@@ -353,18 +351,6 @@ impl Default for Command {
 /// All subcommands to `wutag`
 #[derive(Subcommand, Debug, Clone, PartialEq)]
 pub(crate) enum Command {
-    // TODO: Delete, not needed anymore
-    /// Initialize the database
-    #[clap(
-        aliases = &["setup", "initialize", "start"],
-        override_usage = "wutag [FLAG/OPTIONS] init [FLAG/OPTIONS]",
-        long_about = "\
-            Initialize the database. If a path is given then that path is used, otherwise \
-            the database path in the configuration file is used, and if that is not present, \
-            the default path `$XDG_DATA_HOME/wutag` is used"
-    )]
-    Init(InitOpts),
-
     /// Lists all available tags or files
     #[clap(
         aliases = &["ls", "l", "li", "lis"],

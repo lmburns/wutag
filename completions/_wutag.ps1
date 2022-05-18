@@ -60,7 +60,6 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--ls-colors', 'ls-colors', [CompletionResultType]::ParameterName, 'Respect ''LS_COLORS'' environment variable when coloring the output')
             [CompletionResult]::new('-q', 'q', [CompletionResultType]::ParameterName, 'Do not display any output for any command')
             [CompletionResult]::new('--quiet', 'quiet', [CompletionResultType]::ParameterName, 'Do not display any output for any command')
-            [CompletionResult]::new('init', 'init', [CompletionResultType]::ParameterValue, 'Initialize the database')
             [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'Lists all available tags or files')
             [CompletionResult]::new('set', 'set', [CompletionResultType]::ParameterValue, 'Set tag(s) and/or value(s) on results from a patterned query')
             [CompletionResult]::new('rm', 'rm', [CompletionResultType]::ParameterValue, 'Remove tag(s) from the files that match the provided pattern')
@@ -74,13 +73,6 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('print-completions', 'print-completions', [CompletionResultType]::ParameterValue, 'Prints completions for the specified shell to dir or stdout')
             [CompletionResult]::new('clean-cache', 'clean-cache', [CompletionResultType]::ParameterValue, 'Clean the cached tag registry')
             [CompletionResult]::new('ui', 'ui', [CompletionResultType]::ParameterValue, 'Open a TUI to manage tags')
-            break
-        }
-        'wutag;init' {
-            [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
-            [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
-            [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
-            [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
             break
         }
         'wutag;list' {
@@ -158,8 +150,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
         'wutag;rm' {
             [CompletionResult]::new('-p', 'p', [CompletionResultType]::ParameterName, 'Specify any number of tag=value pairs to delete')
             [CompletionResult]::new('--pairs', 'pairs', [CompletionResultType]::ParameterName, 'Specify any number of tag=value pairs to delete')
-            [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Follow symlinks before removing tags')
-            [CompletionResult]::new('--follow-symlinks', 'follow-symlinks', [CompletionResultType]::ParameterName, 'Follow symlinks before removing tags')
+            [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Follow symlinks before removing tags and/or values')
+            [CompletionResult]::new('--follow-symlinks', 'follow-symlinks', [CompletionResultType]::ParameterName, 'Follow symlinks before removing tags and/or values')
             [CompletionResult]::new('-a', 'a', [CompletionResultType]::ParameterName, 'Remove all tags and/or values on a file')
             [CompletionResult]::new('--all', 'all', [CompletionResultType]::ParameterName, 'Remove all tags and/or values on a file')
             [CompletionResult]::new('-u', 'u', [CompletionResultType]::ParameterName, 'Do not remove the tag or value from the database')

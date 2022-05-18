@@ -57,7 +57,6 @@ set edit:completion:arg-completer[wutag] = {|@words|
             cand --ls-colors 'Respect ''LS_COLORS'' environment variable when coloring the output'
             cand -q 'Do not display any output for any command'
             cand --quiet 'Do not display any output for any command'
-            cand init 'Initialize the database'
             cand list 'Lists all available tags or files'
             cand set 'Set tag(s) and/or value(s) on results from a patterned query'
             cand rm 'Remove tag(s) from the files that match the provided pattern'
@@ -71,12 +70,6 @@ set edit:completion:arg-completer[wutag] = {|@words|
             cand print-completions 'Prints completions for the specified shell to dir or stdout'
             cand clean-cache 'Clean the cached tag registry'
             cand ui 'Open a TUI to manage tags'
-        }
-        &'wutag;init'= {
-            cand -h 'Print help information'
-            cand --help 'Print help information'
-            cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
-            cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
         }
         &'wutag;list'= {
             cand -r 'Output will not be colorized'
@@ -149,8 +142,8 @@ set edit:completion:arg-completer[wutag] = {|@words|
         &'wutag;rm'= {
             cand -p 'Specify any number of tag=value pairs to delete'
             cand --pairs 'Specify any number of tag=value pairs to delete'
-            cand -f 'Follow symlinks before removing tags'
-            cand --follow-symlinks 'Follow symlinks before removing tags'
+            cand -f 'Follow symlinks before removing tags and/or values'
+            cand --follow-symlinks 'Follow symlinks before removing tags and/or values'
             cand -a 'Remove all tags and/or values on a file'
             cand --all 'Remove all tags and/or values on a file'
             cand -u 'Do not remove the tag or value from the database'

@@ -247,6 +247,20 @@ impl Txn<'_> {
         Ok(())
     }
 
+    /// Modify an existing [`FileTag`], changing its `value_id`
+    pub(super) fn update_filetag_valueid(&self, vid: ValueId, fid: FileId) -> Result<()> {
+        self.execute(
+            "UPDATE file_tag
+            SET value_id = 0
+            WHERE value_id = ?1 and file_id = ?2
+            ",
+            params![vid, fid],
+        )
+        .context("failed to update FileTag value_id")?;
+
+        Ok(())
+    }
+
     /// Copy [`FileTag`]s on one `Tag` to another
     pub(super) fn copy_filetags(&self, source_tid: TagId, dest_tid: TagId) -> Result<()> {
         self.execute(

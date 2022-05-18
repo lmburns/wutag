@@ -28,7 +28,7 @@ use wutag_core::tag::list_tags;
 /// Arguments to the `rm` subcommand
 #[derive(Args, Clone, Debug, PartialEq)]
 pub(crate) struct RmOpts {
-    /// Follow symlinks before removing tags
+    /// Follow symlinks before removing tags and/or values
     #[clap(
         name = "follow-symlinks",
         long,
@@ -126,8 +126,11 @@ macro_rules! red_entry {
 }
 
 // FEATURE: Pass one value for many tags
-// XXX: Implement `keep_dangling`
+// XXX: Implement case sensitive
+// XXX: REMOVE `keep_dangling`
 // MAYBE: Switch default from delete to untag
+
+// TODO: Remove untag/delete, act as before
 
 // TODO: Check if xattr is present but not in the registry
 // TODO: Check remove tag, if it has a value, reset value_id to 0
@@ -161,6 +164,7 @@ impl App {
         log::debug!("Compiled pattern: {re}");
 
         let reg = self.registry.lock().expect("poisoned lock");
+        let sensitive = !self.case_insensitive && self.case_sensitive;
 
         let mut combos = opts
             .pairs
@@ -168,7 +172,7 @@ impl App {
             .map(|(t, v)| {
                 (
                     reg.tag_by_name(t).unwrap_or_else(|_| Tag::null(t)),
-                    reg.value_by_name(v, false)
+                    reg.value_by_name(v, sensitive)
                         .unwrap_or_else(|_| Value::new_noid(v)),
                 )
             })
@@ -181,7 +185,7 @@ impl App {
                 if opts.values {
                     (
                         Tag::null(""),
-                        reg.value_by_name(item, false)
+                        reg.value_by_name(item, sensitive)
                             .unwrap_or_else(|_| Value::new_noid(item)),
                     )
                 } else {
@@ -195,21 +199,7 @@ impl App {
 
         combos.append(&mut tags);
 
-        // let mut values = opts
-        //     .values
-        //     .iter()
-        //     .map(|value| {
-        //         (
-        //             Tag::null(""),
-        //             reg.value_by_name(value, false)
-        //                 .unwrap_or_else(|_| Value::new_noid(value)),
-        //         )
-        //     })
-        //     .collect::<Vec<_>>();
-        //
-        // combos.append(&mut values);
-
-        println!("COMBOS: {:#?}", combos);
+        // println!("COMBOS: {:#?}", combos);
 
         if self.global {
             // let ctags = opts.tags.iter().collect::<Vec<_>>();
@@ -310,8 +300,6 @@ impl App {
 
                         let all_tags = reg.tags_for_file(&file)?;
 
-                        println!("ALL  TAGS: {:#?}", all_tags);
-
                         // ------------Check------------   --Result--     ----Passed----
                         // Tag id, name = Value id, name => TAG, VALUE => Pass tag, value
                         // Tag id, name = Value name     => TAG        => Pass tag, value
@@ -322,12 +310,13 @@ impl App {
                         // Tag          = Value id, name => VALUE      => Pass value
                         // Tag          = Value name     => NOTHING    => Pass value
 
+                        // println!("ALL TAGS: {:#?}", all_tags);
                         for (tag, value) in &combos {
-                            println!("TAG: {:#?}", tag);
-                            println!("value: {:#?}", value);
+                            // println!("TAG: {:#?}", tag);
+                            // println!("VALUE: {:#?}", value);
 
                             let xattr = path.get_tag(&tag);
-                            println!("== XATTR == {:#?}", xattr);
+                            println!("XATTR: {:#?}", xattr);
 
                             match (
                                 tag.is_null_id(),
@@ -339,18 +328,22 @@ impl App {
                                 (false, false, false, false) => {
                                     // TODO: Remove tag
                                     // TODO: Remove value
+                                    wutag_info!("== ffff == OK TAG OK VALUE");
                                     log::debug!(
-                                        "Passed: Tag, Value => Found: {}, {}",
+                                        "ffff: (Tag => {}), (Value => {})",
                                         tag.name(),
                                         value.name()
                                     );
-
-                                    wutag_info!("== ffff == OK TAG OK VALUE");
                                 },
                                 // Passed: Tag, Value => Found: false, true
                                 (true, false, false, false) => {
                                     // TODO: Remove value
                                     wutag_info!("== tfff == OK VAUE");
+                                    log::debug!(
+                                        "tfff: (Tag => false), (Value => {})",
+                                        value.name()
+                                    );
+
                                     wutag_error!(
                                         "tag ({}) is not found in the registry",
                                         red_entry!(tag)
@@ -359,6 +352,8 @@ impl App {
                                 // Passed: Tag, Value => Found: false, false
                                 (true, false, true, false) => {
                                     wutag_info!("== tftf ==");
+                                    log::debug!("tftf: (Tag => false), (Value => false)",);
+
                                     wutag_error!(
                                         "tag ({}) and value ({}) are both not found in the \
                                          registry",
@@ -373,18 +368,17 @@ impl App {
                                     // TODO: Remove tag
 
                                     if value.is_null_name() {
-                                        log::debug!(
-                                            "Passed: Tag, Value => Found: {}, false",
-                                            tag.name()
-                                        );
                                         wutag_info!("== fftt == OK TAG");
-                                    } else {
                                         log::debug!(
-                                            "Passed: Tag, Value => Found: {}, false",
+                                            "fftt: (Tag => {}), (Value => N/A)",
                                             tag.name()
                                         );
-
+                                    } else {
                                         wutag_info!("== fftf == OK TAG");
+                                        log::debug!(
+                                            "fftf: (Tag => {}) (Value => false)",
+                                            tag.name()
+                                        );
                                         wutag_error!(
                                             "value ({}) is not found in the registry",
                                             value.name().bold()
@@ -415,9 +409,10 @@ impl App {
 
                                                         wutag_error!(
                                                             "the tag {} has a value and the file \
-                                                             cannot be untagged without \
-                                                             it.\nUse:\n  - {}\n  - {}\n{} has \
-                                                             the following values:\n   - {}",
+                                                             cannot be untagged without it.\nUse \
+                                                             one of the following:\n  - {}\n  - \
+                                                             {}\n{} has the following values:\n   \
+                                                             - {}",
                                                             fmt_tag(tag),
                                                             "wutag rm -up 'tag=value' <pattern>"
                                                                 .cyan()
@@ -444,9 +439,10 @@ impl App {
                                                     wutag_error!("{e}");
                                                 },
                                             }
+                                            continue;
                                         }
                                     } else {
-                                        if opts.with_values && !self.keep_dangling {
+                                        if opts.with_values {
                                             if let Ok(values) = reg.values_by_tagid(tag.id()) {
                                                 for value in values.iter() {
                                                     if reg.value_count_by_id(value.id())? == 1 {
@@ -480,6 +476,7 @@ impl App {
                                                     fmt_tag(tag),
                                                     e
                                                 );
+                                                continue;
                                             }
                                         } else {
                                             // Maybe add a --force option to delete all files
@@ -489,6 +486,7 @@ impl App {
                                                  matching files use the `--untag` flag",
                                                 fmt_tag(tag)
                                             );
+                                            continue;
                                         }
                                     }
 
@@ -508,6 +506,8 @@ impl App {
                                 // Passed: Tag => Found: false
                                 (true, false, true, true) => {
                                     wutag_info!("== tftt ==");
+                                    log::debug!("tftt: (Tag => false), (Value => N/A)",);
+
                                     wutag_error!(
                                         "tag ({}) is not found in the registry",
                                         red_entry!(tag)
@@ -518,10 +518,60 @@ impl App {
                                 (true, true, false, false) => {
                                     // TODO: Remove value
                                     wutag_info!("== ttff == OK VALUE");
+                                    log::debug!("ttff: (Tag => N/A), (Value => {})", value.name());
+
+                                    // If count == 1 act as delete, else untag
+                                    if reg.value_count_by_id(value.id())? == 1 {
+                                        log::debug!(
+                                            "{}: deleting value {}",
+                                            path.display(),
+                                            value.name()
+                                        );
+                                        if let Err(e) = reg.delete_value(value.id()) {
+                                            wutag_error!(
+                                                "{}: failed to delete value {}: {}",
+                                                bold_entry!(path),
+                                                value.name(),
+                                                e
+                                            );
+                                            continue;
+                                        }
+                                    } else if let Err(e) =
+                                        reg.update_filetag_valueid(value.id(), file.id())
+                                    {
+                                        wutag_error!(
+                                            "{}: failed to update value {}",
+                                            bold_entry!(path),
+                                            value.name()
+                                        );
+                                        continue;
+                                    }
+
+                                    if reg.tag_count_by_id(tag.id())? == 1 {
+                                        log::debug!(
+                                            "{}: implicitly deleting tag {}",
+                                            path.display(),
+                                            tag.name()
+                                        );
+
+                                        if let Err(e) = reg.delete_tag(tag.id()) {
+                                            wutag_error!(
+                                                "{}: failed to delete tag {}: {}",
+                                                bold_entry!(path),
+                                                fmt_tag(tag),
+                                                e
+                                            );
+                                            continue;
+                                        }
+                                    }
+
+                                    print!("\t{} {}", "X".bold().red(), value.name().bold());
                                 },
                                 // Passed: Value => Found: false
                                 (true, true, true, false) => {
                                     wutag_info!("== tttf ==");
+                                    log::debug!("tttf: (Tag => N/A), (Value => false)",);
+
                                     wutag_error!(
                                         "value ({}) is not found in the registry",
                                         value.name().bold()
@@ -530,11 +580,14 @@ impl App {
                                 },
                                 // Passed: => Found:
                                 //  - Should only happen if clap somehow accepts empties
-                                (true, true, true, true)
-                                | (false, true, _, _)
-                                | (false, false, false, true)
-                                | (true, false, false, true)
-                                | (true, true, false, true) => {
+                                (true, true, true, true) => {
+                                    log::debug!("tttt: (Tag => N/A), (Value => N/A)");
+                                    wutag_error!(
+                                        "you shouldn't use empty strings for tag or value names"
+                                    );
+                                    continue;
+                                },
+                                _ => {
                                     wutag_error!(
                                         "you shouldn't use empty strings for tag or value names"
                                     );

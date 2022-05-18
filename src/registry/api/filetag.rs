@@ -113,14 +113,19 @@ impl Registry {
     }
 
     /// Remove all [`FileTag`]s matching a given [`ValueId`]
-    pub(crate) fn delete_filetag_by_valueid(&self, id: ValueId) -> Result<()> {
-        self.wrap_commit(|txn| {
+    pub(crate) fn delete_filetag_by_valueid(&self, tx: &Txn, id: ValueId) -> Result<()> {
+        self.wrap_commit_by(tx, |txn| {
             let ftags = txn.select_filetags_by_valueid(id)?;
             txn.delete_filetag_by_valueid(id)?;
             self.delete_untagged_files(txn, &ftags.file_ids())?;
 
             Ok(())
         })
+    }
+
+    /// Modify an existing [`FileTag`], changing its `value_id`
+    pub(crate) fn update_filetag_valueid(&self, vid: ValueId, fid: FileId) -> Result<()> {
+        self.wrap_commit(|txn| txn.update_filetag_valueid(vid, fid))
     }
 
     /// Copy one [`FileTag`] to another

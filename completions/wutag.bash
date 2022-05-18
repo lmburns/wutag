@@ -31,9 +31,6 @@ _wutag() {
             info)
                 cmd+="__info"
                 ;;
-            init)
-                cmd+="__init"
-                ;;
             list)
                 cmd+="__list"
                 ;;
@@ -68,7 +65,7 @@ _wutag() {
 
     case "${cmd}" in
         wutag)
-            opts="-h -V -v -d -m -R -i -s -r -G -F -g -L -l -c -t -e -E -q --help --version --verbose --dir --max-depth --registry --case-insensitive --case-sensitive --regex --glob --fixed-string --global --follow --no-follow --ls-colors --color --type --ext --exclude --quiet init list set rm clear search cp view edit info repair print-completions clean-cache ui"
+            opts="-h -V -v -d -m -R -i -s -r -G -F -g -L -l -c -t -e -E -q --help --version --verbose --dir --max-depth --registry --case-insensitive --case-sensitive --regex --glob --fixed-string --global --follow --no-follow --ls-colors --color --type --ext --exclude --quiet list set rm clear search cp view edit info repair print-completions clean-cache ui"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -211,20 +208,6 @@ _wutag() {
             ;;
         wutag__info)
             opts="-r -h -v --raw --help --verbose"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        wutag__init)
-            opts="-h -v --help --verbose"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

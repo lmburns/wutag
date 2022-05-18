@@ -498,8 +498,16 @@ impl Registry {
         })
     }
 
-    /// Execute a closure on the passed by value [`Txn`]. This is used to
-    /// prevent duplicate transactions and is kind of sloppy.
+    /// Execute a closure on the passed by value [`Txn`].
+    ///
+    /// This is only used to prevent nested transactions.
+    /// It is to act as a mock of [`wrap_commit`], which starts another
+    /// transaction.
+    ///
+    /// Perhaps at some point I will find a better way to do this.
+    /// It would be nice to have a global variable or a field in a struct
+    /// that could hold a transaction. The latter is possible; however, it
+    /// is not thread-safe
     #[allow(clippy::unused_self)]
     pub(crate) fn wrap_commit_by<F, T>(&self, txn: &Txn, mut f: F) -> Result<T>
     where

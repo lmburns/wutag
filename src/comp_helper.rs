@@ -35,11 +35,6 @@ _wutag__info_commands() {
     local commands; commands=()
     _describe -t commands 'wutag info commands' commands \"$@\"
 }
-(( $+functions[_wutag__init_commands] )) ||
-_wutag__init_commands() {
-    local commands; commands=()
-    _describe -t commands 'wutag init commands' commands \"$@\"
-}
 (( $+functions[_wutag__list_commands] )) ||
 _wutag__list_commands() {
     local commands; commands=(

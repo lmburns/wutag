@@ -136,32 +136,37 @@ pub(crate) static OVERRIDE_HELP: Lazy<String> = Lazy::new(|| {
 /// Colorized message displayed after the help message
 pub(crate) static AFTER_HELP: Lazy<String> = Lazy::new(|| {
     format!(
-        "See {}wutag{} {}--help{} for longer explanations of some base options.\nUse {}--help{} \
-         after a subcommand for explanations of more options.",
-        BRED, RES, GREEN, RES, GREEN, RES
+        "See {}wutag{} {}--help{} for longer explanations of subcommands and their options",
+        BRED, RES, GREEN, RES
     )
 });
 
 /// Colorized message about the `rm` subcommand
+#[rustfmt::skip]
 pub(crate) static RM_LONG_HELP: Lazy<String> = Lazy::new(|| {
     format!(
-        "Remove tag(s) from the files that match the provided pattern. The default behavior is to \
-         act on tags, but this can be changed with the {}--values{} option. Another default \
-         behavior is to delete the item from the database if no other tag or file possess this \
-         item. The tag or value will be kept in the database with the {}--untag{} option or if \
-         the configuration option `keep_dangling` is present.
-         {}Aliases{}: remove, del, delete",
-        GREEN, RES, GREEN, RES, BRCYAN, RES
+        "\
+Remove an item (i.e., tags or values) from the results of a pattered query.
+
+The default behavior is to act on tags, but this can be changed with the {}--values{} option. \
+Another default behavior is to delete the item from the database if no other tag has this value \
+and no other file has this value. This can also be changed with the {}--untag{} flag or the \
+configuration option `keep_dangling`, resulting in the tag or value being kept in the database.
+
+{}Note{}: This command is not to be used to completely remove a single tag or value from the database.
+          This only acts on the files returned from the query.
+{}Aliases{}: remove, del, delete",
+        GREEN, RES, GREEN, RES, BRRED, RES, BRCYAN, RES
     )
 });
 
 /// Colorized message about the app's authors
-#[rustfmt::skip]
-pub(crate) static APP_AUTHORS: Lazy<String> = Lazy::new(|| format!(
-    "{}Wojciech K\u{119}pka{} <{}Wwojciech@wkepka.dev{}>\n\
-    {}Lucas Burns{}   <{}lmb@lmburns.com{}>",
-    BRRED, RES, BRGREEN, RES, BRRED, RES, BRGREEN, RES,
-));
+pub(crate) static APP_AUTHORS: Lazy<String> = Lazy::new(|| {
+    format!(
+        "{}Lucas Burns{}   <{}lmb@lmburns.com{}>",
+        BRRED, RES, BRGREEN, RES
+    )
+});
 
 /// Editor to use when viewing tags
 pub(crate) static DEFAULT_EDITOR: Lazy<String> = Lazy::new(|| {

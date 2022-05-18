@@ -119,7 +119,7 @@ impl Registry {
     /// Remove a [`Value`] from the database
     pub(crate) fn delete_value(&self, id: ValueId) -> Result<()> {
         self.wrap_commit(|txn| {
-            txn.delete_filetag_by_valueid(id)?;
+            self.delete_filetag_by_valueid(txn, id)?;
             txn.delete_value(id).map_err(Into::into)
         })
     }

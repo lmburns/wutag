@@ -1,22 +1,28 @@
 #![allow(unused)]
+#![allow(clippy::unnested_or_patterns)]
 
 /// Remove subcommand
 use super::{debug_registry_path, parse_tag_val, App};
 use crate::{
-    err,
+    bold_entry, err,
     filesystem::osstr_to_bytes,
-    registry::types::{
-        tag::{DirEntryExt, Tag, TagValueCombo},
-        value::Value,
-        ID,
+    registry::{
+        types::{
+            filetag::FileTag,
+            tag::{DirEntryExt, Tag, TagValueCombo},
+            value::Value,
+            ID,
+        },
+        Error,
     },
     util::{crawler, fmt_err, fmt_path, fmt_tag, glob_builder, regex_builder},
     wutag_error, wutag_info,
 };
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{Args, ValueHint};
 use colored::Colorize;
-use std::{borrow::Cow, ffi::OsStr, sync::Arc};
+use itertools::Itertools;
+use std::{borrow::Cow, ffi::OsStr, fs, path::PathBuf, sync::Arc};
 use wutag_core::tag::list_tags;
 
 /// Arguments to the `rm` subcommand
@@ -28,23 +34,37 @@ pub(crate) struct RmOpts {
         long,
         short = 'f',
         takes_value = false,
-        long_help = "Should the symlink be dereferenced before the tag is removed from the file"
+        long_help = "Should the symlink be dereferenced before the tag or value is removed from \
+                     the file"
     )]
     pub(crate) follow_symlinks: bool,
 
     // XXX: Implement
-    /// Remove all tags on a file
+    /// Remove all tags and/or values on a file
     #[clap(
         name = "all",
         long,
         short = 'a',
         takes_value = false,
-        long_help = "Remove all tags on the matches from the glob or regex. By default this only \
-                     untags the file and leaves the tag in the database. "
+        long_help = "Remove all tags on the results from the search. A list of tags is not \
+                     required if this argument is present. By default this will delete the tag \
+                     from the database if no other files have these tags"
     )]
     pub(crate) all: bool,
 
-    // XXX: Implement
+    /// Do not remove the tag or value from the database
+    #[clap(
+        name = "untag",
+        long,
+        short = 'u',
+        takes_value = false,
+        long_help = "The default behavior for the `rm` subcommand is to untag the file and then \
+                     delete the tag from the database if no other files possess this tag. With \
+                     --untag this 'dangling tag' will be left in the database. This overrides the \
+                     configuration option `keep_dangling`"
+    )]
+    pub(crate) untag: bool,
+
     /// Specify any number of tag=value pairs to delete
     #[clap(
         name = "pairs",
@@ -61,7 +81,6 @@ pub(crate) struct RmOpts {
     )]
     pub(crate) pairs: Vec<(String, String)>,
 
-    // XXX: Implement
     /// Indicate the item(s) in the given list are values intead of tags
     #[clap(
         name = "values",
@@ -69,46 +88,23 @@ pub(crate) struct RmOpts {
         short = 'V',
         takes_value = false,
         long_help = "By default the item(s) after the pattern are tag(s). To instead act on \
-                     values, pass this flag"
+                     values, pass this flag. For example: `wutag rm -V <pattern> <val1> <val2>`"
     )]
     pub(crate) values: bool,
 
-    // /// Specify value(s) to remove from the database. See --help for more
-    // #[clap(
-    //     name = "values",
-    //     long,
-    //     short = 'V',
-    //     // requires = "tag",
-    //     takes_value = true,
-    //     multiple_values = true,
-    //     value_terminator = ";",
-    //     long_help = "Specify a list of values to remove from the database"
-    // )]
-    // pub(crate) values: Vec<String>,
+    /// When deleting tags from the database, delete the tag's values as well
+    #[clap(
+        name = "with-values",
+        long,
+        short = 'w',
+        takes_value = false,
+        conflicts_with_all = &["values", "untag"],
+        long_help = "Delete a tag's values when it is deleted. This option conflicts with \
+            `--untag`, as it requires the `tag=value` pair to be given together for the \
+            pair to be untagged from the file"
+    )]
+    pub(crate) with_values: bool,
 
-    // XXX: Implement
-    // /// Specify a tag to remove from the database (default behavior)
-    // #[clap(
-    //     name = "tag",
-    //     long,
-    //     short = 't',
-    //     takes_value = true,
-    //     long_help = "Specify a tag to remove from the database. When deleting a tag, all files \
-    //                  which have this tag and no other tags will be removed from the database"
-    // )]
-    // pub(crate) tag: Option<String>,
-
-    // /// Do not remove the tag or value from the database
-    // #[clap(
-    //     name = "untag",
-    //     long,
-    //     short = 'u',
-    //     takes_value = false,
-    //     long_help = "Normal behavior is to remove the tag or value from the database if there
-    // are \                  no other items that correspond to that tag or value. "
-    // )]
-    // pub(crate) delete: bool,
-    // -
     /// A glob pattern like "*.png" (or regex).
     #[clap(name = "pattern", takes_value = true, required = true)]
     pub(crate) pattern: String,
@@ -117,7 +113,8 @@ pub(crate) struct RmOpts {
     #[clap(
         name = "tags",
         takes_value = true,
-        required_unless_present_any = &["all"]
+        conflicts_with = "all",
+        // required_unless_present_any = &["all"]
     )]
     pub(crate) tags: Vec<String>,
 }
@@ -127,6 +124,13 @@ macro_rules! red_entry {
         $t.name().red().bold()
     };
 }
+
+// FEATURE: Pass one value for many tags
+// XXX: Implement `keep_dangling`
+// MAYBE: Switch default from delete to untag
+
+// TODO: Check if xattr is present but not in the registry
+// TODO: Check remove tag, if it has a value, reset value_id to 0
 
 // TODO: Add stdin method for remove
 
@@ -141,16 +145,22 @@ impl App {
 
         println!("RmOpts: {:#?}", opts);
 
-        let pat = if self.pat_regex {
-            String::from(&opts.pattern)
-        } else {
-            glob_builder(&opts.pattern)
-        };
+        let re = regex_builder(
+            &{
+                if self.pat_regex {
+                    String::from(&opts.pattern)
+                } else if self.fixed_string {
+                    regex::escape(&opts.pattern)
+                } else {
+                    glob_builder(&opts.pattern)
+                }
+            },
+            self.case_insensitive,
+            self.case_sensitive,
+        );
+        log::debug!("Compiled pattern: {re}");
 
-        let re = regex_builder(&pat, self.case_insensitive, self.case_sensitive);
-        log::debug!("Compiled pattern: {}", re);
-
-        let reg = self.registry.lock().expect("poisioned lock");
+        let reg = self.registry.lock().expect("poisoned lock");
 
         let mut combos = opts
             .pairs
@@ -200,31 +210,6 @@ impl App {
         // combos.append(&mut values);
 
         println!("COMBOS: {:#?}", combos);
-
-        // let mut combos = opts
-        //     .pairs
-        //     .iter()
-        //     .map(|(t, v)| -> Result<TagValueCombo> {
-        //         let tag = reg.tag_by_name(t).or_else(|_| {
-        //             log::debug!("creating new tag: {}", t);
-        //             let tag = opts.color.as_ref().map_or_else(
-        //                 || Tag::random_noid(t, &self.colors),
-        //                 |color| Tag::new_noid(t, color),
-        //             );
-        //
-        //             reg.insert_tag(&tag)
-        //         })?;
-        //
-        //         let value = reg.value_by_name(v, false).or_else(|_| {
-        //             log::debug!("creating new value: {}", v);
-        //             reg.insert_value(v)
-        //         })?;
-        //
-        //         let combo = TagValueCombo::new(tag.id(), value.id());
-        //
-        //         Ok(combo)
-        //     })
-        //     .collect::<Result<Vec<_>>>()?;
 
         if self.global {
             // let ctags = opts.tags.iter().collect::<Vec<_>>();
@@ -293,19 +278,35 @@ impl App {
         } else {
             drop(reg);
 
-            // TODO: Check if xattr is present but not in the registry
-
+            // untag requires tag=value to be removed
+            // delete only requires tag
             crawler(
                 &Arc::new(re),
                 &Arc::new(self.clone()),
                 opts.follow_symlinks,
                 |entry: &ignore::DirEntry| {
-                    let reg = self.registry.lock().expect("poisioned lock");
-                    // let tv_pairs = vec![];
+                    let reg = self.registry.lock().expect("poisoned lock");
 
-                    // println!("FILE: {:#?}", reg.file_by_path(entry.path()));
-                    if let Ok(file) = reg.file_by_path(entry.path()) {
-                        println!("INIT");
+                    let path = &(|| -> Result<PathBuf> {
+                        if (opts.follow_symlinks || self.follow_symlinks)
+                            && fs::symlink_metadata(entry.path())
+                                .ok()
+                                .map_or(false, |f| f.file_type().is_symlink())
+                        {
+                            log::debug!("{}: resolving symlink", entry.path().display());
+                            return fs::canonicalize(entry.path()).context(format!(
+                                "{}: failed to canonicalize",
+                                entry.path().display()
+                            ));
+                        }
+
+                        return Ok(entry.path().to_path_buf());
+                    })()?;
+
+                    if let Ok(file) = reg.file_by_path(path) {
+                        if !self.quiet {
+                            println!("{}:", fmt_path(path, self.base_color, self.ls_colors));
+                        }
 
                         let all_tags = reg.tags_for_file(&file)?;
 
@@ -325,46 +326,37 @@ impl App {
                             println!("TAG: {:#?}", tag);
                             println!("value: {:#?}", value);
 
+                            let xattr = path.get_tag(&tag);
+                            println!("== XATTR == {:#?}", xattr);
+
                             match (
                                 tag.is_null_id(),
                                 tag.is_null_name(),
                                 value.is_null_id(),
                                 value.is_null_name(),
                             ) {
-                                // Tag and value were passed, both were found in registry
+                                // Passed: Tag, Value => Found: true, true
                                 (false, false, false, false) => {
                                     // TODO: Remove tag
                                     // TODO: Remove value
-                                    wutag_info!("== ffff ==");
-                                    println!("OK TAG OK VALUE");
-                                },
-                                // Tag and value were passed, tag was found in registry
-                                (false, false, true, false) => {
-                                    // TODO: Remove tag
-                                    wutag_info!("== fftf ==");
-                                    wutag_error!(
-                                        "value ({}) is not found in the registry",
-                                        value.name().bold()
+                                    log::debug!(
+                                        "Passed: Tag, Value => Found: {}, {}",
+                                        tag.name(),
+                                        value.name()
                                     );
 
-                                    println!("OK TAG");
-
-                                    if all_tags.is_empty() {
-                                        return Ok(());
-                                    }
+                                    wutag_info!("== ffff == OK TAG OK VALUE");
                                 },
-                                // Tag and value were passed, value was found in registry
+                                // Passed: Tag, Value => Found: false, true
                                 (true, false, false, false) => {
                                     // TODO: Remove value
-                                    wutag_info!("== tfff ==");
+                                    wutag_info!("== tfff == OK VAUE");
                                     wutag_error!(
                                         "tag ({}) is not found in the registry",
                                         red_entry!(tag)
                                     );
-
-                                    println!("OK VALUE");
                                 },
-                                // Tag and value were passed, neither found in registry
+                                // Passed: Tag, Value => Found: false, false
                                 (true, false, true, false) => {
                                     wutag_info!("== tftf ==");
                                     wutag_error!(
@@ -375,23 +367,145 @@ impl App {
                                     );
                                     continue;
                                 },
-                                // Only tag was passed, found in registry
-                                (false, false, true, true) => {
+                                // Passed: Tag => Found: true
+                                // Passed: Tag, Value => Found: true, false
+                                (false, false, true, true) | (false, false, true, false) => {
                                     // TODO: Remove tag
-                                    wutag_info!("== fftt ==");
-                                    println!("OK TAG");
+
+                                    if value.is_null_name() {
+                                        log::debug!(
+                                            "Passed: Tag, Value => Found: {}, false",
+                                            tag.name()
+                                        );
+                                        wutag_info!("== fftt == OK TAG");
+                                    } else {
+                                        log::debug!(
+                                            "Passed: Tag, Value => Found: {}, false",
+                                            tag.name()
+                                        );
+
+                                        wutag_info!("== fftf == OK TAG");
+                                        wutag_error!(
+                                            "value ({}) is not found in the registry",
+                                            value.name().bold()
+                                        );
+                                    }
 
                                     if all_tags.is_empty() {
+                                        // This should be unreachable
+                                        wutag_error!(
+                                            "{}: something went horribly wrong. A tagged file is \
+                                             registering as having no tags. Please report to \
+                                             lmburns/wutag",
+                                            bold_entry!(path)
+                                        );
                                         return Ok(());
                                     }
 
-                                    if let Err(e) =
-                                        reg.delete_filetag(file.id(), tag.id(), value.id())
-                                    {
-                                        wutag_error!("{}", e);
+                                    if opts.untag {
+                                        // Untag the file if the tag count > 1
+                                        if let Err(e) =
+                                            reg.delete_filetag(file.id(), tag.id(), value.id())
+                                        {
+                                            match e.downcast_ref::<Error>() {
+                                                Some(Error::NonexistentFileTag(_, _, _)) => {
+                                                    if value.id().id() == 0_i64 {
+                                                        let values =
+                                                            reg.values_by_fileid(file.id())?;
+
+                                                        wutag_error!(
+                                                            "the tag {} has a value and the file \
+                                                             cannot be untagged without \
+                                                             it.\nUse:\n  - {}\n  - {}\n{} has \
+                                                             the following values:\n   - {}",
+                                                            fmt_tag(tag),
+                                                            "wutag rm -up 'tag=value' <pattern>"
+                                                                .cyan()
+                                                                .bold(),
+                                                            "wutag rm <pattern> <tag>"
+                                                                .cyan()
+                                                                .bold(),
+                                                            fmt_path(
+                                                                file.path(),
+                                                                self.base_color,
+                                                                self.ls_colors
+                                                            ),
+                                                            values
+                                                                .iter()
+                                                                .map(|t| t.to_string().bold())
+                                                                .join("\n   - ")
+                                                                .to_string()
+                                                        );
+                                                    } else {
+                                                        wutag_error!("{e}");
+                                                    }
+                                                },
+                                                _ => {
+                                                    wutag_error!("{e}");
+                                                },
+                                            }
+                                        }
+                                    } else {
+                                        if opts.with_values && !self.keep_dangling {
+                                            if let Ok(values) = reg.values_by_tagid(tag.id()) {
+                                                for value in values.iter() {
+                                                    if reg.value_count_by_id(value.id())? == 1 {
+                                                        log::debug!(
+                                                            "{}: removing value {}",
+                                                            path.display(),
+                                                            value
+                                                        );
+                                                        reg.delete_value(value.id())?;
+                                                    } else {
+                                                        reg.delete_filetag(
+                                                            file.id(),
+                                                            tag.id(),
+                                                            value.id(),
+                                                        )?;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        if reg.tag_count_by_id(tag.id())? == 1 {
+                                            log::debug!(
+                                                "{}: deleting tag {}",
+                                                path.display(),
+                                                tag.name()
+                                            );
+
+                                            if let Err(e) = reg.delete_tag(tag.id()) {
+                                                wutag_error!(
+                                                    "{}: failed to delete tag {}: {}",
+                                                    bold_entry!(path),
+                                                    fmt_tag(tag),
+                                                    e
+                                                );
+                                            }
+                                        } else {
+                                            // Maybe add a --force option to delete all files
+                                            // with this tag
+                                            wutag_info!(
+                                                "more than one file possesses {}. To untag the \
+                                                 matching files use the `--untag` flag",
+                                                fmt_tag(tag)
+                                            );
+                                        }
+                                    }
+
+                                    // Deal with xattr after database
+                                    if let Err(e) = xattr {
+                                        wutag_error!(
+                                            "{}: found ({}) in database, though file has no xattrs",
+                                            bold_entry!(entry),
+                                            fmt_tag(tag)
+                                        );
+                                    } else if let Err(e) = path.untag(tag) {
+                                        wutag_error!("{}: {}", path.display(), e);
+                                    } else {
+                                        print!("\t{} {}", "X".bold().red(), fmt_tag(tag));
                                     }
                                 },
-                                // Only tag was passed, not found in registry
+                                // Passed: Tag => Found: false
                                 (true, false, true, true) => {
                                     wutag_info!("== tftt ==");
                                     wutag_error!(
@@ -400,13 +514,12 @@ impl App {
                                     );
                                     continue;
                                 },
-                                // Only value was passed, found in registry
+                                // Passed: Value => Found: true
                                 (true, true, false, false) => {
                                     // TODO: Remove value
-                                    wutag_info!("== ttff ==");
-                                    println!("OK VALUE");
+                                    wutag_info!("== ttff == OK VALUE");
                                 },
-                                // Only value was passed, not found in registry
+                                // Passed: Value => Found: false
                                 (true, true, true, false) => {
                                     wutag_info!("== tttf ==");
                                     wutag_error!(
@@ -415,8 +528,8 @@ impl App {
                                     );
                                     continue;
                                 },
-                                // Only occurs if tag or value name == "" (should be unreachable)
-                                #[allow(clippy::unnested_or_patterns)]
+                                // Passed: => Found:
+                                //  - Should only happen if clap somehow accepts empties
                                 (true, true, true, true)
                                 | (false, true, _, _)
                                 | (false, false, false, true)
@@ -429,48 +542,13 @@ impl App {
                                 },
                             }
                         }
+                    } else {
+                        log::trace!("{}: skipping", path.display());
                     }
 
-                    // let tags = opts
-                    //     .tags
-                    //     .iter()
-                    //     .map(|tag| {
-                    //         if let Some(id) = id {
-                    //             self.oregistry.untag_by_name(tag, id);
-                    //         }
-                    //         entry.get_tag(tag)
-                    //     })
-                    //     .collect::<Vec<_>>();
-
-                    // if tags.is_empty() {
-                    //     return Ok(());
-                    // }
-                    //
-                    // if !self.quiet {
-                    //     println!(
-                    //         "{}:",
-                    //         fmt_path(entry.path(), self.base_color, self.ls_colors)
-                    //     );
-                    // }
-                    // for tag in tags {
-                    //     let tag = match tag {
-                    //         Ok(tag) => tag,
-                    //         Err(e) => {
-                    //             err!('\t', e, entry);
-                    //             return Ok(());
-                    //         },
-                    //     };
-                    //     if let Err(e) = entry.untag(&tag) {
-                    //         err!('\t', e, entry);
-                    //     } else {
-                    //         print!("\t{} {}", "X".bold().red(), fmt_tag_old(&tag));
-                    //     }
-                    // }
-                    // if !self.quiet {
-                    //     println!();
-                    // }
-                    // log::debug!("Saving registry...");
-                    // self.save_registry();
+                    if !self.quiet {
+                        println!();
+                    }
 
                     Ok(())
                 },

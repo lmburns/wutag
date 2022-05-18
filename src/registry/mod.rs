@@ -31,6 +31,7 @@ use self::{
         version::Version,
     },
     transaction::Txn,
+    types::{FileId, TagId, ValueId},
 };
 use crate::{
     cassert_eq,
@@ -96,10 +97,6 @@ pub(crate) enum Error {
     #[error("{0}")]
     General(String),
 
-    /// `Implication` does not exist
-    #[error("implication does not exist in database: {0}")]
-    NonexistentImpl(String),
-
     /// `File` does not exist
     #[error("file does not exist in database: {0}")]
     NonexistentFile(String),
@@ -111,6 +108,10 @@ pub(crate) enum Error {
     /// `Tag` does not exist
     #[error("tag does not exist in database: {0}")]
     NonexistentTag(String),
+
+    /// `FileTag` does not exist
+    #[error("file-tag does not exist: File: {0}, Tag: {1}, Value: {2}")]
+    NonexistentFileTag(FileId, TagId, ValueId),
 
     /// Too many items were modified
     #[error("too many items were modified with this action: id = {0}")]

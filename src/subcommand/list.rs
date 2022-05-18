@@ -32,6 +32,10 @@ pub(crate) enum ListObject {
     // ╰──────────────────────────────────────────────────────────╯
     /// List the `Tags` within the database
     Tags {
+        /// Display values along with the tags
+        #[clap(name = "with_values", long = "with-values", short = 'V')]
+        with_values: bool,
+
         /// Do not display tag count
         #[clap(name = "no-count", long = "no-count", short = 'c')]
         no_count: bool,
@@ -87,11 +91,20 @@ pub(crate) enum ListObject {
         #[clap(name = "with_tags", long = "with-tags", short = 't')]
         with_tags: bool,
 
+        /// Display values along with the tags
+        #[clap(
+            name = "with_values",
+            long = "with-values",
+            short = 'V',
+            requires = "with_tags"
+        )]
+        with_values: bool,
+
         /// Format the tags and files output into columns
         #[clap(
             name = "formatted",
             long = "format",
-            short,
+            short = 'f',
             conflicts_with = "garrulous",
             requires = "with_tags",
             long_help = "Format the tags and files output into columns. Requires '--with-tags'"
@@ -101,7 +114,7 @@ pub(crate) enum ListObject {
         /// Use border separators when formatting output
         #[clap(
             long,
-            short,
+            short = 'b',
             requires = "formatted",
             long_help = "\
             Use a border around the perimeter of the formatted output, as well as in-between the \
@@ -155,11 +168,47 @@ impl App {
             _ => ColorChoice::Auto,
         };
 
-        let reg = self.registry.lock().expect("poisioned lock");
+        let reg = self.registry.lock().expect("poisoned lock");
+
+        /// If the `raw` option is given, do not colorize
+        let raw = |t: &Tag, with_values: bool| {
+            let tag = if opts.raw {
+                t.name().clone()
+            } else {
+                fmt_tag(t).to_string()
+            };
+
+            if with_values {
+                // FIX: As of now, only one value per tag because of xattr
+                let values = reg.values_by_tagid(t.id()).map_or_else(
+                    |_| String::from(""),
+                    |values| {
+                        format!(
+                            "={}",
+                            values
+                                .iter()
+                                .map(|value| {
+                                    let v = value.name();
+                                    tern::t!(
+                                        opts.raw
+                                            ? v.clone()
+                                            : v.bold().to_string()
+                                    )
+                                })
+                                .join(",")
+                        )
+                    },
+                );
+                format!("{}{}", tag, values)
+            } else {
+                tag
+            }
+        };
 
         match opts.object {
             ListObject::Files {
                 with_tags,
+                with_values,
                 formatted,
                 border,
                 garrulous,
@@ -200,13 +249,7 @@ impl App {
                         let tags = reg
                             .tags_for_file(file)?
                             .iter()
-                            .map(|t| {
-                                if opts.raw {
-                                    t.name().clone()
-                                } else {
-                                    fmt_tag(t).to_string()
-                                }
-                            })
+                            .map(|t| raw(t, with_values))
                             .collect::<Vec<_>>()
                             .join(" ");
 
@@ -251,6 +294,7 @@ impl App {
                 }
             },
             ListObject::Tags {
+                with_values,
                 no_count,
                 border,
                 one_per_line,
@@ -266,25 +310,16 @@ impl App {
                         continue;
                     }
 
-                    /// If the `raw` option is given, do not colorize
-                    let raw = |t: &Tag| -> colored::ColoredString {
-                        if opts.raw {
-                            t.name().white()
-                        } else {
-                            fmt_tag(t)
-                        }
-                    };
-
                     if one_per_line {
                         reg.tags_for_file(file)?.iter().for_each(|tag| {
-                            utags.push(format!("{}", raw(tag)));
+                            utags.push(raw(tag, with_values));
                         });
                     } else {
                         let tags = reg
                             .tags_for_file(file)
                             .map(|tags| {
                                 tags.iter().fold(String::new(), |mut acc, t| {
-                                    acc.push_str(&format!("{} ", raw(t)));
+                                    acc.push_str(&format!("{} ", raw(t, with_values)));
                                     acc
                                 })
                             })
@@ -295,6 +330,7 @@ impl App {
                     }
                 }
 
+                // TODO: May need to recalculate count after icorporating value display
                 let mut vec = utags
                     .iter()
                     .fold(HashMap::new(), |mut acc, t| {

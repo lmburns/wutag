@@ -63,17 +63,7 @@ _wutag() {
         (( CURRENT += 1 ))
         curcontext="${curcontext%:*:*}:wutag-command-$line[1]:"
         case $line[1] in
-            (testing)
-_arguments "${_arguments_options[@]}" \
-'*-q+[]:query:_cmdstring' \
-'*--query=[]:query:_cmdstring' \
-'-h[Print help information]' \
-'--help[Print help information]' \
-'*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
-'*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
-&& ret=0
-;;
-(init)
+            (init)
 _arguments "${_arguments_options[@]}" \
 '-h[Print help information]' \
 '--help[Print help information]' \
@@ -102,6 +92,8 @@ _arguments "${_arguments_options[@]}" \
             (tags)
 _arguments "${_arguments_options[@]}" \
 '--version[Print version information]' \
+'-V[Display values along with the tags]' \
+'--with-values[Display values along with the tags]' \
 '-c[Do not display tag count]' \
 '--no-count[Do not display tag count]' \
 '-u[Only display unique occurences. (See --help)]' \
@@ -123,6 +115,8 @@ _arguments "${_arguments_options[@]}" \
 '--version[Print version information]' \
 '-t[Display tags along with the files]' \
 '--with-tags[Display tags along with the files]' \
+'-V[Display values along with the tags]' \
+'--with-values[Display values along with the tags]' \
 '(-G --garrulous)-f[Format the tags and files output into columns]' \
 '(-G --garrulous)--format[Format the tags and files output into columns]' \
 '-b[Use border separators when formatting output]' \
@@ -171,10 +165,14 @@ _arguments "${_arguments_options[@]}" \
 '(-V --values)*--pairs=[Specify any number of tag=value pairs to delete]:pairs: ' \
 '-f[Follow symlinks before removing tags]' \
 '--follow-symlinks[Follow symlinks before removing tags]' \
-'-a[Remove all tags on a file]' \
-'--all[Remove all tags on a file]' \
+'-a[Remove all tags and/or values on a file]' \
+'--all[Remove all tags and/or values on a file]' \
+'-u[Do not remove the tag or value from the database]' \
+'--untag[Do not remove the tag or value from the database]' \
 '-V[Indicate the item(s) in the given list are values intead of tags]' \
 '--values[Indicate the item(s) in the given list are values intead of tags]' \
+'(-V --values -u --untag)-w[When deleting tags from the database, delete the tag'\''s values as well]' \
+'(-V --values -u --untag)--with-values[When deleting tags from the database, delete the tag'\''s values as well]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
@@ -185,6 +183,8 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (clear)
 _arguments "${_arguments_options[@]}" \
+'-f[Follow symlinks before clearing tags or values]' \
+'--follow-symlinks[Follow symlinks before clearing tags or values]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
@@ -323,11 +323,10 @@ esac
 (( $+functions[_wutag_commands] )) ||
 _wutag_commands() {
     local commands; commands=(
-'testing:Testing new subcommands' \
 'init:Initialize the database' \
 'list:Lists all available tags or files' \
 'ls:Lists all available tags or files' \
-'set:Set tag(s) on files that match the given pattern' \
+'set:Set tag(s) and/or value(s) on results from a patterned query' \
 'rm:Remove tag(s) from the files that match the provided pattern' \
 'clear:Clears all tags of the files that match the provided pattern' \
 'search:Searches for files that have all of the provided '\''tags'\''' \

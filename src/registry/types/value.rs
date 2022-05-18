@@ -13,6 +13,7 @@ use rusqlite::{
     Row,
 };
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 // ╭──────────────────────────────────────────────────────────╮
 // │                         ValueId                          │
@@ -147,6 +148,12 @@ impl Values {
                     .then(|| name.to_lowercase())
                     .unwrap_or_else(|| name.to_string())
         })
+    }
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name)
     }
 }
 

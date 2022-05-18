@@ -69,7 +69,7 @@ pub(crate) struct Config {
     pub(crate) only_create_tags_if_valid: bool,
 
     /// Keep tags and/or values in the database if there is no corresponding
-    /// entry This would mean:
+    /// entry If false, this would mean:
     ///     - If a tag does not have a corresponding file, it will be removed
     ///     - If a value does not have a corresponding tag, it will be removed
     #[serde(alias = "keep-dangling")]

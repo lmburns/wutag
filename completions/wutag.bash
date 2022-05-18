@@ -55,9 +55,6 @@ _wutag() {
             tags)
                 cmd+="__tags"
                 ;;
-            testing)
-                cmd+="__testing"
-                ;;
             ui)
                 cmd+="__ui"
                 ;;
@@ -71,7 +68,7 @@ _wutag() {
 
     case "${cmd}" in
         wutag)
-            opts="-h -V -v -d -m -R -i -s -r -G -F -g -L -l -c -t -e -E -q --help --version --verbose --dir --max-depth --registry --case-insensitive --case-sensitive --regex --glob --fixed-string --global --follow --no-follow --ls-colors --color --type --ext --exclude --quiet testing init list set rm clear search cp view edit info repair print-completions clean-cache ui"
+            opts="-h -V -v -d -m -R -i -s -r -G -F -g -L -l -c -t -e -E -q --help --version --verbose --dir --max-depth --registry --case-insensitive --case-sensitive --regex --glob --fixed-string --global --follow --no-follow --ls-colors --color --type --ext --exclude --quiet init list set rm clear search cp view edit info repair print-completions clean-cache ui"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -155,7 +152,7 @@ _wutag() {
             return 0
             ;;
         wutag__clear)
-            opts="-h -v --help --verbose <PATTERN>"
+            opts="-f -h -v --follow-symlinks --help --verbose <PATTERN>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -255,7 +252,7 @@ _wutag() {
             return 0
             ;;
         wutag__list__files)
-            opts="-t -f -b -G -h -v --version --with-tags --format --border --garrulous --help --verbose"
+            opts="-t -V -f -b -G -h -v --version --with-tags --with-values --format --border --garrulous --help --verbose"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -269,7 +266,7 @@ _wutag() {
             return 0
             ;;
         wutag__list__tags)
-            opts="-c -u -s -1 -b -h -v --version --no-count --unique --sort --one-per-line --border --help --verbose"
+            opts="-V -c -u -s -1 -b -h -v --version --with-values --no-count --unique --sort --one-per-line --border --help --verbose"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -339,7 +336,7 @@ _wutag() {
             return 0
             ;;
         wutag__rm)
-            opts="-f -a -p -V -h -v --follow-symlinks --all --pairs --values --help --verbose <pattern> <tags>..."
+            opts="-f -a -u -p -V -w -h -v --follow-symlinks --all --untag --pairs --values --with-values --help --verbose <pattern> <tags>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -434,28 +431,6 @@ _wutag() {
                     return 0
                     ;;
                 -V)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                *)
-                    COMPREPLY=()
-                    ;;
-            esac
-            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-            return 0
-            ;;
-        wutag__testing)
-            opts="-q -h -v --query --help --verbose"
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
-                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
-                return 0
-            fi
-            case "${prev}" in
-                --query)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                -q)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;

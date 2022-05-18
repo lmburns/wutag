@@ -224,27 +224,28 @@ fn _remove_xattr(path: &Path, name: &str, symlink: bool) -> Result<()> {
 /// In user.* namespace, only regular files and directories can have extended
 /// attributes. For sticky directories, only the owner and privileged user
 /// can write attributes.
-// The  file  permission  bits of regular files and directories are interpreted
-// differently from the file permission bits of special files and
-// symbolic links.  For regular files and directories the file permission bits
-// define access to the file's contents, while for device  special files  they
-// define  access  to  the  device  described by the special file.  The file
-// permissions of symbolic links are not used in access checks.  These
-// differences would allow users to consume filesystem resources in a way not
-// controllable by disk quotas for  group  or  world writable special files and
-// directories.
-//
-// For this reason, user extended attributes are allowed only for regular files
-// and directories, and access to user extended attributes is restricted to
-// the owner and to users with appropriate capabilities for directories with the
-// sticky bit set (see the chmod(1) manual page  for an explanation of the
-// sticky bit).
+///
+/// The  file  permission  bits of regular files and directories are interpreted
+/// differently from the file permission bits of special files and
+/// symbolic links.  For regular files and directories the file permission bits
+/// define access to the file's contents, while for device  special files  they
+/// define  access  to  the  device  described by the special file.  The file
+/// permissions of symbolic links are not used in access checks.  These
+/// differences would allow users to consume filesystem resources in a way not
+/// controllable by disk quotas for  group  or  world writable special files and
+/// directories.
+///
+/// For this reason, user extended attributes are allowed only for regular files
+/// and directories, and access to user extended attributes is restricted to
+/// the owner and to users with appropriate capabilities for directories with
+/// the sticky bit set (see the chmod(1) manual page  for an explanation of the
+/// sticky bit).
 fn _set_xattr(path: &Path, name: &str, value: &str, size: usize, symlink: bool) -> Result<()> {
     // ::xattr::set(&path, "user", value.as_bytes())?;
 
     let path = CString::new(path.as_os_str().as_bytes())?;
     let name = {
-        if symlink {
+        if symlink && cfg!(target_os = "linux") {
             CString::new(format!("trusted.{}", name).as_bytes())?
         } else {
             CString::new(name.as_bytes())?

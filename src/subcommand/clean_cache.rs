@@ -5,8 +5,7 @@ use crate::{util::prompt, wutag_error, wutag_info};
 use colored::Colorize;
 
 impl App {
-    /// Clean the database by removing all old entries and start from a clean
-    /// slate
+    /// Clean the database by removing all entries
     pub(crate) fn clean_cache(&mut self) {
         if prompt(
             "Are you sure you want to clean the registry?",

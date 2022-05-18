@@ -1,13 +1,10 @@
 //! A wrapper around the [`Tag`] found in [`wutag_core`]
 
-// TODO: Look into merging wutag_core Tag and this Tag
-// When writing metadata to file, possibly write tag values as well
-
 use super::{
     filetag::FileTag, from_vec, impl_vec, implication::Implication, validate_name, value::ValueId,
     ID,
 };
-use crate::wutag_error;
+use crate::{consts::DEFAULT_COLOR, wutag_error};
 use anyhow::{anyhow, Context, Result};
 use colored::{Color, Colorize};
 use rusqlite::{
@@ -25,7 +22,7 @@ use std::{
 };
 use wutag_core::{
     color::{self, parse_color},
-    tag::{Tag as WTag, DEFAULT_COLOR},
+    tag::Tag as WTag,
     xattr::{list_xattrs, remove_xattr, set_xattr, Xattr},
     Error, WUTAG_NAMESPACE,
 };
@@ -363,7 +360,14 @@ impl Tag {
     }
 }
 
+impl AsRef<str> for Tag {
+    fn as_ref(&self) -> &str {
+        self.name().as_ref()
+    }
+}
+
 impl Hash for Tag {
+    // TODO: Maybe add option to serialize value
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.name.hash(state);
         self.color.to_fg_str().hash(state);
@@ -391,6 +395,13 @@ impl PartialOrd for Tag {
     }
 }
 
+impl fmt::Display for Tag {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name)
+    }
+}
+
 impl TryFrom<&Row<'_>> for Tag {
     type Error = rsq::Error;
 
@@ -405,6 +416,7 @@ impl TryFrom<&Row<'_>> for Tag {
     }
 }
 
+// TODO: Delete these once subcommands are finished
 impl From<WTag> for Tag {
     fn from(w: WTag) -> Self {
         Self {

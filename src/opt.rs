@@ -3,7 +3,9 @@ use clap::{crate_version, AppSettings, Parser, Subcommand, ValueHint};
 use std::{env, fs, path::PathBuf};
 
 use crate::{
-    consts::{AFTER_HELP, APP_ABOUT, APP_AUTHORS, DEFAULT_EDITOR, FILE_TYPE, OVERRIDE_HELP},
+    consts::{
+        AFTER_HELP, APP_ABOUT, APP_AUTHORS, DEFAULT_EDITOR, FILE_TYPE, OVERRIDE_HELP, RM_LONG_HELP,
+    },
     subcommand::{
         clear::ClearOpts,
         cp::CpOpts,
@@ -16,7 +18,6 @@ use crate::{
         rm::RmOpts,
         search::SearchOpts,
         set::SetOpts,
-        testing::TestingOpts,
         view::ViewOpts,
     },
 };
@@ -39,7 +40,8 @@ use crate::{
     disable_help_subcommand = true, // Disables help (use -h)
     dont_collapse_args_in_usage = true,
     subcommand_required = false, // A default command has been setup
-    global_setting(AppSettings::DeriveDisplayOrder),           // Display in order listed here
+    next_line_help = true,
+    global_setting(AppSettings::DeriveDisplayOrder), // Display in order listed here
 )]
 pub(crate) struct Opts {
     #[clap(long, short, global = true, parse(from_occurrences))]
@@ -324,10 +326,11 @@ impl Default for Command {
     fn default() -> Self {
         Self::List(ListOpts {
             object: ListObject::Files {
-                with_tags: true,
-                formatted: true,
-                border:    false,
-                garrulous: false,
+                with_tags:   true,
+                with_values: true,
+                formatted:   true,
+                border:      false,
+                garrulous:   false,
             },
             raw:    false,
         })
@@ -350,10 +353,7 @@ impl Default for Command {
 /// All subcommands to `wutag`
 #[derive(Subcommand, Debug, Clone, PartialEq)]
 pub(crate) enum Command {
-    /// Testing new subcommands
-    #[clap(override_usage = "wutag [FLAG/OPTIONS] test")]
-    Testing(TestingOpts),
-
+    // TODO: Delete, not needed anymore
     /// Initialize the database
     #[clap(
         aliases = &["setup", "initialize", "start"],
@@ -368,28 +368,27 @@ pub(crate) enum Command {
     /// Lists all available tags or files
     #[clap(
         aliases = &["ls", "l", "li", "lis"],
-        override_usage = "wutag [FLAG/OPTIONS] list [FLAG/OPTIONS] <SUBCOMMAND> [FLAG/OPTIONS]",
+        // override_usage = "wutag [OPTIONS] list [OPTIONS] <SUBCOMMAND> [OPTIONS]",
         long_about = "\
             List all tagged files or tags under current directory if the global option \
             is not present, else list all tagged files or tags in the registry. Alias: ls"
     )]
     List(ListOpts),
 
-    /// Set tag(s) on files that match the given pattern
+    /// Set tag(s) and/or value(s) on results from a patterned query
     #[clap(
         aliases = &["set", "tag"],
-        override_usage = "wutag [FLAG/OPTIONS] set [FLAG/OPTIONS] <pattern> <tag>",
-        long_about = "Set tag(s) on files that match a given pattern. Alias: tag"
+        override_usage = "wutag [OPTIONS] set [OPTIONS] <pattern> <tags>...",
+        long_about = "Set tag(s) on files or value(s) on tag(s) that match a given pattern. \
+            Alias: tag"
     )]
     Set(SetOpts),
 
     /// Remove tag(s) from the files that match the provided pattern
     #[clap(
         aliases = &["remove", "del", "delete"],
-        override_usage = "wutag [FLAG/OPTIONS] rm <pattern> <tag>",
-        long_about = "\
-            Remove tag(s) from the files that match the provided pattern. \
-            Aliases: remove, del, delete"
+        override_usage = "wutag [OPTIONS] rm [OPTIONS] <pattern> <tags>...",
+        long_about = <String as AsRef<str>>::as_ref(&RM_LONG_HELP)
     )]
     Rm(RmOpts),
 

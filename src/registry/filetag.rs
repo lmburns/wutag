@@ -51,7 +51,7 @@ impl Txn<'_> {
     ///
     /// [`File`]: ../types/file/struct.File.html
     /// [`Tag`]: ../types/tag/struct.Tag.html
-    pub(super) fn filetag_exists(&self, ft: &FileTag) -> Result<bool> {
+    pub(super) fn filetag_exists(&self, ft: &FileTag) -> Result<bool, Error> {
         let count: u32 = self
             .select(
                 "SELECT count(1)
@@ -62,7 +62,15 @@ impl Txn<'_> {
             )
             .context(fail!("check if `FileTag` exists"))?;
 
-        Ok(count > 0)
+        if count > 0 {
+            return Ok(true);
+        }
+
+        Err(Error::NonexistentFileTag(
+            ft.file_id(),
+            ft.tag_id(),
+            ft.value_id(),
+        ))
     }
 
     /// Retrieve the number of `File`-`Tag` pairs in the database

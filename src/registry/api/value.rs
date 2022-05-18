@@ -63,9 +63,14 @@ impl Registry {
         self.txn_wrap(|txn| txn.values_by_names(names, ignore_case).map_err(Into::into))
     }
 
-    /// Retrieve all [`Value`]s matching a `TagId`
+    /// Retrieve all [`Value`]s matching a [`TagId`]
     pub(crate) fn values_by_tagid(&self, tid: TagId) -> Result<Values> {
         self.txn_wrap(|txn| txn.values_by_tagid(tid))
+    }
+
+    /// Retrieve all [`Value`]s matching a [`FileId`]
+    pub(crate) fn values_by_fileid(&self, fid: FileId) -> Result<Values> {
+        self.txn_wrap(|txn| txn.values_by_fileid(fid))
     }
 
     // ============================== Pattern =============================

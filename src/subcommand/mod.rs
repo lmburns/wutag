@@ -12,7 +12,6 @@ pub(crate) mod repair;
 pub(crate) mod rm;
 pub(crate) mod search;
 pub(crate) mod set;
-pub(crate) mod testing;
 pub(crate) mod view;
 
 // TODO: Virtual filesystem
@@ -61,6 +60,7 @@ pub(crate) struct App {
     pub(crate) extension:        Option<RegexSet>,
     pub(crate) file_type:        Option<FileTypes>,
     pub(crate) follow_symlinks:  bool,
+    pub(crate) keep_dangling:    bool,
     pub(crate) show_duplicates:  bool,
     pub(crate) format:           String,
     pub(crate) global:           bool,
@@ -234,6 +234,7 @@ impl App {
             extension: extensions,
             file_type: file_types,
             follow_symlinks: follow_links,
+            keep_dangling: config.keep_dangling,
             show_duplicates: config.show_duplicates,
             format,
             global: opts.global,
@@ -282,7 +283,6 @@ impl App {
             Command::Rm(ref opts) => self.rm(opts)?,
             Command::Search(ref opts) => self.search(opts),
             Command::Set(opts) => self.set(&opts)?,
-            Command::Testing(opts) => self.testing(&opts)?,
             Command::View(ref opts) => self.view(opts)?,
 
             #[cfg(feature = "ui")]
@@ -331,6 +331,7 @@ impl Clone for App {
             extension:        self.extension.clone(),
             file_type:        self.file_type,
             follow_symlinks:  self.follow_symlinks,
+            keep_dangling:    self.keep_dangling,
             show_duplicates:  self.show_duplicates,
             format:           self.format.clone(),
             global:           self.global,

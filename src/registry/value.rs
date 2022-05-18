@@ -82,7 +82,7 @@ impl Txn<'_> {
             .select(
                 "SELECT id, name
                 FROM value
-                WHERE id = ?",
+                WHERE id = ?1",
                 params![vid],
                 |row| {
                     let r: Value = row.try_into().expect("failed to convert to `Value`");
@@ -210,10 +210,30 @@ impl Txn<'_> {
                     WHERE tag_id = ?1
                 )
                 ORDER BY name",
-                params![],
+                params![tid],
                 |row| row.try_into().expect("failed to convert to `Value`"),
             )
             .context("failed to query for values by TagId")?;
+
+        Ok(values.into())
+    }
+
+    /// Retrieve all [`Value`]s matching a [`FileId`]
+    pub(super) fn values_by_fileid(&self, fid: FileId) -> Result<Values> {
+        let values: Vec<Value> = self
+            .query_vec(
+                "SELECT id, name
+                FROM value
+                WHERE id IN (
+                    SELECT value_id
+                    FROM file_tag
+                    WHERE file_id = ?1
+                )
+                ORDER BY name",
+                params![fid],
+                |row| row.try_into().expect("failed to convert to `Value`"),
+            )
+            .context("failed to query for values by FileId")?;
 
         Ok(values.into())
     }

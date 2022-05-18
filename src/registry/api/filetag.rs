@@ -10,7 +10,7 @@ use super::super::{
         tag::TagId,
         value::ValueId,
     },
-    Registry,
+    Error, Registry,
 };
 use anyhow::{anyhow, Context, Result};
 use colored::Colorize;
@@ -24,15 +24,8 @@ impl Registry {
     ///
     /// [`File`]: ../types/file/struct.File.html
     /// [`Tag`]: ../types/tag/struct.Tag.html
-    #[allow(clippy::unused_self)]
-    pub(crate) fn filetag_exists(&self, txn: &Txn, ft: &FileTag) -> Result<bool> {
-        txn.filetag_exists(ft)
-    }
-
-    /// Retrieve the number of [`FileTag`]s within the database
-    #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
-    pub(crate) fn filetag_count2(&self) -> Result<u32> {
-        self.txn_wrap(|txn| txn.select_filetag_count())
+    pub(crate) fn filetag_exists(&self, ft: &FileTag) -> Result<bool> {
+        self.txn_wrap(|txn| txn.filetag_exists(ft).map_err(Into::into))
     }
 
     /// Retrieve the number of [`FileTag`]s within the database
@@ -89,16 +82,7 @@ impl Registry {
     pub(crate) fn delete_filetag(&self, fid: FileId, tid: TagId, vid: ValueId) -> Result<()> {
         self.wrap_commit(|txn| {
             let ft = FileTag::new(fid, tid, vid);
-            let exists = self.filetag_exists(txn, &ft)?;
-
-            if !exists {
-                return Err(anyhow!(
-                    "the given `FileTag` does not exist:\n\t- File: {}, Tag: {}, Value: {}",
-                    ft.file_id(),
-                    ft.tag_id(),
-                    ft.value_id()
-                ));
-            }
+            let exists = txn.filetag_exists(&ft)?;
 
             txn.delete_filetag(&ft)?;
             self.delete_file_if_untagged(txn, ft.file_id())?;

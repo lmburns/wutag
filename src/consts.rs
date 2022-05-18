@@ -33,6 +33,8 @@ pub(crate) const DEFAULT_BASE_COLOR: Color = Blue;
 pub(crate) const DEFAULT_BORDER_COLOR: cli_table::Color = cli_table::Color::White;
 /// Default max depth passed to [WalkParallel](ignore::WalkParallel)
 pub(crate) const DEFAULT_MAX_DEPTH: usize = 2;
+/// A single default color
+pub(crate) const DEFAULT_COLOR: Color = Color::BrightWhite;
 /// Default colors used for tags
 pub(crate) const DEFAULT_COLORS: &[Color] = &[
     Red,
@@ -137,6 +139,19 @@ pub(crate) static AFTER_HELP: Lazy<String> = Lazy::new(|| {
         "See {}wutag{} {}--help{} for longer explanations of some base options.\nUse {}--help{} \
          after a subcommand for explanations of more options.",
         BRED, RES, GREEN, RES, GREEN, RES
+    )
+});
+
+/// Colorized message about the `rm` subcommand
+pub(crate) static RM_LONG_HELP: Lazy<String> = Lazy::new(|| {
+    format!(
+        "Remove tag(s) from the files that match the provided pattern. The default behavior is to \
+         act on tags, but this can be changed with the {}--values{} option. Another default \
+         behavior is to delete the item from the database if no other tag or file possess this \
+         item. The tag or value will be kept in the database with the {}--untag{} option or if \
+         the configuration option `keep_dangling` is present.
+         {}Aliases{}: remove, del, delete",
+        GREEN, RES, GREEN, RES, BRCYAN, RES
     )
 });
 

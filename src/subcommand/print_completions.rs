@@ -23,6 +23,7 @@ pub(crate) struct CompletionsOpts {
         possible_values = &["bash", "zsh", "powershell", "elvish", "fish"]
     )]
     pub(crate) shell: Shell,
+
     /// Directory to output completions to
     #[clap(
         long, short = 'd',
@@ -33,7 +34,7 @@ pub(crate) struct CompletionsOpts {
                             .map(|_| ())
                             .map_err(|e| e.to_string()),
     )]
-    pub(crate) dir:   Option<PathBuf>,
+    pub(crate) dir: Option<PathBuf>,
 }
 
 impl App {

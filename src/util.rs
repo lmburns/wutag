@@ -89,10 +89,10 @@ pub(crate) fn fmt_err<E: Display>(err: E) -> String {
     format!("{} {}", "ERROR:".red().bold(), format!("{}", err).white())
 }
 
-/// Format an `OK` message
-pub(crate) fn fmt_ok<S: AsRef<str>>(msg: S) -> String {
-    format!("{} {}", "OK".green().bold(), msg.as_ref().white())
-}
+// /// Format an `OK` message
+// pub(crate) fn fmt_ok<S: AsRef<str>>(msg: S) -> String {
+//     format!("{} {}", "OK".green().bold(), msg.as_ref().white())
+// }
 
 /// Format the colored/non-colored output of a path
 pub(crate) fn fmt_path<P: AsRef<Path>>(path: P, base_color: Color, ls_colors: bool) -> String {

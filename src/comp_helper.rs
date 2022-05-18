@@ -78,11 +78,6 @@ _wutag__list__tags_commands() {
     local commands; commands=()
     _describe -t commands 'wutag list tags commands' commands \"$@\"
 }
-(( $+functions[_wutag__testing_commands] )) ||
-_wutag__testing_commands() {
-    local commands; commands=()
-    _describe -t commands 'wutag testing commands' commands \"$@\"
-}
 (( $+functions[_wutag__ui_commands] )) ||
 _wutag__ui_commands() {
     local commands; commands=()

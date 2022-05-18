@@ -142,11 +142,12 @@ pub(crate) struct SetOpts {
 }
 
 // FEATURE: Force if no permissions. Write to database but no xattr
+// FEATURE: Pass one value for many tags
+// FEATURE:?: Create tag and add to database without writing to file
 
 // TODO: Condense all this duplicate code
 // TODO: Collect errors; print path or error, not both
-
-// MAYBE: Create tag and add to database without writing to file
+// TODO: Write xattr as tag=value
 
 impl App {
     /// Set tags on a file
@@ -162,19 +163,23 @@ impl App {
 
         // println!("SETOPTS: {:#?}", opts);
 
-        let pat = if self.pat_regex {
-            String::from(&opts.pattern)
-        } else if self.fixed_string {
-            regex::escape(&opts.pattern)
-        } else {
-            glob_builder(&opts.pattern)
-        };
-
-        let re = regex_builder(&pat, self.case_insensitive, self.case_sensitive);
+        let re = regex_builder(
+            &{
+                if self.pat_regex {
+                    String::from(&opts.pattern)
+                } else if self.fixed_string {
+                    regex::escape(&opts.pattern)
+                } else {
+                    glob_builder(&opts.pattern)
+                }
+            },
+            self.case_insensitive,
+            self.case_sensitive,
+        );
         log::debug!("Is a TTY?: {}", atty::is(atty::Stream::Stdout));
         log::debug!("Compiled pattern: {re}");
 
-        let reg = self.registry.lock().expect("poisioned lock");
+        let reg = self.registry.lock().expect("poisoned lock");
 
         // A vector of <TagValueCombo>, containing each Tag id and Value id
         let mut combos = opts
@@ -326,8 +331,7 @@ impl App {
                     let ftags = reg.tags_for_file(&file)?;
 
                     for t in ftags.iter() {
-                        // TODO: Check whether implications need deleted when > 1
-
+                        // TODO: Move this to clear function and call here
                         // If the tag has values
                         if let Ok(values) = reg.values_by_tagid(t.id()) {
                             for value in values.iter() {
@@ -443,7 +447,7 @@ impl App {
                 &Arc::new(self.clone()),
                 opts.follow_symlinks,
                 |entry: &ignore::DirEntry| {
-                    let reg = self.registry.lock().expect("poisioned lock");
+                    let reg = self.registry.lock().expect("poisoned lock");
 
                     // This is needed for single files. The WalkBuilder doesn't seem to list the
                     // resolved symlink if it is a single file. However, symbolic directories are
@@ -514,9 +518,9 @@ impl App {
                                     } else {
                                         reg.delete_filetag(file.id(), t.id(), value.id())?;
                                     }
-                                    if reg.tag_count_by_id(t.id())? == 1 {
-                                        reg.delete_tag(t.id())?;
-                                    }
+                                }
+                                if reg.tag_count_by_id(t.id())? == 1 {
+                                    reg.delete_tag(t.id())?;
                                 }
                             // If the tag is only connected to this file
                             } else if reg.tag_count_by_id(t.id())? == 1 {
@@ -562,7 +566,7 @@ impl App {
                             {
                                 if let Err(e) = path.get_tag(tag.name()) {
                                     wutag_error!(
-                                        "{}: found in database, though file has no xattrs: {}",
+                                        "{}: found in registry, though file has no xattrs: {}",
                                         bold_entry!(path),
                                         e
                                     );
@@ -587,6 +591,7 @@ impl App {
                             return Err(anyhow!("{}: could not apply tags: {}", path_d, e));
                         }
 
+                        // Deal with xattr after database
                         if let Err(e) = path.tag(&tag) {
                             wutag_error!("{} {}", e, bold_entry!(path));
                         } else {

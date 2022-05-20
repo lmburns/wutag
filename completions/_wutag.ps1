@@ -154,8 +154,6 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--follow-symlinks', 'follow-symlinks', [CompletionResultType]::ParameterName, 'Follow symlinks before removing tags and/or values')
             [CompletionResult]::new('-a', 'a', [CompletionResultType]::ParameterName, 'Remove all tags and/or values on a file')
             [CompletionResult]::new('--all', 'all', [CompletionResultType]::ParameterName, 'Remove all tags and/or values on a file')
-            [CompletionResult]::new('-u', 'u', [CompletionResultType]::ParameterName, 'Do not remove the tag or value from the database')
-            [CompletionResult]::new('--untag', 'untag', [CompletionResultType]::ParameterName, 'Do not remove the tag or value from the database')
             [CompletionResult]::new('-V', 'V', [CompletionResultType]::ParameterName, 'Indicate the item(s) in the given list are values intead of tags')
             [CompletionResult]::new('--values', 'values', [CompletionResultType]::ParameterName, 'Indicate the item(s) in the given list are values intead of tags')
             [CompletionResult]::new('-w', 'w', [CompletionResultType]::ParameterName, 'When deleting tags from the database, delete the tag''s values as well')

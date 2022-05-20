@@ -211,6 +211,19 @@ impl Txn<'_> {
     }
 
     /// Remove a [`FileTag`] from the database that matches the given [`FileId`]
+    /// and [`TagId`]
+    pub(super) fn delete_filetag_by_fileid_tagid(&self, fid: FileId, tid: TagId) -> Result<()> {
+        self.execute(
+            "DELETE FROM file_tag
+            WHERE file_id = ?1 and tag_id = ?2",
+            params![fid, tid],
+        )
+        .context(fail!("delete FileTag by FileId and TagId"))?;
+
+        Ok(())
+    }
+
+    /// Remove a [`FileTag`] from the database that matches the given [`FileId`]
     pub(super) fn delete_filetag_by_fileid(&self, fid: FileId) -> Result<()> {
         self.execute(
             "DELETE FROM file_tag

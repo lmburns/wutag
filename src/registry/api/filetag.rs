@@ -91,6 +91,16 @@ impl Registry {
         })
     }
 
+    /// Remove a [`FileTag`] by a [`FileId`] and [`TagId`]
+    pub(crate) fn delete_filetag_by_fileid_tagid(&self, fid: FileId, tid: TagId) -> Result<()> {
+        self.wrap_commit(|txn| {
+            txn.delete_filetag_by_fileid_tagid(fid, tid)?;
+            self.delete_file_if_untagged(txn, fid)?;
+
+            Ok(())
+        })
+    }
+
     /// Remove all [`FileTag`]s matching a given [`FileId`]
     pub(crate) fn delete_filetag_by_fileid(&self, id: FileId) -> Result<()> {
         self.wrap_commit(|txn| {

@@ -98,6 +98,66 @@ impl Txn<'_> {
         Ok(tag)
     }
 
+    /// Retrieve all [`Tag`]s matching a [`ValueId`]
+    pub(super) fn tags_by_valueid(&self, vid: ValueId) -> Result<Tags> {
+        let tags: Vec<Tag> = self
+            .query_vec(
+                "SELECT id, name, color
+                FROM tag
+                WHERE id IN (
+                    SELECT tag_id
+                    FROM file_tag
+                    WHERE value_id = ?1
+                )
+                ORDER BY name",
+                params![vid],
+                |row| row.try_into().expect("failed to convert to Tag"),
+            )
+            .context("failed to query for values by ValueId")?;
+
+        Ok(tags.into())
+    }
+
+    /// Retrieve all [`Tag`]s matching a [`FileId`]
+    pub(super) fn tags_by_fileid(&self, fid: FileId) -> Result<Tags> {
+        let tags: Vec<Tag> = self
+            .query_vec(
+                "SELECT id, name, color
+                FROM tag
+                WHERE id IN (
+                    SELECT tag_id
+                    FROM file_tag
+                    WHERE file_id = ?1
+                )
+                ORDER BY name",
+                params![fid],
+                |row| row.try_into().expect("failed to convert to Tag"),
+            )
+            .context("failed to query for values by FileId")?;
+
+        Ok(tags.into())
+    }
+
+    /// Retrieve all [`Tag`]s matching a [`FileId`] and [`ValueId`]
+    pub(super) fn tags_by_fileid_valueid(&self, fid: FileId, vid: ValueId) -> Result<Tags> {
+        let tags: Vec<Tag> = self
+            .query_vec(
+                "SELECT id, name, color
+                FROM tag
+                WHERE id IN (
+                    SELECT tag_id
+                    FROM file_tag
+                    WHERE file_id = ?1 and value_id = ?2
+                )
+                ORDER BY name",
+                params![fid, vid],
+                |row| row.try_into().expect("failed to convert to Tag"),
+            )
+            .context("failed to query for values by FileId and ValueId")?;
+
+        Ok(tags.into())
+    }
+
     /// Retrieve all [`Tag`]s that match the vector of [`TagId`]s
     pub(super) fn tags_by_ids(&self, ids: &[TagId]) -> Result<Tags, Error> {
         if ids.is_empty() {

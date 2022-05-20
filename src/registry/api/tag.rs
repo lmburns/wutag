@@ -38,6 +38,21 @@ impl Registry {
         self.txn_wrap(|txn| txn.tag(id))
     }
 
+    /// Retrieve the [`Tags`] matching the [`ValueId`]
+    pub(crate) fn tags_by_valueid(&self, vid: ValueId) -> Result<Tags> {
+        self.txn_wrap(|txn| txn.tags_by_valueid(vid))
+    }
+
+    /// Retrieve the [`Tags`] matching the [`FileId`]
+    pub(crate) fn tags_by_fileid(&self, fid: FileId) -> Result<Tags> {
+        self.txn_wrap(|txn| txn.tags_by_fileid(fid))
+    }
+
+    /// Retrieve the [`Tags`] matching the [`FileId`] and [`ValueId`]
+    pub(crate) fn tags_by_fileid_valueid(&self, fid: FileId, vid: ValueId) -> Result<Tags> {
+        self.txn_wrap(|txn| txn.tags_by_fileid_valueid(fid, vid))
+    }
+
     /// Retrieve the [`Tags`] matching the array of [`TagIds`]
     pub(crate) fn tags_by_ids(&self, ids: &TagIds) -> Result<Tags> {
         self.txn_wrap(|txn| txn.tags_by_ids(ids.inner()).map_err(Into::into))

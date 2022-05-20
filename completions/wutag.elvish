@@ -146,8 +146,6 @@ set edit:completion:arg-completer[wutag] = {|@words|
             cand --follow-symlinks 'Follow symlinks before removing tags and/or values'
             cand -a 'Remove all tags and/or values on a file'
             cand --all 'Remove all tags and/or values on a file'
-            cand -u 'Do not remove the tag or value from the database'
-            cand --untag 'Do not remove the tag or value from the database'
             cand -V 'Indicate the item(s) in the given list are values intead of tags'
             cand --values 'Indicate the item(s) in the given list are values intead of tags'
             cand -w 'When deleting tags from the database, delete the tag''s values as well'

@@ -19,9 +19,10 @@ use super::{
     },
     Error, Txn,
 };
-use crate::{fail, query_fail, retr_fail, wutag_fatal};
+use crate::fail;
 use anyhow::{Context, Result};
 use colored::Colorize;
+use itertools::Itertools;
 use std::convert::TryInto;
 
 use rusqlite::{
@@ -39,15 +40,19 @@ impl Txn<'_> {
 
     /// Retrieve the number of `Value`s in the database
     pub(super) fn value_count(&self) -> Result<u32> {
+        let debug = "retreiving Value count";
+        log::debug!("{}", debug);
         self.select1::<u32>(
             "SELECT count(1)
             FROM value",
         )
-        .context(retr_fail!("`Value` count"))
+        .context(fail!("{}", debug))
     }
 
     /// Retrieve the number of tags a given [`Value`] is associated with
     pub(super) fn value_count_by_id(&self, id: ValueId) -> Result<u32> {
+        let debug = format!("retreiving Value({}) count", id);
+        log::debug!("{}", debug);
         let count: u32 = self
             .select(
                 "SELECT count(value_id)
@@ -56,13 +61,15 @@ impl Txn<'_> {
                 params![id],
                 |row| row.get(0),
             )
-            .context("failed to query file_tag for value id count")?;
+            .context(fail!("{}", debug))?;
 
         Ok(count)
     }
 
     /// Retrieve all `Value`s in the database
     pub(super) fn values(&self) -> Result<Values> {
+        let debug = "retreiving Values";
+        log::debug!("{}", debug);
         let values: Vec<Value> = self
             .query_vec(
                 "SELECT id, name
@@ -71,13 +78,15 @@ impl Txn<'_> {
                 params![],
                 |row| row.try_into().expect("failed to convert to `Value`"),
             )
-            .context(query_fail!("`Values`"))?;
+            .context(fail!("{}", debug))?;
 
         Ok(values.into())
     }
 
     /// Retrieve the `Value` matching the `ValueId` in the database
     pub(super) fn value(&self, vid: ValueId) -> Result<Value> {
+        let debug = format!("querying Value({})", vid);
+        log::debug!("{}", debug);
         let value: Value = self
             .select(
                 "SELECT id, name
@@ -89,13 +98,15 @@ impl Txn<'_> {
                     Ok(r)
                 },
             )
-            .context(query_fail!("`Value`"))?;
+            .context(fail!("{}", debug))?;
 
         Ok(value)
     }
 
     /// Retrieve all `Value`s matching the vector of `ValueId`s
     pub(super) fn values_by_valueids(&self, ids: Vec<ValueId>) -> Result<Values, Error> {
+        let debug = format!("querying for Value by ID [{}]", ids.iter().join(","));
+        log::debug!("{}", debug);
         if ids.is_empty() {
             return Err(Error::EmptyArray);
         }
@@ -116,7 +127,7 @@ impl Txn<'_> {
             .query_builder(&builder, |row| {
                 row.try_into().expect("failed to convert to `Value`")
             })
-            .context(query_fail!("`Values`"))?;
+            .context(fail!("{}", debug))?;
 
         Ok(values.into())
     }
@@ -124,6 +135,8 @@ impl Txn<'_> {
     // TEST:
     /// Retrieve all unused `Value`s within the database
     pub(super) fn values_unused(&self) -> Result<Values> {
+        let debug = "querying for unused Values";
+        log::debug!("{}", debug);
         let values: Vec<Value> = self
             .query_vec(
                 "SELECT id, name FROM value
@@ -136,7 +149,7 @@ impl Txn<'_> {
                 params![],
                 |row| row.try_into().expect("failed to convert to `Value`"),
             )
-            .context(query_fail!("`Value`"))?;
+            .context(fail!("{}", debug))?;
 
         Ok(values.into())
     }
@@ -144,6 +157,10 @@ impl Txn<'_> {
     /// Retrieve a `Value` by its string name
     ///   - **Exact match** searching
     pub(super) fn value_by_name<S: AsRef<str>>(&self, name: S, ignore_case: bool) -> Result<Value> {
+        let name = name.as_ref();
+        let debug = format!("querying for Value({})", name);
+        log::debug!("{}", debug);
+
         let mut builder = SqlBuilder::new_initial(
             "SELECT id, name
             FROM value
@@ -153,11 +170,11 @@ impl Txn<'_> {
         builder.append("= ?1");
 
         let value: Value = self
-            .select(&(builder.utf()?), params![name.as_ref()], |row| {
+            .select(&(builder.utf()?), params![name], |row| {
                 let r: Value = row.try_into().expect("failed to convert to `Value`");
                 Ok(r)
             })
-            .context(query_fail!("`Value`"))?;
+            .context(fail!("{}", debug))?;
 
         Ok(value)
     }
@@ -169,7 +186,16 @@ impl Txn<'_> {
         names: &[S],
         ignore_case: bool,
     ) -> Result<Values, Error> {
+        let names = names
+            .iter()
+            .map(|n| n.as_ref().to_owned())
+            .collect::<Vec<_>>();
+
+        let debug = format!("querying for Value by names [{}]", names.iter().join(","));
+        log::debug!("{}", debug);
+
         if names.is_empty() {
+            log::debug!("names are empty when querying for Value");
             return Err(Error::EmptyArray);
         }
 
@@ -183,7 +209,7 @@ impl Txn<'_> {
         builder.append(" IN (");
 
         for name in names {
-            builder.append_param(name.as_ref().to_owned());
+            builder.append_param(name);
         }
 
         builder.append(")");
@@ -193,13 +219,15 @@ impl Txn<'_> {
             .query_builder(&builder, |row| {
                 row.try_into().expect("failed to convert to `Value`")
             })
-            .context(query_fail!("`Values`"))?;
+            .context(fail!("{}", debug))?;
 
         Ok(values.into())
     }
 
     /// Retrieve all [`Value`]s matching a [`TagId`]
     pub(super) fn values_by_tagid(&self, tid: TagId) -> Result<Values> {
+        let debug = format!("querying for Value by TagId({})", tid);
+        log::debug!("{}", debug);
         let values: Vec<Value> = self
             .query_vec(
                 "SELECT id, name
@@ -213,13 +241,15 @@ impl Txn<'_> {
                 params![tid],
                 |row| row.try_into().expect("failed to convert to `Value`"),
             )
-            .context("failed to query for values by TagId")?;
+            .context(fail!("{}", debug))?;
 
         Ok(values.into())
     }
 
     /// Retrieve all [`Value`]s matching a [`FileId`]
     pub(super) fn values_by_fileid(&self, fid: FileId) -> Result<Values> {
+        let debug = format!("querying for Value by FileId({})", fid);
+        log::debug!("{}", debug);
         let values: Vec<Value> = self
             .query_vec(
                 "SELECT id, name
@@ -233,7 +263,7 @@ impl Txn<'_> {
                 params![fid],
                 |row| row.try_into().expect("failed to convert to `Value`"),
             )
-            .context("failed to query for values by FileId")?;
+            .context(fail!("{}", debug))?;
 
         Ok(values.into())
     }
@@ -243,6 +273,8 @@ impl Txn<'_> {
 
     /// Query for files using a custom function
     fn select_values_by_func(&self, func: &str, reg: &str) -> Result<Values> {
+        let debug = format!("querying for Value {}({})", func, reg);
+        log::debug!("{}", debug);
         let values: Vec<Value> = self
             .query_vec(
                 format!(
@@ -254,7 +286,7 @@ impl Txn<'_> {
                 params![],
                 |row| row.try_into().expect("failed to convert to `Value`"),
             )
-            .context(query_fail!("`Value`", "pattern", reg))?;
+            .context(fail!("{}", debug))?;
 
         Ok(values.into())
     }
@@ -290,6 +322,8 @@ impl Txn<'_> {
     /// Insert a `Value` into the database
     pub(super) fn insert_value<S: AsRef<str>>(&self, name: S) -> Result<Value> {
         let name = name.as_ref();
+        log::debug!("inserting Value({})", name);
+
         let res = self.insert(
             "INSERT INTO value (name)
                 VALUES (?1)",
@@ -302,6 +336,9 @@ impl Txn<'_> {
     /// Update the `Value` by changing its' name
     pub(super) fn update_value<S: AsRef<str>>(&self, id: ValueId, new: S) -> Result<Value, Error> {
         let name = new.as_ref();
+        let debug = format!("updating Value({}) => Value({})", id, new.as_ref());
+        log::debug!("{}", debug);
+
         let affected = self
             .execute(
                 "UPDATE value
@@ -309,7 +346,7 @@ impl Txn<'_> {
                 WHERE id = ?2",
                 params![name, id],
             )
-            .context(fail!("update `Value`"))?;
+            .context(fail!("{}", debug))?;
 
         if affected == 0 {
             return Err(Error::NonexistentValue(id.to_string()));
@@ -322,13 +359,16 @@ impl Txn<'_> {
 
     /// Remove a `Value` from the database
     pub(super) fn delete_value(&self, id: ValueId) -> Result<(), Error> {
+        let debug = format!("deleting Value({})", id);
+        log::debug!("{}", debug);
+
         let affected = self
             .execute(
                 "DELETE FROM value
                 WHERE id = ?1",
                 params![id],
             )
-            .context(fail!("delete `Value`"))?;
+            .context(fail!("{}", debug))?;
 
         if affected == 0 {
             return Err(Error::NonexistentFile(id.to_string()));

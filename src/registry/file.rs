@@ -37,13 +37,11 @@ use super::{
     },
     Error, Txn,
 };
-use crate::{
-    conv_fail, fail, failure, macros::wants_feature_flags, path_str, query_fail, retr_fail,
-    wutag_fatal,
-};
+use crate::{fail, macros::wants_feature_flags, path_str, wutag_fatal};
 use anyhow::{Context, Result};
 use chrono::{DateTime, Local};
 use colored::Colorize;
+use itertools::Itertools;
 use mime::Mime;
 use std::{
     os::unix::ffi::{OsStrExt, OsStringExt},
@@ -90,27 +88,34 @@ impl Txn<'_> {
 
     /// Retrieve the number of [`File`]s in the database
     pub(super) fn select_file_count(&self) -> Result<u32> {
+        let debug = "retrieving File count";
+        log::debug!("{}", debug);
         self.select1::<u32>(
             "SELECT count(1)
             FROM file",
         )
-        .context(retr_fail!("`File` count"))
+        .context(fail!("{}", debug))
     }
 
     /// Retrieve the number of [`File`]s matching a specific `hash`
     pub(super) fn select_file_count_by_hash<S: AsRef<str>>(&self, fp: S) -> Result<u32> {
+        let fp = fp.as_ref();
+        let debug = format!("retrieving File({}) count by hash", fp);
+        log::debug!("{}", debug);
         self.select(
             "SELECT count(id)
             FROM file
             WHERE hash = ?1",
-            params![fp.as_ref()],
+            params![fp],
             |row| row.get(0),
         )
-        .context(retr_fail!("`File` count", "hash"))
+        .context(fail!("{}", debug))
     }
 
     /// Retrieve all tracked [`Files`] within the database
     pub(super) fn select_files(&self, sort: Option<Sort>) -> Result<Files> {
+        let debug = "querying for Files";
+        log::debug!("{}", debug);
         let mut builder = SqlBuilder::new();
         builder.append(format!(
             "SELECT
@@ -140,13 +145,15 @@ impl Txn<'_> {
             .query_vec(builder.utf()?, params![], |row| {
                 row.try_into().expect("failed to convert to `File`")
             })
-            .context(query_fail!("`File`"))?;
+            .context(fail!("{}", debug))?;
 
         Ok(files.into())
     }
 
     /// Retrieve all [`Files`] that are directories
     pub(super) fn select_directories(&self) -> Result<Files> {
+        let debug = "querying for Files by directory";
+        log::debug!("{}", debug);
         let files: Vec<File> = self
             .query_vec(
                 format!(
@@ -173,9 +180,9 @@ impl Txn<'_> {
                     e2p_feature_comma()
                 ),
                 params![],
-                |row| row.try_into().expect("failed to convertt to `File`"),
+                |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .context(query_fail!("`File`", "is_dir"))?;
+            .context(fail!("{}", debug))?;
 
         Ok(files.into())
     }
@@ -183,18 +190,20 @@ impl Txn<'_> {
     // MAKE A TEST
     /// List all [`File`] [`ID`]s
     pub(crate) fn select_ids(&self) -> Result<Vec<ID>> {
-        let files = self.select_files(None)?;
-        let mut ids = vec![];
+        log::debug!("querying for File IDs");
 
-        for file in files.iter() {
-            ids.push(file.id);
-        }
-
-        Ok(ids)
+        Ok(self
+            .select_files(None)?
+            .iter()
+            .map(File::id)
+            .collect::<Vec<_>>())
     }
 
     /// Retrieve a specific [`File`] within the database
     pub(super) fn select_file(&self, id: FileId) -> Result<File> {
+        let debug = format!("querying for File({})", id);
+        log::debug!("{}", debug);
+
         let file: File = self
             .select(
                 &format!(
@@ -225,13 +234,15 @@ impl Txn<'_> {
                     Ok(r)
                 },
             )
-            .context(query_fail!("single `File`"))?;
+            .context(fail!("{}", debug))?;
         Ok(file)
     }
 
     /// Retrieve a [`File`] matching a given `directory` and `name` ([`Path`])
     pub(super) fn select_file_by_path<P: AsRef<Path>>(&self, path: P) -> Result<File> {
         let path = path.as_ref();
+        let debug = format!("querying for File by path {}", path.display());
+        log::debug!("{}", debug);
 
         let file: File = self
             .select(
@@ -266,7 +277,7 @@ impl Txn<'_> {
                     Ok(r)
                 },
             )
-            .context(query_fail!("`File`", "path", path.display()))?;
+            .context(fail!("{}", debug))?;
         Ok(file)
     }
 
@@ -277,6 +288,9 @@ impl Txn<'_> {
         cwd: bool,
     ) -> Result<Files> {
         let dir = dir.as_ref();
+        let debug = format!("querying for Files by directory {}", dir);
+        log::debug!("{}", debug);
+
         let mut s = format!(
             "SELECT
                 id,
@@ -310,7 +324,7 @@ impl Txn<'_> {
             .query_vec(&s, params![dir, format!("{}/%", dir)], |row| {
                 row.try_into().expect("failed to convert to `File`")
             })
-            .context(query_fail!("`File`", "directory", dir))?;
+            .context(fail!("{}", debug))?;
 
         Ok(files.into())
     }
@@ -318,6 +332,8 @@ impl Txn<'_> {
     /// Retrieve all [`Files`] matching a specific `hash`
     pub(super) fn select_files_by_hash<S: AsRef<str>>(&self, fp: S) -> Result<Files> {
         let fp = fp.as_ref();
+        let debug = format!("querying for Files by hash {}", fp);
+        log::debug!("{}", debug);
 
         let files: Vec<File> = self
             .query_vec(
@@ -347,7 +363,7 @@ impl Txn<'_> {
                 params![fp],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .context(query_fail!("`File`", "hash", fp))?;
+            .context(fail!("{}", debug))?;
 
         Ok(files.into())
     }
@@ -355,6 +371,8 @@ impl Txn<'_> {
     /// Retrieve all [`Files`] matching a specific [`MimeType`]
     pub(super) fn select_files_by_mime<S: AsRef<str>>(&self, mime: S) -> Result<Files> {
         let mime = mime.as_ref();
+        let debug = format!("querying for Files by mime {}", mime);
+        log::debug!("{}", debug);
 
         let files: Vec<File> = self
             .query_vec(
@@ -384,7 +402,7 @@ impl Txn<'_> {
                 params![mime],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .context(query_fail!("`File`", "mime", mime))?;
+            .context(fail!("{}", debug))?;
 
         Ok(files.into())
     }
@@ -392,6 +410,8 @@ impl Txn<'_> {
     /// Retrieve all [`Files`] matching a specific `mtime`
     pub(super) fn select_files_by_mtime<S: AsRef<str>>(&self, mtime: S) -> Result<Files> {
         let mtime = mtime.as_ref();
+        let debug = format!("querying for Files by mtime {}", mtime);
+        log::debug!("{}", debug);
 
         let files: Vec<File> = self
             .query_vec(
@@ -421,7 +441,7 @@ impl Txn<'_> {
                 params![mtime],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .context(query_fail!("`File`", "mtime", mtime))?;
+            .context(fail!("{}", debug))?;
 
         Ok(files.into())
     }
@@ -429,6 +449,8 @@ impl Txn<'_> {
     /// Retrieve all [`Files`] matching a specific `ctime`
     pub(super) fn select_files_by_ctime<S: AsRef<str>>(&self, ctime: S) -> Result<Files> {
         let ctime = ctime.as_ref();
+        let debug = format!("querying for Files by ctime {}", ctime);
+        log::debug!("{}", debug);
 
         let files: Vec<File> = self
             .query_vec(
@@ -458,7 +480,7 @@ impl Txn<'_> {
                 params![ctime],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .context(query_fail!("`File`", "ctime", ctime))?;
+            .context(fail!("{}", debug))?;
 
         Ok(files.into())
     }
@@ -466,6 +488,8 @@ impl Txn<'_> {
     /// Retrieve all [`Files`] matching a specific `mode`
     pub(super) fn select_files_by_mode<S: AsRef<str>>(&self, mode: S) -> Result<Files> {
         let mode = mode.as_ref();
+        let debug = format!("querying for Files by mode {}", mode);
+        log::debug!("{}", debug);
 
         let files: Vec<File> = self
             .query_vec(
@@ -495,13 +519,16 @@ impl Txn<'_> {
                 params![mode],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .context(query_fail!("`File`", "mode", mode))?;
+            .context(fail!("{}", debug))?;
 
         Ok(files.into())
     }
 
     /// Retrieve all [`Files`] matching a specific `inode`
     pub(super) fn select_files_by_inode(&self, inode: u64) -> Result<Files> {
+        let debug = format!("querying for Files by inode {}", inode);
+        log::debug!("{}", debug);
+
         let files: Vec<File> = self
             .query_vec(
                 format!(
@@ -530,13 +557,16 @@ impl Txn<'_> {
                 params![inode],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .context(query_fail!("`File`", "inode", inode))?;
+            .context(fail!("{}", debug))?;
 
         Ok(files.into())
     }
 
     /// Retrieve all [`Files`] matching a certain number of links
     pub(super) fn select_files_by_links(&self, links: u64) -> Result<Files> {
+        let debug = format!("querying for Files by links {}", links);
+        log::debug!("{}", debug);
+
         let files: Vec<File> = self
             .query_vec(
                 format!(
@@ -565,13 +595,16 @@ impl Txn<'_> {
                 params![links],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .context(query_fail!("`File`", "links", links))?;
+            .context(fail!("{}", debug))?;
 
         Ok(files.into())
     }
 
     /// Retrieve all [`Files`] matching a given `UID`
     pub(super) fn select_files_by_uid(&self, uid: u64) -> Result<Files> {
+        let debug = format!("querying for Files by uid {}", uid);
+        log::debug!("{}", debug);
+
         let files: Vec<File> = self
             .query_vec(
                 format!(
@@ -600,13 +633,16 @@ impl Txn<'_> {
                 params![uid],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .context(query_fail!("`File`", "uid", uid))?;
+            .context(fail!("{}", debug))?;
 
         Ok(files.into())
     }
 
     /// Retrieve all [`Files`] matching a given `GID`
     pub(super) fn select_files_by_gid(&self, gid: u64) -> Result<Files> {
+        let debug = format!("querying for Files by gid {}", gid);
+        log::debug!("{}", debug);
+
         let files: Vec<File> = self
             .query_vec(
                 format!(
@@ -635,13 +671,16 @@ impl Txn<'_> {
                 params![gid],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .context(query_fail!("`File`", "gid", gid))?;
+            .context(fail!("{}", debug))?;
 
         Ok(files.into())
     }
 
     /// Retrieve all [`Files`] matching a specific `size`
     pub(super) fn select_files_by_size(&self, size: u64) -> Result<Files> {
+        let debug = format!("querying for Files by size {}", size);
+        log::debug!("{}", debug);
+
         let files: Vec<File> = self
             .query_vec(
                 format!(
@@ -670,7 +709,7 @@ impl Txn<'_> {
                 params![size],
                 |row| row.try_into().expect("failed to convertt to `File`"),
             )
-            .context(query_fail!("`File`", "size", size))?;
+            .context(fail!("{}", debug))?;
 
         Ok(files.into())
     }
@@ -682,15 +721,20 @@ impl Txn<'_> {
     ))]
     /// Retrieve all [`Files`] matching an `e2p_fileflag`
     pub(super) fn select_files_by_flag<S: AsRef<str>>(&self, given: S) -> Result<Files> {
-        let files = self.select_files(None)?;
-        let filtered = files.matches(|f| f.e2pflags().has_flags(given.as_ref()));
+        let given = given.as_ref();
+        let debug = format!("querying for Files by Flags({})", given);
+        log::debug!("{}", debug);
 
-        Ok(filtered)
+        Ok(self
+            .select_files(None)?
+            .matches(|f| f.e2pflags().has_flags(given)))
     }
 
     // TODO: MAKE A TEST
     /// Retrieve the set of [`Files`] that are untagged
     pub(super) fn select_files_untagged(&self) -> Result<Files> {
+        let debug = "querying for untagged Files";
+        log::debug!("{}", debug);
         let files: Vec<File> = self
             .query_vec(
                 format!(
@@ -720,7 +764,7 @@ impl Txn<'_> {
                 params![],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .context(query_fail!("untagged `File`"))?;
+            .context(fail!("{}", debug))?;
 
         Ok(files.into())
     }
@@ -736,6 +780,8 @@ impl Txn<'_> {
         cwd: bool,
         ignore_case: bool,
     ) -> Result<u32> {
+        // let debug = format!();
+        // log::debug!("{}", debug);
         todo!()
     }
 
@@ -759,6 +805,9 @@ impl Txn<'_> {
 
     /// Retrieve the set of `Files` that are duplicates in the database
     pub(crate) fn select_files_duplicates(&self) -> Result<Files> {
+        let debug = "querying for duplicate Files";
+        log::debug!("{}", debug);
+
         let files: Vec<File> = self
             .query_vec(
                 format!(
@@ -793,7 +842,7 @@ impl Txn<'_> {
                 params![],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .context(retr_fail!("duplicate `File`s"))?;
+            .context(fail!("{}", debug))?;
 
         Ok(files.into())
     }
@@ -804,6 +853,9 @@ impl Txn<'_> {
 
     /// Query for files using a custom function
     fn select_files_by_func(&self, func: &str, column: &str, reg: &str) -> Result<Files> {
+        let debug = format!("querying for Files {} {}({})", column, func, reg);
+        log::debug!("{}", debug);
+
         let files: Vec<File> = self
             .query_vec(
                 format!(
@@ -834,7 +886,7 @@ impl Txn<'_> {
                 params![],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .context(query_fail!("`File`", "pattern", reg))?;
+            .context(fail!("{}", debug))?;
 
         Ok(files.into())
     }
@@ -895,10 +947,10 @@ impl Txn<'_> {
     /// Insert a [`File`] into the database
     pub(crate) fn insert_file<P: AsRef<Path>>(&self, path: P) -> Result<File> {
         let path = path.as_ref();
-        let mut f = File::new(&path, self.follow_symlinks())
-            .context(fail!("build `File`: {}", cfile!(path)))?;
+        log::debug!("inserting File({})", cfile!(path));
 
-        log::debug!("{}: inserting file:\n{:#?}", cfile!(path), f);
+        let mut f = File::new(&path, self.follow_symlinks())?;
+        log::trace!("File({}) info:\n{:#?}", cfile!(path), f);
 
         let id = if wants_feature_flags() {
             self.insert(
@@ -984,10 +1036,11 @@ impl Txn<'_> {
     /// Update a [`File`] that is in the database
     pub(super) fn update_file<P: AsRef<Path>>(&self, id: FileId, path: P) -> Result<File, Error> {
         let path = path.as_ref();
-        let mut f = File::new(&path, self.follow_symlinks())
-            .context(fail!("build `File`: {}", cfile!(path)))?;
+        let debug = format!("updating File({}, {})", id, cfile!(path));
+        log::debug!("{}", debug);
 
-        log::debug!("{}: updating file:\n{:#?}", cfile!(path), f);
+        let mut f = File::new(&path, self.follow_symlinks())?;
+        log::trace!("File({}) info:\n{:#?}", cfile!(path), f);
 
         let affected = if wants_feature_flags() {
             self.execute(
@@ -1028,7 +1081,7 @@ impl Txn<'_> {
                     id
                 ],
             )
-            .context(failure!("update", "`File`", cfile!(path)))?
+            .context(fail!("{}", debug))?
         } else {
             self.execute(
                 "UPDATE file
@@ -1066,7 +1119,7 @@ impl Txn<'_> {
                     id
                 ],
             )
-            .context(failure!("update", "`File`", cfile!(path)))?
+            .context(fail!("{}", debug))?
         };
 
         if affected == 0 {
@@ -1082,7 +1135,8 @@ impl Txn<'_> {
 
     /// Remove a [`File`] from the database
     pub(super) fn delete_file(&self, id: FileId) -> Result<(), Error> {
-        log::debug!("deleting file with ID({})", cstr!(id));
+        let debug = format!("deleting File({})", cstr!(id));
+        log::debug!("{}", debug);
 
         let affected = self
             .execute(
@@ -1090,7 +1144,7 @@ impl Txn<'_> {
                 WHERE id = ?1",
                 params![id],
             )
-            .context(failure!("delete", "`File`"))?;
+            .context(fail!("{}", debug))?;
 
         if affected == 0 {
             return Err(Error::NonexistentFile(id.to_string()));
@@ -1104,9 +1158,9 @@ impl Txn<'_> {
     /// Remove [`File`]s from the database if they are not associated with a
     /// [`Tag`](super::types::tag::Tag)
     pub(super) fn delete_files_untagged(&self, ids: &FileIds) -> Result<()> {
+        let debug = format!("deleting untagged Files [{}]", ids.iter().join(","));
+        log::debug!("{}", debug);
         for id in ids.iter() {
-            log::debug!("deleting file with ID({})", cstr!(id));
-
             self.execute(
                 "DELETE FROM file
                 WHERE id = ?1
@@ -1117,11 +1171,7 @@ impl Txn<'_> {
                 ) == 0",
                 params![id],
             )
-            .context(failure!(
-                "delete",
-                "untagged `File`",
-                format!("ID({})", cstr!(id))
-            ))?;
+            .context(fail!("{}", debug))?;
         }
 
         Ok(())

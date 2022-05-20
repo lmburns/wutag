@@ -22,9 +22,10 @@ use super::{
     },
     Error, Txn,
 };
-use crate::{conv_fail, fail, failure, query_fail, retr_fail, wutag_error};
+use crate::{fail, wutag_error};
 use anyhow::{anyhow, Context, Result};
 use colored::{Color, Colorize};
+use itertools::Itertools;
 use std::{convert::TryInto, time::SystemTime};
 
 use rusqlite::{
@@ -43,15 +44,21 @@ impl Txn<'_> {
 
     /// Retrieve the number of [`Tag`]s within the database
     pub(super) fn tag_count(&self) -> Result<u32> {
+        let debug = "retrieving Tag count";
+        log::debug!("{}", debug);
+
         self.select1::<u32>(
             "SELECT count(1)
             FROM tag",
         )
-        .context(retr_fail!("`Tag` count"))
+        .context(fail!("{}", debug))
     }
 
     /// Retrieve the number of files a given [`Tag`] is associated with
     pub(super) fn tag_count_by_id(&self, id: TagId) -> Result<u32> {
+        let debug = format!("retrieving Tag count by TagId({})", id);
+        log::debug!("{}", debug);
+
         let count: u32 = self
             .select(
                 "SELECT count(tag_id)
@@ -60,13 +67,16 @@ impl Txn<'_> {
                 params![id],
                 |row| row.get(0),
             )
-            .context("failed to query file_tag for tag id count")?;
+            .context(fail!("{}", debug))?;
 
         Ok(count)
     }
 
     /// Retrieve all [`Tag`]s within the database
     pub(super) fn tags(&self) -> Result<Tags> {
+        let debug = "querying for Tags";
+        log::debug!("{}", debug);
+
         let tags: Vec<Tag> = self
             .query_vec(
                 "SELECT id, name, color
@@ -75,13 +85,16 @@ impl Txn<'_> {
                 params![],
                 |row| row.try_into().expect("failed to convert to `Tag`"),
             )
-            .context(query_fail!("`Tag`"))?;
+            .context(fail!("{}", debug))?;
 
         Ok(tags.into())
     }
 
     /// Retrieve the [`Tag`] that matches the given [`TagId`]
     pub(super) fn tag(&self, id: TagId) -> Result<Tag> {
+        let debug = format!("querying for Tag by TagId({})", id);
+        log::debug!("{}", debug);
+
         let tag: Tag = self
             .select(
                 "SELECT id, name, color
@@ -93,13 +106,16 @@ impl Txn<'_> {
                     Ok(r)
                 },
             )
-            .context(query_fail!("single `Tag`"))?;
+            .context(fail!("{}", debug))?;
 
         Ok(tag)
     }
 
     /// Retrieve all [`Tag`]s matching a [`ValueId`]
     pub(super) fn tags_by_valueid(&self, vid: ValueId) -> Result<Tags> {
+        let debug = format!("querying for Tags b ValueId({})", vid);
+        log::debug!("{}", debug);
+
         let tags: Vec<Tag> = self
             .query_vec(
                 "SELECT id, name, color
@@ -113,13 +129,16 @@ impl Txn<'_> {
                 params![vid],
                 |row| row.try_into().expect("failed to convert to Tag"),
             )
-            .context("failed to query for values by ValueId")?;
+            .context(fail!("{}", debug))?;
 
         Ok(tags.into())
     }
 
     /// Retrieve all [`Tag`]s matching a [`FileId`]
     pub(super) fn tags_by_fileid(&self, fid: FileId) -> Result<Tags> {
+        let debug = format!("querying for Tags by FileId({})", fid);
+        log::debug!("{}", debug);
+
         let tags: Vec<Tag> = self
             .query_vec(
                 "SELECT id, name, color
@@ -133,13 +152,15 @@ impl Txn<'_> {
                 params![fid],
                 |row| row.try_into().expect("failed to convert to Tag"),
             )
-            .context("failed to query for values by FileId")?;
+            .context(fail!("{}", debug))?;
 
         Ok(tags.into())
     }
 
     /// Retrieve all [`Tag`]s matching a [`FileId`] and [`ValueId`]
     pub(super) fn tags_by_fileid_valueid(&self, fid: FileId, vid: ValueId) -> Result<Tags> {
+        let debug = format!("querying for Tags by FileId({}), ValueId({})", fid, vid);
+        log::debug!("{}", debug);
         let tags: Vec<Tag> = self
             .query_vec(
                 "SELECT id, name, color
@@ -153,13 +174,16 @@ impl Txn<'_> {
                 params![fid, vid],
                 |row| row.try_into().expect("failed to convert to Tag"),
             )
-            .context("failed to query for values by FileId and ValueId")?;
+            .context(fail!("{}", debug))?;
 
         Ok(tags.into())
     }
 
     /// Retrieve all [`Tag`]s that match the vector of [`TagId`]s
     pub(super) fn tags_by_ids(&self, ids: &[TagId]) -> Result<Tags, Error> {
+        let debug = format!("querying for Tags by TagIds [{}]", ids.iter().join(","));
+        log::debug!("{}", debug);
+
         if ids.is_empty() {
             return Err(Error::EmptyArray);
         }
@@ -180,7 +204,7 @@ impl Txn<'_> {
             .query_builder(&builder, |row| {
                 row.try_into().expect("failed to convert to `Tag`")
             })
-            .context(query_fail!("`Tags`"))?;
+            .context(fail!("{}", debug))?;
 
         Ok(tags.into())
     }
@@ -188,6 +212,10 @@ impl Txn<'_> {
     /// Retrieve the [`Tag`] matching the [`Tag`] name
     ///   - **Exact match** searching
     pub(super) fn tag_by_name<S: AsRef<str>>(&self, name: S, ignore_case: bool) -> Result<Tag> {
+        let name = name.as_ref();
+        let debug = format!("querying for Tags by name {}", name);
+        log::debug!("{}", debug);
+
         let mut builder = SqlBuilder::new_initial(
             "SELECT id, name, color
             FROM tag
@@ -198,11 +226,11 @@ impl Txn<'_> {
         builder.append("= ?1");
 
         let tag: Tag = self
-            .select(&(builder.utf()?), params![name.as_ref()], |row| {
+            .select(&(builder.utf()?), params![name], |row| {
                 let r: Tag = row.try_into().expect("failed to convert to `Tag`");
                 Ok(r)
             })
-            .context(query_fail!("`Tag`"))?;
+            .context(fail!("{}", debug))?;
 
         Ok(tag)
     }
@@ -214,6 +242,13 @@ impl Txn<'_> {
         names: &[S],
         ignore_case: bool,
     ) -> Result<Tags, Error> {
+        let names = names
+            .iter()
+            .map(|n| n.as_ref().to_owned())
+            .collect::<Vec<_>>();
+        let debug = format!("querying for Tags by names [{}]", names.iter().join(","));
+        log::debug!("{}", debug);
+
         if names.is_empty() {
             return Err(Error::EmptyArray);
         }
@@ -228,7 +263,7 @@ impl Txn<'_> {
         builder.append(" IN (");
 
         for name in names {
-            builder.append_param(name.as_ref().to_string());
+            builder.append_param(name);
         }
 
         builder.append(")");
@@ -238,13 +273,16 @@ impl Txn<'_> {
             .query_builder(&builder, |row| {
                 row.try_into().expect("failed to convert to `Tag`")
             })
-            .context(query_fail!("`Tags`"))?;
+            .context(fail!("{}", debug))?;
 
         Ok(tags.into())
     }
 
     /// Select a [`File`]'s' [`Tag`]s
     pub(super) fn select_files_tags(&self, file: &File) -> Result<Tags> {
+        let debug = format!("querying for Tags by File({})", file.name());
+        log::debug!("{}", debug);
+
         let tags: Vec<Tag> = self
             .query_vec(
                 "SELECT *
@@ -269,7 +307,7 @@ impl Txn<'_> {
                 params![file.name(), file.directory()],
                 |row| row.try_into().expect("failed to convert to `Tag`"),
             )
-            .context(format!("failed to query for tags matching {}", file.name()))?;
+            .context(fail!("{}", debug))?;
 
         Ok(tags.into())
     }
@@ -277,20 +315,24 @@ impl Txn<'_> {
     /// Retrieve all [`Tag`]s matching a pattern
     ///   - **Pattern** searching
     fn select_tags_by_func<S: AsRef<str>>(&self, func: S, column: S, patt: S) -> Result<Tags> {
+        let func = func.as_ref();
+        let patt = patt.as_ref();
+        let column = column.as_ref();
+        let debug = format!("querying for Tags {} {}({})", column, func, patt);
+        log::debug!("{}", debug);
+
         let tags: Vec<Tag> = self
             .query_vec(
                 format!(
                     "SELECT id, name, color
                     FROM tag
                     WHERE {}('{}', {}) == 1",
-                    func.as_ref(),
-                    patt.as_ref(),
-                    column.as_ref()
+                    func, patt, column
                 ),
                 params![],
                 |row| row.try_into().expect("failed to convert to `Tag`"),
             )
-            .context(query_fail!("`Tags`"))?;
+            .context(fail!("{}", debug))?;
 
         Ok(tags.into())
     }
@@ -329,6 +371,7 @@ impl Txn<'_> {
     /// Insert a [`Tag`] into the database
     pub(super) fn insert_tag<S: AsRef<str>>(&self, name: S, color: Color) -> Result<Tag> {
         let name = name.as_ref();
+        log::debug!("inserting Tag({}, {})", name, color.to_fg_str());
 
         let res = self.insert(
             "INSERT INTO tag (name, color)
@@ -342,6 +385,9 @@ impl Txn<'_> {
     /// Update the [`Tag`] by changing its' name
     pub(super) fn update_tag_name<S: AsRef<str>>(&self, id: TagId, new: S) -> Result<Tag, Error> {
         let name = new.as_ref();
+        let debug = format!("updating name Tag({}) => Tag({})", id, name);
+        log::debug!("{}", debug);
+
         let affected = self
             .execute(
                 "UPDATE tag
@@ -349,7 +395,7 @@ impl Txn<'_> {
                 WHERE id = ?2",
                 params![name, id],
             )
-            .context("failed to update `Tag` by name")?;
+            .context(fail!("{}", debug))?;
 
         if affected == 0 {
             return Err(Error::NonexistentTag(id.to_string()));
@@ -357,11 +403,14 @@ impl Txn<'_> {
             return Err(Error::TooManyChanges(id.to_string()));
         }
 
-        Ok(self.tag(id).context(retr_fail!("tag", "id", id))?)
+        Ok(self.tag(id).context(fail!("{}", debug))?)
     }
 
     /// Update the [`Tag`] by changing its' color
     pub(super) fn update_tag_color(&self, id: TagId, color: Color) -> Result<Tag, Error> {
+        let debug = format!("updating color Tag({}) => Tag({})", id, color.to_fg_str());
+        log::debug!("{}", debug);
+
         let affected = self
             .execute(
                 "UPDATE tag
@@ -369,7 +418,7 @@ impl Txn<'_> {
                 WHERE id = ?2",
                 params![color.to_fg_str().as_ref().to_string(), id],
             )
-            .context("failed to update `Tag` by color")?;
+            .context(fail!("{}", debug))?;
 
         if affected == 0 {
             return Err(Error::NonexistentTag(id.to_string()));
@@ -377,18 +426,21 @@ impl Txn<'_> {
             return Err(Error::TooManyChanges(id.to_string()));
         }
 
-        Ok(self.tag(id).context(retr_fail!("tag", "id", id))?)
+        Ok(self.tag(id).context(fail!("{}", debug))?)
     }
 
     /// Remove a [`Tag`] from the database
     pub(super) fn delete_tag(&self, id: TagId) -> Result<(), Error> {
+        let debug = format!("deleting Tag by TagId({})", id);
+        log::debug!("{}", debug);
+
         let affected = self
             .execute(
                 "DELETE FROM tag
                 WHERE id = ?",
                 params![id],
             )
-            .context(fail!("delete `Tag`"))?;
+            .context(fail!("{}", debug))?;
 
         if affected == 0 {
             return Err(Error::NonexistentTag(id.to_string()));
@@ -401,6 +453,9 @@ impl Txn<'_> {
 
     /// Delete a [`File`]'s' [`Tag`]s
     pub(super) fn delete_files_tags(&self, file: &File) -> Result<Tags> {
+        let debug = format!("deleting Tags by File({})", file.name());
+        log::debug!("{}", debug);
+
         let tags: Vec<Tag> = self
             .query_vec(
                 "DELETE FROM tag
@@ -424,7 +479,7 @@ impl Txn<'_> {
                 params![file.name(), file.directory()],
                 |row| row.try_into().expect("failed to convert to `Tag`"),
             )
-            .context(format!("failed to query for tags matching {}", file.name()))?;
+            .context(fail!("{}", debug))?;
 
         Ok(tags.into())
     }
@@ -434,6 +489,9 @@ impl Txn<'_> {
     /// [`TagFileCnt`], which contains information about the number of files the
     /// [`Tag`] is associated with
     pub(super) fn tag_information(&self) -> Result<Vec<TagFileCnt>> {
+        let debug = "querying for Tag information";
+        log::debug!("{}", debug);
+
         let tfc: Vec<TagFileCnt> = self
             .query_vec(
                 "SELECT t.id, t.name, COUNT(file_id) as cnt
@@ -444,7 +502,7 @@ impl Txn<'_> {
                 params![],
                 |row| row.try_into().expect("failed to convert to `TagFileCnt`"),
             )
-            .context(retr_fail!("`Tag` information", "`TagFileCnt`"))?;
+            .context(fail!("{}", debug))?;
 
         Ok(tfc)
     }

@@ -116,7 +116,12 @@ impl Registry {
         self.wrap_commit(|txn| txn.update_value(id, name).map_err(Into::into))
     }
 
-    /// Remove a [`Value`] from the database
+    /// Remove a **only** a [`Value`] from the database
+    pub(crate) fn delete_value_only(&self, id: ValueId) -> Result<()> {
+        self.wrap_commit(|txn| txn.delete_value(id).map_err(Into::into))
+    }
+
+    /// Remove a [`Value`] and its [`FileTag`] from the database
     pub(crate) fn delete_value(&self, id: ValueId) -> Result<()> {
         self.wrap_commit(|txn| {
             self.delete_filetag_by_valueid(txn, id)?;

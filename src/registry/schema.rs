@@ -3,6 +3,7 @@
 #![allow(unused)]
 
 use super::{common::version::Version, Registry};
+use crate::fail;
 use anyhow::{Context, Result};
 use rusqlite::params;
 use tern::t;
@@ -14,7 +15,7 @@ impl Registry {
     ///
     /// This table contains information about tags
     pub(crate) fn create_tag_table(&self) -> Result<()> {
-        log::debug!("creating tag table");
+        log::debug!("creating TABLE(tag)");
         self.exec_no_params(
             "CREATE TABLE IF NOT EXISTS tag (
                 id INTEGER PRIMARY KEY,
@@ -22,13 +23,14 @@ impl Registry {
                 color TEXT NOT NULL
             )",
         )
-        .context("failed to create table `tag`")?;
+        .context(fail!("creating TABLE(tag)"))?;
 
+        log::debug!("creating INDEX(idx_tag_name)");
         self.exec_no_params(
             "CREATE INDEX IF NOT EXISTS idx_tag_name
             ON tag(name, color)",
         )
-        .context("failed to create index `idx_tag_name`")?;
+        .context(fail!("creating INDEX(idx_tag_name)"))?;
 
         Ok(())
     }
@@ -37,7 +39,7 @@ impl Registry {
     ///
     /// This table contains many details about a single file
     pub(crate) fn create_file_table(&self) -> Result<()> {
-        log::debug!("creating file table");
+        log::debug!("creating TABLE(file)");
         self.exec_no_params(&format!(
             "CREATE TABLE IF NOT EXISTS file (
                 id INTEGER PRIMARY KEY,
@@ -60,13 +62,14 @@ impl Registry {
             )",
             t!((cfg!(feature = "file-flags")) ? "e2pflags INTEGER NOT NULL," : ""),
         ))
-        .context("failed to create table `file`")?;
+        .context(fail!("creating TABLE(file)"))?;
 
+        log::debug!("creating INDEX(idx_file_hash)");
         self.exec_no_params(
             "CREATE INDEX IF NOT EXISTS idx_file_hash
             ON file(hash)",
         )
-        .context("failed to create index `idx_file_hash`")?;
+        .context(fail!("creating INDEX(idx_file_hash)"))?;
 
         Ok(())
     }
@@ -77,7 +80,7 @@ impl Registry {
     /// of a tag. Many tags can have the same extended value, or have none at
     /// all
     pub(crate) fn create_value_table(&self) -> Result<()> {
-        log::debug!("creating value table");
+        log::debug!("creating TABLE(value)");
         self.exec_no_params(
             "CREATE TABLE IF NOT EXISTS value (
                 id INTEGER PRIMARY KEY,
@@ -85,7 +88,7 @@ impl Registry {
                 CONSTRAINT con_value_name UNIQUE (name)
             )",
         )
-        .context("failed to create table `values`")?;
+        .context(fail!("creating TABLE(value)"))?;
 
         Ok(())
     }
@@ -95,7 +98,7 @@ impl Registry {
     /// This table links files with their tags and the extended attributes that
     /// correspond to that tag
     pub(crate) fn create_file_tag_table(&self) -> Result<()> {
-        log::debug!("creating file_tag table");
+        log::debug!("creating TABLE(file_tag)");
         self.exec_no_params(
             "CREATE TABLE IF NOT EXISTS file_tag (
                 file_id INTEGER NOT NULL,
@@ -107,25 +110,28 @@ impl Registry {
                 FOREIGN KEY (value_id) REFERENCES value(id)
             )",
         )
-        .context("failed to create table `file_tag`")?;
+        .context(fail!("creating TABLE(file_tag)"))?;
 
+        log::debug!("creating INDEX(idx_file_tag_file_id)");
         self.exec_no_params(
             "CREATE INDEX IF NOT EXISTS idx_file_tag_file_id
             ON file_tag(file_id)",
         )
-        .context("failed to create index `idx_file_tag_file_id`")?;
+        .context(fail!("creating INDEX(idx_file_tag_file_id)"))?;
 
+        log::debug!("creating INDEX(idx_file_tag_tag_id)");
         self.exec_no_params(
             "CREATE INDEX IF NOT EXISTS idx_file_tag_tag_id
             ON file_tag(tag_id)",
         )
-        .context("failed to create index `idx_file_tag_tag_id`")?;
+        .context(fail!("creating INDEX(idx_file_tag_tag_id)"))?;
 
+        log::debug!("creating INDEX(idx_file_tag_value_id)");
         self.exec_no_params(
             "CREATE INDEX IF NOT EXISTS idx_file_tag_value_id
             ON file_tag(value_id)",
         )
-        .context("failed to create index `idx_file_tag_value_id`")?;
+        .context(fail!("creating INDEX(idx_file_tag_value_id)"))?;
 
         Ok(())
     }
@@ -134,13 +140,13 @@ impl Registry {
     ///
     /// This table is used to query other tables
     pub(crate) fn create_query_table(&self) -> Result<()> {
-        log::debug!("creating query table");
+        log::debug!("creating TABLE(query)");
         self.exec_no_params(
             "CREATE TABLE IF NOT EXISTS query (
                 text TEXT PRIMARY KEY
             )",
         )
-        .context("failed to create table `query`")?;
+        .context(fail!("creating TABLE(query)"))?;
 
         Ok(())
     }
@@ -156,7 +162,7 @@ impl Registry {
     ///  - `operation_id`: id of action from the `table`
     ///  - `previous`: previous action
     pub(crate) fn create_tracker_table(&self) -> Result<()> {
-        log::debug!("creating tracker table");
+        log::debug!("creating TABLE(tracker)");
         self.exec_no_params(
             "CREATE TABLE IF NOT EXISTS tracker (
                 tracker_id INTEGER PRIMARY KEY,
@@ -167,7 +173,7 @@ impl Registry {
                 previous TEXT
             )",
         )
-        .context("failed to create table `tracker`")?;
+        .context(fail!("creating TABLE(tracker)"))?;
         Ok(())
     }
 
@@ -177,7 +183,7 @@ impl Registry {
     /// This table is used to log points where actions can be undone and
     /// reverted back to
     pub(crate) fn create_checkpoint_table(&self) -> Result<()> {
-        log::debug!("creating checkpoint table");
+        log::debug!("creating TABLE(checkpoint)");
         self.exec_no_params(
             "CREATE TABLE IF NOT EXISTS checkpoint (
                 checkpoint_id INTEGER PRIMARY KEY,
@@ -186,7 +192,7 @@ impl Registry {
                 description TEXT NOT NULL
             )",
         )
-        .context("failed to create table `checkpoint`")?;
+        .context(fail!("creating TABLE(checkpoint)"))?;
         Ok(())
     }
 
@@ -194,7 +200,7 @@ impl Registry {
     ///
     /// This table is used to query other tables
     pub(crate) fn create_version_table(&self) -> Result<()> {
-        log::debug!("creating version table");
+        log::debug!("creating TABLE(version)");
         self.exec_no_params(
             "CREATE TABLE IF NOT EXISTS version (
                 major NUMBER NOT NULL,
@@ -203,7 +209,7 @@ impl Registry {
                 PRIMARY KEY (major, minor, patch)
             )",
         )
-        .context("failed to create table `version`")?;
+        .context(fail!("creating TABLE(version)"))?;
 
         Ok(())
     }
@@ -213,42 +219,41 @@ impl Registry {
 
     /// Insert the latest version into the database
     pub(crate) fn insert_version(&self) -> Result<()> {
-        let v = Version::build().context("failed to get current version")?;
-        log::debug!("inserting current version: {}", v.as_str());
+        let v = Version::build().context(fail!("querying for Version"))?;
+        log::debug!("inserting Version({})", v);
 
         self.insert(
             "INSERT INTO version (major, minor, patch)
                 VALUES (?1, ?2, ?3)",
             params![v.major(), v.minor(), v.patch()],
         )
-        .context("failed to insert version into `version` table")?;
+        .context(fail!("inserting Version({})", v))?;
 
         Ok(())
     }
 
     /// Get the current version of the database
     pub(crate) fn get_current_version(&self) -> Result<Version> {
+        log::debug!("querying for Version");
         let res = self
             .select("SELECT * from version", params![], |row| {
                 Ok(Version::new(row.get(0)?, row.get(1)?, row.get(2)?))
             })
-            .context("failed to query row")?;
-
-        log::debug!("getting current version: {}", res.as_str());
+            .context(fail!("querying for Version"))?;
 
         Ok(res)
     }
 
     /// Update the current version of the database
     pub(crate) fn update_current_version(&self) -> Result<()> {
-        let v = Version::build().context("failed to get current version")?;
-        log::debug!("updating current version: {}", v.as_str());
+        let v = Version::build().context(fail!("querying for Version"))?;
+        log::debug!("updating Version: {}", v);
 
         self.execute(
             "UPDATE version SET major = ?1, minor = ?2, patch = ?3",
             params![v.major(), v.minor(), v.patch()],
         )
-        .context("failed to update current version")?;
+        .context(fail!("updating Version"))?;
 
         Ok(())
     }

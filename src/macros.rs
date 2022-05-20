@@ -153,58 +153,8 @@ macro_rules! path_str {
 #[macro_export]
 macro_rules! fail {
     ($($arg:tt)*) => ({
-        format!("failed to {}", format!($($arg)*))
+        format!("failed {}", format!($($arg)*))
     })
-}
-
-/// Easier error message expansion, since the base part is repeated
-#[macro_export]
-macro_rules! failure {
-    ($action:expr, $kind:expr) => {
-        $crate::fail!("{} {}", $action, $kind)
-    };
-    ($action:expr, $kind:expr, $by:expr) => {
-        $crate::fail!("{} {} by {}", $action, $kind, $by)
-    };
-    ($action:expr, $kind:expr, $by:expr, $val:expr) => {
-        $crate::fail!("{} {} by {}: {}", $action, $kind, $by, $val)
-    };
-}
-
-/// A conversion failure
-#[macro_export]
-macro_rules! conv_fail {
-    ($kind:expr) => {
-        $crate::fail!("convert to {}", $kind)
-    };
-}
-
-/// A retrieve failure
-#[macro_export]
-macro_rules! retr_fail {
-    ($kind:expr) => {
-        $crate::failure!("retrieve", $kind)
-    };
-    ($kind:expr, $by:expr) => {
-        $crate::failure!("retrieve", $kind, $by)
-    };
-    ($kind:expr, $by:expr, $val:expr) => {
-        $crate::failure!("retrieve", $kind, $by, $val)
-    };
-}
-
-/// A query failure
-#[macro_export]
-macro_rules! query_fail {
-    ($kind:expr) => {
-        $crate::failure!("query", $kind)
-    };
-    ($kind:expr, $by:expr) => {
-        $crate::failure!("query", $kind, $by)
-    };
-    ($kind:expr, $by:expr, $val:expr) => {
-        $crate::failure!("query", $kind, $by, $val)
-    };
 }
 
 /// Not a macro, but checks whether the user is qualified for the `file-flags`

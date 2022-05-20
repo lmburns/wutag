@@ -18,7 +18,7 @@ use crate::{
     util::{crawler, fmt_err, fmt_path, fmt_tag, glob_builder, regex_builder},
     wutag_error, wutag_info,
 };
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::{Args, ValueHint};
 use colored::Colorize;
 use itertools::Itertools;
@@ -285,6 +285,93 @@ impl App {
 
                         let all_tags = reg.tags_for_file(&file)?;
 
+                        // These closures are all created on each file that is found
+                        //
+                        // This should be fixed; though, it is here for now to reduce duplicate
+                        // code. If these are instead functions, each will need to have 4-5
+                        // parameters, and some issues arise dealing with lifetimes due to this
+                        // being an asynchronous block.
+
+                        let delete_tag = |tag: &Tag| -> Result<()> {
+                            log::debug!("{}: deleting tag {}", path.display(), tag.name());
+                            if let Err(e) = reg.delete_tag(tag.id()) {
+                                wutag_error!(
+                                    "{}: failed to delete tag {}: {}",
+                                    bold_entry!(path),
+                                    fmt_tag(tag),
+                                    e
+                                );
+
+                                return Err(anyhow!("anything"));
+                            }
+                            Ok(())
+                        };
+
+                        /// Delete a single tag from the database if it is only
+                        /// only found on the current file
+                        let delete_single_tag = |tag: &Tag| -> Result<()> {
+                            if reg.tag_count_by_id(tag.id())? == 1 {
+                                delete_tag(tag)?;
+                            }
+
+                            Ok(())
+                        };
+
+                        // if reg.tag_count_by_id(tag.id())? == 1 {
+                        //     log::debug!(
+                        //         "{}: deleting tag {}",
+                        //         path.display(),
+                        //         tag.name()
+                        //     );
+                        //
+                        //     if let Err(e) = reg.delete_tag(tag.id()) {
+                        //         wutag_error!(
+                        //             "{}: failed to delete tag {}: {}",
+                        //             bold_entry!(path),
+                        //             fmt_tag(tag),
+                        //             e
+                        //         );
+                        //         continue;
+                        //     }
+
+                        let delete_value = |value: &Value| -> Result<()> {
+                            log::debug!("{}: deleting value {}", path.display(), value.name());
+                            if let Err(e) = reg.delete_value(value.id()) {
+                                wutag_error!(
+                                    "{}: failed to delete value {}: {}",
+                                    bold_entry!(path),
+                                    value.name(),
+                                    e
+                                );
+                                return Err(anyhow!("doesn't matter what this says"));
+                            }
+                            Ok(())
+                        };
+
+                        /// Delete a single value from the database if it is
+                        /// only found on the current file
+                        let delete_single_value = |value: &Value| -> Result<()> {
+                            if reg.value_count_by_id(value.id())? == 1 {
+                                delete_value(value)?;
+                            }
+
+                            Ok(())
+                        };
+
+                        let handle_xattr = |tag: &Tag| {
+                            if path.get_tag(tag).is_err() {
+                                wutag_error!(
+                                    "{}: found ({}) in database, though file has no xattrs",
+                                    bold_entry!(path),
+                                    fmt_tag(tag)
+                                );
+                            } else if let Err(e) = path.untag(tag) {
+                                wutag_error!("{}: {}", path.display(), e);
+                            } else {
+                                print!("\t{} {}", "X".bold().red(), fmt_tag(tag));
+                            }
+                        };
+
                         // ------------Check------------   --Result--     ----Passed----
                         // Tag id, name = Value id, name => TAG, VALUE => Pass tag, value
                         // Tag id, name = Value name     => TAG        => Pass tag, value
@@ -297,14 +384,6 @@ impl App {
 
                         // println!("ALL TAGS: {:#?}", all_tags);
                         for (tag, value) in &combos {
-                            // println!("TAG: {:#?}", tag);
-                            // println!("VALUE: {:#?}", value);
-
-                            let xattr = path.get_tag(&tag);
-                            // println!("XATTR: {:#?}", xattr);
-                            // println!("TAG: {:#?}", tag);
-                            // println!("VALUE: {:#?}", value);
-
                             match (
                                 tag.is_null_id(),
                                 tag.is_null_name(),
@@ -322,7 +401,21 @@ impl App {
                                         value.name()
                                     );
                                 },
-                                // DONE:
+                                // Passed: Tag, Value => Found: false, true
+                                // (true, false, false, false) => {
+                                //     // TODO: Remove value
+                                //     wutag_info!("== tfff == OK VAUE");
+                                //     log::debug!(
+                                //         "tfff: (Tag => false), (Value => {})",
+                                //         value.name()
+                                //     );
+                                //
+                                //     wutag_error!(
+                                //         "tag ({}) is not found in the registry",
+                                //         red_entry!(tag)
+                                //     );
+                                // },
+
                                 // Passed: Tag, Value => Found: false, false
                                 (true, false, true, false) => {
                                     wutag_info!("== tftf ==");
@@ -336,7 +429,7 @@ impl App {
                                     );
                                     continue;
                                 },
-                                // DONE:
+
                                 // Passed: Tag => Found: true
                                 // Passed: Tag, Value => Found: true, false
                                 (false, false, true, true) | (false, false, true, false) => {
@@ -380,25 +473,12 @@ impl App {
                                         }
                                     }
 
-                                    if reg.tag_count_by_id(tag.id())? == 1 {
-                                        log::debug!(
-                                            "{}: deleting tag {}",
-                                            path.display(),
-                                            tag.name()
-                                        );
-
-                                        if let Err(e) = reg.delete_tag(tag.id()) {
-                                            wutag_error!(
-                                                "{}: failed to delete tag {}: {}",
-                                                bold_entry!(path),
-                                                fmt_tag(tag),
-                                                e
-                                            );
-                                            continue;
-                                        }
+                                    if delete_single_tag(tag).is_err() {
+                                        continue;
                                     } else if let Err(e) =
                                         reg.delete_filetag_by_fileid_tagid(file.id(), tag.id())
                                     {
+                                        println!("FILETAG TAG");
                                         wutag_error!(
                                             "{}: failed to delete filetag {}",
                                             path.display(),
@@ -407,32 +487,16 @@ impl App {
                                         continue;
                                     }
 
-                                    for value in values_ {
-                                        if let Err(e) = reg.delete_value(value.id()) {
-                                            wutag_error!(
-                                                "{}: failed to delete value {}: {}",
-                                                bold_entry!(path),
-                                                value.name(),
-                                                e
-                                            );
-                                            // continue;
+                                    for value in &values_ {
+                                        if delete_value(value).is_err() {
+                                            continue;
                                         }
                                     }
 
                                     // Deal with xattr after database
-                                    if xattr.is_err() {
-                                        wutag_error!(
-                                            "{}: found ({}) in database, though file has no xattrs",
-                                            bold_entry!(entry),
-                                            fmt_tag(tag)
-                                        );
-                                    } else if let Err(e) = path.untag(tag) {
-                                        wutag_error!("{}: {}", path.display(), e);
-                                    } else {
-                                        print!("\t{} {}", "X".bold().red(), fmt_tag(tag));
-                                    }
+                                    handle_xattr(tag);
                                 },
-                                // DONE:
+
                                 // Passed: Tag => Found: false
                                 (true, false, true, true) => {
                                     wutag_info!("== tftt ==");
@@ -472,14 +536,8 @@ impl App {
 
                                     // If this value is only found once (on this tag/file)
                                     if reg.value_count_by_id(value.id())? == 1 {
-                                        log::debug!(
-                                            "{}: deleting value {}",
-                                            path.display(),
-                                            value.name()
-                                        );
-
                                         // Then go ahead and delete it
-                                        if let Err(e) = reg.delete_value(value.id()) {
+                                        if let Err(e) = reg.delete_value_only(value.id()) {
                                             wutag_error!(
                                                 "{}: failed to delete value {}: {}",
                                                 bold_entry!(path),
@@ -504,24 +562,13 @@ impl App {
 
                                     for tag in tags.iter() {
                                         if reg.tag_count_by_id(tag.id())? == 1 {
-                                            log::debug!(
-                                                "{}: implicitly deleting tag {}",
-                                                path.display(),
-                                                tag.name()
-                                            );
-
-                                            if let Err(e) = reg.delete_tag(tag.id()) {
-                                                wutag_error!(
-                                                    "{}: failed to delete tag {}: {}",
-                                                    bold_entry!(path),
-                                                    fmt_tag(tag),
-                                                    e
-                                                );
+                                            if delete_tag(tag).is_err() {
                                                 continue;
                                             }
                                         } else if let Err(e) =
                                             reg.delete_filetag_by_fileid_tagid(file.id(), tag.id())
                                         {
+                                            println!("FILETAG VALUE");
                                             wutag_error!(
                                                 "{}: failed to delete filetag {}",
                                                 path.display(),
@@ -530,24 +577,13 @@ impl App {
                                             continue;
                                         }
 
-                                        if path.get_tag(&tag).is_err() {
-                                            wutag_error!(
-                                                "{}: found ({}) in database, though file has no \
-                                                 xattrs",
-                                                bold_entry!(entry),
-                                                fmt_tag(tag)
-                                            );
-                                        } else if let Err(e) = path.untag(tag) {
-                                            wutag_error!("{}: {}", path.display(), e);
-                                        } else {
-                                            print!("\t{} {}", "X".bold().red(), fmt_tag(tag));
-                                        }
+                                        handle_xattr(tag);
                                     }
 
                                     // What would be a better way to indicate that this is a value?
                                     print!("\t{} {} (V)", "X".bold().red(), value.name().bold());
                                 },
-                                // DONE:
+
                                 // Passed: Value => Found: false
                                 (true, true, true, false) => {
                                     wutag_info!("== tttf ==");
@@ -559,7 +595,7 @@ impl App {
                                     );
                                     continue;
                                 },
-                                // DONE:
+
                                 // Passed: => Found:
                                 //  - Should only happen if clap somehow accepts empties
                                 (true, true, true, true) => {
@@ -569,7 +605,7 @@ impl App {
                                     );
                                     continue;
                                 },
-                                // DONE:
+
                                 _ => {
                                     wutag_error!(
                                         "you shouldn't use empty strings for tag or value names. \

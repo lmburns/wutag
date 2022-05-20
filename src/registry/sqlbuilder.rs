@@ -5,6 +5,7 @@ use super::querier::ast::{
     search::{Search, SearchKind},
     BinaryExpr, ComparisonOp, Expr, LogicalOp, UnaryExpr, UnaryOp,
 };
+use crate::fail;
 use anyhow::{anyhow, Context, Result};
 use bytes::{Bytes, BytesMut};
 use itertools::Itertools;
@@ -61,7 +62,7 @@ impl<'a> SqlBuilder<'a> {
 
     /// Return the `query` as a `String`
     pub(crate) fn utf(&self) -> Result<String> {
-        String::from_utf8(self.query.to_vec()).context("failed to convert query to String")
+        String::from_utf8(self.query.to_vec()).context(fail!("converting Query to String"))
     }
 
     /// Return the `params` as a vector of [`ToSqlOutput`]

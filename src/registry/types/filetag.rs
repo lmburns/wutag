@@ -8,13 +8,13 @@ use super::{
     value::{Value, ValueId},
 };
 use anyhow::{Context, Result};
-
 use itertools::Itertools;
 use rusqlite::{
     self as rsq,
     types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, ValueRef},
     Row,
 };
+use std::fmt;
 
 // ╭──────────────────────────────────────────────────────────╮
 // │                         FileTag                          │
@@ -71,6 +71,16 @@ impl TryFrom<&Row<'_>> for FileTag {
             tag_id:   row.get("tag_id")?,
             value_id: row.get("value_id")?,
         })
+    }
+}
+
+impl fmt::Display for FileTag {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "FileTag(FileId: {}, TagId: {}, ValueId: {})",
+            self.file_id, self.tag_id, self.value_id
+        )
     }
 }
 

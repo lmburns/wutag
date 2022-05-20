@@ -17,7 +17,7 @@ use super::{
     },
     Error, Txn,
 };
-use crate::{fail, query_fail};
+use crate::fail;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Local};
 use colored::Colorize;
@@ -40,6 +40,9 @@ impl Txn<'_> {
 
     /// Return all [`Query`] in the database
     pub(crate) fn queries(&self) -> Result<Queries> {
+        let debug = "retrieving Queries";
+        log::debug!("{}", debug);
+
         let queries: Vec<Query> = self
             .query_vec(
                 "SELECT text
@@ -48,25 +51,29 @@ impl Txn<'_> {
                 params![],
                 |row| row.try_into().expect("failed to convert to `Query`"),
             )
-            .context(query_fail!("`Queries`"))?;
+            .context(fail!("{}", debug))?;
 
         Ok(queries.into())
     }
 
     /// Retrieve a [`Query`] that matches the given text
     pub(crate) fn query<S: AsRef<str>>(&self, q: S) -> Result<Query> {
+        let q = q.as_ref();
+        let debug = format!("retrieving Queries({})", q);
+        log::debug!("{}", debug);
+
         let query: Query = self
             .select(
                 "SELECT text
                 FROM query
                 WHERE text = ?1",
-                params![q.as_ref()],
+                params![q],
                 |row| {
                     let r: Query = row.try_into().expect("failed to convert to `Query`");
                     Ok(r)
                 },
             )
-            .context(query_fail!("`Query`"))?;
+            .context(fail!("{}", debug))?;
 
         Ok(query)
     }
@@ -77,6 +84,8 @@ impl Txn<'_> {
     /// Insert a [`Query`] into the query table. Returns a [`Query`]
     pub(crate) fn insert_query<S: AsRef<str>>(&self, q: S) -> Result<Query> {
         let q = q.as_ref();
+        log::debug!("inserting Query({})", q);
+
         self.insert(
             "INSERT INTO query (text)
             VALUES (?1)",
@@ -88,12 +97,16 @@ impl Txn<'_> {
 
     /// Delete a [`Query`] from the query table
     pub(crate) fn delete_query<S: AsRef<str>>(&self, q: S) -> Result<()> {
+        let q = q.as_ref();
+        let debug = format!("deleting Query({})", q);
+        log::debug!("{}", debug);
+
         self.execute(
             "DELETE FROM query
             WHERE text = ?",
-            params![q.as_ref()],
+            params![q],
         )
-        .context(fail!("delete `Query`"))?;
+        .context(fail!("{}", debug))?;
 
         Ok(())
     }

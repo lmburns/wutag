@@ -38,6 +38,12 @@ impl Registry {
         self.txn_wrap(|txn| txn.tag(id))
     }
 
+    /// Retrieve the [`Tag`] matching the given [`TagId`]
+    #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
+    pub(crate) fn dangling_tags(&self) -> Result<Tags> {
+        self.txn_wrap(|txn| txn.dangling_tags())
+    }
+
     /// Retrieve the [`Tags`] matching the [`ValueId`]
     pub(crate) fn tags_by_valueid(&self, vid: ValueId) -> Result<Tags> {
         self.txn_wrap(|txn| txn.tags_by_valueid(vid))
@@ -178,6 +184,12 @@ impl Registry {
             self.delete_filetag_by_tagid(txn, id)?;
             txn.delete_tag(id).map_err(Into::into)
         })
+    }
+
+    /// Delete [`Tags`] that are not associated with any [`File`] or [`Tag`]
+    #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
+    pub(crate) fn delete_dangling_tags(&self) -> Result<()> {
+        self.wrap_commit(|txn| txn.delete_dangling_tags())
     }
 
     // ============================== Other ===============================

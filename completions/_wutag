@@ -157,12 +157,8 @@ _arguments "${_arguments_options[@]}" \
 '(-V --values)*--pairs=[Specify any number of tag=value pairs to delete]:pairs: ' \
 '-f[Follow symlinks before removing tags and/or values]' \
 '--follow-symlinks[Follow symlinks before removing tags and/or values]' \
-'-a[Remove all tags and/or values on a file]' \
-'--all[Remove all tags and/or values on a file]' \
 '-V[Indicate the item(s) in the given list are values intead of tags]' \
 '--values[Indicate the item(s) in the given list are values intead of tags]' \
-'(-V --values)-w[When deleting tags from the database, delete the tag'\''s values as well]' \
-'(-V --values)--with-values[When deleting tags from the database, delete the tag'\''s values as well]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \

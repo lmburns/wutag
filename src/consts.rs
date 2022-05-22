@@ -37,12 +37,12 @@ pub(crate) const DEFAULT_MAX_DEPTH: usize = 2;
 pub(crate) const DEFAULT_COLOR: Color = Color::BrightWhite;
 /// Default colors used for tags
 pub(crate) const DEFAULT_COLORS: &[Color] = &[
+    White,
     Red,
     Green,
     Blue,
     Yellow,
     Cyan,
-    White,
     Magenta,
     BrightRed,
     BrightGreen,
@@ -149,14 +149,14 @@ pub(crate) static RM_LONG_HELP: Lazy<String> = Lazy::new(|| {
 Remove an item (i.e., tags or values) from the results of a pattered query.
 
 The default behavior is to act on tags, but this can be changed with the {}--values{} option. \
-Another default behavior is to delete the item from the database if no other tag has this value \
-and no other file has this value. This can also be changed with the {}--untag{} flag or the \
-configuration option `keep_dangling`, resulting in the tag or value being kept in the database.
+If a tag becomes disconnected from a file as a result of a command, this tag will be removed \
+from the database. The same goes for values, if a value is no longer connected to a tag, it will \
+be removed from the database.
 
-{}Note{}: This command is not to be used to completely remove a single tag or value from the database.
-          This only acts on the files returned from the query.
+{}Note{}: This command does not remove all connections of a tag/value from the database.
+          It only acts on results of a query, and removes tags/values from these files
 {}Aliases{}: remove, del, delete",
-        GREEN, RES, GREEN, RES, BRRED, RES, BRCYAN, RES
+        GREEN, RES, BRRED, RES, BRCYAN, RES
     )
 });
 

@@ -392,7 +392,7 @@ impl App {
                                 );
 
                                 if let Err(e) = path.tag(&tag) {
-                                    wutag_error!("{}:j {}", bold_entry!(path), e);
+                                    wutag_error!("{}: {}", bold_entry!(path), e);
                                 }
                             }
 
@@ -415,7 +415,6 @@ impl App {
                         wutag_error!("{} {}", e, bold_entry!(path));
                     } else {
                         log::debug!("{}: writing xattrs", path_d);
-                        // TODO: Create entry here?
 
                         if !self.quiet {
                             print!("\t{} {}", "+".bold().green(), fmt_tag(&tag));

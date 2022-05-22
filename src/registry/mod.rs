@@ -504,6 +504,9 @@ impl Registry {
     /// It is to act as a mock of [`wrap_commit`], which starts another
     /// transaction.
     ///
+    /// If the API function accepts a [`Txn`] as an argument, this should be
+    /// used instead of `wrap_commit`.
+    ///
     /// Perhaps at some point I will find a better way to do this.
     /// It would be nice to have a global variable or a field in a struct
     /// that could hold a transaction. The latter is possible; however, it

@@ -14,13 +14,10 @@ pub(crate) mod set;
 pub(crate) mod view;
 
 // TODO: Virtual filesystem
-// TODO: Repair database
-// TODO: Finish info command
+// TODO: Repair command (crawl a given directory looking for xattrs)
+// TODO: Info command
 
-// TODO: imply tags
-// TODO: rename tags
-// TODO: merge tags
-// TODO: Repair database by crawling a given directory looking to xattrs
+// TODO: Rename/merge/copy tags
 
 use crate::{
     config::{Config, EncryptConfig},

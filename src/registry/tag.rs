@@ -111,6 +111,29 @@ impl Txn<'_> {
         Ok(tag)
     }
 
+    /// Select all [`Tag`]s that are not associated with a [`Value`] or [`File`]
+    pub(super) fn dangling_tags(&self) -> Result<Tags> {
+        let debug = "selecting dangling Tags";
+        log::debug!("{}", debug);
+
+        let tags: Vec<Tag> = self
+            .query_vec(
+                "DELETE FROM tag
+                    WHERE
+                      id NOT IN (
+                        SELECT
+                          DISTINCT(tag_id)
+                        FROM
+                          file_tag
+                      )",
+                params![],
+                |row| row.try_into().expect("failed to convert to `Tag`"),
+            )
+            .context(fail!("{}", debug))?;
+
+        Ok(tags.into())
+    }
+
     /// Retrieve all [`Tag`]s matching a [`ValueId`]
     pub(super) fn tags_by_valueid(&self, vid: ValueId) -> Result<Tags> {
         let debug = format!("querying for Tags b ValueId({})", vid);
@@ -452,36 +475,55 @@ impl Txn<'_> {
     }
 
     /// Delete a [`File`]'s' [`Tag`]s
-    pub(super) fn delete_files_tags(&self, file: &File) -> Result<Tags> {
+    pub(super) fn delete_files_tags(&self, file: &File) -> Result<()> {
         let debug = format!("deleting Tags by File({})", file.name());
         log::debug!("{}", debug);
 
-        let tags: Vec<Tag> = self
-            .query_vec(
-                "DELETE FROM tag
-                     WHERE
-                      id IN (
-                        SELECT
-                          tag_id
-                        FROM
-                          file_tag
-                        WHERE
-                          file_id = (
-                            SELECT
-                              id
-                            FROM
-                              file
-                            WHERE
-                              name = ?1
-                              AND directory = ?2
-                          )
-                      )",
-                params![file.name(), file.directory()],
-                |row| row.try_into().expect("failed to convert to `Tag`"),
-            )
-            .context(fail!("{}", debug))?;
+        self.execute(
+            "DELETE FROM tag
+             WHERE
+              id IN (
+                SELECT
+                  tag_id
+                FROM
+                  file_tag
+                WHERE
+                  file_id = (
+                    SELECT
+                      id
+                    FROM
+                      file
+                    WHERE
+                      name = ?1
+                      AND directory = ?2
+                  )
+              )",
+            params![file.name(), file.directory()],
+        )
+        .context(fail!("{}", debug))?;
 
-        Ok(tags.into())
+        Ok(())
+    }
+
+    /// Delete [`Tags`] that are not associated with any [`File`] or [`Tag`]
+    pub(super) fn delete_dangling_tags(&self) -> Result<()> {
+        let debug = "deleting dangling Tags";
+        log::debug!("{}", debug);
+
+        self.execute(
+            "DELETE FROM tag
+                WHERE
+                  id NOT IN (
+                    SELECT
+                      DISTINCT(tag_id)
+                    FROM
+                      file_tag
+                  )",
+            params![],
+        )
+        .context(fail!("{}", debug))?;
+
+        Ok(())
     }
 
     // BETTER TEST:

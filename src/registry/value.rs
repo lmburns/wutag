@@ -248,7 +248,7 @@ impl Txn<'_> {
 
     /// Retrieve all [`Value`]s matching a [`FileId`]
     pub(super) fn values_by_fileid(&self, fid: FileId) -> Result<Values> {
-        let debug = format!("querying for Value by FileId({})", fid);
+        let debug = format!("querying for Values by FileId({})", fid);
         log::debug!("{}", debug);
         let values: Vec<Value> = self
             .query_vec(
@@ -261,6 +261,28 @@ impl Txn<'_> {
                 )
                 ORDER BY name",
                 params![fid],
+                |row| row.try_into().expect("failed to convert to `Value`"),
+            )
+            .context(fail!("{}", debug))?;
+
+        Ok(values.into())
+    }
+
+    /// Retrieve all [`Value`]s matching a [`FileId`] and [`TagId`]
+    pub(super) fn values_by_fileid_tagid(&self, fid: FileId, tid: TagId) -> Result<Values> {
+        let debug = format!("querying for Values by FileId({}), TagId({})", fid, tid);
+        log::debug!("{}", debug);
+        let values: Vec<Value> = self
+            .query_vec(
+                "SELECT id, name
+                FROM value
+                WHERE id IN (
+                    SELECT value_id
+                    FROM file_tag
+                    WHERE file_id = ?1 and tag_id = ?2
+                )
+                ORDER BY name",
+                params![fid, tid],
                 |row| row.try_into().expect("failed to convert to `Value`"),
             )
             .context(fail!("{}", debug))?;

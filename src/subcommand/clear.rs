@@ -57,13 +57,12 @@ impl App {
                 } else if self.fixed_string {
                     regex::escape(&opts.pattern)
                 } else {
-                    glob_builder(&opts.pattern)
+                    glob_builder(&opts.pattern, self.wildcard_matches_sep)
                 }
             },
             self.case_insensitive,
             self.case_sensitive,
         );
-        log::debug!("Compiled pattern: {re}");
 
         // If not needed, delete
         let reg = self.registry.lock().expect("poisoned lock");

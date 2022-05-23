@@ -9,7 +9,7 @@ use crate::{
     registry::{
         types::{
             filetag::FileTag,
-            tag::{DirEntryExt, Tag, TagValueCombo},
+            tag::{list_tags, DirEntryExt, Tag, TagValueCombo},
             value::Value,
             ID,
         },
@@ -23,7 +23,6 @@ use clap::{Args, ValueHint};
 use colored::Colorize;
 use itertools::Itertools;
 use std::{borrow::Cow, ffi::OsStr, fs, path::PathBuf, sync::Arc};
-use wutag_core::tag::list_tags;
 
 /// Arguments to the `rm` subcommand
 #[derive(Args, Clone, Debug, PartialEq)]
@@ -71,7 +70,7 @@ pub(crate) struct RmOpts {
     pub(crate) pattern: String,
 
     /// Tags or values (requires --values) to remove from the matching pattern
-    #[clap(name = "tags", takes_value = true)]
+    #[clap(name = "tags", takes_value = true, required_unless_present = "pairs")]
     pub(crate) tags: Vec<String>,
 }
 
@@ -96,8 +95,6 @@ impl App {
         log::debug!("RmOpts: {:#?}", opts);
         debug_registry_path(&self.registry);
 
-        // println!("RmOpts: {:#?}", opts);
-
         let re = regex_builder(
             &{
                 if self.pat_regex {
@@ -105,13 +102,12 @@ impl App {
                 } else if self.fixed_string {
                     regex::escape(&opts.pattern)
                 } else {
-                    glob_builder(&opts.pattern)
+                    glob_builder(&opts.pattern, self.wildcard_matches_sep)
                 }
             },
             self.case_insensitive,
             self.case_sensitive,
         );
-        log::debug!("Compiled pattern: {re}");
 
         let reg = self.registry.lock().expect("poisoned lock");
         let sensitive = !self.case_insensitive && self.case_sensitive;
@@ -149,75 +145,335 @@ impl App {
 
         combos.append(&mut tags);
 
+        // Delete a Tag from the database
+        let delete_tag = |tag: &Tag, path: &PathBuf| -> Result<()> {
+            log::debug!("{}: deleting tag {}", path.display(), tag.name());
+            if let Err(e) = reg.delete_tag(tag.id()) {
+                wutag_error!(
+                    "{}: failed to delete tag {}: {}",
+                    bold_entry!(path),
+                    fmt_tag(tag),
+                    e
+                );
+
+                return Err(anyhow!("anything"));
+            }
+            Ok(())
+        };
+
+        // Delete a Value from the database
+        let delete_value = |value: &Value, path: &PathBuf| -> Result<()> {
+            log::debug!("{}: deleting value {}", path.display(), value.name());
+            if let Err(e) = reg.delete_value(value.id()) {
+                wutag_error!(
+                    "{}: failed to delete value {}: {}",
+                    bold_entry!(path),
+                    value.name().color(self.base_color).bold(),
+                    e
+                );
+                return Err(anyhow!("doesn't matter what this says"));
+            }
+
+            print!(
+                "\t{} {} (V)",
+                "X".bold().red(),
+                value.name().color(self.base_color).bold()
+            );
+            Ok(())
+        };
+
+        /// Remove an extended attribute from a [`PathBuf`]
+        let handle_xattr = |tag: &Tag, path: &PathBuf| {
+            log::debug!("removing xattr for Tag({})", tag.name());
+            if path.get_tag(tag).is_err() {
+                wutag_error!(
+                    "{}: found ({}) in database, though file has no xattrs",
+                    bold_entry!(path),
+                    fmt_tag(tag)
+                );
+            } else if let Err(e) = path.untag(tag) {
+                wutag_error!("{}: {}", path.display(), e);
+            } else {
+                print!("\t{} {}", "X".bold().red(), fmt_tag(tag));
+            }
+        };
+
         if self.global {
-            // let ctags = opts.tags.iter().collect::<Vec<_>>();
-            // let exclude_pattern = regex_builder(
-            //     self.exclude.join("|").as_str(),
-            //     self.case_insensitive,
-            //     self.case_sensitive,
-            // );
-            //
-            // for (&id, entry) in self.oregistry.clone().list_entries_and_ids()
-            // {     let search_str: Cow<OsStr> =
-            // Cow::Owned(entry.path().as_os_str().to_os_string());
-            //     let search_bytes = osstr_to_bytes(search_str.as_ref());
-            //     if !self.exclude.is_empty() &&
-            // exclude_pattern.is_match(&search_bytes) {
-            //         continue;
-            //     }
-            //
-            //     if let Some(ref ext) = self.extension {
-            //         if !ext.is_match(&search_bytes) {
-            //             continue;
-            //         }
-            //     }
-            //
-            //     if re.is_match(&search_bytes) {
-            //         list_tags(entry.path())
-            //             .map(|tags| {
-            //                 tags.iter().fold(Vec::new(), |mut acc, tag| {
-            //                     acc.push((
-            //                         ctags.iter().find(|c| **c ==
-            // &tag.to_string()),
-            // tag.clone(),                     ));
-            //                     acc
-            //                 })
-            //             })
-            //             .unwrap_or_default()
-            //             .iter()
-            //             .for_each(|(search, realtag)| {
-            //                 if search.is_some() {
-            //                     // println!("SEARCH: {:?} REAL: {:?}",
-            // search, realtag);
-            // self.oregistry.untag_by_name(search.unwrap(), id);
-            //                     if !self.quiet {
-            //                         println!(
-            //                             "{}:",
-            //                             fmt_path(entry.path(),
-            // self.base_color, self.ls_colors)
-            // );                     }
-            //
-            //                     if let Err(e) =
-            // realtag.remove_from(entry.path()) {
-            // err!('\t', e, entry);                     } else if
-            // !self.quiet {                         print!("\t{}
-            // {}", "X".bold().red(), fmt_tag_old(realtag));
-            //                     }
-            //
-            //                     if !self.quiet {
-            //                         println!();
-            //                     }
-            //                 }
-            //             });
-            //     }
-            //     log::debug!("Saving registry...");
-            // self.save_registry();
-            // }
+            let exclude_pattern = regex_builder(
+                self.exclude.join("|").as_str(),
+                self.case_insensitive,
+                self.case_sensitive,
+            );
+
+            for file in reg.files(None)?.iter() {
+                let path = &file.path();
+
+                let search_str: Cow<OsStr> = Cow::Owned(path.as_os_str().to_os_string());
+                let search_bytes = osstr_to_bytes(search_str.as_ref());
+                if !self.exclude.is_empty() && exclude_pattern.is_match(&search_bytes) {
+                    continue;
+                }
+
+                if let Some(ref ext) = self.extension {
+                    if !ext.is_match(&search_bytes) {
+                        continue;
+                    }
+                }
+
+                if re.is_match(&search_bytes) {
+                    if !self.quiet {
+                        println!("{}:", fmt_path(path, self.base_color, self.ls_colors));
+                    }
+
+                    for (tag, value) in &combos {
+                        match (
+                            tag.is_null_id(),
+                            tag.is_null_name(),
+                            value.is_null_id(),
+                            value.is_null_name(),
+                        ) {
+                            // Passed: Tag, Value => Found: true, true
+                            (false, false, false, false) => {
+                                // wutag_info!("== ffff == OK TAG OK VALUE");
+                                log::debug!(
+                                    "ffff: (Tag => {}), (Value => {})",
+                                    tag.name(),
+                                    value.name()
+                                );
+
+                                let mut values_ = vec![];
+                                if let Ok(values) = reg.values_by_tagid(tag.id()) {
+                                    for value in values.iter().cloned() {
+                                        if reg.value_count_by_id(value.id())? == 1 {
+                                            values_.push(value);
+                                        } else if !self.quiet {
+                                            wutag_info!(
+                                                "the value {} is found on other files, therefore \
+                                                 won't be deleted",
+                                                value.name()
+                                            );
+                                        }
+                                    }
+                                }
+
+                                if reg.tag_count_by_id(tag.id())? == 1 {
+                                    if delete_tag(tag, path).is_err() {
+                                        continue;
+                                    }
+                                } else if let Err(e) =
+                                    reg.delete_filetag(file.id(), tag.id(), value.id())
+                                {
+                                    wutag_error!(
+                                        "{}: failed to delete FileTag {}",
+                                        path.display(),
+                                        e
+                                    );
+                                    continue;
+                                }
+
+                                // Deal with xattr after database
+                                handle_xattr(tag, path);
+
+                                for value in &values_ {
+                                    if delete_value(value, path).is_err() {
+                                        continue;
+                                    }
+                                }
+                            },
+
+                            // Passed: Tag, Value => Found: false, false
+                            (true, false, true, false) => {
+                                // wutag_info!("== tftf ==");
+                                log::debug!("tftf: (Tag => false), (Value => false)",);
+
+                                wutag_error!(
+                                    "tag ({}) and value ({}) are both not found in the registry",
+                                    red_entry!(tag),
+                                    value.name().color(self.base_color).bold(),
+                                );
+                                continue;
+                            },
+
+                            // Passed: Tag => Found: true
+                            // Passed: Tag, Value => Found: true, false
+                            (false, false, true, true) | (false, false, true, false) => {
+                                // TODO: Remove tag
+
+                                if value.is_null_name() {
+                                    // wutag_info!("== fftt == OK TAG");
+                                    log::debug!("fftt: (Tag => {}), (Value => N/A)", tag.name());
+                                } else {
+                                    // wutag_info!("== fftf == OK TAG");
+                                    log::debug!("fftf: (Tag => {}) (Value => false)", tag.name());
+                                    wutag_error!(
+                                        "value ({}) is not found in the registry",
+                                        value.name().color(self.base_color).bold(),
+                                    );
+                                }
+
+                                let mut values_ = vec![];
+                                if let Ok(values) = reg.values_by_tagid(tag.id()) {
+                                    for value in values.iter().cloned() {
+                                        if reg.value_count_by_id(value.id())? == 1 {
+                                            values_.push(value);
+                                        }
+                                    }
+                                }
+
+                                if reg.tag_count_by_id(tag.id())? == 1 {
+                                    if delete_tag(tag, path).is_err() {
+                                        continue;
+                                    }
+                                } else if let Err(e) =
+                                    reg.delete_filetag_by_fileid_tagid(file.id(), tag.id())
+                                {
+                                    wutag_error!(
+                                        "{}: failed to delete filetag {}",
+                                        path.display(),
+                                        e
+                                    );
+                                    continue;
+                                }
+
+                                // Deal with xattr after database tag, but before value
+                                // so that way 'X <tag> \t X (V) <value>' is printed
+                                handle_xattr(tag, path);
+
+                                for value in &values_ {
+                                    if delete_value(value, path).is_err() {
+                                        continue;
+                                    }
+                                }
+                            },
+
+                            // Passed: Tag => Found: false
+                            (true, false, true, true) => {
+                                // wutag_info!("== tftt ==");
+                                log::debug!("tftt: (Tag => false), (Value => N/A)",);
+
+                                wutag_error!(
+                                    "tag ({}) is not found in the registry",
+                                    red_entry!(tag)
+                                );
+                                continue;
+                            },
+                            // Passed: Value => Found: true
+                            // Passed: Tag, Value => Found: false, true
+                            (true, true, false, false) | (true, false, false, false) => {
+                                // TODO: Remove value
+
+                                if tag.is_null_name() {
+                                    // wutag_info!("== ttff == OK VALUE");
+                                    log::debug!("ttff: (Tag => N/A), (Value => {})", value.name());
+                                } else {
+                                    // wutag_info!("== tfff == OK VAUE");
+                                    log::debug!(
+                                        "tfff: (Tag => false), (Value => {})",
+                                        value.name()
+                                    );
+
+                                    wutag_error!(
+                                        "tag ({}) is not found in the registry",
+                                        red_entry!(tag)
+                                    );
+                                }
+
+                                let tags = reg.tags_by_fileid_valueid(file.id(), value.id())?;
+
+                                // If this value is only found once (on this tag/file)
+                                if reg.value_count_by_id(value.id())? == 1 {
+                                    // Then go ahead and delete it
+                                    if let Err(e) = reg.delete_value_only(value.id()) {
+                                        wutag_error!(
+                                            "{}: failed to delete value {}: {}",
+                                            bold_entry!(path),
+                                            value.name().color(self.base_color).bold(),
+                                            e
+                                        );
+                                        continue;
+                                    }
+
+                                    // Otherwise, just remove it from this
+                                    // single file
+                                } else if let Err(e) =
+                                    reg.update_filetag_valueid(value.id(), file.id())
+                                {
+                                    wutag_error!(
+                                        "{}: failed to update value {}",
+                                        bold_entry!(path),
+                                        value.name().color(self.base_color).bold(),
+                                    );
+                                    continue;
+                                }
+
+                                for tag in tags.iter() {
+                                    if reg.tag_count_by_id(tag.id())? == 1 {
+                                        if delete_tag(tag, path).is_err() {
+                                            continue;
+                                        }
+                                    } else if let Err(e) =
+                                        reg.delete_filetag_by_fileid_tagid(file.id(), tag.id())
+                                    {
+                                        wutag_error!(
+                                            "{}: failed to delete filetag {}",
+                                            path.display(),
+                                            e
+                                        );
+                                        continue;
+                                    }
+
+                                    handle_xattr(tag, path);
+                                }
+
+                                // What would be a better way to indicate that this is a value?
+                                print!(
+                                    "\t{} {} (V)",
+                                    "X".bold().red(),
+                                    value.name().color(self.base_color).bold(),
+                                );
+                            },
+
+                            // Passed: Value => Found: false
+                            (true, true, true, false) => {
+                                // wutag_info!("== tttf ==");
+                                log::debug!("tttf: (Tag => N/A), (Value => false)",);
+
+                                wutag_error!(
+                                    "value ({}) is not found in the registry",
+                                    value.name().color(self.base_color).bold(),
+                                );
+                                continue;
+                            },
+
+                            // Passed: => Found:
+                            //  - Should only happen if clap somehow accepts empties
+                            (true, true, true, true) => {
+                                log::debug!("tttt: (Tag => N/A), (Value => N/A)");
+                                wutag_error!(
+                                    "you shouldn't use empty strings for tag or value names"
+                                );
+                                continue;
+                            },
+
+                            _ => {
+                                wutag_error!(
+                                        "you shouldn't use empty strings for tag or value names. \
+                                        If the issue persists, please report to \
+                                        https://github.com/lmburns/wutag"
+                                    );
+                                continue;
+                            },
+                        }
+                    }
+
+                    if !self.quiet {
+                        println!();
+                    }
+                }
+            }
         } else {
             drop(reg);
 
-            // untag requires tag=value to be removed
-            // delete only requires tag
             crawler(
                 &Arc::new(re),
                 &Arc::new(self.clone()),
@@ -247,6 +503,11 @@ impl App {
                         }
 
                         // TODO: Reduce duplicate code
+                        // These are duplicated from above, because the [`InnerConnection`] of the
+                        // SQLite database in unable to be shared across threads. Whenever these
+                        // closures are created here, they capture the [`Registry`] that has been
+                        // cloned inside the asynchronous loop.
+                        //
                         // These closures are all created on each file that is found
                         //
                         // This should be fixed; though, it is here for now to reduce duplicate
@@ -289,21 +550,6 @@ impl App {
                             Ok(())
                         };
 
-                        let handle_xattr = |tag: &Tag| {
-                            log::debug!("removing xattr for Tag({})", tag.name());
-                            if path.get_tag(tag).is_err() {
-                                wutag_error!(
-                                    "{}: found ({}) in database, though file has no xattrs",
-                                    bold_entry!(path),
-                                    fmt_tag(tag)
-                                );
-                            } else if let Err(e) = path.untag(tag) {
-                                wutag_error!("{}: {}", path.display(), e);
-                            } else {
-                                print!("\t{} {}", "X".bold().red(), fmt_tag(tag));
-                            }
-                        };
-
                         // ------------Check------------   --Result--     ----Passed----
                         // Tag id, name = Value id, name => TAG, VALUE => Pass tag, value
                         // Tag id, name = Value name     => TAG        => Pass tag, value
@@ -335,6 +581,12 @@ impl App {
                                         for value in values.iter().cloned() {
                                             if reg.value_count_by_id(value.id())? == 1 {
                                                 values_.push(value);
+                                            } else if !self.quiet {
+                                                wutag_info!(
+                                                    "the value {} is found on other files, \
+                                                     therefore won't be deleted",
+                                                    value.name()
+                                                );
                                             }
                                         }
                                     }
@@ -347,7 +599,7 @@ impl App {
                                         reg.delete_filetag(file.id(), tag.id(), value.id())
                                     {
                                         wutag_error!(
-                                            "{}: failed to delete filetag {}",
+                                            "{}: failed to delete FileTag {}",
                                             path.display(),
                                             e
                                         );
@@ -355,7 +607,7 @@ impl App {
                                     }
 
                                     // Deal with xattr after database
-                                    handle_xattr(tag);
+                                    handle_xattr(tag, path);
 
                                     for value in &values_ {
                                         if delete_value(value).is_err() {
@@ -427,7 +679,7 @@ impl App {
 
                                     // Deal with xattr after database tag, but before value
                                     // so that way 'X <tag> \t X (V) <value>' is printed
-                                    handle_xattr(tag);
+                                    handle_xattr(tag, path);
 
                                     for value in &values_ {
                                         if delete_value(value).is_err() {
@@ -515,7 +767,7 @@ impl App {
                                             continue;
                                         }
 
-                                        handle_xattr(tag);
+                                        handle_xattr(tag, path);
                                     }
 
                                     // What would be a better way to indicate that this is a value?

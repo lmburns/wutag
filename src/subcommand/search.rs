@@ -110,14 +110,20 @@ impl App {
     pub(crate) fn search(&self, opts: &SearchOpts) {
         log::debug!("SearchOpts: {:#?}", opts);
         log::debug!("Using registry: {}", self.oregistry.path.display());
-        let pat = if self.pat_regex {
-            String::from(&opts.pattern)
-        } else {
-            glob_builder(&opts.pattern)
-        };
 
-        let re = regex_builder(&pat, self.case_insensitive, self.case_sensitive);
-        log::debug!("Compiled pattern: {}", re);
+        let re = regex_builder(
+            &{
+                if self.pat_regex {
+                    String::from(&opts.pattern)
+                } else if self.fixed_string {
+                    regex::escape(&opts.pattern)
+                } else {
+                    glob_builder(&opts.pattern, self.wildcard_matches_sep)
+                }
+            },
+            self.case_insensitive,
+            self.case_sensitive,
+        );
 
         let command = opts.execute.as_ref().map_or_else(
             || {

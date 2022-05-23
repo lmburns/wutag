@@ -96,19 +96,19 @@ _wutag() {
                     return 0
                     ;;
                 --color)
-                    COMPREPLY=($(compgen -W "" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "never auto always" -- "${cur}"))
                     return 0
                     ;;
                 -c)
-                    COMPREPLY=($(compgen -W "" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "never auto always" -- "${cur}"))
                     return 0
                     ;;
                 --type)
-                    COMPREPLY=($(compgen -W "" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "f file d dir l symlink b block c char s socket p fifo x executable e empty" -- "${cur}"))
                     return 0
                     ;;
                 -t)
-                    COMPREPLY=($(compgen -W "" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "f file d dir l symlink b block c char s socket p fifo x executable e empty" -- "${cur}"))
                     return 0
                     ;;
                 --ext)
@@ -235,7 +235,7 @@ _wutag() {
             return 0
             ;;
         wutag__list__files)
-            opts="-t -V -f -b -G -h -v --version --with-tags --with-values --format --border --garrulous --help --verbose"
+            opts="-t -V -f -b -G -h -v --with-tags --with-values --format --border --garrulous --help --verbose"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -249,7 +249,7 @@ _wutag() {
             return 0
             ;;
         wutag__list__tags)
-            opts="-V -c -u -s -1 -b -h -v --version --with-values --no-count --unique --sort --one-per-line --border --help --verbose"
+            opts="-V -c -u -s -1 -b -h -v --with-values --no-count --unique --sort --one-per-line --border --help --verbose"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -270,7 +270,7 @@ _wutag() {
             fi
             case "${prev}" in
                 --shell)
-                    COMPREPLY=($(compgen -W "" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "bash zsh powershell elvish fish" -- "${cur}"))
                     return 0
                     ;;
                 --dir)
@@ -454,11 +454,11 @@ _wutag() {
                     return 0
                     ;;
                 --format)
-                    COMPREPLY=($(compgen -W "" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "toml yaml yml json" -- "${cur}"))
                     return 0
                     ;;
                 -f)
-                    COMPREPLY=($(compgen -W "" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "toml yaml yml json" -- "${cur}"))
                     return 0
                     ;;
                 --tags)

@@ -82,7 +82,6 @@ set edit:completion:arg-completer[wutag] = {|@words|
             cand files 'List the `Files` within the database'
         }
         &'wutag;list;tags'= {
-            cand --version 'Print version information'
             cand -V 'Display values along with the tags'
             cand --with-values 'Display values along with the tags'
             cand -c 'Do not display tag count'
@@ -101,7 +100,6 @@ set edit:completion:arg-completer[wutag] = {|@words|
             cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
         }
         &'wutag;list;files'= {
-            cand --version 'Print version information'
             cand -t 'Display tags along with the files'
             cand --with-tags 'Display tags along with the files'
             cand -V 'Display values along with the tags'

@@ -75,11 +75,13 @@ impl App {
         let pat = if let Some(pattern) = &opts.pattern {
             if self.pat_regex {
                 String::from(pattern)
+            } else if self.fixed_string {
+                regex::escape(pattern)
             } else {
-                glob_builder(pattern)
+                glob_builder(pattern, self.wildcard_matches_sep)
             }
         } else {
-            glob_builder("*")
+            glob_builder("*", self.wildcard_matches_sep)
         };
 
         let re = regex_builder(&pat, self.case_insensitive, self.case_sensitive);

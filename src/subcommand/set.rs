@@ -170,14 +170,13 @@ impl App {
                 } else if self.fixed_string {
                     regex::escape(&opts.pattern)
                 } else {
-                    glob_builder(&opts.pattern)
+                    glob_builder(&opts.pattern, self.wildcard_matches_sep)
                 }
             },
             self.case_insensitive,
             self.case_sensitive,
         );
         log::debug!("Is a TTY?: {}", atty::is(atty::Stream::Stdout));
-        log::debug!("Compiled pattern: {re}");
 
         let reg = self.registry.lock().expect("poisoned lock");
 
@@ -208,7 +207,6 @@ impl App {
             .collect::<Result<Vec<_>>>()?;
 
         // TODO: Prevent tag from being added if the file doesn't exist
-        //       configuration option: only_create_tags_if_valid
         let tags = &opts
             .tags
             .iter()

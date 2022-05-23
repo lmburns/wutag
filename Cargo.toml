@@ -124,7 +124,7 @@ scopeguard = "1.1.0"
 tern = { git = "https://github.com/lmburns/tern" }
 
 # Option: (default = serde_yaml) -- Serialization
-serde = { version = "1.0.136", features = ["derive"] }
+serde = { version = "1.0.137", features = ["derive"] }
 # serde_json = { version = "1.0.66", optional = true }
 # serde_rusqlite = "0.29.0" # TODO: USE/DEL
 serde_yaml = { version = "0.8.23", optional = true }
@@ -160,7 +160,7 @@ better-panic = { version = "0.3.0", optional = true }
 # Option: (default) -- Encryption
 gpgme = { version = "0.10.0", optional = true }
 secstr = { version = "0.5.0", optional = true }
-zeroize = { version = "1.5.4", optional = true }
+zeroize = { version = "1.5.5", optional = true }
 bytes = "1.1.0"
 pathdiff = "0.2.1"
 fancy-regex = "0.10.0"

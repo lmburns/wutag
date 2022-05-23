@@ -87,7 +87,6 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             break
         }
         'wutag;list;tags' {
-            [CompletionResult]::new('--version', 'version', [CompletionResultType]::ParameterName, 'Print version information')
             [CompletionResult]::new('-V', 'V', [CompletionResultType]::ParameterName, 'Display values along with the tags')
             [CompletionResult]::new('--with-values', 'with-values', [CompletionResultType]::ParameterName, 'Display values along with the tags')
             [CompletionResult]::new('-c', 'c', [CompletionResultType]::ParameterName, 'Do not display tag count')
@@ -107,7 +106,6 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             break
         }
         'wutag;list;files' {
-            [CompletionResult]::new('--version', 'version', [CompletionResultType]::ParameterName, 'Print version information')
             [CompletionResult]::new('-t', 't', [CompletionResultType]::ParameterName, 'Display tags along with the files')
             [CompletionResult]::new('--with-tags', 'with-tags', [CompletionResultType]::ParameterName, 'Display tags along with the files')
             [CompletionResult]::new('-V', 'V', [CompletionResultType]::ParameterName, 'Display values along with the tags')

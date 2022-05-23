@@ -63,17 +63,10 @@ pub(crate) struct Config {
     #[serde(alias = "show-duplicates")]
     pub(crate) show_duplicates: bool,
 
-    /// Tags should only be added to the database if the pattern/file that is
-    /// specified when setting the tag actually exists
-    #[serde(alias = "only-create-tags-if-valid")]
-    pub(crate) only_create_tags_if_valid: bool,
-
-    /// Keep tags and/or values in the database if there is no corresponding
-    /// entry If false, this would mean:
-    ///     - If a tag does not have a corresponding file, it will be removed
-    ///     - If a value does not have a corresponding tag, it will be removed
-    #[serde(alias = "keep-dangling")]
-    pub(crate) keep_dangling: bool,
+    /// If true, `*` in a glob will match any number of directories
+    /// The default behavior is for `**/<glob>` to match path separators
+    #[serde(alias = "glob-wildcard-match-separator")]
+    pub(crate) glob_wildcard_match_separator: bool,
 
     // pub(crate) root_path: PathBuf,
     /// Configuration dealing with keys
@@ -285,17 +278,16 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            follow_symlinks:           true,
-            only_create_tags_if_valid: true,
-            keep_dangling:             false,
-            show_duplicates:           true,
-            format:                    None,
-            ignores:                   None,
-            colors:                    None,
-            registry:                  None,
-            max_depth:                 None,
-            base_color:                None,
-            border_color:              None,
+            follow_symlinks: true,
+            show_duplicates: true,
+            glob_wildcard_match_separator: false,
+            format: None,
+            ignores: None,
+            colors: None,
+            registry: None,
+            max_depth: None,
+            base_color: None,
+            border_color: None,
 
             #[cfg(feature = "ui")]
             keys:                                         KeyConfig::default(),

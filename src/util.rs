@@ -298,8 +298,9 @@ pub(crate) fn command_status(cmd: &str, args: &[&str]) -> Result<(i32, String)> 
 
 /// Build a glob with [`wax`] and return a string to be compiled as a regular
 /// expression
-pub(crate) fn glob_builder(pattern: &str) -> String {
-    wax::Glob::new(pattern)
+pub(crate) fn glob_builder(pattern: &str, wildcard_match_sep: bool) -> String {
+    let pattern = format!("{}{}", if wildcard_match_sep { "**/" } else { "" }, pattern);
+    wax::Glob::new(&pattern)
         .map(|g| g.regex().to_string())
         .expect("failed to build glob")
 }
@@ -322,13 +323,13 @@ pub(crate) fn regex_builder(
     let sensitive = !case_insensitive && (case_sensitive || contains_upperchar(pattern));
 
     log::debug!(
-        "SENSITIVE: {}, INSENSITIVE: {}, SENSITIVE_ACCOUNT: {}",
+        "sensitive: {}, insensitive: {}, result: {}",
         case_sensitive,
         case_insensitive,
         sensitive
     );
 
-    RegexBuilder::new(pattern)
+    let re = RegexBuilder::new(pattern)
         .case_insensitive(!sensitive)
         .build()
         .map_err(|e| {
@@ -338,7 +339,10 @@ pub(crate) fn regex_builder(
                 e.to_string()
             )
         })
-        .expect("Invalid pattern")
+        .expect("Invalid pattern");
+
+    log::debug!("compiled pattern: {}", re);
+    re
 }
 
 /// Returns an ignore::WalkParallel instance that uses `base_path`, and a

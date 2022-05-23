@@ -615,7 +615,7 @@ impl Registry {
         glob: bool,
     ) -> Result<()> {
         use crate::{wutag_error, wutag_fatal};
-        use wax::{DiagnosticGlob, DiagnosticResultExt, Glob, GlobError};
+        use wax::{DiagnosticResultExt, Glob, GlobError};
 
         self.conn
             .create_scalar_function(
@@ -634,16 +634,19 @@ impl Registry {
                             let s = vr.as_str()?;
 
                             let patt = if glob {
-                                let g = <Glob as DiagnosticGlob>::new(s);
-                                // The diagnostics must be printed first
-                                // If there are no errors, nothing is printed
-                                for diag in g.diagnostics() {
-                                    wutag_error!("{}", diag);
-                                }
+                                let g = Glob::new(s);
 
                                 g.map_or_else(
                                     |_| std::process::exit(1),
-                                    |(glob, _)| glob.regex().to_string(),
+                                    |glob| {
+                                        // The diagnostics must be printed first
+                                        // If there are no errors, nothing is printed
+                                        for diag in glob.diagnostics() {
+                                            wutag_error!("{}", diag);
+                                        }
+
+                                        glob.regex().to_string()
+                                    },
                                 )
                             } else {
                                 String::from(s)

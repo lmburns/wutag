@@ -3,7 +3,7 @@
 // TODO: Add mv option
 // TODO: Add global option to cp
 
-use super::App;
+use super::{debug_registry_path, App};
 use crate::{
     err,
     filesystem::osstr_to_bytes,
@@ -49,15 +49,21 @@ impl App {
     /// Copy `Tag`s or a `Tag`'s color to another `Tag`
     pub(crate) fn cp(&mut self, opts: &CpOpts) -> Result<()> {
         log::debug!("CpOpts: {:#?}", opts);
-        log::debug!("Using registry: {}", self.oregistry.path.display());
+        debug_registry_path(&self.registry);
 
-        let pat = if self.pat_regex {
-            String::from(&opts.pattern)
-        } else {
-            glob_builder(&opts.pattern)
-        };
-
-        let re = regex_builder(&pat, self.case_insensitive, self.case_sensitive);
+        let re = regex_builder(
+            &{
+                if self.pat_regex {
+                    String::from(&opts.pattern)
+                } else if self.fixed_string {
+                    regex::escape(&opts.pattern)
+                } else {
+                    glob_builder(&opts.pattern, self.wildcard_matches_sep)
+                }
+            },
+            self.case_insensitive,
+            self.case_sensitive,
+        );
         let path = opts.input_path.as_path();
 
         // FIX: Manage both globs for input and output

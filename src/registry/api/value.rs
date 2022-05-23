@@ -73,6 +73,11 @@ impl Registry {
         self.txn_wrap(|txn| txn.values_by_fileid(fid))
     }
 
+    /// Retrieve all [`Value`]s matching a [`FileId`] and [`TagId`]
+    pub(crate) fn values_by_fileid_tagid(&self, fid: FileId, tid: TagId) -> Result<Values> {
+        self.txn_wrap(|txn| txn.values_by_fileid_tagid(fid, tid))
+    }
+
     // ============================== Pattern =============================
     // ====================================================================
 

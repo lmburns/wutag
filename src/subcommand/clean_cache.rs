@@ -4,6 +4,9 @@ use super::App;
 use crate::{util::prompt, wutag_error, wutag_info};
 use colored::Colorize;
 
+// TODO: List all files, go through and remove extended attributes
+// TODO: Use `delete_dangling_tags` as an option instead of clearing entire DB
+
 impl App {
     /// Clean the database by removing all entries
     pub(crate) fn clean_cache(&mut self) {

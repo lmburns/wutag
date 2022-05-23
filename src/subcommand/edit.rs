@@ -1,6 +1,6 @@
 //! `edit` - Edit a `Tag` by changing its `Color`
 
-use super::App;
+use super::{debug_registry_path, App};
 use crate::util::fmt_tag_old;
 use clap::Args;
 use cli_table::{
@@ -26,6 +26,7 @@ pub(crate) struct EditOpts {
     )]
     pub(crate) color: Option<String>,
 
+    /// New name to replace tag with
     #[clap(
         name = "rename",
         long,
@@ -34,7 +35,6 @@ pub(crate) struct EditOpts {
         long_help = "Rename a tag. If both color and rename are present, the rename is carried \
                      out first"
     )]
-    /// New name to replace tag with
     pub(crate) rename: Option<String>,
 
     /// The tag to edit
@@ -46,7 +46,7 @@ impl App {
     /// Edit a `Tag` by changing its color
     pub(crate) fn edit(&mut self, opts: &EditOpts) {
         log::debug!("EditOpts: {:#?}", opts);
-        log::debug!("Using registry: {}", self.oregistry.path.display());
+        debug_registry_path(&self.registry);
 
         let mut table = vec![];
 

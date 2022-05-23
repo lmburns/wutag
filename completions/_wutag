@@ -83,7 +83,6 @@ _arguments "${_arguments_options[@]}" \
         case $line[1] in
             (tags)
 _arguments "${_arguments_options[@]}" \
-'--version[Print version information]' \
 '-V[Display values along with the tags]' \
 '--with-values[Display values along with the tags]' \
 '-c[Do not display tag count]' \
@@ -104,7 +103,6 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (files)
 _arguments "${_arguments_options[@]}" \
-'--version[Print version information]' \
 '-t[Display tags along with the files]' \
 '--with-tags[Display tags along with the files]' \
 '-V[Display values along with the tags]' \

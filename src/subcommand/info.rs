@@ -35,6 +35,15 @@ impl App {
             self.oregistry.path.display().to_string().green()
         );
 
+        // -- INFO --
+        // List number of files
+        // List number of tags
+        // List number of values
+        // List dangling items
+        // List size of database
+        // List location of database
+        // Could list deleted (take index ID - count found)
+
         // let (w, _) = crossterm::terminal::size().unwrap_or((80, 40));
         //
         // let mut table = vec![];

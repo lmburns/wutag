@@ -21,6 +21,12 @@ impl Registry {
         self.txn_wrap(|txn| txn.select_file_count())
     }
 
+    /// Select the maximum [`ID`] from [`File`]s
+    #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
+    pub(crate) fn file_max(&self) -> Result<u32> {
+        self.txn_wrap(|txn| txn.select_file_max())
+    }
+
     /// Retrieve all tracked [`Files`] within the database
     pub(crate) fn files(&self, sort: Option<Sort>) -> Result<Files> {
         self.txn_wrap(|txn| txn.select_files(sort))

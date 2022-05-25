@@ -3,16 +3,18 @@
 // TODO: Entire subcommand
 
 #![allow(unused)]
+#![allow(clippy::cast_precision_loss)]
 
 use super::App;
 use crate::util::{fmt_tag, fmt_tag_old};
+use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
 use cli_table::{
     format::{Border, Justify, Separator},
     print_stdout, Cell, ColorChoice, Style, Table,
 };
-use colored::Colorize;
-use std::collections::HashMap;
+use colored::{ColoredString, Colorize};
+use std::{collections::HashMap, fs, os::unix::fs::MetadataExt};
 
 /// Arguments used for the `info` subcommand
 #[derive(Args, Debug, Clone, PartialEq)]
@@ -25,52 +27,83 @@ pub(crate) struct InfoOpts {
 
 impl App {
     /// Show information about the database
-    pub(crate) fn info(&mut self, opts: &InfoOpts) {
+    pub(crate) fn info(&mut self, opts: &InfoOpts) -> Result<()> {
         log::debug!("InfoOpts: {:#?}", opts);
-        log::debug!("Using registry: {}", self.oregistry.path.display());
 
+        let reg = self.registry.lock().expect("poisoned lock");
+
+        /// Shorthand for using the `base_color` to color a string
+        let c = |s: &str| -> ColoredString { s.color(self.base_color).bold() };
+
+        // Registry
         println!(
             "{}: {}",
-            "Registry".magenta(),
-            self.oregistry.path.display().to_string().green()
+            c("Registry"),
+            reg.path().display().to_string().yellow()
         );
 
-        // -- INFO --
-        // List number of files
-        // List number of tags
-        // List number of values
-        // List dangling items
-        // List size of database
-        // List location of database
+        // Filesize
+        let label = vec!["b", "Ki", "Mi", "Gi"]; // Gi probably not needed
+        let mut i = 0;
+        let mut bytes = fs::metadata(reg.path())?.len() as f64;
+        while bytes >= 1024.0 {
+            bytes /= 1024.0;
+            i += 1;
+        }
+
+        println!(
+            "{}: {:.2}{}",
+            c("Size"),
+            bytes,
+            label.get(i).context("file size is too large")?
+        );
+
+        println!();
+
+        // Tag count
+        println!("{}: {}", c("Tags"), reg.tag_count()?);
+
+        // Tag, value count
+        println!("{}: {}", c("Tags (with values)"), reg.tag_value_count()?);
+
+        // Value count
+        let tag_count = reg.value_count()?;
+        println!("{}: {}", c("Values"), tag_count);
+
+        // File count
+        let file_count = reg.file_count()?;
+        println!("{}: {}", c("Files"), file_count);
+
+        // Filetag count
+        let filetag_count = reg.filetag_count()?;
+        println!("{}: {}", c("Taggings"), filetag_count);
+
+        // Dangling tags
+        println!("{}: {}", c("Dangling tags"), reg.dangling_tags()?.len());
+
+        // Means
+        println!(
+            "{}: {:.2}",
+            c("Mean tags per file"),
+            if file_count > 0 {
+                filetag_count as f32 / file_count as f32
+            } else {
+                0_f32
+            }
+        );
+
+        println!(
+            "{}: {:.2}",
+            c("Mean files per tag"),
+            if tag_count > 0 {
+                filetag_count as f32 / tag_count as f32
+            } else {
+                0_f32
+            }
+        );
+
         // Could list deleted (take index ID - count found)
 
-        // let (w, _) = crossterm::terminal::size().unwrap_or((80, 40));
-        //
-        // let mut table = vec![];
-        //
-        // for tag in self.oregistry.list_tags() {
-        //     let mut row = vec![];
-        //     let mut cumulative = 0;
-        //
-        //     cumulative += tag.name().len();
-        //
-        //     if cumulative < ((w - 4) / 2) as usize {
-        //         row.push(tag);
-        //     } else {
-        //         table.push(row.clone().iter().map(|t|
-        // t.cell().justify(Justify::Left)));         row.clear();
-        //     }
-        // }
-
-        self.oregistry
-            .list_tags()
-            .map(|tag| {
-                if opts.raw {
-                    tag.name().white()
-                } else {
-                    fmt_tag_old(tag)
-                }
-            })
-            .for_each(|t| println!("{}", t));
+        Ok(())
     }
 }

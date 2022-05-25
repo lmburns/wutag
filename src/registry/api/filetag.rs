@@ -34,6 +34,12 @@ impl Registry {
         self.txn_wrap(|txn| txn.select_filetag_count())
     }
 
+    /// Select all [`Tag`], [`Value`] pair counts
+    #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
+    pub(crate) fn tag_value_count(&self) -> Result<u32> {
+        self.txn_wrap(|txn| txn.select_tag_value_count())
+    }
+
     /// Retrieve all tracked [`FileTags`] within the database
     #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
     pub(crate) fn filetags(&self) -> Result<FileTags> {

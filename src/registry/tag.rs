@@ -43,7 +43,7 @@ impl Txn<'_> {
     // ====================================================================
 
     /// Retrieve the number of [`Tag`]s within the database
-    pub(super) fn tag_count(&self) -> Result<u32> {
+    pub(super) fn select_tag_count(&self) -> Result<u32> {
         let debug = "retrieving Tag count";
         log::debug!("{}", debug);
 
@@ -54,8 +54,20 @@ impl Txn<'_> {
         .context(fail!("{}", debug))
     }
 
+    /// Select the maximum [`ID`] from [`Tag`]s
+    pub(super) fn select_tag_max(&self) -> Result<u32> {
+        let debug = "retrieving Tag max";
+        log::debug!("{}", debug);
+
+        self.select1::<u32>(
+            "SELECT max(id)
+            FROM tag",
+        )
+        .context(fail!("{}", debug))
+    }
+
     /// Retrieve the number of files a given [`Tag`] is associated with
-    pub(super) fn tag_count_by_id(&self, id: TagId) -> Result<u32> {
+    pub(super) fn select_tag_count_by_id(&self, id: TagId) -> Result<u32> {
         let debug = format!("retrieving Tag count by TagId({})", id);
         log::debug!("{}", debug);
 
@@ -73,7 +85,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve all [`Tag`]s within the database
-    pub(super) fn tags(&self) -> Result<Tags> {
+    pub(super) fn select_tags(&self) -> Result<Tags> {
         let debug = "querying for Tags";
         log::debug!("{}", debug);
 
@@ -91,7 +103,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve the [`Tag`] that matches the given [`TagId`]
-    pub(super) fn tag(&self, id: TagId) -> Result<Tag> {
+    pub(super) fn select_tag(&self, id: TagId) -> Result<Tag> {
         let debug = format!("querying for Tag by TagId({})", id);
         log::debug!("{}", debug);
 
@@ -118,7 +130,8 @@ impl Txn<'_> {
 
         let tags: Vec<Tag> = self
             .query_vec(
-                "DELETE FROM tag
+                "SELECT id, name, color
+                 FROM tag
                     WHERE
                       id NOT IN (
                         SELECT
@@ -135,7 +148,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve all [`Tag`]s matching a [`ValueId`]
-    pub(super) fn tags_by_valueid(&self, vid: ValueId) -> Result<Tags> {
+    pub(super) fn select_tags_by_valueid(&self, vid: ValueId) -> Result<Tags> {
         let debug = format!("querying for Tags b ValueId({})", vid);
         log::debug!("{}", debug);
 
@@ -158,7 +171,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve all [`Tag`]s matching a [`FileId`]
-    pub(super) fn tags_by_fileid(&self, fid: FileId) -> Result<Tags> {
+    pub(super) fn select_tags_by_fileid(&self, fid: FileId) -> Result<Tags> {
         let debug = format!("querying for Tags by FileId({})", fid);
         log::debug!("{}", debug);
 
@@ -181,7 +194,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve all [`Tag`]s matching a [`FileId`] and [`ValueId`]
-    pub(super) fn tags_by_fileid_valueid(&self, fid: FileId, vid: ValueId) -> Result<Tags> {
+    pub(super) fn select_tags_by_fileid_valueid(&self, fid: FileId, vid: ValueId) -> Result<Tags> {
         let debug = format!("querying for Tags by FileId({}), ValueId({})", fid, vid);
         log::debug!("{}", debug);
         let tags: Vec<Tag> = self
@@ -203,7 +216,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve all [`Tag`]s that match the vector of [`TagId`]s
-    pub(super) fn tags_by_ids(&self, ids: &[TagId]) -> Result<Tags, Error> {
+    pub(super) fn select_tags_by_ids(&self, ids: &[TagId]) -> Result<Tags, Error> {
         let debug = format!("querying for Tags by TagIds [{}]", ids.iter().join(","));
         log::debug!("{}", debug);
 
@@ -234,7 +247,11 @@ impl Txn<'_> {
 
     /// Retrieve the [`Tag`] matching the [`Tag`] name
     ///   - **Exact match** searching
-    pub(super) fn tag_by_name<S: AsRef<str>>(&self, name: S, ignore_case: bool) -> Result<Tag> {
+    pub(super) fn select_tag_by_name<S: AsRef<str>>(
+        &self,
+        name: S,
+        ignore_case: bool,
+    ) -> Result<Tag> {
         let name = name.as_ref();
         let debug = format!("querying for Tags by name {}", name);
         log::debug!("{}", debug);
@@ -260,7 +277,7 @@ impl Txn<'_> {
 
     /// Retrieve all [`Tag`]s matching a vector of names
     ///   - **Exact match** searching
-    pub(super) fn tags_by_names<S: AsRef<str>>(
+    pub(super) fn select_tags_by_names<S: AsRef<str>>(
         &self,
         names: &[S],
         ignore_case: bool,
@@ -426,7 +443,7 @@ impl Txn<'_> {
             return Err(Error::TooManyChanges(id.to_string()));
         }
 
-        Ok(self.tag(id).context(fail!("{}", debug))?)
+        Ok(self.select_tag(id).context(fail!("{}", debug))?)
     }
 
     /// Update the [`Tag`] by changing its' color
@@ -449,7 +466,7 @@ impl Txn<'_> {
             return Err(Error::TooManyChanges(id.to_string()));
         }
 
-        Ok(self.tag(id).context(fail!("{}", debug))?)
+        Ok(self.select_tag(id).context(fail!("{}", debug))?)
     }
 
     /// Remove a [`Tag`] from the database

@@ -2,7 +2,7 @@
 
 #![allow(unused)]
 
-use super::{debug_registry_path, App};
+use super::App;
 use crate::{
     bold_entry, err,
     filesystem::osstr_to_bytes,
@@ -48,7 +48,6 @@ impl App {
     /// Clear `Tag`s from a given path
     pub(crate) fn clear(&mut self, opts: &ClearOpts) {
         log::debug!("ClearOpts: {:#?}", opts);
-        debug_registry_path(&self.registry);
 
         let re = regex_builder(
             &{

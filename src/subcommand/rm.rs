@@ -2,7 +2,7 @@
 #![allow(clippy::unnested_or_patterns)]
 
 /// Remove subcommand
-use super::{debug_registry_path, parse_tag_val, App};
+use super::{parse_tag_val, App};
 use crate::{
     bold_entry, err,
     filesystem::osstr_to_bytes,
@@ -93,7 +93,6 @@ impl App {
         // Global will match a glob only against files that are tagged
         // Could add a fixed string option
         log::debug!("RmOpts: {:#?}", opts);
-        debug_registry_path(&self.registry);
 
         let re = regex_builder(
             &{

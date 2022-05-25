@@ -88,6 +88,29 @@ impl Txn<'_> {
         .context(fail!("{}", debug))
     }
 
+    /// Select all [`Tag`], [`Value`] pair counts
+    pub(super) fn select_tag_value_count(&self) -> Result<u32> {
+        let debug = "retrieving Tag, Value count";
+        log::debug!("{}", debug);
+
+        self.select1::<u32>(
+            "SELECT
+              count(*)
+            FROM
+              (
+                SELECT
+                  tag_id, value_id
+                FROM
+                  file_tag
+                WHERE
+                  value_id != 0
+                GROUP BY
+                  tag_id, value_id
+              )",
+        )
+        .context(fail!("{}", debug))
+    }
+
     /// Retrieve all `File`-`Tag` pairs
     pub(super) fn select_filetags(&self) -> Result<FileTags> {
         let debug = "querying for FileTags";

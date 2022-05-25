@@ -97,6 +97,17 @@ impl Txn<'_> {
         .context(fail!("{}", debug))
     }
 
+    /// Select the maximum [`ID`] from [`File`]s
+    pub(super) fn select_file_max(&self) -> Result<u32> {
+        let debug = "retrieving File max";
+        log::debug!("{}", debug);
+        self.select1::<u32>(
+            "SELECT max(id)
+            FROM file",
+        )
+        .context(fail!("{}", debug))
+    }
+
     /// Retrieve the number of [`File`]s matching a specific `hash`
     pub(super) fn select_file_count_by_hash<S: AsRef<str>>(&self, fp: S) -> Result<u32> {
         let fp = fp.as_ref();

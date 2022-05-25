@@ -39,7 +39,7 @@ impl Txn<'_> {
     // ====================================================================
 
     /// Retrieve the number of `Value`s in the database
-    pub(super) fn value_count(&self) -> Result<u32> {
+    pub(super) fn select_value_count(&self) -> Result<u32> {
         let debug = "retreiving Value count";
         log::debug!("{}", debug);
         self.select1::<u32>(
@@ -50,7 +50,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve the number of tags a given [`Value`] is associated with
-    pub(super) fn value_count_by_id(&self, id: ValueId) -> Result<u32> {
+    pub(super) fn select_value_count_by_id(&self, id: ValueId) -> Result<u32> {
         let debug = format!("retreiving Value({}) count", id);
         log::debug!("{}", debug);
         let count: u32 = self
@@ -66,8 +66,19 @@ impl Txn<'_> {
         Ok(count)
     }
 
+    /// Select the maximum [`ID`] from [`Value`]s
+    pub(super) fn select_value_max(&self) -> Result<u32> {
+        let debug = "retreiving Value max";
+        log::debug!("{}", debug);
+        self.select1::<u32>(
+            "SELECT max(id)
+            FROM value",
+        )
+        .context(fail!("{}", debug))
+    }
+
     /// Retrieve all `Value`s in the database
-    pub(super) fn values(&self) -> Result<Values> {
+    pub(super) fn select_values(&self) -> Result<Values> {
         let debug = "retreiving Values";
         log::debug!("{}", debug);
         let values: Vec<Value> = self
@@ -84,7 +95,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve the `Value` matching the `ValueId` in the database
-    pub(super) fn value(&self, vid: ValueId) -> Result<Value> {
+    pub(super) fn select_value(&self, vid: ValueId) -> Result<Value> {
         let debug = format!("querying Value({})", vid);
         log::debug!("{}", debug);
         let value: Value = self
@@ -104,7 +115,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve all `Value`s matching the vector of `ValueId`s
-    pub(super) fn values_by_valueids(&self, ids: Vec<ValueId>) -> Result<Values, Error> {
+    pub(super) fn select_values_by_valueids(&self, ids: Vec<ValueId>) -> Result<Values, Error> {
         let debug = format!("querying for Value by ID [{}]", ids.iter().join(","));
         log::debug!("{}", debug);
         if ids.is_empty() {
@@ -134,7 +145,7 @@ impl Txn<'_> {
 
     // TEST:
     /// Retrieve all unused `Value`s within the database
-    pub(super) fn values_unused(&self) -> Result<Values> {
+    pub(super) fn select_values_unused(&self) -> Result<Values> {
         let debug = "querying for unused Values";
         log::debug!("{}", debug);
         let values: Vec<Value> = self
@@ -156,7 +167,11 @@ impl Txn<'_> {
 
     /// Retrieve a `Value` by its string name
     ///   - **Exact match** searching
-    pub(super) fn value_by_name<S: AsRef<str>>(&self, name: S, ignore_case: bool) -> Result<Value> {
+    pub(super) fn select_value_by_name<S: AsRef<str>>(
+        &self,
+        name: S,
+        ignore_case: bool,
+    ) -> Result<Value> {
         let name = name.as_ref();
         let debug = format!("querying for Value({})", name);
         log::debug!("{}", debug);
@@ -181,7 +196,7 @@ impl Txn<'_> {
 
     /// Retrieve all `Value`s matching a vector of names
     ///   - **Exact match** searching
-    pub(super) fn values_by_names<S: AsRef<str>>(
+    pub(super) fn select_values_by_names<S: AsRef<str>>(
         &self,
         names: &[S],
         ignore_case: bool,
@@ -225,7 +240,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve all [`Value`]s matching a [`TagId`]
-    pub(super) fn values_by_tagid(&self, tid: TagId) -> Result<Values> {
+    pub(super) fn select_values_by_tagid(&self, tid: TagId) -> Result<Values> {
         let debug = format!("querying for Value by TagId({})", tid);
         log::debug!("{}", debug);
         let values: Vec<Value> = self
@@ -247,7 +262,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve all [`Value`]s matching a [`FileId`]
-    pub(super) fn values_by_fileid(&self, fid: FileId) -> Result<Values> {
+    pub(super) fn select_values_by_fileid(&self, fid: FileId) -> Result<Values> {
         let debug = format!("querying for Values by FileId({})", fid);
         log::debug!("{}", debug);
         let values: Vec<Value> = self
@@ -269,7 +284,7 @@ impl Txn<'_> {
     }
 
     /// Retrieve all [`Value`]s matching a [`FileId`] and [`TagId`]
-    pub(super) fn values_by_fileid_tagid(&self, fid: FileId, tid: TagId) -> Result<Values> {
+    pub(super) fn select_values_by_fileid_tagid(&self, fid: FileId, tid: TagId) -> Result<Values> {
         let debug = format!("querying for Values by FileId({}), TagId({})", fid, tid);
         log::debug!("{}", debug);
         let values: Vec<Value> = self

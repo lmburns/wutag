@@ -266,12 +266,14 @@ impl App {
             colored::control::SHOULD_COLORIZE.set_override(true);
         }
 
+        debug_registry_path(&self.registry);
+
         match opts.cmd {
             Command::CleanCache => self.clean_cache(),
             Command::Clear(ref opts) => self.clear(opts),
             Command::Cp(ref opts) => self.cp(opts)?,
             Command::Edit(ref opts) => self.edit(opts),
-            Command::Info(ref opts) => self.info(opts),
+            Command::Info(ref opts) => self.info(opts)?,
             Command::List(ref opts) => self.list(opts)?,
             Command::PrintCompletions(ref opts) => self.print_completions(opts),
             Command::Repair(ref opts) => self.repair(opts)?,

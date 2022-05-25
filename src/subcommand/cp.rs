@@ -3,7 +3,7 @@
 // TODO: Add mv option
 // TODO: Add global option to cp
 
-use super::{debug_registry_path, App};
+use super::App;
 use crate::{
     err,
     filesystem::osstr_to_bytes,
@@ -49,7 +49,6 @@ impl App {
     /// Copy `Tag`s or a `Tag`'s color to another `Tag`
     pub(crate) fn cp(&mut self, opts: &CpOpts) -> Result<()> {
         log::debug!("CpOpts: {:#?}", opts);
-        debug_registry_path(&self.registry);
 
         let re = regex_builder(
             &{

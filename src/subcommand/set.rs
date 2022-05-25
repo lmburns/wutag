@@ -1,5 +1,5 @@
 /// Set a tag or tag and value on the result of a regular expression or glob
-use super::{debug_registry_path, parse_tag_val, App};
+use super::{parse_tag_val, App};
 use crate::{
     bold_entry,
     registry::{
@@ -154,7 +154,6 @@ impl App {
     #[allow(clippy::unnecessary_wraps)]
     pub(crate) fn set(&mut self, opts: &SetOpts) -> Result<()> {
         log::debug!("SetOpts: {:#?}", opts);
-        debug_registry_path(&self.registry);
 
         let mut tags = opts.tags.clone();
         if (opts.stdin || atty::isnt(atty::Stream::Stdin)) && atty::is(atty::Stream::Stdout) {

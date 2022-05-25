@@ -441,11 +441,11 @@ fn txn_tag_tests() -> Result<()> {
         let t3 = txn.update_tag_color(t2.id(), parse_color("#01FF01")?)?;
         assert_eq!(t3.color(), Color::truecolor(1, 255, 1));
 
-        let tags = txn.tags()?;
+        let tags = txn.select_tags()?;
         assert_eq!(tags.len(), 1);
 
         txn.delete_tag(t3.id())?;
-        assert_eq!(txn.tags()?.len(), 0);
+        assert_eq!(txn.select_tags()?.len(), 0);
 
         let t1 = txn.insert_tag("foo1", parse_color("#BBAABB")?)?;
         let t2 = txn.insert_tag("foo2", parse_color("#AABBAA")?)?;
@@ -464,22 +464,22 @@ fn txn_tag_query_exact() -> Result<()> {
         let t2 = txn.insert_tag("tag2", parse_color("#01FF01")?)?;
         let t3 = txn.insert_tag("tag3", parse_color("#FFFFFF")?)?;
 
-        let tag = txn.tag_by_name("tag1", false)?;
+        let tag = txn.select_tag_by_name("tag1", false)?;
         assert_eq!(tag.name(), "tag1");
 
-        let tag = txn.tag_by_name("TAG1", true)?;
+        let tag = txn.select_tag_by_name("TAG1", true)?;
         assert_eq!(tag.name(), "tag1");
 
-        let tags = txn.tags_by_names(&["tag1", "tag2"], true)?;
+        let tags = txn.select_tags_by_names(&["tag1", "tag2"], true)?;
         assert_eq!(tags.len(), 2);
 
-        let tags = txn.tags_by_ids(&[1, 3].map(TagId::new))?;
+        let tags = txn.select_tags_by_ids(&[1, 3].map(TagId::new))?;
         assert_eq!(tags.len(), 2);
 
-        let tag = txn.tag(TagId::new(3))?;
+        let tag = txn.select_tag(TagId::new(3))?;
         assert_eq!(tag.name(), "tag3");
 
-        let cnt = txn.tag_count()?;
+        let cnt = txn.select_tag_count()?;
         assert_eq!(cnt, 3);
 
         Ok(())
@@ -544,8 +544,11 @@ fn txn_value_tests() -> Result<()> {
         assert_eq!(val.name(), "value1");
 
         let val2 = txn.insert_value("vvvv")?;
-        assert_eq!(txn.values()?.len(), 2);
-        assert_eq!(txn.value_count()? as usize, txn.values()?.len());
+        assert_eq!(txn.select_values()?.len(), 2);
+        assert_eq!(
+            txn.select_value_count()? as usize,
+            txn.select_values()?.len()
+        );
 
         let val3 = txn.insert_value("foo")?;
         let ret = txn.update_value(val3.id(), "bar")?;
@@ -553,22 +556,25 @@ fn txn_value_tests() -> Result<()> {
 
         let val4 = txn.insert_value("zaf")?;
         txn.delete_value(val4.id())?;
-        assert!(!txn.values().iter().any(|v| v.contains_name("zaf", true)));
+        assert!(!txn
+            .select_values()
+            .iter()
+            .any(|v| v.contains_name("zaf", true)));
 
-        let vals = txn.values_by_names(&["value1", "vvvv"], true)?;
+        let vals = txn.select_values_by_names(&["value1", "vvvv"], true)?;
         assert_eq!(vals.len(), 2);
 
         // TEST:
         // let vals = txn.values_by_tagid(val2.id())?;
         // assert_eq!(vals.len(), 1);
 
-        let val = txn.value_by_name("vvvv", true)?;
+        let val = txn.select_value_by_name("vvvv", true)?;
         assert_eq!(val.name(), "vvvv");
 
-        let vals = txn.values_by_valueids(vec![val2.id(), val.id()])?;
+        let vals = txn.select_values_by_valueids(vec![val2.id(), val.id()])?;
         assert_eq!(vals.len(), 2);
 
-        let val = txn.value(val.id())?;
+        let val = txn.select_value(val.id())?;
         assert_eq!(val.name(), "value1");
 
         Ok(())

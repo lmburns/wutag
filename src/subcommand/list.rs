@@ -5,7 +5,7 @@
 // TODO: list files relative to directory as an option
 // TODO: take into account color of tag for combinations
 
-use super::{debug_registry_path, App};
+use super::App;
 use crate::{
     filesystem::contained_path,
     global_opts,
@@ -159,7 +159,6 @@ impl App {
     #[allow(clippy::unnecessary_wraps)]
     pub(crate) fn list(&self, opts: &ListOpts) -> Result<()> {
         log::debug!("ListOpts: {:#?}", opts);
-        debug_registry_path(&self.registry);
 
         let mut table = Vec::<Vec<CellStruct>>::new();
         let colorchoice = match self.color_when.as_ref() {

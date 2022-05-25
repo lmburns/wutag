@@ -1,6 +1,6 @@
 //! `edit` - Edit a `Tag` by changing its `Color`
 
-use super::{debug_registry_path, App};
+use super::App;
 use crate::util::fmt_tag_old;
 use clap::Args;
 use cli_table::{
@@ -46,7 +46,6 @@ impl App {
     /// Edit a `Tag` by changing its color
     pub(crate) fn edit(&mut self, opts: &EditOpts) {
         log::debug!("EditOpts: {:#?}", opts);
-        debug_registry_path(&self.registry);
 
         let mut table = vec![];
 

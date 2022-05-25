@@ -246,8 +246,14 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (info)
 _arguments "${_arguments_options[@]}" \
-'-r[TO BE IMPLEMENTED Do not use color in output]' \
-'--raw[TO BE IMPLEMENTED Do not use color in output]' \
+'-d[Show the number of deleted items (see --help for calculation)]' \
+'--deleted[Show the number of deleted items (see --help for calculation)]' \
+'-m[Show the averages for each item]' \
+'--mean[Show the averages for each item]' \
+'-f[Show everything about the registry (all --flags)]' \
+'--full[Show everything about the registry (all --flags)]' \
+'-r[Do not use color in output]' \
+'--raw[Do not use color in output]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \

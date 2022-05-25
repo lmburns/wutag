@@ -207,7 +207,7 @@ _wutag() {
             return 0
             ;;
         wutag__info)
-            opts="-r -h -v --raw --help --verbose"
+            opts="-d -m -f -r -h -v --deleted --mean --full --raw --help --verbose"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

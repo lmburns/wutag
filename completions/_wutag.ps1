@@ -228,8 +228,14 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             break
         }
         'wutag;info' {
-            [CompletionResult]::new('-r', 'r', [CompletionResultType]::ParameterName, 'TO BE IMPLEMENTED Do not use color in output')
-            [CompletionResult]::new('--raw', 'raw', [CompletionResultType]::ParameterName, 'TO BE IMPLEMENTED Do not use color in output')
+            [CompletionResult]::new('-d', 'd', [CompletionResultType]::ParameterName, 'Show the number of deleted items (see --help for calculation)')
+            [CompletionResult]::new('--deleted', 'deleted', [CompletionResultType]::ParameterName, 'Show the number of deleted items (see --help for calculation)')
+            [CompletionResult]::new('-m', 'm', [CompletionResultType]::ParameterName, 'Show the averages for each item')
+            [CompletionResult]::new('--mean', 'mean', [CompletionResultType]::ParameterName, 'Show the averages for each item')
+            [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Show everything about the registry (all --flags)')
+            [CompletionResult]::new('--full', 'full', [CompletionResultType]::ParameterName, 'Show everything about the registry (all --flags)')
+            [CompletionResult]::new('-r', 'r', [CompletionResultType]::ParameterName, 'Do not use color in output')
+            [CompletionResult]::new('--raw', 'raw', [CompletionResultType]::ParameterName, 'Do not use color in output')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')

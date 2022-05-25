@@ -83,7 +83,6 @@ macro_rules! red_entry {
 }
 
 // XXX: Implement case sensitive
-
 // TODO: Add stdin method for remove
 
 impl App {
@@ -296,7 +295,7 @@ impl App {
                             // Passed: Tag => Found: true
                             // Passed: Tag, Value => Found: true, false
                             (false, false, true, true) | (false, false, true, false) => {
-                                // TODO: Remove tag
+                                // Remove tag
 
                                 if value.is_null_name() {
                                     // wutag_info!("== fftt == OK TAG");
@@ -359,7 +358,7 @@ impl App {
                             // Passed: Value => Found: true
                             // Passed: Tag, Value => Found: false, true
                             (true, true, false, false) | (true, false, false, false) => {
-                                // TODO: Remove value
+                                // Remove value
 
                                 if tag.is_null_name() {
                                     // wutag_info!("== ttff == OK VALUE");
@@ -375,6 +374,9 @@ impl App {
                                         "tag ({}) is not found in the registry",
                                         red_entry!(tag)
                                     );
+
+                                    // Decide whether this should be continued
+                                    continue;
                                 }
 
                                 let tags = reg.tags_by_fileid_valueid(file.id(), value.id())?;
@@ -632,7 +634,7 @@ impl App {
                                 // Passed: Tag => Found: true
                                 // Passed: Tag, Value => Found: true, false
                                 (false, false, true, true) | (false, false, true, false) => {
-                                    // TODO: Remove tag
+                                    // Remove tag
 
                                     if value.is_null_name() {
                                         // wutag_info!("== fftt == OK TAG");
@@ -701,7 +703,7 @@ impl App {
                                 // Passed: Value => Found: true
                                 // Passed: Tag, Value => Found: false, true
                                 (true, true, false, false) | (true, false, false, false) => {
-                                    // TODO: Remove value
+                                    // Remove value
 
                                     if tag.is_null_name() {
                                         // wutag_info!("== ttff == OK VALUE");
@@ -720,6 +722,9 @@ impl App {
                                             "tag ({}) is not found in the registry",
                                             red_entry!(tag)
                                         );
+
+                                        // Decide whether this should be continued
+                                        continue;
                                     }
 
                                     let tags = reg.tags_by_fileid_valueid(file.id(), value.id())?;

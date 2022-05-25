@@ -53,7 +53,6 @@ complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcomma
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from files" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from files" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from set" -s C -l color -d 'Explicitly select color for tag' -r
-complete -c wutag -n "__fish_seen_subcommand_from set" -s Q -l query -d 'Apply tags to the result of a query instead of a pattern match' -r
 complete -c wutag -n "__fish_seen_subcommand_from set" -s p -l pairs -d 'Specify any number of tag=value pairs' -r
 complete -c wutag -n "__fish_seen_subcommand_from set" -s V -l value -d 'Specify a value to set all the tag(s) to' -r
 complete -c wutag -n "__fish_seen_subcommand_from set" -s c -l clear -d 'Clear the tags on the match(es) before the new one(s) are set'
@@ -64,7 +63,7 @@ complete -c wutag -n "__fish_seen_subcommand_from set" -s h -l help -d 'Print he
 complete -c wutag -n "__fish_seen_subcommand_from set" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s p -l pairs -d 'Specify any number of tag=value pairs to delete' -r
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s f -l follow-symlinks -d 'Follow symlinks before removing tags and/or values'
-complete -c wutag -n "__fish_seen_subcommand_from rm" -s V -l values -d 'Indicate the item(s) in the given list are values intead of tags'
+complete -c wutag -n "__fish_seen_subcommand_from rm" -s V -l values -d 'Indicate the item(s) in the given list are values instead of tags'
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from clear" -s f -l follow-symlinks -d 'Follow symlinks before clearing tags or values'
@@ -80,6 +79,9 @@ complete -c wutag -n "__fish_seen_subcommand_from search" -s a -l all -d 'Files 
 complete -c wutag -n "__fish_seen_subcommand_from search" -s A -l only-all -d 'Files matching all and only all tags'
 complete -c wutag -n "__fish_seen_subcommand_from search" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from search" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
+complete -c wutag -n "__fish_seen_subcommand_from cp" -s t -l tag -d 'Specify an individual tag to copy to the matching file(s)' -r
+complete -c wutag -n "__fish_seen_subcommand_from cp" -s p -l pairs -d 'Specify any number of tag=value pairs' -r
+complete -c wutag -n "__fish_seen_subcommand_from cp" -s f -l follow-symlinks -d 'Follow symlinks before copying tags and/or values'
 complete -c wutag -n "__fish_seen_subcommand_from cp" -s G -l glob -d 'Use a glob to match files (must be global)'
 complete -c wutag -n "__fish_seen_subcommand_from cp" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from cp" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'

@@ -125,8 +125,6 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
         'wutag;set' {
             [CompletionResult]::new('-C', 'C', [CompletionResultType]::ParameterName, 'Explicitly select color for tag')
             [CompletionResult]::new('--color', 'color', [CompletionResultType]::ParameterName, 'Explicitly select color for tag')
-            [CompletionResult]::new('-Q', 'Q', [CompletionResultType]::ParameterName, 'Apply tags to the result of a query instead of a pattern match')
-            [CompletionResult]::new('--query', 'query', [CompletionResultType]::ParameterName, 'Apply tags to the result of a query instead of a pattern match')
             [CompletionResult]::new('-p', 'p', [CompletionResultType]::ParameterName, 'Specify any number of tag=value pairs')
             [CompletionResult]::new('--pairs', 'pairs', [CompletionResultType]::ParameterName, 'Specify any number of tag=value pairs')
             [CompletionResult]::new('-V', 'V', [CompletionResultType]::ParameterName, 'Specify a value to set all the tag(s) to')
@@ -150,8 +148,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--pairs', 'pairs', [CompletionResultType]::ParameterName, 'Specify any number of tag=value pairs to delete')
             [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Follow symlinks before removing tags and/or values')
             [CompletionResult]::new('--follow-symlinks', 'follow-symlinks', [CompletionResultType]::ParameterName, 'Follow symlinks before removing tags and/or values')
-            [CompletionResult]::new('-V', 'V', [CompletionResultType]::ParameterName, 'Indicate the item(s) in the given list are values intead of tags')
-            [CompletionResult]::new('--values', 'values', [CompletionResultType]::ParameterName, 'Indicate the item(s) in the given list are values intead of tags')
+            [CompletionResult]::new('-V', 'V', [CompletionResultType]::ParameterName, 'Indicate the item(s) in the given list are values instead of tags')
+            [CompletionResult]::new('--values', 'values', [CompletionResultType]::ParameterName, 'Indicate the item(s) in the given list are values instead of tags')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
@@ -191,6 +189,12 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             break
         }
         'wutag;cp' {
+            [CompletionResult]::new('-t', 't', [CompletionResultType]::ParameterName, 'Specify an individual tag to copy to the matching file(s)')
+            [CompletionResult]::new('--tag', 'tag', [CompletionResultType]::ParameterName, 'Specify an individual tag to copy to the matching file(s)')
+            [CompletionResult]::new('-p', 'p', [CompletionResultType]::ParameterName, 'Specify any number of tag=value pairs')
+            [CompletionResult]::new('--pairs', 'pairs', [CompletionResultType]::ParameterName, 'Specify any number of tag=value pairs')
+            [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Follow symlinks before copying tags and/or values')
+            [CompletionResult]::new('--follow-symlinks', 'follow-symlinks', [CompletionResultType]::ParameterName, 'Follow symlinks before copying tags and/or values')
             [CompletionResult]::new('-G', 'G', [CompletionResultType]::ParameterName, 'Use a glob to match files (must be global)')
             [CompletionResult]::new('--glob', 'glob', [CompletionResultType]::ParameterName, 'Use a glob to match files (must be global)')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')

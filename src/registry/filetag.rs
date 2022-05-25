@@ -66,14 +66,16 @@ impl Txn<'_> {
             .context(fail!("{}", debug))?;
 
         if count > 0 {
-            return Ok(true);
+            Ok(true)
+        } else {
+            Ok(false)
         }
 
-        Err(Error::NonexistentFileTag(
-            ft.file_id(),
-            ft.tag_id(),
-            ft.value_id(),
-        ))
+        // Err(Error::NonexistentFileTag(
+        //     ft.file_id(),
+        //     ft.tag_id(),
+        //     ft.value_id(),
+        // ))
     }
 
     /// Retrieve the number of `File`-`Tag` pairs in the database
@@ -355,6 +357,31 @@ impl Txn<'_> {
             FROM file_tag
             WHERE tag_id = ?1",
             params![source_tid, dest_tid],
+        )
+        .context(fail!("{}", debug))?;
+
+        Ok(())
+    }
+
+    /// Copy [`FileTag`]s from one to another
+    pub(super) fn copy_filetag_fileid(&self, source_ft: &FileTag, dest_fid: FileId) -> Result<()> {
+        let debug = format!(
+            "copying FileTag by FileTag({}) => FileId({})",
+            source_ft, dest_fid
+        );
+        log::debug!("{}", debug);
+
+        self.execute(
+            "INSERT INTO file_tag (file_id, tag_id, value_id)
+            SELECT ?1, tag_id, value_id
+            FROM file_tag
+            WHERE file_id = ?2 and tag_id = ?3 and value_id = ?4",
+            params![
+                dest_fid,
+                source_ft.file_id(),
+                source_ft.tag_id(),
+                source_ft.value_id()
+            ],
         )
         .context(fail!("{}", debug))?;
 

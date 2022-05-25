@@ -3,23 +3,72 @@
 // TODO: Add mv option
 // TODO: Add global option to cp
 
-use super::App;
+#![allow(unused)]
+#![allow(clippy::unnecessary_wraps)]
+
+use super::{parse_tag_val, App};
 use crate::{
-    err,
+    bold_entry, err,
     filesystem::osstr_to_bytes,
-    oregistry::EntryData,
-    util::{crawler, fmt_err, fmt_path, fmt_tag_old, glob_builder, parse_path, regex_builder},
+    registry::{
+        types::{
+            filetag::FileTag,
+            tag::{list_tags, DirEntryExt, Tag, TagValueCombo},
+            value::Value,
+            ID,
+        },
+        Error,
+    },
+    util::{
+        crawler, fmt_err, fmt_path, fmt_tag, fmt_tag_old, glob_builder, parse_path, regex_builder,
+    },
     wutag_error, wutag_fatal,
 };
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use clap::{Args, ValueHint};
 use colored::Colorize;
-use std::{borrow::Cow, ffi::OsStr, path::PathBuf, sync::Arc};
-use wutag_core::tag::{list_tags, DirEntryExt};
+use rusqlite as rsq;
+use std::{borrow::Cow, env, ffi::OsStr, fs, path::PathBuf, sync::Arc};
 
 /// Arguments used for the `cp` subcommand
 #[derive(Args, Debug, Clone, PartialEq)]
 pub(crate) struct CpOpts {
+    /// Follow symlinks before copying tags and/or values
+    #[clap(
+        name = "follow-symlinks",
+        long,
+        short = 'f',
+        takes_value = false,
+        long_help = "If true, the symlink will be dereferenced on the target file(s) before the \
+                     tags/values are copied. The source file always has to be dereferenced"
+    )]
+    pub(crate) follow_symlinks: bool,
+
+    /// Specify an individual tag to copy to the matching file(s)
+    #[clap(
+        name = "tag",
+        long,
+        short = 't',
+        takes_value = true,
+        long_help = "By default, `cp` will copy all tags and values of those tags to the results \
+                     from the query"
+    )]
+    pub(crate) tag: Option<String>,
+
+    /// Specify any number of tag=value pairs
+    #[clap(
+        name = "pairs",
+        long,
+        short = 'p',
+        takes_value = true,
+        conflicts_with_all = &["tag"],
+        multiple_occurrences = true,
+        parse(try_from_str = parse_tag_val),
+        long_help = "Use tag=value pairs to individually specify what the tag's value is",
+    )]
+    pub(crate) pairs: Vec<(String, String)>,
+
+    // XXX: Implement
     /// Use a glob to match files (must be global)
     #[clap(
         short = 'G',
@@ -34,16 +83,25 @@ pub(crate) struct CpOpts {
 
     /// Path to the file from which to copy tags from
     #[clap(
-        value_name = "input_path",
         value_hint = ValueHint::FilePath,
+        takes_value = false,
+        required = true,
         // validator = |t| parse_path(t) // Would be nice to be aware of other options
     )]
     pub(crate) input_path: PathBuf,
 
-    /// A glob pattern like "*.png".
-    #[clap(value_name = "pattern")]
+    /// A glob, regular expression, or fixed-string
+    #[clap(
+        value_hint = ValueHint::FilePath,
+        takes_value = false,
+        required = true,
+    )]
     pub(crate) pattern: String,
 }
+
+// FEATURE: --only-tags
+
+// TODO: Condense all this duplicate code
 
 impl App {
     /// Copy `Tag`s or a `Tag`'s color to another `Tag`
@@ -63,19 +121,53 @@ impl App {
             self.case_insensitive,
             self.case_sensitive,
         );
-        let path = opts.input_path.as_path();
 
-        // FIX: Manage both globs for input and output
-        // To do this, a selection menu or something would have to popup to have the
-        // user choose which tags to copy, since multiple would match
+        // let path = &(|| -> Result<PathBuf> {
+        //     let mut path = opts.input_path.clone();
+        //     let path_str = path.to_string_lossy().to_string();
+        //     if path_str.starts_with("./") {
+        //         path = env::current_dir()?.join(PathBuf::from(path_str.replace("./",
+        // "")));     }
+        //
+        //     if (opts.follow_symlinks || self.follow_symlinks)
+        //         && fs::symlink_metadata(&path)
+        //             .ok()
+        //             .map_or(false, |f| f.file_type().is_symlink())
+        //     {
+        //         log::debug!("{}: resolving symlink", path.display());
+        //         return fs::canonicalize(&path).context(format!(
+        //             "{}: failed to canonicalize",
+        //             path.display()
+        //         ));
+        //     }
+        //
+        //     Ok(opts.input_path.clone())
+        // })()?;
+
+        // Maybe try and not have to canonicalize this
+        let path = &fs::canonicalize(&opts.input_path).context(format!(
+            "{}: failed to canonicalize",
+            opts.input_path.display()
+        ))?;
+
+        let reg = self.registry.lock().expect("poisoned lock");
+
         if self.global {
+            if !opts.pairs.is_empty() {
+                wutag_error!("pairs cannot be used in global mode. Continuing...");
+            }
+
+            if opts.tag.is_some() {
+                wutag_error!("an individual Tag cannot be given in global mode. Continuing...");
+            }
+
             let exclude_pattern = regex_builder(
                 self.exclude.join("|").as_str(),
                 self.case_insensitive,
                 self.case_sensitive,
             );
 
-            for (_, entry) in self.oregistry.clone().list_entries_and_ids() {
+            for entry in reg.files(None)?.iter() {
                 let search_str: Cow<OsStr> = Cow::Owned(entry.path().as_os_str().to_os_string());
                 let search_bytes = osstr_to_bytes(search_str.as_ref());
                 if !self.exclude.is_empty() && exclude_pattern.is_match(&search_bytes) {
@@ -90,81 +182,402 @@ impl App {
 
                 if re.is_match(&search_bytes) {
                     // println!("MATCH: {}", entry.path().display());
-                    let entry_path = &PathBuf::from(entry.path());
-                    match list_tags(entry.path()) {
-                        Ok(tags) =>
-                            for tag in &tags {
-                                if let Err(e) = entry_path.tag(tag) {
-                                    err!('\t', e, entry);
+                    let entry_path = &entry.path();
+
+                    match reg.filetags_by_fileid(entry.id()) {
+                        Ok(filetags) => {
+                            log::debug!(
+                                "copying all FileTags from {} to {} (globally)",
+                                path.display(),
+                                entry.path().display()
+                            );
+
+                            for ft in filetags.iter() {
+                                let mut print_newline = false;
+
+                                let constructed =
+                                    FileTag::new(entry.id(), ft.tag_id(), ft.value_id());
+                                let tag = reg.tag(ft.tag_id())?;
+                                if reg.filetag_exists(&constructed)? {
+                                    if ft.value_id().id() == 0 {
+                                        wutag_error!(
+                                            "{}: already has {}",
+                                            bold_entry!(entry_path),
+                                            fmt_tag(&tag)
+                                        );
+                                    } else {
+                                        let value = reg.value(ft.value_id())?;
+                                        wutag_error!(
+                                            "{}: already has {}={}",
+                                            bold_entry!(entry_path),
+                                            fmt_tag(&tag),
+                                            value.name().color(self.base_color).bold()
+                                        );
+                                    }
+                                    continue;
+                                }
+
+                                if let Err(e) = reg.copy_filetag_fileid(ft, entry.id()) {
+                                    if ft.value_id().id() == 0 {
+                                        wutag_error!(
+                                            "{}: failed to copy {}",
+                                            bold_entry!(entry_path),
+                                            fmt_tag(&tag)
+                                        );
+                                    } else {
+                                        let value = reg.value(ft.value_id())?;
+                                        wutag_error!(
+                                            "{}: failed to copy {}={}",
+                                            bold_entry!(entry_path),
+                                            fmt_tag(&tag),
+                                            value.name().color(self.base_color).bold()
+                                        );
+                                    }
+                                    continue;
+                                }
+
+                                if let Err(e) = entry_path.tag(&tag) {
+                                    wutag_error!("{} {}", e, bold_entry!(entry_path));
                                 } else {
-                                    let entry = EntryData::new(entry.path())?;
-                                    let id = self.oregistry.add_or_update_entry(entry);
-                                    self.oregistry.tag_entry(tag, id);
+                                    log::debug!("{}: writing xattrs", entry_path.display());
+
                                     if !self.quiet {
-                                        println!("\t{} {}", "+".bold().green(), fmt_tag_old(tag));
+                                        print!("\t{} {}", "+".bold().green(), fmt_tag(&tag));
+
+                                        if ft.value_id().id() != 0 {
+                                            let value = reg.value(ft.value_id())?;
+                                            print!(
+                                                "={}",
+                                                value.name().color(self.base_color).bold()
+                                            );
+                                        }
+
+                                        print_newline = true;
                                     }
                                 }
-                            },
-                        Err(e) => wutag_error!(
-                            "failed to get source tags from `{}` - {}",
-                            path.display(),
-                            e
-                        ),
+
+                                if !self.quiet && print_newline {
+                                    println!();
+                                }
+                            }
+                        },
+                        Err(_) => {
+                            wutag_error!("{}: has no tags", bold_entry!(path),);
+                        },
                     }
                 }
-                log::debug!("Saving registry...");
-                self.save_registry();
             }
         } else {
             if let Err(e) = parse_path(path) {
-                wutag_error!("{}: {}", e, path.display());
+                wutag_error!("{}: {}", bold_entry!(path), e);
             }
 
-            match list_tags(path) {
-                Ok(tags) => {
-                    crawler(
-                        &Arc::new(re),
-                        &Arc::new(self.clone()),
-                        // TODO: Add CLI option for symlinks
-                        true,
-                        |entry: &ignore::DirEntry| {
-                            if !self.quiet {
-                                println!(
-                                    "{}:",
-                                    fmt_path(entry.path(), self.base_color, self.ls_colors)
+            match reg.file_by_path(path) {
+                Ok(file) => {
+                    match reg.filetags_by_fileid(file.id()) {
+                        Ok(filetags) => {
+                            if filetags.is_empty() {
+                                wutag_fatal!(
+                                    "{}: has no tags. Please clean your registry or give this \
+                                     file tags",
+                                    bold_entry!(path)
                                 );
                             }
-                            for tag in &tags {
-                                if let Err(e) = entry.tag(tag) {
-                                    err!('\t', e, entry);
-                                } else {
-                                    let entry = if let Ok(data) = EntryData::new(entry.path()) {
-                                        data
+
+                            let mut combos = opts
+                                .pairs
+                                .iter()
+                                .map(|(t, v)| -> Result<TagValueCombo> {
+                                    let tag = reg.tag_by_name(t).map(|tag| {
+                                        if filetags.iter().any(|ft| ft.tag_id() == tag.id()) {
+                                            tag
+                                        } else {
+                                            wutag_fatal!(
+                                                "{}: does not have tag {}",
+                                                bold_entry!(path),
+                                                tag
+                                            );
+                                        }
+                                    })?;
+
+                                    let values = reg.values_by_fileid_tagid(file.id(), tag.id())?;
+
+                                    let value = reg.value_by_name(v, false).map(|value| {
+                                        if values.iter().any(|inner| *inner == value) {
+                                            value
+                                        } else {
+                                            wutag_fatal!(
+                                                "{}: {} does not have value {}",
+                                                bold_entry!(path),
+                                                fmt_tag(&tag),
+                                                value
+                                            );
+                                        }
+                                    })?;
+
+                                    let combo = TagValueCombo::new(tag.id(), value.id());
+
+                                    Ok(combo)
+                                })
+                                .collect::<Result<Vec<_>>>()?;
+
+                            let mut opt_tag = opts.tag.as_ref().map_or_else(Vec::new, |tag| {
+                                if let Ok(found) = reg.tag_by_name(tag) {
+                                    if filetags.iter().any(|ft| ft.tag_id() == found.id()) {
+                                        vec![TagValueCombo::new(found.id(), ID::null())]
                                     } else {
                                         wutag_fatal!(
-                                            "unable to create new entry: {}",
-                                            entry.path().display()
+                                            "{}: does not have tag {}",
+                                            bold_entry!(path),
+                                            tag
                                         );
-                                    };
-                                    let id = self.oregistry.add_or_update_entry(entry);
-                                    self.oregistry.tag_entry(tag, id);
-                                    if !self.quiet {
-                                        println!("\t{} {}", "+".bold().green(), fmt_tag_old(tag));
                                     }
+                                } else {
+                                    wutag_fatal!(
+                                        "{}: tag not found in registry {}",
+                                        bold_entry!(path),
+                                        tag
+                                    );
                                 }
-                            }
+                            });
 
-                            Ok(())
+                            combos.append(&mut opt_tag);
+
+                            drop(reg);
+
+                            crawler(
+                                &Arc::new(re),
+                                &Arc::new(self.clone()),
+                                opts.follow_symlinks,
+                                |entry: &ignore::DirEntry| {
+                                    let reg = self.registry.lock().expect("poisoned lock");
+
+                                    // The destination files
+                                    let entry = &(|| -> Result<PathBuf> {
+                                        if (opts.follow_symlinks || self.follow_symlinks)
+                                            && fs::symlink_metadata(entry.path())
+                                                .ok()
+                                                .map_or(false, |f| f.file_type().is_symlink())
+                                        {
+                                            log::debug!(
+                                                "{}: resolving symlink",
+                                                entry.path().display()
+                                            );
+                                            return fs::canonicalize(entry.path()).context(
+                                                format!(
+                                                    "{}: failed to canonicalize",
+                                                    entry.path().display()
+                                                ),
+                                            );
+                                        }
+
+                                        return Ok(entry.path().to_path_buf());
+                                    })()?;
+
+                                    if !self.quiet {
+                                        println!(
+                                            "{}:",
+                                            fmt_path(entry.path(), self.base_color, self.ls_colors)
+                                        );
+                                    }
+
+                                    let mut dest = reg.file_by_path(entry.path());
+
+                                    if dest.is_err() {
+                                        log::debug!("{}: inserting file", entry.path().display());
+                                        dest = reg.insert_file(entry.path());
+                                    }
+
+                                    let dest = dest?;
+                                    let dest_path = &dest.path();
+                                    let mut print_newline = false;
+
+                                    // This means to copy all tags and values
+                                    if combos.is_empty() {
+                                        log::debug!(
+                                            "copying all FileTags from {} to {}",
+                                            path.display(),
+                                            dest.path().display()
+                                        );
+                                        for ft in filetags.iter() {
+                                            let constructed =
+                                                FileTag::new(dest.id(), ft.tag_id(), ft.value_id());
+                                            let tag = reg.tag(ft.tag_id())?;
+                                            if reg.filetag_exists(&constructed)? {
+                                                if ft.value_id().id() == 0 {
+                                                    wutag_error!(
+                                                        "{}: already has {}",
+                                                        bold_entry!(entry),
+                                                        fmt_tag(&tag)
+                                                    );
+                                                } else {
+                                                    let value = reg.value(ft.value_id())?;
+                                                    wutag_error!(
+                                                        "{}: already has {}={}",
+                                                        bold_entry!(entry),
+                                                        fmt_tag(&tag),
+                                                        value.name().color(self.base_color).bold()
+                                                    );
+                                                }
+                                                continue;
+                                            }
+
+                                            if let Err(e) = reg.copy_filetag_fileid(ft, dest.id()) {
+                                                if ft.value_id().id() == 0 {
+                                                    wutag_error!(
+                                                        "{}: failed to copy {}",
+                                                        bold_entry!(entry),
+                                                        fmt_tag(&tag)
+                                                    );
+                                                } else {
+                                                    let value = reg.value(ft.value_id())?;
+                                                    wutag_error!(
+                                                        "{}: failed to copy {}={}",
+                                                        bold_entry!(entry),
+                                                        fmt_tag(&tag),
+                                                        value.name().color(self.base_color).bold()
+                                                    );
+                                                }
+                                                continue;
+                                            }
+
+                                            if let Err(e) = dest_path.tag(&tag) {
+                                                wutag_error!("{} {}", e, bold_entry!(dest_path));
+                                            } else {
+                                                log::debug!(
+                                                    "{}: writing xattrs",
+                                                    dest_path.display()
+                                                );
+
+                                                if !self.quiet {
+                                                    print!(
+                                                        "\t{} {}",
+                                                        "+".bold().green(),
+                                                        fmt_tag(&tag)
+                                                    );
+
+                                                    if ft.value_id().id() != 0 {
+                                                        let value = reg.value(ft.value_id())?;
+                                                        print!(
+                                                            "={}",
+                                                            value
+                                                                .name()
+                                                                .color(self.base_color)
+                                                                .bold()
+                                                        );
+                                                    }
+
+                                                    print_newline = true;
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        log::debug!(
+                                            "copying selected FileTags from {} to {}",
+                                            path.display(),
+                                            dest.path().display()
+                                        );
+                                        for combo in &combos {
+                                            let constructed = FileTag::new(
+                                                dest.id(),
+                                                combo.tag_id(),
+                                                combo.value_id(),
+                                            );
+                                            let tag = reg.tag(combo.tag_id())?;
+
+                                            if reg.filetag_exists(&constructed)? {
+                                                if combo.value_id().id() == 0 {
+                                                    wutag_error!(
+                                                        "{}: already has {}",
+                                                        bold_entry!(entry),
+                                                        fmt_tag(&tag)
+                                                    );
+                                                } else {
+                                                    let value = reg.value(combo.value_id())?;
+                                                    wutag_error!(
+                                                        "{}: already has {}={}",
+                                                        bold_entry!(entry),
+                                                        fmt_tag(&tag),
+                                                        value.name().color(self.base_color).bold()
+                                                    );
+                                                }
+                                                continue;
+                                            }
+
+                                            let to_insert = FileTag::new(
+                                                file.id(),
+                                                combo.tag_id(),
+                                                combo.value_id(),
+                                            );
+                                            if let Err(e) =
+                                                reg.copy_filetag_fileid(&to_insert, dest.id())
+                                            {
+                                                if combo.value_id().id() == 0 {
+                                                    wutag_error!(
+                                                        "{}: failed to copy {}",
+                                                        bold_entry!(entry),
+                                                        fmt_tag(&tag)
+                                                    );
+                                                } else {
+                                                    let value = reg.value(combo.value_id())?;
+                                                    wutag_error!(
+                                                        "{}: failed to copy {}={}",
+                                                        bold_entry!(entry),
+                                                        fmt_tag(&tag),
+                                                        value.name().color(self.base_color).bold()
+                                                    );
+                                                }
+                                                continue;
+                                            }
+
+                                            if let Err(e) = dest_path.tag(&tag) {
+                                                wutag_error!("{} {}", e, bold_entry!(dest_path));
+                                            } else {
+                                                log::debug!(
+                                                    "{}: writing xattrs",
+                                                    dest_path.display()
+                                                );
+
+                                                if !self.quiet {
+                                                    print!(
+                                                        "\t{} {}",
+                                                        "+".bold().green(),
+                                                        fmt_tag(&tag)
+                                                    );
+
+                                                    if combo.value_id().id() != 0 {
+                                                        let value = reg.value(combo.value_id())?;
+                                                        print!(
+                                                            "={}",
+                                                            value
+                                                                .name()
+                                                                .color(self.base_color)
+                                                                .bold()
+                                                        );
+                                                    }
+
+                                                    print_newline = true;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    if !self.quiet && print_newline {
+                                        println!();
+                                    }
+
+                                    Ok(())
+                                },
+                            );
                         },
-                    );
-                    log::debug!("Saving registry...");
-                    self.save_registry();
+                        Err(_) => {
+                            wutag_error!("{}: has no tags", bold_entry!(path),);
+                        },
+                    }
                 },
-                Err(e) => wutag_error!(
-                    "failed to get source tags from `{}` - {}",
-                    path.display(),
-                    e
-                ),
+                Err(_) => {
+                    wutag_error!("{}: not found in the registry", bold_entry!(path));
+                },
             }
         }
 

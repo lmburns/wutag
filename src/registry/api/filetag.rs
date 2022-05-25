@@ -144,8 +144,14 @@ impl Registry {
         self.wrap_commit(|txn| txn.update_filetag_valueid(vid, fid))
     }
 
-    /// Copy one [`FileTag`] to another
+    /// Copy one [`FileTag`] to another by [`TagId`]s
     pub(crate) fn copy_filetags(&self, src: TagId, dest: TagId) -> Result<()> {
         self.wrap_commit(|txn| txn.copy_filetags(src, dest))
+    }
+
+    /// Copy one [`FileTag`] to another by source [`FileTag`] and dest
+    /// [`FileId`]
+    pub(crate) fn copy_filetag_fileid(&self, src: &FileTag, dest: FileId) -> Result<()> {
+        self.wrap_commit(|txn| txn.copy_filetag_fileid(src, dest))
     }
 }

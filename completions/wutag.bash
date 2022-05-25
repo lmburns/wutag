@@ -163,12 +163,28 @@ _wutag() {
             return 0
             ;;
         wutag__cp)
-            opts="-G -h -v --glob --help --verbose <input_path> <pattern>"
+            opts="-f -t -p -G -h -v --follow-symlinks --tag --pairs --glob --help --verbose <INPUT_PATH> <PATTERN>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
+                --tag)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -t)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --pairs)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -p)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
                 *)
                     COMPREPLY=()
                     ;;
@@ -379,7 +395,7 @@ _wutag() {
             return 0
             ;;
         wutag__set)
-            opts="-c -C -s -F -f -Q -p -V -h -v --clear --color --stdin --force --follow-symlinks --query --pairs --value --help --verbose <PATTERN> <tags>..."
+            opts="-c -C -s -F -f -p -V -h -v --clear --color --stdin --force --follow-symlinks --pairs --value --help --verbose <PATTERN> <tags>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -390,14 +406,6 @@ _wutag() {
                     return 0
                     ;;
                 -C)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --query)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                -Q)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;

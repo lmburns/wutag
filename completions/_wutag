@@ -127,8 +127,6 @@ esac
 _arguments "${_arguments_options[@]}" \
 '-C+[Explicitly select color for tag]:COLOR: ' \
 '--color=[Explicitly select color for tag]:COLOR: ' \
-'-Q+[Apply tags to the result of a query instead of a pattern match]:query: ' \
-'--query=[Apply tags to the result of a query instead of a pattern match]:query: ' \
 '(-V --value)*-p+[Specify any number of tag=value pairs]:pairs: ' \
 '(-V --value)*--pairs=[Specify any number of tag=value pairs]:pairs: ' \
 '-V+[Specify a value to set all the tag(s) to]:value: ' \
@@ -145,7 +143,7 @@ _arguments "${_arguments_options[@]}" \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
-':pattern -- A glob pattern like "*.png":_files' \
+':pattern -- A glob, regular expression, or fixed-string:_files' \
 '*::_wutag_tags:' \
 && ret=0
 ;;
@@ -155,13 +153,13 @@ _arguments "${_arguments_options[@]}" \
 '(-V --values)*--pairs=[Specify any number of tag=value pairs to delete]:pairs: ' \
 '-f[Follow symlinks before removing tags and/or values]' \
 '--follow-symlinks[Follow symlinks before removing tags and/or values]' \
-'-V[Indicate the item(s) in the given list are values intead of tags]' \
-'--values[Indicate the item(s) in the given list are values intead of tags]' \
+'-V[Indicate the item(s) in the given list are values instead of tags]' \
+'--values[Indicate the item(s) in the given list are values instead of tags]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
-':pattern -- A glob pattern like "*.png" (or regex):' \
+':pattern -- A glob pattern like "*.png" (or regex):_files' \
 '*::tags:_wutag_tags' \
 && ret=0
 ;;
@@ -203,6 +201,12 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (cp)
 _arguments "${_arguments_options[@]}" \
+'-t+[Specify an individual tag to copy to the matching file(s)]:tag: ' \
+'--tag=[Specify an individual tag to copy to the matching file(s)]:tag: ' \
+'(-t --tag)*-p+[Specify any number of tag=value pairs]:pairs: ' \
+'(-t --tag)*--pairs=[Specify any number of tag=value pairs]:pairs: ' \
+'-f[Follow symlinks before copying tags and/or values]' \
+'--follow-symlinks[Follow symlinks before copying tags and/or values]' \
 '-G[Use a glob to match files (must be global)]' \
 '--glob[Use a glob to match files (must be global)]' \
 '-h[Print help information]' \
@@ -210,7 +214,7 @@ _arguments "${_arguments_options[@]}" \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
 ':input-path -- Path to the file from which to copy tags from:_files' \
-':pattern -- A glob pattern like "*.png":' \
+':pattern -- A glob, regular expression, or fixed-string:_files' \
 && ret=0
 ;;
 (view)

@@ -51,10 +51,10 @@ colored = { git = "https://github.com/lmburns/colored", branch = "master", versi
   "serde",
   "rusqlite-sql",
 ] }
-lscolors = "0.9.0"
+lscolors = "0.10.0"
 
 anyhow = "1.0.57"
-thiserror = "1.0.30"
+thiserror = "1.0.31"
 
 shellexpand = "2.1.0"
 directories = "4.0.1"
@@ -76,7 +76,7 @@ wax = { git = "https://github.com/lmburns/wax", version = "0.4.0", features = [
 # wax = { path = "/home/lucas/projects/rust/repos_example/wax", features = ["diagnostics"] }
 
 # globset = "0.4.8" # TODO: Remove
-regex = "1.5.5"
+regex = "1.5.6"
 unicase = "2.6.0"
 ignore = "0.4.18"
 lexiclean = "0.0.1"
@@ -89,31 +89,31 @@ nom_locate = "4.0.0"
 
 # Logging
 env_logger = "0.9.0"
-log = "0.4.16"
+log = "0.4.17"
 annotate-snippets = "0.9.1"
 
 # System information
 atty = "0.2.14"
-libc = "0.2.124"
+libc = "0.2.126"
 num_cpus = "1.13.1"
-once_cell = "1.10.0"
+once_cell = "1.12.0"
 
 # Hashing
 base64 = "0.13.0"
 blake3 = "1.3.1"
 chrono = { version = "0.4.19", features = ["serde"] }
 humantime = "2.1.0"
-uuid = { version = "1.0.0", features = ["v4", "serde"] }
+uuid = { version = "1.1.0", features = ["v4", "serde"] }
 
 # Command-line
-clap = { version = "3.1.12", features = [
+clap = { version = "3.1.18", features = [
   "derive",
   "default",
   "cargo",
   "wrap_help",
   "env",
 ] }
-clap_complete = "3.1.2"
+clap_complete = "3.1.4"
 
 # Tools
 which = "4.2.5"
@@ -127,9 +127,9 @@ tern = { git = "https://github.com/lmburns/tern" }
 serde = { version = "1.0.137", features = ["derive"] }
 # serde_json = { version = "1.0.66", optional = true }
 # serde_rusqlite = "0.29.0" # TODO: USE/DEL
-serde_yaml = { version = "0.8.23", optional = true }
-serde_json = "1.0.79"
-serde_cbor = "0.11.2"                                # TODO: Find way not to use this
+serde_yaml = { version = "0.8.24", optional = true }
+serde_json = "1.0.81"
+serde_cbor = "0.11.2"
 toml = { version = "0.5.9", optional = true }
 
 notify-rust = { version = "4.5", default-features = false, features = [
@@ -172,7 +172,7 @@ predicates = "2.1.1"
 tempfile = "3.3.0"
 serial_test = "0.6.0"
 assert_cmd = "2.0.4"
-expect-test = "1.2.2"
+expect-test = "1.3.0"
 # wait-timeout = "0.2.0"
 # tempdir = "0.3.7"
 # gag = "0.1.10"

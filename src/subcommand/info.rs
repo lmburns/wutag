@@ -144,7 +144,7 @@ impl App {
             println!("{}: {}", c("Deleted files"), reg.file_max()? - file_count);
         }
 
-        // Could list deleted (take index ID - count found)
+        // TODO: List files which don't have xattrs
 
         Ok(())
     }

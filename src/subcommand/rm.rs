@@ -1,27 +1,20 @@
-#![allow(unused)]
 #![allow(clippy::unnested_or_patterns)]
 
-/// Remove subcommand
+/// Remove tags/values from other files/tags respectively
 use super::{parse_tag_val, App};
 use crate::{
-    bold_entry, err,
+    bold_entry,
     filesystem::osstr_to_bytes,
-    registry::{
-        types::{
-            filetag::FileTag,
-            tag::{list_tags, DirEntryExt, Tag, TagValueCombo},
-            value::Value,
-            ID,
-        },
-        Error,
+    registry::types::{
+        tag::{DirEntryExt, Tag},
+        value::Value,
     },
-    util::{crawler, fmt_err, fmt_path, fmt_tag, glob_builder, regex_builder},
+    util::{crawler, fmt_path, fmt_tag, glob_builder, regex_builder},
     wutag_error, wutag_info,
 };
 use anyhow::{anyhow, Context, Result};
 use clap::{Args, ValueHint};
 use colored::Colorize;
-use itertools::Itertools;
 use std::{borrow::Cow, ffi::OsStr, fs, path::PathBuf, sync::Arc};
 
 /// Arguments to the `rm` subcommand
@@ -54,7 +47,7 @@ pub(crate) struct RmOpts {
     )]
     pub(crate) pairs: Vec<(String, String)>,
 
-    /// Indicate the item(s) in the given list are values intead of tags
+    /// Indicate the item(s) in the given list are values instead of tags
     #[clap(
         name = "values",
         long,
@@ -66,7 +59,12 @@ pub(crate) struct RmOpts {
     pub(crate) values: bool,
 
     /// A glob pattern like "*.png" (or regex).
-    #[clap(name = "pattern", takes_value = true, required = true)]
+    #[clap(
+        name = "pattern",
+        takes_value = true,
+        required = true,
+        value_hint = ValueHint::FilePath,
+)]
     pub(crate) pattern: String,
 
     /// Tags or values (requires --values) to remove from the matching pattern
@@ -180,7 +178,7 @@ impl App {
             Ok(())
         };
 
-        /// Remove an extended attribute from a [`PathBuf`]
+        // Remove an extended attribute from a [`PathBuf`]
         let handle_xattr = |tag: &Tag, path: &PathBuf| {
             log::debug!("removing xattr for Tag({})", tag.name());
             if path.get_tag(tag).is_err() {
@@ -326,7 +324,7 @@ impl App {
                                     reg.delete_filetag_by_fileid_tagid(file.id(), tag.id())
                                 {
                                     wutag_error!(
-                                        "{}: failed to delete filetag {}",
+                                        "{}: failed to delete FileTag {}",
                                         path.display(),
                                         e
                                     );
@@ -400,9 +398,10 @@ impl App {
                                     reg.update_filetag_valueid(value.id(), file.id())
                                 {
                                     wutag_error!(
-                                        "{}: failed to update value {}",
+                                        "{}: failed to update value {}: {}",
                                         bold_entry!(path),
                                         value.name().color(self.base_color).bold(),
+                                        e
                                     );
                                     continue;
                                 }
@@ -741,16 +740,15 @@ impl App {
                                             );
                                             continue;
                                         }
-
-                                        // Otherwise, just remove it from this
-                                        // single file
                                     } else if let Err(e) =
                                         reg.update_filetag_valueid(value.id(), file.id())
                                     {
+                                        // Otherwise, just remove it from this single file
                                         wutag_error!(
-                                            "{}: failed to update value {}",
+                                            "{}: failed to update value {}: {}",
                                             bold_entry!(path),
                                             value.name().color(self.base_color).bold(),
+                                            e
                                         );
                                         continue;
                                     }

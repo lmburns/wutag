@@ -118,8 +118,6 @@ set edit:completion:arg-completer[wutag] = {|@words|
         &'wutag;set'= {
             cand -C 'Explicitly select color for tag'
             cand --color 'Explicitly select color for tag'
-            cand -Q 'Apply tags to the result of a query instead of a pattern match'
-            cand --query 'Apply tags to the result of a query instead of a pattern match'
             cand -p 'Specify any number of tag=value pairs'
             cand --pairs 'Specify any number of tag=value pairs'
             cand -V 'Specify a value to set all the tag(s) to'
@@ -142,8 +140,8 @@ set edit:completion:arg-completer[wutag] = {|@words|
             cand --pairs 'Specify any number of tag=value pairs to delete'
             cand -f 'Follow symlinks before removing tags and/or values'
             cand --follow-symlinks 'Follow symlinks before removing tags and/or values'
-            cand -V 'Indicate the item(s) in the given list are values intead of tags'
-            cand --values 'Indicate the item(s) in the given list are values intead of tags'
+            cand -V 'Indicate the item(s) in the given list are values instead of tags'
+            cand --values 'Indicate the item(s) in the given list are values instead of tags'
             cand -h 'Print help information'
             cand --help 'Print help information'
             cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
@@ -180,6 +178,12 @@ set edit:completion:arg-completer[wutag] = {|@words|
             cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
         }
         &'wutag;cp'= {
+            cand -t 'Specify an individual tag to copy to the matching file(s)'
+            cand --tag 'Specify an individual tag to copy to the matching file(s)'
+            cand -p 'Specify any number of tag=value pairs'
+            cand --pairs 'Specify any number of tag=value pairs'
+            cand -f 'Follow symlinks before copying tags and/or values'
+            cand --follow-symlinks 'Follow symlinks before copying tags and/or values'
             cand -G 'Use a glob to match files (must be global)'
             cand --glob 'Use a glob to match files (must be global)'
             cand -h 'Print help information'

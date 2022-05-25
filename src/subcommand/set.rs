@@ -85,18 +85,19 @@ pub(crate) struct SetOpts {
     pub(crate) follow_symlinks: bool,
 
     // TODO: Implement
-    /// Apply tags to the result of a query instead of a pattern match
-    #[clap(
-        name = "query",
-        long,
-        short = 'Q',
-        takes_value = true,
-        alias = "where",
-        long_help = "Instead of using a glob or regular expression to search for files, using a \
-                     query. See the syntax by TODO"
-    )]
-    pub(crate) query: Option<String>,
+    // /// Apply tags to the result of a query instead of a pattern match
+    // #[clap(
+    //     name = "query",
+    //     long,
+    //     short = 'Q',
+    //     takes_value = true,
+    //     alias = "where",
+    //     long_help = "Instead of using a glob or regular expression to search for files, using a
+    // \                  query. See the syntax by TODO"
+    // )]
+    // pub(crate) query: Option<String>,
 
+    // If the -V/--value option is used, that value is applied to all mentioned tags
     /// Specify any number of tag=value pairs
     #[clap(
         name = "pairs",
@@ -107,7 +108,7 @@ pub(crate) struct SetOpts {
         multiple_occurrences = true,
         parse(try_from_str = parse_tag_val),
         long_help = "Use tag=value pairs to individually specify what the tag's value \
-            is. If the -V/--value option is used, that value is applied to all mentioned tags",
+            is",
     )]
     pub(crate) pairs: Vec<(String, String)>,
 
@@ -123,7 +124,7 @@ pub(crate) struct SetOpts {
     )]
     pub(crate) value: Option<String>,
 
-    /// A glob pattern like "*.png".
+    /// A glob, regular expression, or fixed-string
     #[clap(
         required_unless_present = "stdin",
         value_hint = ValueHint::FilePath,
@@ -141,12 +142,12 @@ pub(crate) struct SetOpts {
     pub(crate) tags: Vec<String>,
 }
 
+// TEST: Multiple tag=value pairs
+
 // FEATURE: Force if no permissions. Write to database but no xattr
 // FEATURE: Pass one value for many tags
-// FEATURE:?: Create tag and add to database without writing to file
 
 // TODO: Condense all this duplicate code
-// TODO: Collect errors; print path or error, not both
 // TODO: Write xattr as tag=value
 
 impl App {
@@ -229,45 +230,6 @@ impl App {
             .collect::<Vec<_>>();
 
         combos.append(&mut remapped);
-
-        // let mut combos = opts
-        //     .pairs
-        //     .iter()
-        //     .map(|(t, v)| {
-        //         let tag = reg.tag_by_name(t).unwrap_or_else(|_| {
-        //             opts.color.as_ref().map_or_else(
-        //                 || Tag::random_noid(t, &self.colors),
-        //                 |color| Tag::new_noid(t, color),
-        //             )
-        //         });
-        //
-        //         let value = reg
-        //             .value_by_name(v, false)
-        //             .unwrap_or_else(|_| Value::new(ID::null(), String::from(v)));
-        //
-        //         // TagValueCombo::new(tag.id(), value.id())
-        //         (tag, value)
-        //     })
-        //     .collect::<Vec<_>>();
-        //
-        // let mut tags = opts
-        //     .tags
-        //     .iter()
-        //     .map(|t| {
-        //         reg.tag_by_name(t).unwrap_or_else(|_| {
-        //             opts.color.as_ref().map_or_else(
-        //                 || Tag::random_noid(t, &self.colors),
-        //                 |color| Tag::new_noid(t, color),
-        //             )
-        //         })
-        //
-        //         // let value = Value::new(ID::null(), String::from(""));
-        //         // TagValueCombo::new(tag.id(), ID::null())
-        //     })
-        //     .collect::<Vec<_>>();
-
-        // Extend the combos, setting value ID to 0
-        // combos.append(&mut tags);
 
         if (opts.stdin || atty::isnt(atty::Stream::Stdin)) && atty::is(atty::Stream::Stdout) {
             log::debug!("Using STDIN");
@@ -568,7 +530,7 @@ impl App {
                                     );
 
                                     if let Err(e) = path.tag(&tag) {
-                                        wutag_error!("{}:j {}", bold_entry!(path), e);
+                                        wutag_error!("{}: {}", bold_entry!(path), e);
                                     }
                                 }
 
@@ -584,7 +546,11 @@ impl App {
                                 continue;
                             }
 
-                            return Err(anyhow!("{}: could not apply tags: {}", path_d, e));
+                            return Err(anyhow!(
+                                "{}: could not apply tags: {}",
+                                bold_entry!(path),
+                                e
+                            ));
                         }
 
                         // Deal with xattr after database

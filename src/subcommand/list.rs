@@ -10,7 +10,7 @@ use crate::{
     filesystem::contained_path,
     global_opts,
     registry::{querier::Query, types::Tag},
-    util::{fmt_local_path, fmt_path, fmt_tag, raw_local_path},
+    util::{fmt_local_path, fmt_path, raw_local_path},
 };
 
 use anyhow::{Context, Result};
@@ -174,7 +174,7 @@ impl App {
             let tag = if opts.raw {
                 t.name().clone()
             } else {
-                fmt_tag(t).to_string()
+                self.fmt_tag(t).to_string()
             };
 
             if with_values {

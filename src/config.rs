@@ -41,6 +41,19 @@ pub(crate) struct Config {
     #[serde(alias = "max-depth")]
     pub(crate) max_depth: Option<usize>,
 
+    /// Font effect of tags:
+    ///   - bold, b
+    ///   - underline, ul
+    ///   - italic, it
+    ///   - reverse, r
+    ///   - dimmed, d
+    ///   - blink, bl
+    ///   - strikethrough, st
+    ///   - background, bg
+    ///   - none, n
+    #[serde(alias = "tag-effect")]
+    pub(crate) tag_effect: Vec<String>,
+
     /// Base color that paths are displayed
     #[serde(alias = "base-color")]
     pub(crate) base_color: Option<String>,
@@ -286,6 +299,7 @@ impl Default for Config {
             colors: None,
             registry: None,
             max_depth: None,
+            tag_effect: vec![String::from("bold")],
             base_color: None,
             border_color: None,
 

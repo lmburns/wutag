@@ -164,8 +164,24 @@ pub(crate) fn fmt_tag_old(tag: &WTag) -> ColoredString {
 }
 
 /// Format the tag by coloring it the specified color
-pub(crate) fn fmt_tag(tag: &Tag) -> ColoredString {
-    tag.name().color(tag.color()).bold()
+#[allow(dead_code)]
+pub(crate) fn fmt_tag<S: AsRef<str>>(tag: &Tag, effects: &[S]) -> ColoredString {
+    let mut s = tag.name().color(tag.color());
+    for effect in effects {
+        match effect.as_ref().to_ascii_lowercase().trim() {
+            "underline" | "u" | "ul" => s = s.underline(),
+            "italic" | "i" | "it" => s = s.italic(),
+            "reverse" | "r" | "rev" => s = s.reversed(),
+            "dimmed" | "d" | "dim" => s = s.dimmed(),
+            "blink" | "bl" => s = s.blink(),
+            "strikethrough" | "s" | "st" => s = s.strikethrough(),
+            "none" | "n" => s = s.clear(),
+            // Bold is the default
+            _ => s = s.bold(),
+        }
+    }
+
+    s
 }
 
 /// Return a local path with no color, i.e., one in which /home/user/... is not

@@ -19,9 +19,7 @@ use crate::{
         },
         Error,
     },
-    util::{
-        crawler, fmt_err, fmt_path, fmt_tag, fmt_tag_old, glob_builder, parse_path, regex_builder,
-    },
+    util::{crawler, fmt_err, fmt_path, glob_builder, parse_path, regex_builder},
     wutag_error, wutag_fatal,
 };
 use anyhow::{anyhow, Context, Result};
@@ -203,14 +201,14 @@ impl App {
                                         wutag_error!(
                                             "{}: already has {}",
                                             bold_entry!(entry_path),
-                                            fmt_tag(&tag)
+                                            self.fmt_tag(&tag)
                                         );
                                     } else {
                                         let value = reg.value(ft.value_id())?;
                                         wutag_error!(
                                             "{}: already has {}={}",
                                             bold_entry!(entry_path),
-                                            fmt_tag(&tag),
+                                            self.fmt_tag(&tag),
                                             value.name().color(self.base_color).bold()
                                         );
                                     }
@@ -222,14 +220,14 @@ impl App {
                                         wutag_error!(
                                             "{}: failed to copy {}",
                                             bold_entry!(entry_path),
-                                            fmt_tag(&tag)
+                                            self.fmt_tag(&tag)
                                         );
                                     } else {
                                         let value = reg.value(ft.value_id())?;
                                         wutag_error!(
                                             "{}: failed to copy {}={}",
                                             bold_entry!(entry_path),
-                                            fmt_tag(&tag),
+                                            self.fmt_tag(&tag),
                                             value.name().color(self.base_color).bold()
                                         );
                                     }
@@ -242,7 +240,7 @@ impl App {
                                     log::debug!("{}: writing xattrs", entry_path.display());
 
                                     if !self.quiet {
-                                        print!("\t{} {}", "+".bold().green(), fmt_tag(&tag));
+                                        print!("\t{} {}", "+".bold().green(), self.fmt_tag(&tag));
 
                                         if ft.value_id().id() != 0 {
                                             let value = reg.value(ft.value_id())?;
@@ -309,7 +307,7 @@ impl App {
                                             wutag_fatal!(
                                                 "{}: {} does not have value {}",
                                                 bold_entry!(path),
-                                                fmt_tag(&tag),
+                                                self.fmt_tag(&tag),
                                                 value
                                             );
                                         }
@@ -408,14 +406,14 @@ impl App {
                                                     wutag_error!(
                                                         "{}: already has {}",
                                                         bold_entry!(entry),
-                                                        fmt_tag(&tag)
+                                                        self.fmt_tag(&tag)
                                                     );
                                                 } else {
                                                     let value = reg.value(ft.value_id())?;
                                                     wutag_error!(
                                                         "{}: already has {}={}",
                                                         bold_entry!(entry),
-                                                        fmt_tag(&tag),
+                                                        self.fmt_tag(&tag),
                                                         value.name().color(self.base_color).bold()
                                                     );
                                                 }
@@ -427,14 +425,14 @@ impl App {
                                                     wutag_error!(
                                                         "{}: failed to copy {}",
                                                         bold_entry!(entry),
-                                                        fmt_tag(&tag)
+                                                        self.fmt_tag(&tag)
                                                     );
                                                 } else {
                                                     let value = reg.value(ft.value_id())?;
                                                     wutag_error!(
                                                         "{}: failed to copy {}={}",
                                                         bold_entry!(entry),
-                                                        fmt_tag(&tag),
+                                                        self.fmt_tag(&tag),
                                                         value.name().color(self.base_color).bold()
                                                     );
                                                 }
@@ -453,7 +451,7 @@ impl App {
                                                     print!(
                                                         "\t{} {}",
                                                         "+".bold().green(),
-                                                        fmt_tag(&tag)
+                                                        self.fmt_tag(&tag)
                                                     );
 
                                                     if ft.value_id().id() != 0 {
@@ -490,14 +488,14 @@ impl App {
                                                     wutag_error!(
                                                         "{}: already has {}",
                                                         bold_entry!(entry),
-                                                        fmt_tag(&tag)
+                                                        self.fmt_tag(&tag)
                                                     );
                                                 } else {
                                                     let value = reg.value(combo.value_id())?;
                                                     wutag_error!(
                                                         "{}: already has {}={}",
                                                         bold_entry!(entry),
-                                                        fmt_tag(&tag),
+                                                        self.fmt_tag(&tag),
                                                         value.name().color(self.base_color).bold()
                                                     );
                                                 }
@@ -516,14 +514,14 @@ impl App {
                                                     wutag_error!(
                                                         "{}: failed to copy {}",
                                                         bold_entry!(entry),
-                                                        fmt_tag(&tag)
+                                                        self.fmt_tag(&tag)
                                                     );
                                                 } else {
                                                     let value = reg.value(combo.value_id())?;
                                                     wutag_error!(
                                                         "{}: failed to copy {}={}",
                                                         bold_entry!(entry),
-                                                        fmt_tag(&tag),
+                                                        self.fmt_tag(&tag),
                                                         value.name().color(self.base_color).bold()
                                                     );
                                                 }
@@ -542,7 +540,7 @@ impl App {
                                                     print!(
                                                         "\t{} {}",
                                                         "+".bold().green(),
-                                                        fmt_tag(&tag)
+                                                        self.fmt_tag(&tag)
                                                     );
 
                                                     if combo.value_id().id() != 0 {

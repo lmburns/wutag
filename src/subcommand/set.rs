@@ -10,7 +10,7 @@ use crate::{
             ID,
         },
     },
-    util::{collect_stdin_paths, crawler, fmt_path, fmt_tag, glob_builder, regex_builder},
+    util::{collect_stdin_paths, crawler, fmt_path, glob_builder, regex_builder},
     wutag_error, wutag_warning,
 };
 use anyhow::{anyhow, Context, Result};
@@ -360,7 +360,7 @@ impl App {
                                 duplicate_errors.push(format!(
                                     "{}: duplicate entry with tag: {}",
                                     bold_entry!(path),
-                                    fmt_tag(&reg.tag(pair.tag_id())?),
+                                    self.fmt_tag(&reg.tag(pair.tag_id())?),
                                 ));
                             }
 
@@ -376,7 +376,7 @@ impl App {
                         log::debug!("{}: writing xattrs", path_d);
 
                         if !self.quiet {
-                            print!("\t{} {}", "+".bold().green(), fmt_tag(&tag));
+                            print!("\t{} {}", "+".bold().green(), self.fmt_tag(&tag));
 
                             if pair.value_id().id() != 0 {
                                 let value = reg.value(pair.value_id())?;
@@ -539,7 +539,7 @@ impl App {
                                     duplicate_errors.push(format!(
                                         "{}: duplicate entry with tag: {}",
                                         bold_entry!(path),
-                                        fmt_tag(&reg.tag(pair.tag_id())?),
+                                        self.fmt_tag(&reg.tag(pair.tag_id())?),
                                     ));
                                 }
 
@@ -561,7 +561,7 @@ impl App {
                             // TODO: Create entry here?
 
                             if !self.quiet {
-                                print!("\t{} {}", "+".bold().green(), fmt_tag(&tag));
+                                print!("\t{} {}", "+".bold().green(), self.fmt_tag(&tag));
 
                                 if pair.value_id().id() != 0 {
                                     let value = reg.value(pair.value_id())?;

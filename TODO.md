@@ -9,10 +9,6 @@
 ### Needs built
 
 * [ ] `dir()`
-* [ ] `implies()`
-* [ ] `implied(<tag>)`
-    * [ ] if empty, then any file which has a tag that is implied
-    * [ ] or, list tags?
 * [ ] `before({a,m,c}time, <val>)`
 * [ ] `after({a,m,c}time, <val>)`
 
@@ -120,8 +116,3 @@ implies()
 a\ b
 ab\{
 'ab{'
-
-====================================================
-
-## Non-Registry Todo
-* Allow option for tags to be moved when file is moved

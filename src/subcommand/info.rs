@@ -6,7 +6,6 @@
 #![allow(clippy::cast_precision_loss)]
 
 use super::App;
-use crate::util::{fmt_tag, fmt_tag_old};
 use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
 use cli_table::{

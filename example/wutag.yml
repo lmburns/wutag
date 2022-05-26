@@ -14,6 +14,15 @@ show_duplicates: false
 glob_wildcard_match_separator: false
 # Max depth for glob/regex pattern to traverse when matching files
 max_depth: 10
+# Font effect of tags:
+#   - bold, b
+#   - underline, ul
+#   - italic, it
+#   - reverse, r
+#   - dimmed, d
+#   - blink, bl
+#   - strikethrough, st
+tag_effect: ["bold"]
 # File path color
 base_color: "#FF5813"
 # Border color when using list files -tfb

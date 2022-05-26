@@ -9,7 +9,7 @@ use crate::{
         tag::{DirEntryExt, Tag},
         value::Value,
     },
-    util::{crawler, fmt_path, fmt_tag, glob_builder, regex_builder},
+    util::{crawler, fmt_path, glob_builder, regex_builder},
     wutag_error, wutag_info,
 };
 use anyhow::{anyhow, Context, Result};
@@ -148,7 +148,7 @@ impl App {
                 wutag_error!(
                     "{}: failed to delete tag {}: {}",
                     bold_entry!(path),
-                    fmt_tag(tag),
+                    self.fmt_tag(tag),
                     e
                 );
 
@@ -185,12 +185,12 @@ impl App {
                 wutag_error!(
                     "{}: found ({}) in database, though file has no xattrs",
                     bold_entry!(path),
-                    fmt_tag(tag)
+                    self.fmt_tag(tag)
                 );
             } else if let Err(e) = path.untag(tag) {
                 wutag_error!("{}: {}", path.display(), e);
             } else {
-                print!("\t{} {}", "X".bold().red(), fmt_tag(tag));
+                print!("\t{} {}", "X".bold().red(), self.fmt_tag(tag));
             }
         };
 
@@ -521,7 +521,7 @@ impl App {
                                 wutag_error!(
                                     "{}: failed to delete tag {}: {}",
                                     bold_entry!(path),
-                                    fmt_tag(tag),
+                                    self.fmt_tag(tag),
                                     e
                                 );
 

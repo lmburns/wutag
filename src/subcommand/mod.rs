@@ -26,12 +26,12 @@ use crate::{
     opt::{Command, Opts},
     oregistry,
     oregistry::TagRegistry,
-    registry::Registry,
+    registry::{types::tag::Tag, Registry},
     ui, wutag_error, wutag_fatal,
 };
 use anyhow::{Context, Result};
 use atty::Stream;
-use colored::{Color, Colorize};
+use colored::{Color, ColoredString, Colorize};
 use regex::bytes::{RegexSet, RegexSetBuilder};
 use std::{
     env,
@@ -61,6 +61,7 @@ pub(crate) struct App {
     pub(crate) global:               bool,
     pub(crate) ignores:              Option<Vec<String>>,
     pub(crate) ls_colors:            bool,
+    pub(crate) tag_effect:           Vec<String>,
     pub(crate) max_depth:            Option<usize>,
     pub(crate) quiet:                bool,
     pub(crate) wildcard_matches_sep: bool,
@@ -235,6 +236,11 @@ impl App {
             global: opts.global,
             ignores: config.ignores,
             ls_colors: opts.ls_colors,
+            tag_effect: config
+                .tag_effect
+                .is_empty()
+                .then(|| vec![String::from("bold")])
+                .unwrap_or(config.tag_effect),
             max_depth: depth,
             wildcard_matches_sep: config.glob_wildcard_match_separator,
             pat_regex: opts.regex,
@@ -312,6 +318,26 @@ impl App {
             }
         }
     }
+
+    /// Format a tag according to the [`Tag`]'s color and an optional effect
+    pub(crate) fn fmt_tag(&self, tag: &Tag) -> ColoredString {
+        let mut s = tag.name().color(tag.color());
+        for effect in &self.tag_effect {
+            match effect.to_ascii_lowercase().trim() {
+                "underline" | "u" | "ul" => s = s.underline(),
+                "italic" | "i" | "it" => s = s.italic(),
+                "reverse" | "r" | "rev" => s = s.reversed(),
+                "dimmed" | "d" | "dim" => s = s.dimmed(),
+                "blink" | "bl" => s = s.blink(),
+                "strikethrough" | "s" | "st" => s = s.strikethrough(),
+                "none" | "n" => s = s.clear(),
+                // Bold is the default
+                _ => s = s.bold(),
+            }
+        }
+
+        s
+    }
 }
 
 // Implement a custom clone (specifically for `registry`)
@@ -333,6 +359,7 @@ impl Clone for App {
             global:               self.global,
             ignores:              self.ignores.clone(),
             ls_colors:            self.ls_colors,
+            tag_effect:           self.tag_effect.clone(),
             max_depth:            self.max_depth,
             quiet:                self.quiet,
             wildcard_matches_sep: self.wildcard_matches_sep,

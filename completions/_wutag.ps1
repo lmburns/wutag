@@ -106,6 +106,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             break
         }
         'wutag;list;files' {
+            [CompletionResult]::new('-s', 's', [CompletionResultType]::ParameterName, 'Sort the output')
+            [CompletionResult]::new('--sort', 'sort', [CompletionResultType]::ParameterName, 'Sort the output')
             [CompletionResult]::new('-t', 't', [CompletionResultType]::ParameterName, 'Display tags along with the files')
             [CompletionResult]::new('--with-tags', 'with-tags', [CompletionResultType]::ParameterName, 'Display tags along with the files')
             [CompletionResult]::new('-V', 'V', [CompletionResultType]::ParameterName, 'Display values along with the tags')
@@ -116,6 +118,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--border', 'border', [CompletionResultType]::ParameterName, 'Use border separators when formatting output')
             [CompletionResult]::new('-G', 'G', [CompletionResultType]::ParameterName, 'Display tags and files on separate lines')
             [CompletionResult]::new('--garrulous', 'garrulous', [CompletionResultType]::ParameterName, 'Display tags and files on separate lines')
+            [CompletionResult]::new('-r', 'r', [CompletionResultType]::ParameterName, 'Display paths relatie to current directory (requires --global)')
+            [CompletionResult]::new('--relative', 'relative', [CompletionResultType]::ParameterName, 'Display paths relatie to current directory (requires --global)')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')

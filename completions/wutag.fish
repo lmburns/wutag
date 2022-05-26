@@ -2,7 +2,7 @@
 complete -c wutag -n "__fish_use_subcommand" -s d -l dir -d 'Specify starting path for filesystem traversal' -r -f -a "(__fish_complete_directories)"
 complete -c wutag -n "__fish_use_subcommand" -s m -l max-depth -d 'Set maximum depth to recurse into' -r
 complete -c wutag -n "__fish_use_subcommand" -s R -l registry -d 'Specify a different registry to use' -r -F
-complete -c wutag -n "__fish_use_subcommand" -s c -l color -d 'When to colorize output' -r -f -a "{never	,auto	,always	}"
+complete -c wutag -n "__fish_use_subcommand" -s c -l color -d 'When to colorize output' -r
 complete -c wutag -n "__fish_use_subcommand" -s t -l type -d 'File-type(s) to filter by: f|file, d|directory, l|symlink, e|empty' -r -f -a "{f	,file	,d	,dir	,l	,symlink	,b	,block	,c	,char	,s	,socket	,p	,fifo	,x	,executable	,e	,empty	}"
 complete -c wutag -n "__fish_use_subcommand" -s e -l ext -d 'Filter results by file extension' -r
 complete -c wutag -n "__fish_use_subcommand" -s E -l exclude -d 'Exclude results that match pattern' -r -f -a "(__fish_complete_directories)"
@@ -45,11 +45,13 @@ complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcomma
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s b -l border -d 'Use border separators when formatting output'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from tags" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
+complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from files" -s s -l sort -d 'Sort the output' -r
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from files" -s t -l with-tags -d 'Display tags along with the files'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from files" -s V -l with-values -d 'Display values along with the tags'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from files" -s f -l format -d 'Format the tags and files output into columns'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from files" -s b -l border -d 'Use border separators when formatting output'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from files" -s G -l garrulous -d 'Display tags and files on separate lines'
+complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from files" -s r -l relative -d 'Display paths relatie to current directory (requires --global)'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from files" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from files" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from set" -s C -l color -d 'Explicitly select color for tag' -r

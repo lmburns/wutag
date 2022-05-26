@@ -13,6 +13,30 @@ pub(crate) fn basename(path: &Path) -> &OsStr {
     path.file_name().unwrap_or(path.as_os_str())
 }
 
+/// Removes the extension from the path
+pub(crate) fn remove_extension(path: &Path) -> OsString {
+    let dirname = dirname(path);
+    let stem = path.file_stem().unwrap_or(path.as_os_str());
+
+    let path = PathBuf::from(dirname).join(stem);
+
+    strip_current_dir(&path).to_owned().into_os_string()
+}
+
+/// Removes the basename from the path.
+pub(crate) fn dirname(path: &Path) -> OsString {
+    path.parent().map_or_else(
+        || path.as_os_str().to_owned(),
+        |p| {
+            if p == OsStr::new("") {
+                OsString::from(".")
+            } else {
+                p.as_os_str().to_owned()
+            }
+        },
+    )
+}
+
 /// Execute the command in specified directory
 pub(crate) fn wutag_dir(path: &Path) -> OsString {
     let mut wutag = OsString::new();
@@ -70,28 +94,4 @@ pub(crate) fn wutag_cp_tag(path: &Path) -> OsString {
     wutag.push(path);
     wutag
     // wutag.push(format!("wutag --color=always -d {}", dir));
-}
-
-/// Removes the extension from the path
-pub(crate) fn remove_extension(path: &Path) -> OsString {
-    let dirname = dirname(path);
-    let stem = path.file_stem().unwrap_or(path.as_os_str());
-
-    let path = PathBuf::from(dirname).join(stem);
-
-    strip_current_dir(&path).to_owned().into_os_string()
-}
-
-/// Removes the basename from the path.
-pub(crate) fn dirname(path: &Path) -> OsString {
-    path.parent().map_or_else(
-        || path.as_os_str().to_owned(),
-        |p| {
-            if p == OsStr::new("") {
-                OsString::from(".")
-            } else {
-                p.as_os_str().to_owned()
-            }
-        },
-    )
 }

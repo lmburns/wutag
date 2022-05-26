@@ -3,7 +3,6 @@
 
 pub(crate) mod file;
 pub(crate) mod filetag;
-pub(crate) mod implication;
 pub(crate) mod query;
 pub(crate) mod tag;
 pub(crate) mod tag_color;
@@ -11,17 +10,19 @@ pub(crate) mod value;
 
 pub(crate) use file::{File, FileId, Files};
 pub(crate) use filetag::{FileTag, FileTags};
-pub(crate) use implication::{Implication, Implications};
 pub(crate) use tag::{Tag, TagId, Tags};
 pub(crate) use value::{Value, ValueId, Values};
 
+use crate::wutag_error;
+use anyhow::{anyhow, Result};
 use chrono::{DateTime, Local};
+use colored::Colorize;
 use rusqlite::{
     self as rsq,
     types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, ValueRef},
 };
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{fmt, str::FromStr};
 use uuid::Uuid;
 
 // ╭──────────────────────────────────────────────────────────╮
@@ -230,7 +231,6 @@ pub(crate) enum Table {
     File,
     Value,
     FileTag,
-    Implication,
     Query,
     Tracker,
     Checkpoint,
@@ -244,7 +244,6 @@ impl ToSql for Table {
             Self::File => "file",
             Self::Value => "value",
             Self::FileTag => "file_tag",
-            Self::Implication => "impl",
             Self::Query => "query",
             Self::Tracker => "tracker",
             Self::Checkpoint => "checkpoint",
@@ -261,12 +260,70 @@ impl FromSql for Table {
             "file" => Ok(Self::File),
             "value" => Ok(Self::Value),
             "file_tag" => Ok(Self::FileTag),
-            "impl" => Ok(Self::Implication),
             "query" => Ok(Self::Query),
             "tracker" => Ok(Self::Tracker),
             "checkpoint" => Ok(Self::Checkpoint),
             "version" => Ok(Self::Version),
             _ => Err(FromSqlError::InvalidType),
+        }
+    }
+}
+
+// ╭──────────────────────────────────────────────────────────╮
+// │                           Sort                           │
+// ╰──────────────────────────────────────────────────────────╯
+
+/// The method in which the files should be sorted in the database
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub(crate) enum Sort {
+    /// Sort by the [`File`] id
+    Id,
+    /// Sort by the [`File`] name
+    Name,
+    /// Sort by the [`File`] `mtime`
+    ModificationTime,
+    /// Sort by the [`File`] `ctime`
+    CreationTime,
+    /// Sort by the [`File`] `size`
+    FileSize,
+    /// Do not sort the [`File`]s
+    None,
+}
+
+impl FromStr for Sort {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, anyhow::Error> {
+        match s.to_ascii_lowercase().trim() {
+            "id" => Ok(Self::Id),
+            "name" => Ok(Self::Name),
+            "modification" | "modificationtime" | "mod" => Ok(Self::ModificationTime),
+            "creation" | "creationtime" | "create" => Ok(Self::CreationTime),
+            "filesize" | "size" | "fs" => Ok(Self::FileSize),
+            "none" => Ok(Self::None),
+            _ => Err(anyhow!(
+                "\
+Valid values are:
+    - id
+    - name
+    - modification | modificationtime | mod
+    - creation | creationtime | create
+    - filesize | size | fs
+    - none"
+            )),
+        }
+    }
+}
+
+impl fmt::Display for Sort {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Sort::Id => f.write_str(" ORDER BY id"),
+            Sort::Name => f.write_str(" ORDER BY directory || '/' || name"),
+            Sort::ModificationTime => f.write_str(" ORDER BY mtime, directory || '/' || name"),
+            Sort::CreationTime => f.write_str(" ORDER BY ctime, directory || '/' || name"),
+            Sort::FileSize => f.write_str(" ORDER BY size, directory || '/' || name"),
+            Sort::None => f.write_str(""),
         }
     }
 }

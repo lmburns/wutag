@@ -22,15 +22,15 @@ pub(crate) mod view;
 use crate::{
     config::{Config, EncryptConfig},
     consts::{DEFAULT_BASE_COLOR, DEFAULT_BORDER_COLOR, DEFAULT_COLORS},
+    fail,
     filesystem::FileTypes,
-    opt::{Command, Opts},
+    opt::{Colorization, Command, Opts},
     oregistry,
     oregistry::TagRegistry,
     registry::{types::tag::Tag, Registry},
     ui, wutag_error, wutag_fatal,
 };
 use anyhow::{Context, Result};
-use atty::Stream;
 use colored::{Color, ColoredString, Colorize};
 use regex::bytes::{RegexSet, RegexSetBuilder};
 use std::{
@@ -50,7 +50,7 @@ pub(crate) struct App {
     pub(crate) base_dir:             PathBuf,
     pub(crate) case_insensitive:     bool,
     pub(crate) case_sensitive:       bool,
-    pub(crate) color_when:           String,
+    pub(crate) color_when:           Colorization,
     pub(crate) colors:               Vec<Color>,
     pub(crate) exclude:              Vec<String>,
     pub(crate) extension:            Option<RegexSet>,
@@ -90,16 +90,6 @@ impl App {
 
     /// Create a new instance of the application
     pub(crate) fn new(opts: &Opts, config: Config) -> Result<Self> {
-        let base_dir = if let Some(base_dir) = &opts.dir {
-            if base_dir.display().to_string() == "." {
-                std::env::current_dir().context("failed to determine CWD")?
-            } else {
-                base_dir.clone()
-            }
-        } else {
-            std::env::current_dir().context("failed to determine CWD")?
-        };
-
         // This ignores invalid colors (i.e., doesn't crash program)
         // Could also be done with .fold()
         let colors = config.colors.map_or_else(
@@ -120,49 +110,6 @@ impl App {
             },
         );
 
-        let base_color = config
-            .base_color
-            .map(parse_color)
-            .transpose()?
-            .unwrap_or(DEFAULT_BASE_COLOR);
-
-        let border_color = config
-            .border_color
-            .map(parse_color_cli_table)
-            .transpose()?
-            .unwrap_or(DEFAULT_BORDER_COLOR);
-
-        let color_when = match opts.color_when {
-            Some(ref s) if s == "always" => "always",
-            Some(ref s) if s == "never" => "never",
-            _ =>
-                if env::var_os("NO_COLOR").is_none() && atty::is(Stream::Stdout) {
-                    "auto"
-                } else {
-                    "never"
-                },
-        };
-
-        let depth = opts.max_depth.or(config.max_depth);
-
-        let format = config.format.map_or_else(
-            || "toml".to_owned(),
-            |format_| {
-                {
-                    if let f @ ("toml" | "yaml" | "yml" | "json") = format_.as_ref() {
-                        f
-                    } else {
-                        wutag_error!(
-                            "invalid format found as your configuration. Valid values: toml, \
-                             yaml, yml, json. Using the default: toml"
-                        );
-                        "toml"
-                    }
-                }
-                .to_owned()
-            },
-        );
-
         let follow_links = opts
             .no_follow_links
             .then(|| false)
@@ -173,24 +120,6 @@ impl App {
         let registry = Registry::new(opts.reg.as_ref().or(config.registry.as_ref()), follow_links)?;
         // Must be called each time to create user-defined functions
         registry.init()?;
-
-        let extensions = opts
-            .extension
-            .as_ref()
-            .map(|ext| {
-                RegexSetBuilder::new(
-                    ext.iter()
-                        .map(|e| e.trim_start_matches('.').to_owned())
-                        .map(|e| format!(r".\.{}$", regex::escape(e.as_str()))),
-                )
-                .case_insensitive(true)
-                .build()
-            })
-            .transpose()?;
-
-        let excludes = opts.exclude.as_ref().map_or_else(Vec::new, |v| {
-            v.iter().map(|p| format!("!{}", p.as_str())).collect()
-        });
 
         let file_types = opts.file_type.as_ref().map(|vals| {
             let mut ftypes = FileTypes::default();
@@ -221,18 +150,66 @@ impl App {
         log::debug!("FileTypes: {:#?}", file_types);
 
         Ok(Self {
-            base_color,
-            base_dir,
+            base_color: config
+                .base_color
+                .map(parse_color)
+                .transpose()?
+                .unwrap_or(DEFAULT_BASE_COLOR),
+            border_color: config
+                .border_color
+                .map(parse_color_cli_table)
+                .transpose()?
+                .unwrap_or(DEFAULT_BORDER_COLOR),
+            base_dir: opts.dir.as_ref().map_or_else(
+                || env::current_dir().context(fail!("determining CWD")),
+                |bd| {
+                    if bd.to_string_lossy() == "." {
+                        env::current_dir().context(fail!("determining CWD"))
+                    } else {
+                        Ok(bd.clone())
+                    }
+                },
+            )?,
             case_insensitive: opts.case_insensitive,
             case_sensitive: opts.case_sensitive,
-            color_when: color_when.to_owned(),
+            color_when: opts.color_when.unwrap_or_default(),
             colors,
-            exclude: excludes,
-            extension: extensions,
+            exclude: opts.exclude.as_ref().map_or_else(Vec::new, |v| {
+                v.iter().map(|ex| format!("!{}", ex.as_str())).collect()
+            }),
+            extension: opts
+                .extension
+                .as_ref()
+                .map(|ext| {
+                    RegexSetBuilder::new(
+                        ext.iter()
+                            .map(|e| e.trim_start_matches('.').to_owned())
+                            .map(|e| format!(r".\.{}$", regex::escape(e.as_str()))),
+                    )
+                    .case_insensitive(true)
+                    .build()
+                })
+                .transpose()?,
             file_type: file_types,
             follow_symlinks: follow_links,
             show_duplicates: config.show_duplicates,
-            format,
+            format: config.format.map_or_else(
+                || "toml".to_owned(),
+                |format_| {
+                    {
+                        if let f @ ("toml" | "yaml" | "yml" | "json") = format_.as_ref() {
+                            f
+                        } else {
+                            wutag_error!(
+                                "invalid format found in your configuration. Valid values: toml, \
+                                 yaml, yml, json. Using the default: toml"
+                            );
+                            "toml"
+                        }
+                    }
+                    .to_owned()
+                },
+            ),
             global: opts.global,
             ignores: config.ignores,
             ls_colors: opts.ls_colors,
@@ -241,7 +218,7 @@ impl App {
                 .is_empty()
                 .then(|| vec![String::from("bold")])
                 .unwrap_or(config.tag_effect),
-            max_depth: depth,
+            max_depth: opts.max_depth.or(config.max_depth),
             wildcard_matches_sep: config.glob_wildcard_match_separator,
             pat_regex: opts.regex,
             fixed_string: opts.fixed_string,
@@ -249,8 +226,6 @@ impl App {
             oregistry,
 
             registry: Arc::new(Mutex::new(registry)),
-
-            border_color,
 
             #[cfg(feature = "encrypt-gpgme")]
             encrypt: config.encryption,
@@ -266,9 +241,9 @@ impl App {
 
     /// Run the subcommand from the command-line
     pub(crate) fn run_command(&mut self, opts: Opts, config: &Config) -> Result<()> {
-        if self.color_when == "never" {
+        if self.color_when == Colorization::Never {
             colored::control::SHOULD_COLORIZE.set_override(false);
-        } else if self.color_when == "always" {
+        } else if self.color_when == Colorization::Always {
             colored::control::SHOULD_COLORIZE.set_override(true);
         }
 
@@ -348,7 +323,7 @@ impl Clone for App {
             base_dir:             self.base_dir.clone(),
             case_insensitive:     self.case_insensitive,
             case_sensitive:       self.case_sensitive,
-            color_when:           self.color_when.clone(),
+            color_when:           self.color_when,
             colors:               self.colors.clone(),
             exclude:              self.exclude.clone(),
             extension:            self.extension.clone(),

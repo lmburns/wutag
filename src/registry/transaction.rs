@@ -8,7 +8,7 @@ use super::{
     types::{file::File, ModType, Table, ID},
     Error, Registry,
 };
-use crate::fail;
+use crate::{fail, failt};
 use anyhow::{anyhow, Context, Result};
 use colored::Colorize;
 use rusqlite::{
@@ -22,15 +22,11 @@ use std::{cell::RefCell, fmt};
 
 use once_cell::unsync::{Lazy, OnceCell};
 
-// #[allow(clippy::declare_interior_mutable_const)]
-// pub(crate) const TXN: RefCell<Option<Transaction>> = RefCell::new(None);
-// pub(crate) const TXN: OnceCell<Transaction> = OnceCell::new();
-
 // ╒══════════════════════════════════════════════════════════╕
 //                         Transaction
 // ╘══════════════════════════════════════════════════════════╛
 
-/// This is an intermediate stage betweeen a command and a change to the
+/// This is an intermediate stage between a command and a change to the
 /// database. See [`Transaction`](https://www.sqlite.org/lang_transaction.html)
 #[derive(Debug)]
 pub(crate) struct Txn<'t> {
@@ -43,7 +39,7 @@ pub(crate) struct Txn<'t> {
 impl<'t> Txn<'t> {
     /// Create a new [`Txn`]
     pub(crate) fn new(conn: &'t Connection, follow_symlinks: bool) -> Result<Self> {
-        log::debug!("new transaction");
+        log::debug!("creating new Transaction");
 
         let mut txn = conn.unchecked_transaction()?;
         txn.set_drop_behavior(DropBehavior::Commit);
@@ -73,7 +69,7 @@ impl<'t> Txn<'t> {
     /// Commit a [`Transaction`]
     pub(crate) fn commit(self) -> Result<()> {
         // TODO: Create checkpoint here
-        self.txn.commit().context(fail!("commit transaction"))
+        self.txn.commit().context(fail!("committing transaction"))
     }
 
     // Checkout rollback/commit hooks
@@ -81,7 +77,7 @@ impl<'t> Txn<'t> {
 
     /// Rollback a [`Transaction`]
     pub(crate) fn rollback(self) -> Result<()> {
-        self.txn.rollback().context(fail!("rollback transaction"))
+        self.txn.rollback().context(failt!("rollback transaction"))
     }
 
     // ╭──────────────────────────────────────────────────────────╮
@@ -97,7 +93,7 @@ impl<'t> Txn<'t> {
 
         self.txn
             .execute(sql, params)
-            .context(fail!("execute command: {}", sql))
+            .context(fail!("executing command: {}", sql))
     }
 
     /// Execute a command with no [`params`]. Implements the same function as
@@ -112,7 +108,7 @@ impl<'t> Txn<'t> {
     }
 
     /// Return true if the SQL statement returns a row, else false
-    /// Identicial to [`exists`]. Used for checking whether a table exists to
+    /// Identical to [`exists`]. Used for checking whether a table exists to
     /// tell the user it isn't initialized
     ///
     /// [`exists`]: /rusqlite/statement/struct.Statement.html#method.exists
@@ -141,9 +137,11 @@ impl<'t> Txn<'t> {
         let mut stmt = self
             .txn
             .prepare(sql)
-            .context(fail!("prepare sql: {}", sql))?;
+            .context(fail!("preparing sql: {}", sql))?;
 
-        let res = stmt.insert(params).context(fail!("insert item: {}", sql));
+        let res = stmt
+            .insert(params)
+            .context(fail!("inserting item: {}", sql));
 
         if let Err(err) = res {
             // Check if it is a unique constraint violation
@@ -171,16 +169,16 @@ impl<'t> Txn<'t> {
         F: FnOnce(&Row<'_>) -> Result<T, rsq::Error>,
     {
         log::debug!("{}({}): {}", "select".green().bold(), "Txn".purple(), sql);
-        let error = fail!("select row: {}", sql);
 
         self.exists("tag")?;
 
         let mut stmt = self
             .txn
             .prepare_cached(sql)
-            .context(fail!("prepare sql: {}", sql))?;
+            .context(failt!("prepare sql: {}", sql))?;
 
-        stmt.query_row(params, f).context(error)
+        stmt.query_row(params, f)
+            .context(failt!("select row: {}", sql))
     }
 
     /// Select a single row, no [`params`], and no closure
@@ -215,11 +213,13 @@ impl<'t> Txn<'t> {
         let mut stmt = self
             .txn
             .prepare_cached(sql)
-            .context(fail!("prepare sql: {}", sql))?;
-        let mut rows = stmt.query(params).context(fail!("query row(s): {}", sql))?;
+            .context(failt!("prepare sql: {}", sql))?;
+        let mut rows = stmt
+            .query(params)
+            .context(fail!("querying row(s): {}", sql))?;
 
         let mut v = Vec::<T>::new();
-        while let Some(row) = rows.next().context(fail!("get next item"))? {
+        while let Some(row) = rows.next().context(fail!("getting next item"))? {
             v.push(f(row));
         }
 
@@ -236,7 +236,6 @@ impl<'t> Txn<'t> {
         P::Item: ToSql,
         F: FnOnce(&Row<'_>) -> T + Copy,
     {
-        // Used for ergonomics
         let sql = sql.as_ref();
 
         log::debug!(
@@ -245,20 +244,19 @@ impl<'t> Txn<'t> {
             "Txn".purple(),
             sql
         );
-        let error = fail!("select row: {}", sql);
 
         self.exists("tag")?;
 
         let mut stmt = self
             .txn
             .prepare_cached(sql)
-            .context(fail!("prepare sql: {}", sql))?;
+            .context(failt!("prepare sql: {}", sql))?;
         let mut rows = stmt
             .query(rsq::params_from_iter(params))
-            .context(fail!("query_iter: {}", sql))?;
+            .context(failt!("query_iter: {}", sql))?;
 
         let mut v = Vec::<T>::new();
-        while let Some(row) = rows.next().context(fail!("get next item"))? {
+        while let Some(row) = rows.next().context(fail!("getting next item"))? {
             v.push(f(row));
         }
 
@@ -292,7 +290,8 @@ impl<'t> Txn<'t> {
 
     /// Insert the latest version into the database
     pub(crate) fn insert_version(&self) -> Result<()> {
-        let v = Version::build().context("failed to get current version")?;
+        let v = Version::build().context(fail!("getting current version"))?;
+        log::debug!("inserting Version({})", v);
 
         // TODO: Should context wrap this?
         self.insert(
@@ -300,7 +299,7 @@ impl<'t> Txn<'t> {
                 VALUES (?1, ?2, ?3)",
             params![v.major(), v.minor(), v.patch()],
         )
-        .context("failed to insert version into `version` table")?;
+        .context(fail!("inserting Version into version table"))?;
 
         Ok(())
     }
@@ -311,20 +310,21 @@ impl<'t> Txn<'t> {
             .select("SELECT * from version", params![], |row| {
                 Ok(Version::new(row.get(0)?, row.get(1)?, row.get(2)?))
             })
-            .context("failed to query row")?;
+            .context(fail!("querying row"))?;
 
         Ok(res)
     }
 
     /// Update the current version of the database
     pub(crate) fn update_current_version(&self) -> Result<()> {
-        let v = Version::build().context("failed to get current version")?;
+        let v = Version::build().context(fail!("getting current version"))?;
+        log::debug!("updating Version({})", v);
 
         self.execute(
             "UPDATE version SET major = ?1, minor = ?2, patch = ?3",
             params![v.major(), v.minor(), v.patch()],
         )
-        .context("failed to update current version")?;
+        .context(fail!("updating current Version"))?;
 
         Ok(())
     }
@@ -342,16 +342,19 @@ impl<'t> Txn<'t> {
         id: ID,
         previous: S,
     ) -> Result<usize> {
+        log::debug!("recording modification");
         self.execute(
             "INSERT INTO tracker (table, operation, operation_id, previous)
             VALUES (?1, ?2, ?3, ?4)",
             params![table, op, id, previous.as_ref()],
         )
-        .context("failed to record a change")
+        .context(failt!("record a change"))
     }
 
     /// Create a checkpoint in the `checkpoint` table
     pub(crate) fn create_checkpoint<S: AsRef<str>>(&self, desc: S) -> Result<usize> {
+        let desc = desc.as_ref();
+        let debug = format!("inserting Checkpoint({})", desc);
         self.execute(
             "INSERT INTO checkpoint (tracker_id, description)
             VALUES (
@@ -362,8 +365,8 @@ impl<'t> Txn<'t> {
                 ),
                 ?1
             )",
-            params![desc.as_ref()],
+            params![desc],
         )
-        .context("failed to create `checkpoint`")
+        .context(fail!("{}", debug))
     }
 }

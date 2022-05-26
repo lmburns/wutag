@@ -19,7 +19,7 @@ use std::{
 };
 use tui::layout::Alignment;
 
-use crate::{directories::PROJECT_DIRS, inner_immute, ui::event::Key, wutag_fatal};
+use crate::{directories::PROJECT_DIRS, fail, failt, inner_immute, ui::event::Key, wutag_fatal};
 use wutag_core::color::TuiColor;
 
 /// Configuration file name
@@ -408,7 +408,7 @@ impl Config {
             config_file.flush()?;
         }
 
-        let file = fs::read(&path).context("failed to read config file")?;
+        let file = fs::read(&path).context(fail!("reading config file"))?;
         // let attempt = serde_yaml::Deserializer::from_slice(&file);
         //
         // let res: Result<Self, _> = serde_path_to_error::deserialize(attempt);
@@ -421,7 +421,7 @@ impl Config {
         // }
 
         let attempt: Self =
-            serde_yaml::from_slice(&file).context("failed to deserialize config file")?;
+            serde_yaml::from_slice(&file).context(fail!("deserializing config file"))?;
 
         if attempt.ui.preview_height > 100 {
             wutag_fatal!(

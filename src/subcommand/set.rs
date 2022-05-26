@@ -143,8 +143,8 @@ pub(crate) struct SetOpts {
 }
 
 // TEST: Multiple tag=value pairs
+// TEST: -d  <dir> set ...
 
-// FEATURE: Force if no permissions. Write to database but no xattr
 // FEATURE: Pass one value for many tags
 
 // TODO: Condense all this duplicate code

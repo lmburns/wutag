@@ -21,8 +21,8 @@ _wutag() {
 '--max-depth=[Set maximum depth to recurse into]:num: ' \
 '-R+[Specify a different registry to use]:file:_files' \
 '--registry=[Specify a different registry to use]:file:_files' \
-'-c+[When to colorize output]:when:(never auto always)' \
-'--color=[When to colorize output]:when:(never auto always)' \
+'-c+[When to colorize output]:when: ' \
+'--color=[When to colorize output]:when: ' \
 '*-t+[File-type(s) to filter by: f|file, d|directory, l|symlink, e|empty]:filetype:(f file d dir l symlink b block c char s socket p fifo x executable e empty)' \
 '*--type=[File-type(s) to filter by: f|file, d|directory, l|symlink, e|empty]:filetype:(f file d dir l symlink b block c char s socket p fifo x executable e empty)' \
 '*-e+[Filter results by file extension]:extension: ' \
@@ -103,6 +103,8 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (files)
 _arguments "${_arguments_options[@]}" \
+'-s+[Sort the output]:SORT: ' \
+'--sort=[Sort the output]:SORT: ' \
 '-t[Display tags along with the files]' \
 '--with-tags[Display tags along with the files]' \
 '-V[Display values along with the tags]' \
@@ -113,6 +115,8 @@ _arguments "${_arguments_options[@]}" \
 '--border[Use border separators when formatting output]' \
 '(-f --format)-G[Display tags and files on separate lines]' \
 '(-f --format)--garrulous[Display tags and files on separate lines]' \
+'-r[Display paths relatie to current directory (requires --global)]' \
+'--relative[Display paths relatie to current directory (requires --global)]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \

@@ -1,6 +1,6 @@
 //! File-hashing operations
 
-use crate::config::Config;
+use crate::{config::Config, fail, failt};
 use anyhow::{Context, Result};
 use crossbeam_channel as channel;
 use crossbeam_utils::thread;
@@ -23,12 +23,11 @@ pub(crate) fn blake3_hash_text<S: AsRef<str>>(txt: S) -> String {
 pub(crate) fn blake3_hash<P: AsRef<Path>>(path: P, perm: Option<u32>) -> Result<blake3::Hash> {
     let path = path.as_ref();
 
-    let mut file =
-        fs::File::open(&path).context(format!("failed to open file: {}", path.display()))?;
+    let mut file = fs::File::open(&path).context(fail!("opening file: {}", path.display()))?;
     let mut hasher = blake3::Hasher::new();
 
     // Hash the file's contents
-    io::copy(&mut file, &mut hasher).context("failed to copy file to hasher")?;
+    io::copy(&mut file, &mut hasher).context(fail!("copying file to hasher"))?;
 
     // Not sure if I really like this
     // Add the file's permissions to the hash
@@ -123,7 +122,7 @@ where
     let hashes = Arc::try_unwrap(hashes)
         .expect("failed to unwrap Arc")
         .into_inner()
-        .context("failed to get inner Mutex")?;
+        .context(failt!("get inner Mutex"))?;
 
     let hashstr = hashes.join("\0");
     let mut hasher = blake3::Hasher::new();

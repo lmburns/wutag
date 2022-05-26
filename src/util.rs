@@ -27,6 +27,7 @@ use std::{
 
 use crate::{
     consts::{APP_NAME, DEFAULT_MAX_DEPTH},
+    failt,
     filesystem::{create_temp_ignore, delete_file, osstr_to_bytes, write_temp_ignore},
     registry::types::Tag,
     subcommand::App,
@@ -292,7 +293,7 @@ pub(crate) fn command_status(cmd: &str, args: &[&str]) -> Result<(i32, String)> 
         Ok(output) =>
             if output.status.success() {
                 let s = String::from_utf8(output.stdout)
-                    .context("failed to convert command output to UTF-8")?
+                    .context(failt!("convert command output to UTF-8"))?
                     .trim_end()
                     .to_owned();
 
@@ -303,7 +304,7 @@ pub(crate) fn command_status(cmd: &str, args: &[&str]) -> Result<(i32, String)> 
                 Ok((output.status.code().unwrap_or(-1_i32), s))
             } else {
                 let s = String::from_utf8(output.stderr)
-                    .context("failed to convert command output to UTF-8")?
+                    .context(failt!("convert command output to UTF-8"))?
                     .trim_end()
                     .to_owned();
                 Ok((output.status.code().unwrap_or(-1_i32), s))
@@ -371,12 +372,12 @@ pub(crate) fn reg_walker(app: &Arc<App>, follow_links: bool) -> Result<ignore::W
     for excluded in &app.exclude {
         override_builder
             .add(excluded.as_str())
-            .map_err(|e| anyhow!("Exclude pattern failed to compile: {}", e))?;
+            .map_err(|e| anyhow!("exclude pattern failed to compile: {}", e))?;
     }
 
     let overrides = override_builder
         .build()
-        .map_err(|e| anyhow!("Exclude pattern mismatch: {}", e))?;
+        .map_err(|e| anyhow!("exclude pattern mismatch: {}", e))?;
 
     // if app.ignores.is_some() &&
     // app.ignores.clone().unwrap_or_else(Vec::new).len() > 0 { }
@@ -432,7 +433,7 @@ pub(crate) fn crawler<F, T>(pattern: &Arc<Regex>, app: &Arc<App>, follow_links: 
 where
     F: FnMut(&ignore::DirEntry) -> Result<T> + Send + Sync,
 {
-    let walker = reg_walker(app, follow_links).expect("failed to get `reg_walker` result");
+    let walker = reg_walker(app, follow_links).expect("failed to get `reg_walker` Result");
 
     // TODO: Look into order of execution
     // Scope here does not require ownership of all the variables, or the use of a

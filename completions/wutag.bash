@@ -96,11 +96,11 @@ _wutag() {
                     return 0
                     ;;
                 --color)
-                    COMPREPLY=($(compgen -W "never auto always" -- "${cur}"))
+                    COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
                 -c)
-                    COMPREPLY=($(compgen -W "never auto always" -- "${cur}"))
+                    COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
                 --type)
@@ -251,12 +251,20 @@ _wutag() {
             return 0
             ;;
         wutag__list__files)
-            opts="-t -V -f -b -G -h -v --with-tags --with-values --format --border --garrulous --help --verbose"
+            opts="-t -V -f -b -G -s -r -h -v --with-tags --with-values --format --border --garrulous --sort --relative --help --verbose"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
+                --sort)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -s)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
                 *)
                     COMPREPLY=()
                     ;;

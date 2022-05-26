@@ -11,8 +11,9 @@ use super::super::{
 use anyhow::{Context, Result};
 
 impl Registry {
-    // ============================ Retrieving ============================
-    // ====================================================================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                        Retrieving                        │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Retrieve the number of [`Value`]s in the database
     #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
@@ -90,8 +91,9 @@ impl Registry {
         self.txn_wrap(|txn| txn.select_values_by_fileid_tagid(fid, tid))
     }
 
-    // ============================== Pattern =============================
-    // ====================================================================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                         Pattern                          │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Query for [`Values`] using the `pcre` regex custom function
     pub(crate) fn values_by_pcre(&self, reg: &str) -> Result<Values> {
@@ -118,8 +120,9 @@ impl Registry {
         self.txn_wrap(|txn| txn.select_values_by_iglob(glob))
     }
 
-    // ============================= Modifying ============================
-    // ====================================================================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                        Modifying                         │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Insert a [`Value`] into the database
     pub(crate) fn insert_value<S: AsRef<str>>(&self, name: S) -> Result<Value> {

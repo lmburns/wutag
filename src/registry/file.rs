@@ -18,6 +18,7 @@
 //!     gid INTEGER NOT NULL,
 //!     size INTEGER NOT NULL,
 //!     is_dir BOOLEAN NOT NULL,
+//!     is_symlink BOOLEAN NOT NULL,
 //!
 //!     #[cfg(feature = "file-flags")]
 //!     e2pflags INTEGER NOT NULL,
@@ -30,10 +31,10 @@
 
 use super::{
     querier::ast::query::ParsedQuery,
-    sqlbuilder::{Sort, SqlBuilder},
+    sqlbuilder::SqlBuilder,
     types::{
         file::{File, FileId, FileIds, Files, MimeType},
-        ID,
+        Sort, ID,
     },
     Error, Txn,
 };
@@ -90,6 +91,7 @@ impl Txn<'_> {
     pub(super) fn select_file_count(&self) -> Result<u32> {
         let debug = "retrieving File count";
         log::debug!("{}", debug);
+
         self.select1::<u32>(
             "SELECT count(1)
             FROM file",
@@ -101,11 +103,19 @@ impl Txn<'_> {
     pub(super) fn select_file_max(&self) -> Result<u32> {
         let debug = "retrieving File max";
         log::debug!("{}", debug);
-        self.select1::<u32>(
-            "SELECT max(id)
+
+        let max = self
+            .select1::<u32>(
+                "SELECT max(id)
             FROM file",
-        )
-        .context(fail!("{}", debug))
+            )
+            .context(fail!("{}", debug));
+
+        if max.is_err() {
+            return Ok(0);
+        }
+
+        max
     }
 
     /// Retrieve the number of [`File`]s matching a specific `hash`
@@ -113,6 +123,7 @@ impl Txn<'_> {
         let fp = fp.as_ref();
         let debug = format!("retrieving File({}) count by hash", fp);
         log::debug!("{}", debug);
+
         self.select(
             "SELECT count(id)
             FROM file
@@ -127,6 +138,7 @@ impl Txn<'_> {
     pub(super) fn select_files(&self, sort: Option<Sort>) -> Result<Files> {
         let debug = "querying for Files";
         log::debug!("{}", debug);
+
         let mut builder = SqlBuilder::new();
         builder.append(format!(
             "SELECT
@@ -165,6 +177,7 @@ impl Txn<'_> {
     pub(super) fn select_directories(&self) -> Result<Files> {
         let debug = "querying for Files by directory";
         log::debug!("{}", debug);
+
         let files: Vec<File> = self
             .query_vec(
                 format!(
@@ -746,6 +759,7 @@ impl Txn<'_> {
     pub(super) fn select_files_untagged(&self) -> Result<Files> {
         let debug = "querying for untagged Files";
         log::debug!("{}", debug);
+
         let files: Vec<File> = self
             .query_vec(
                 format!(
@@ -810,9 +824,6 @@ impl Txn<'_> {
     // }
 
     // TODO: ========================================
-    // TODO: MAKE A TEST
-
-    // Unsure if duplicates can be entered into the database?
 
     /// Retrieve the set of `Files` that are duplicates in the database
     pub(crate) fn select_files_duplicates(&self) -> Result<Files> {
@@ -952,8 +963,9 @@ impl Txn<'_> {
         self.select_files_by_iglob("fullpath(directory, name)", glob)
     }
 
-    // ============================= Modifying ============================
-    // ====================================================================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                        Modifying                         │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Insert a [`File`] into the database
     pub(crate) fn insert_file<P: AsRef<Path>>(&self, path: P) -> Result<File> {
@@ -1142,8 +1154,6 @@ impl Txn<'_> {
         Ok(f)
     }
 
-    // TODO: Possibly return `FileId` from every function to log the changes
-
     /// Remove a [`File`] from the database
     pub(super) fn delete_file(&self, id: FileId) -> Result<(), Error> {
         let debug = format!("deleting File({})", cstr!(id));
@@ -1171,6 +1181,7 @@ impl Txn<'_> {
     pub(super) fn delete_files_untagged(&self, ids: &FileIds) -> Result<()> {
         let debug = format!("deleting untagged Files [{}]", ids.iter().join(","));
         log::debug!("{}", debug);
+
         for id in ids.iter() {
             self.execute(
                 "DELETE FROM file

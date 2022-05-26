@@ -149,11 +149,19 @@ macro_rules! path_str {
 
 // Probably a much better way to do these macros
 
-/// A couple characters shorter to write an error message
+/// A couple characters shorter to write an error message ("failed ...ing ...")
 #[macro_export]
 macro_rules! fail {
     ($($arg:tt)*) => ({
         format!("failed {}", format!($($arg)*))
+    })
+}
+
+/// A couple characters shorter to write an error message ("failed to ...")
+#[macro_export]
+macro_rules! failt {
+    ($($arg:tt)*) => ({
+        format!("failed to {}", format!($($arg)*))
     })
 }
 

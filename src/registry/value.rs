@@ -10,12 +10,12 @@
 //! ```
 
 use super::{
-    sqlbuilder::{Sort, SqlBuilder},
+    sqlbuilder::SqlBuilder,
     types::{
         file::FileId,
         tag::TagId,
         value::{Value, ValueId, Values},
-        ID,
+        Sort, ID,
     },
     Error, Txn,
 };
@@ -31,17 +31,22 @@ use rusqlite::{
     Row,
 };
 
-// ================================ Txn ===============================
-// =========================== Value Actions ==========================
+// ╒══════════════════════════════════════════════════════════╕
+//                             Txn
+//                             ---
+//                        Value Actions
+// ╘══════════════════════════════════════════════════════════╛
 
 impl Txn<'_> {
-    // ============================ Retrieving ============================
-    // ====================================================================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                        Retrieving                        │
+    // ╰──────────────────────────────────────────────────────────╯
 
-    /// Retrieve the number of `Value`s in the database
+    /// Retrieve the number of [`Value`]s in the database
     pub(super) fn select_value_count(&self) -> Result<u32> {
-        let debug = "retreiving Value count";
+        let debug = "retrieving Value count";
         log::debug!("{}", debug);
+
         self.select1::<u32>(
             "SELECT count(1)
             FROM value",
@@ -51,8 +56,9 @@ impl Txn<'_> {
 
     /// Retrieve the number of tags a given [`Value`] is associated with
     pub(super) fn select_value_count_by_id(&self, id: ValueId) -> Result<u32> {
-        let debug = format!("retreiving Value({}) count", id);
+        let debug = format!("retrieving Value({}) count", id);
         log::debug!("{}", debug);
+
         let count: u32 = self
             .select(
                 "SELECT count(value_id)
@@ -68,19 +74,28 @@ impl Txn<'_> {
 
     /// Select the maximum [`ID`] from [`Value`]s
     pub(super) fn select_value_max(&self) -> Result<u32> {
-        let debug = "retreiving Value max";
+        let debug = "retrieving Value max";
         log::debug!("{}", debug);
-        self.select1::<u32>(
-            "SELECT max(id)
-            FROM value",
-        )
-        .context(fail!("{}", debug))
+
+        let max = self
+            .select1::<u32>(
+                "SELECT max(id)
+                FROM value",
+            )
+            .context(fail!("{}", debug));
+
+        if max.is_err() {
+            return Ok(0);
+        }
+
+        max
     }
 
-    /// Retrieve all `Value`s in the database
+    /// Retrieve all [`Value`]s in the database
     pub(super) fn select_values(&self) -> Result<Values> {
-        let debug = "retreiving Values";
+        let debug = "retrieving Values";
         log::debug!("{}", debug);
+
         let values: Vec<Value> = self
             .query_vec(
                 "SELECT id, name
@@ -94,10 +109,11 @@ impl Txn<'_> {
         Ok(values.into())
     }
 
-    /// Retrieve the `Value` matching the `ValueId` in the database
+    /// Retrieve the [`Value`] matching the [`ValueId`] in the database
     pub(super) fn select_value(&self, vid: ValueId) -> Result<Value> {
         let debug = format!("querying Value({})", vid);
         log::debug!("{}", debug);
+
         let value: Value = self
             .select(
                 "SELECT id, name
@@ -114,7 +130,7 @@ impl Txn<'_> {
         Ok(value)
     }
 
-    /// Retrieve all `Value`s matching the vector of `ValueId`s
+    /// Retrieve all [`Value`]s matching the vector of [`ValueId`]s
     pub(super) fn select_values_by_valueids(&self, ids: Vec<ValueId>) -> Result<Values, Error> {
         let debug = format!("querying for Value by ID [{}]", ids.iter().join(","));
         log::debug!("{}", debug);
@@ -144,10 +160,11 @@ impl Txn<'_> {
     }
 
     // TEST:
-    /// Retrieve all unused `Value`s within the database
+    /// Retrieve all unused [`Value`]s within the database
     pub(super) fn select_values_unused(&self) -> Result<Values> {
         let debug = "querying for unused Values";
         log::debug!("{}", debug);
+
         let values: Vec<Value> = self
             .query_vec(
                 "SELECT id, name FROM value
@@ -165,7 +182,7 @@ impl Txn<'_> {
         Ok(values.into())
     }
 
-    /// Retrieve a `Value` by its string name
+    /// Retrieve a [`Value`] by its string name
     ///   - **Exact match** searching
     pub(super) fn select_value_by_name<S: AsRef<str>>(
         &self,
@@ -194,7 +211,7 @@ impl Txn<'_> {
         Ok(value)
     }
 
-    /// Retrieve all `Value`s matching a vector of names
+    /// Retrieve all [`Value`]s matching a vector of names
     ///   - **Exact match** searching
     pub(super) fn select_values_by_names<S: AsRef<str>>(
         &self,
@@ -243,6 +260,7 @@ impl Txn<'_> {
     pub(super) fn select_values_by_tagid(&self, tid: TagId) -> Result<Values> {
         let debug = format!("querying for Value by TagId({})", tid);
         log::debug!("{}", debug);
+
         let values: Vec<Value> = self
             .query_vec(
                 "SELECT id, name
@@ -265,6 +283,7 @@ impl Txn<'_> {
     pub(super) fn select_values_by_fileid(&self, fid: FileId) -> Result<Values> {
         let debug = format!("querying for Values by FileId({})", fid);
         log::debug!("{}", debug);
+
         let values: Vec<Value> = self
             .query_vec(
                 "SELECT id, name
@@ -287,6 +306,7 @@ impl Txn<'_> {
     pub(super) fn select_values_by_fileid_tagid(&self, fid: FileId, tid: TagId) -> Result<Values> {
         let debug = format!("querying for Values by FileId({}), TagId({})", fid, tid);
         log::debug!("{}", debug);
+
         let values: Vec<Value> = self
             .query_vec(
                 "SELECT id, name
@@ -305,13 +325,15 @@ impl Txn<'_> {
         Ok(values.into())
     }
 
-    // ============================== Pattern =============================
-    // ====================================================================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                         Pattern                          │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Query for files using a custom function
     fn select_values_by_func(&self, func: &str, reg: &str) -> Result<Values> {
         let debug = format!("querying for Value {}({})", func, reg);
         log::debug!("{}", debug);
+
         let values: Vec<Value> = self
             .query_vec(
                 format!(
@@ -328,27 +350,27 @@ impl Txn<'_> {
         Ok(values.into())
     }
 
-    /// Query for [`Values`] using a the `pcre` regex custom function
+    /// Query for [`Values`] using the `pcre` regex custom function
     pub(super) fn select_values_by_pcre(&self, reg: &str) -> Result<Values> {
         self.select_values_by_func("pcre", reg)
     }
 
-    /// Query for [`Values`] using a the `regex` custom function
+    /// Query for [`Values`] using the `regex` custom function
     pub(super) fn select_values_by_regex(&self, reg: &str) -> Result<Values> {
         self.select_values_by_func("regex", reg)
     }
 
-    /// Query for [`Values`] using a the `iregex` custom function
+    /// Query for [`Values`] using the `iregex` custom function
     pub(super) fn select_values_by_iregex(&self, reg: &str) -> Result<Values> {
         self.select_values_by_func("iregex", reg)
     }
 
-    /// Query for [`Values`] using a the `glob` custom function
+    /// Query for [`Values`] using the `glob` custom function
     pub(super) fn select_values_by_glob(&self, glob: &str) -> Result<Values> {
         self.select_values_by_func("glob", glob)
     }
 
-    /// Query for [`Values`] using a the `iglob` custom function
+    /// Query for [`Values`] using the `iglob` custom function
     pub(super) fn select_values_by_iglob(&self, glob: &str) -> Result<Values> {
         self.select_values_by_func("iglob", glob)
     }
@@ -356,7 +378,7 @@ impl Txn<'_> {
     // ============================= Modifying ============================
     // ====================================================================
 
-    /// Insert a `Value` into the database
+    /// Insert a [`Value`] into the database
     pub(super) fn insert_value<S: AsRef<str>>(&self, name: S) -> Result<Value> {
         let name = name.as_ref();
         log::debug!("inserting Value({})", name);
@@ -370,7 +392,7 @@ impl Txn<'_> {
         Ok(Value::new(ID::new(res), name.to_owned()))
     }
 
-    /// Update the `Value` by changing its' name
+    /// Update the [`Value`] by changing its' name
     pub(super) fn update_value<S: AsRef<str>>(&self, id: ValueId, new: S) -> Result<Value, Error> {
         let name = new.as_ref();
         let debug = format!("updating Value({}) => Value({})", id, new.as_ref());
@@ -394,7 +416,7 @@ impl Txn<'_> {
         Ok(Value::new(id, name.to_owned()))
     }
 
-    /// Remove a `Value` from the database
+    /// Remove a [`Value`] from the database
     pub(super) fn delete_value(&self, id: ValueId) -> Result<(), Error> {
         let debug = format!("deleting Value({})", id);
         log::debug!("{}", debug);

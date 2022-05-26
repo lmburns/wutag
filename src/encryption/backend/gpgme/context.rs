@@ -38,7 +38,7 @@ pub(crate) fn context(config: &EncryptConfig) -> Result<Context, Error> {
 
 /// GPGME crypto context.
 pub(crate) struct Context {
-    /// GPGME crytpography context.
+    /// GPGME cryptography context.
     context: GpgmeContext,
 }
 

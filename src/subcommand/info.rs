@@ -6,6 +6,7 @@
 #![allow(clippy::cast_precision_loss)]
 
 use super::App;
+use crate::{bold_entry, registry::types::tag::DirEntryExt, wutag_error};
 use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
 use cli_table::{
@@ -13,6 +14,7 @@ use cli_table::{
     print_stdout, Cell, ColorChoice, Style, Table,
 };
 use colored::{ColoredString, Colorize};
+use itertools::Itertools;
 use std::{collections::HashMap, fs, os::unix::fs::MetadataExt};
 
 /// Arguments used for the `info` subcommand
@@ -66,7 +68,7 @@ impl App {
             tern::t!(opts.raw ? path : path.yellow().to_string())
         );
 
-        // Filesize
+        // File size
         let label = vec!["b", "Ki", "Mi", "Gi"]; // Gi probably not needed
         let mut i = 0;
         let mut bytes = fs::metadata(reg.path())?.len() as f64;
@@ -101,15 +103,12 @@ impl App {
 
         // File-tag count
         let filetag_count = reg.filetag_count()?;
-        println!("{}: {}", c("Taggings"), filetag_count);
-
-        // Dangling tags
-        println!("{}: {}", c("Dangling tags"), reg.dangling_tags()?.len());
+        println!("{}: {}", c("File-Tag pairs"), filetag_count);
 
         if opts.mean || opts.full {
             println!();
 
-            // Means
+            // Average number of tags per file
             println!(
                 "{}: {:.2}",
                 c("Mean tags per file"),
@@ -120,6 +119,7 @@ impl App {
                 }
             );
 
+            // Average number of files per tag
             println!(
                 "{}: {:.2}",
                 c("Mean files per tag"),
@@ -134,16 +134,63 @@ impl App {
         if opts.deleted || opts.full {
             println!();
 
-            println!("{}: {}", c("Deleted tags"), reg.tag_max()? - tag_count);
-            println!(
-                "{}: {}",
-                c("Deleted values"),
-                reg.value_max()? - value_count
-            );
-            println!("{}: {}", c("Deleted files"), reg.file_max()? - file_count);
-        }
+            if tag_count > 0 {
+                // Dangling tags
+                println!("{}: {}", c("Dangling tags"), reg.dangling_tags()?.len());
 
-        // TODO: List files which don't have xattrs
+                // Deleted tags
+                println!("{}: {}", c("Deleted tags"), reg.tag_max()? - tag_count);
+            }
+
+            if value_count > 0 {
+                // Deleted values
+                println!(
+                    "{}: {}",
+                    c("Deleted values"),
+                    reg.value_max()? - value_count
+                );
+            }
+
+            if file_count > 0 {
+                // Deleted files
+                println!("{}: {}", c("Deleted files"), reg.file_max()? - file_count);
+
+                // Files without extended attributes
+                let mut no_xattr = vec![];
+                let files = reg.files(None)?;
+
+                for file in files.iter() {
+                    let path = file.path();
+
+                    if let Ok(tags) = (&path).list_tags() {
+                        if tags.is_empty() {
+                            no_xattr.push(path);
+                        }
+                    } else {
+                        wutag_error!("{}: failed to get Tags", bold_entry!(path));
+                    }
+                }
+
+                let to_print = no_xattr
+                    .iter()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .join("\n  - ");
+
+                if !no_xattr.is_empty() {
+                    println!("{}: \n  - {}", c("Files without xattrs"), to_print);
+                }
+
+                // println!(
+                //     "{}: {}",
+                //     c("Files without xattrs"),
+                //     tern::t!(
+                //         to_print.is_empty()
+                //             ? "None".to_owned()
+                //             : format!("\n  - {}", to_print)
+                //     )
+                // );
+            }
+        }
 
         Ok(())
     }

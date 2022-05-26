@@ -2,13 +2,13 @@
 
 use super::super::{
     common::path::FsPath,
-    sqlbuilder::Sort,
     transaction::Txn,
     types::{
         file::FileId,
         filetag::{FileTag, FileTags},
         tag::TagId,
         value::ValueId,
+        Sort,
     },
     Error, Registry,
 };
@@ -17,8 +17,9 @@ use colored::Colorize;
 use std::path::Path;
 
 impl Registry {
-    // ============================ Retrieving ============================
-    // ====================================================================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                        Retrieving                        │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Check whether the given [`File`] has the given [`Tag`]
     ///
@@ -76,8 +77,9 @@ impl Registry {
         self.txn_wrap(|txn| txn.select_filetags_by_fileid(id))
     }
 
-    // ============================= Modifying ============================
-    // ====================================================================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                        Modifying                         │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Add a [`FileTag`] to the database
     pub(crate) fn insert_filetag(&self, ft: &FileTag) -> Result<FileTag> {
@@ -149,7 +151,7 @@ impl Registry {
         self.wrap_commit(|txn| txn.copy_filetags(src, dest))
     }
 
-    /// Copy one [`FileTag`] to another by source [`FileTag`] and dest
+    /// Copy one [`FileTag`] to another by source [`FileTag`] and `dest`
     /// [`FileId`]
     pub(crate) fn copy_filetag_fileid(&self, src: &FileTag, dest: FileId) -> Result<()> {
         self.wrap_commit(|txn| txn.copy_filetag_fileid(src, dest))

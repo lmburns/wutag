@@ -17,7 +17,7 @@ use super::{
     },
     from_vec, impl_vec, ID,
 };
-use crate::{filesystem::ext4::FileFlag, inner_immute};
+use crate::{fail, filesystem::ext4::FileFlag, inner_immute};
 use anyhow::{Context, Result};
 use chrono::{DateTime, Local};
 use lexiclean::Lexiclean;
@@ -45,7 +45,9 @@ use rusqlite::{
 ))]
 use e2p_fileflags::{FileFlags, Flags};
 
-// ======================== ID ========================
+// ╭──────────────────────────────────────────────────────────╮
+// │                            ID                            │
+// ╰──────────────────────────────────────────────────────────╯
 
 /// Alias to [`ID`](super::ID)
 pub(crate) type FileId = ID;
@@ -59,7 +61,9 @@ pub(crate) struct FileIds {
 from_vec!(FileId, FileIds);
 impl_vec!(FileIds, FileId);
 
-// ======================= File =======================
+// ╭──────────────────────────────────────────────────────────╮
+// │                           File                           │
+// ╰──────────────────────────────────────────────────────────╯
 
 /// Representation of a file on the filesystem
 #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
@@ -73,7 +77,7 @@ pub(crate) struct File {
     /// is above the chosen directory. If the item is a file, then this will be
     /// the parent directory that houses that file
     directory:     String,
-    /// Basename of the filepath. This can be a file or a directory name
+    /// Basename of the file-path. This can be a file or a directory name
     name:          String,
     /// [`blake3`](blake3) hash of the file or directory
     hash:          String,
@@ -138,7 +142,7 @@ impl File {
         let mut p = path.as_ref().lexiclean();
 
         if follow_links {
-            p = p.canonicalize().context("failed to canonicalize path")?;
+            p = p.canonicalize().context(fail!("canonicalize path"))?;
         }
 
         Ok(p)
@@ -159,7 +163,7 @@ impl File {
     pub(crate) fn set_directory(mut self, path: &Path) -> Result<Self> {
         self.directory = path
             .parent()
-            .context("failed to get parent")?
+            .context(fail!("get parent"))?
             .to_string_lossy()
             .to_string();
 
@@ -170,7 +174,7 @@ impl File {
     pub(crate) fn set_filename(mut self, path: &Path) -> Result<Self> {
         self.name = path
             .file_name()
-            .context("failed to get file name")?
+            .context(fail!("get file name"))?
             .to_string_lossy()
             .to_string();
 
@@ -198,7 +202,7 @@ impl File {
     pub(crate) fn set_mime(mut self, path: &Path) -> Result<Self> {
         // Doesn't matter if symlink is followed when finding the mime
         let path = Self::clean_path(path, true)?;
-        self.mime = MimeType::try_from(&path).context("failed to get mimetype")?;
+        self.mime = MimeType::try_from(&path).context(fail!("getting mime-type"))?;
 
         Ok(self)
     }
@@ -206,13 +210,13 @@ impl File {
     /// Modify the [`File`]s modification time, due to file changes
     pub(crate) fn set_mtime(mut self, meta: &Metadata) -> Result<Self> {
         self.mtime =
-            convert_to_datetime(meta.modified().context("failed to get modification time")?);
+            convert_to_datetime(meta.modified().context(fail!("getting modification time"))?);
         Ok(self)
     }
 
     /// Modify the [`File`]s creation time. Shouldn't really ever change
     pub(crate) fn set_ctime(mut self, meta: &Metadata) -> Result<Self> {
-        self.ctime = convert_to_datetime(meta.created().context("failed to get created time")?);
+        self.ctime = convert_to_datetime(meta.created().context(fail!("getting created time"))?);
         Ok(self)
     }
 
@@ -220,7 +224,7 @@ impl File {
     pub(crate) fn set_mode(mut self, meta: &Metadata) -> Self {
         self.mode = format!("{:o}", meta.permissions().mode())
             .parse::<u32>()
-            .expect("failed to parse octal digits");
+            .expect("failed parsing octal digits");
         self
     }
 
@@ -269,8 +273,8 @@ impl File {
     /// Modify the [`File`]s [`Metadata`] attributes
     pub(crate) fn set_metadata(mut self, meta: &Metadata) -> Result<Self> {
         self.mtime =
-            convert_to_datetime(meta.modified().context("failed to get modification time")?);
-        self.ctime = convert_to_datetime(meta.created().context("failed to get created time")?);
+            convert_to_datetime(meta.modified().context(fail!("getting modification time"))?);
+        self.ctime = convert_to_datetime(meta.created().context(fail!("getting created time"))?);
         self.mode = format!("{:o}", meta.permissions().mode())
             .parse::<u32>()
             .expect("failed to parse octal digits");;
@@ -283,7 +287,7 @@ impl File {
         Ok(self)
     }
 
-    /// Modify the [`File`]s `ext4` flags, due to flag chagnes
+    /// Modify the [`File`]s `ext4` flags, due to flag changes
     ///
     /// Note that symlinks are empty
     #[cfg(all(
@@ -299,9 +303,9 @@ impl File {
     /// Create a new `File`. A file can be a directory
     pub(crate) fn new<P: AsRef<Path>>(path: P, follow_links: bool) -> Result<Self> {
         let path = Self::clean_path(path, follow_links)?;
-        // let meta = file.metadata().context("failed to get file metadata")?;
-        let file = fs::File::open(&path).context("failed to open file")?;
-        let meta = fs::symlink_metadata(&path).context("failed to get symlink metadata")?;
+        // let meta = file.metadata().context(fail!("getting file metadata"))?;
+        let file = fs::File::open(&path).context(fail!("opening file"))?;
+        let meta = fs::symlink_metadata(&path).context(fail!("getting symlink metadata"))?;
 
         let mut f = Self::default()
             .set_directory(&path)?
@@ -317,7 +321,7 @@ impl File {
             target_family = "unix",
             not(target_os = "macos")
         ))]
-        let f = f.set_e2pflags(file.flags().context("failed to get the file's flags")?);
+        let f = f.set_e2pflags(file.flags().context(fail!("getting the file's flags"))?);
 
         // .set_mtime(&meta)?
         // .set_ctime(&meta)?
@@ -399,7 +403,9 @@ impl Default for File {
 // self.get_last_update_string(), self.get_remind_interval_string()])     }
 // }
 
-// ======================= Files ======================
+// ╭──────────────────────────────────────────────────────────╮
+// │                          Files                           │
+// ╰──────────────────────────────────────────────────────────╯
 
 /// A vector of [`File`]s
 #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
@@ -426,7 +432,9 @@ impl Files {
     }
 }
 
-// ==================== FileTagCnt ====================
+// ╭──────────────────────────────────────────────────────────╮
+// │                        FileTagCnt                        │
+// ╰──────────────────────────────────────────────────────────╯
 
 /// Struct holding information about a [`File`]'s number of tags
 #[derive(Debug, Clone)]
@@ -447,7 +455,9 @@ pub(crate) struct FileTagCnt {
 //     }
 // }
 
-// ===================== MimeType =====================
+// ╭──────────────────────────────────────────────────────────╮
+// │                         MimeType                         │
+// ╰──────────────────────────────────────────────────────────╯
 
 /// [`Mime`](mime::Mime) wrapper for custom methods
 #[derive(Debug, Clone, Hash, PartialOrd, Ord, PartialEq, Eq)]
@@ -463,13 +473,11 @@ macro_rules! mime_try {
                 let mut builder = mime_db.guess_mime_type();
                 let guess = builder
                     .path(path)
-                    .metadata(fs::metadata(path).with_context(|| {
-                        format!("failed to get metadata for: {}", path.display())
-                    })?)
-                    .data(
-                        &fs::read(path)
-                            .with_context(|| format!("failed to read file: {}", path.display()))?,
+                    .metadata(
+                        fs::metadata(path)
+                            .context(fail!("getting metadata for: {}", path.display()))?,
                     )
+                    .data(&fs::read(path).context(fail!("reading file: {}", path.display()))?)
                     .guess();
 
                 let mime = guess.mime_type();
@@ -488,7 +496,7 @@ impl FromStr for MimeType {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(Mime::from_str(s).context("failed to get mime")?))
+        Ok(Self(Mime::from_str(s).context(fail!("getting mime"))?))
     }
 }
 

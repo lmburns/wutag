@@ -3,7 +3,6 @@
 use super::super::{
     types::{
         file::FileId,
-        implication::{Implication, Implications},
         query::{Queries, Query},
         tag::{TagId, TagValueCombo, TagValueCombos},
         value::ValueId,
@@ -14,9 +13,9 @@ use anyhow::{anyhow, Context, Result};
 use colored::Colorize;
 
 impl Registry {
-    // ╒══════════════════════════════════════════════════════════╕
-    //                          Retrieving
-    // ╘══════════════════════════════════════════════════════════╛
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                        Retrieving                        │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Return all [`Query`] in the database
     #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
@@ -29,9 +28,9 @@ impl Registry {
         self.txn_wrap(|txn| txn.query(q))
     }
 
-    // ╒══════════════════════════════════════════════════════════╕
-    //                          Modifying
-    // ╘══════════════════════════════════════════════════════════╛
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                        Modifying                         │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Insert a [`Query`] into the query table. Returns a [`Query`]
     pub(crate) fn insert_query<S: AsRef<str>>(&self, q: S) -> Result<Query> {

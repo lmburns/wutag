@@ -1,6 +1,6 @@
 //! Operations on paths of [`File`]s
 
-use crate::path_str;
+use crate::{fail, failt, path_str};
 use anyhow::{Context, Result};
 use lexiclean::Lexiclean;
 use once_cell::sync::Lazy;
@@ -17,7 +17,7 @@ pub(crate) struct FsPath {
 }
 
 impl FsPath {
-    /// Return the innerr [`PathBuf`]
+    /// Return the inner [`PathBuf`]
     pub(crate) fn path(&self) -> &Path {
         &self.path
     }
@@ -35,29 +35,31 @@ impl FsPath {
 
     /// Dereference a symbolic link
     pub(crate) fn dereference(&self) -> Result<PathBuf> {
-        self.path.canonicalize().context("failed to canonicalize")
+        self.path
+            .canonicalize()
+            .context(failt!("canonicalize path"))
     }
 
     /// Return the difference in the `CWD` and the [`FsPath`]
     pub(crate) fn complete_relative(&self) -> Result<PathBuf> {
-        let path = self.path.canonicalize().context("failed to canonicalize")?;
+        let path = self.dereference()?;
         let cwd = env::current_dir()
-            .context("failed to get CWD")?
+            .context(fail!("getting CWD"))?
             .canonicalize()?;
 
         if path == cwd {
             return Ok(PathBuf::from("."));
         }
 
-        let diff = pathdiff::diff_paths(path, cwd).context("failed to get path diffs")?;
+        let diff = pathdiff::diff_paths(path, cwd).context(fail!("getting path diffs"))?;
         Ok(diff)
     }
 
     /// Return the relative path of the file to the `CWD`
     pub(crate) fn relative(&self) -> Result<PathBuf> {
-        let path = self.path.canonicalize().context("failed to canonicalize")?;
+        let path = self.dereference()?;
         let cwd = env::current_dir()
-            .context("failed to get CWD")?
+            .context(fail!("getting CWD"))?
             .canonicalize()?;
 
         if path == cwd {
@@ -90,7 +92,7 @@ impl FsPath {
             )));
         }
 
-        let cwd = cwd.parent().context("failed to get parent")?;
+        let cwd = cwd.parent().context(failt!("getting parent of CWD"))?;
         let prefix = trailing_separator(cwd);
         let s_prefix = path_str!(prefix);
         if s_path.starts_with(&s_prefix) {

@@ -4,20 +4,17 @@
 //! Schema of table:
 //! ```sql
 //! CREATE TABLE IF NOT EXISTS file_tag (
-//!     file_id INTEGER NOT NULL,
-//!     tag_id INTEGER NOT NULL,
-//!     value_id INTEGER NOT NULL,
-//!     PRIMARY KEY (file_id, tag_id, value_id),
-//!     FOREIGN KEY (file_id) REFERENCES file(id),
-//!     FOREIGN KEY (tag_id) REFERENCES tag(id),
-//!     FOREIGN KEY (value_id) REFERENCES value(id)
+//!    file_id INTEGER NOT NULL,
+//!    tag_id INTEGER NOT NULL,
+//!    value_id INTEGER NOT NULL,
+//!    PRIMARY KEY (file_id, tag_id, value_id),
+//!    FOREIGN KEY (file_id) REFERENCES file(id),
+//!    FOREIGN KEY (tag_id) REFERENCES tag(id),
+//!    FOREIGN KEY (value_id) REFERENCES value(id)
 //! );
-//! CREATE INDEX IF NOT EXISTS idx_file_tag_file_id
-//! ON file_tag(file_id);
-//! CREATE INDEX IF NOT EXISTS idx_file_tag_tag_id
-//! ON file_tag(tag_id);
-//! CREATE INDEX IF NOT EXISTS idx_file_tag_value_id
-//! ON file_tag(value_id);
+//! CREATE INDEX IF NOT EXISTS idx_file_tag_file_id ON file_tag(file_id);
+//! CREATE INDEX IF NOT EXISTS idx_file_tag_tag_id ON file_tag(tag_id);
+//! CREATE INDEX IF NOT EXISTS idx_file_tag_value_id ON file_tag(value_id);
 //! ```
 
 use super::{
@@ -40,12 +37,16 @@ use rusqlite::{
     Row,
 };
 
-// ================================ Txn ===============================
-// ========================== FileTag Actions =========================
+// ╒══════════════════════════════════════════════════════════╕
+//                             Txn
+//                             ---
+//                        FileTag Actions
+// ╘══════════════════════════════════════════════════════════╛
 
 impl Txn<'_> {
-    // ============================ Retrieving ============================
-    // ====================================================================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                        Retrieving                        │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Check whether the given [`File`] has a specified [`Tag`]
     ///
@@ -66,10 +67,10 @@ impl Txn<'_> {
             .context(fail!("{}", debug))?;
 
         if count > 0 {
-            Ok(true)
-        } else {
-            Ok(false)
+            return Ok(true);
         }
+
+        Ok(false)
 
         // Err(Error::NonexistentFileTag(
         //     ft.file_id(),
@@ -149,6 +150,7 @@ impl Txn<'_> {
     pub(super) fn select_filetag_count_by_tagid(&self, tid: TagId) -> Result<u32> {
         let debug = format!("retrieving FileTag count by TagId({})", tid);
         log::debug!("{}", debug);
+
         self.select(
             "SELECT count(1)
             FROM file_tag
@@ -228,10 +230,11 @@ impl Txn<'_> {
         Ok(filetags.into())
     }
 
-    // ============================= Modifying ============================
-    // ====================================================================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                        Modifying                         │
+    // ╰──────────────────────────────────────────────────────────╯
 
-    /// Insert a `File`-`Tag` pair to the database
+    /// Insert a [`File`]-[`Tag`] pair to the database
     /// Returns the same [`FileTag`] that is passed
     pub(super) fn insert_filetag(&self, ft: &FileTag) -> Result<FileTag> {
         log::debug!("inserting FileTag({})", ft);

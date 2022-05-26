@@ -1,9 +1,12 @@
 //! Structure that holds an `SQL` query and its parameters
 
-use super::querier::ast::{
-    query::ParsedQuery,
-    search::{Search, SearchKind},
-    BinaryExpr, ComparisonOp, Expr, LogicalOp, UnaryExpr, UnaryOp,
+use super::{
+    querier::ast::{
+        query::ParsedQuery,
+        search::{Search, SearchKind},
+        BinaryExpr, ComparisonOp, Expr, LogicalOp, UnaryExpr, UnaryOp,
+    },
+    types::Sort,
 };
 use crate::fail;
 use anyhow::{anyhow, Context, Result};
@@ -20,7 +23,9 @@ use std::{
     path::Path,
 };
 
-// ============================ SqlBuilder ============================
+// ╭──────────────────────────────────────────────────────────╮
+// │                        SqlBuilder                        │
+// ╰──────────────────────────────────────────────────────────╯
 
 /// Builder for an `SQL` query
 pub(crate) struct SqlBuilder<'a> {
@@ -143,7 +148,9 @@ impl<'a> SqlBuilder<'a> {
         ignore.then(|| " COLLATE unicase ").unwrap_or("")
     }
 
-    // ========================== Query Language ==========================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                      Query Language                      │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Start a query for files, returning the count
     pub(crate) fn file_count_query<P: AsRef<Path>>(
@@ -325,37 +332,5 @@ impl fmt::Debug for SqlBuilder<'_> {
             .field("pidx", &self.pidx)
             .field("comma", &self.comma)
             .finish()
-    }
-}
-
-// ============================== Sort ===============================
-
-/// The method in which the files should be sorted in the database
-#[derive(Debug, Copy, Clone)]
-pub(crate) enum Sort {
-    /// Sort by the `File` id
-    Id,
-    /// Sort by the `File` name
-    Name,
-    /// Sort by the `File` `mtime`
-    ModificationTime,
-    /// Sort by the `File` `ctime`
-    CreationTime,
-    /// Sort by the `File` `size`
-    FileSize,
-    /// Do not sort the `File`s
-    None,
-}
-
-impl fmt::Display for Sort {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Sort::Id => f.write_str(" ORDER BY id"),
-            Sort::Name => f.write_str(" ORDER BY directory || '/' || name"),
-            Sort::ModificationTime => f.write_str(" ORDER BY mtime, directory || '/' || name"),
-            Sort::CreationTime => f.write_str(" ORDER BY ctime, directory || '/' || name"),
-            Sort::FileSize => f.write_str(" ORDER BY size, directory || '/' || name"),
-            Sort::None => f.write_str(""),
-        }
     }
 }

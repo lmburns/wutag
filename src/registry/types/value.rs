@@ -35,7 +35,7 @@ impl_vec!(ValueIds, ValueId);
 // │                          Value                           │
 // ╰──────────────────────────────────────────────────────────╯
 
-/// The representation of a "`Tag`'s tag"
+/// The representation of a "[`Tag`]'s tag"
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub(crate) struct Value {
     /// The value's unique identifier

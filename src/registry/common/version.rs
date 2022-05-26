@@ -2,6 +2,7 @@
 
 #![allow(unused)]
 
+use crate::failt;
 use anyhow::{Context, Result};
 use rusqlite::{
     self as rsq,
@@ -10,7 +11,9 @@ use rusqlite::{
 use std::{fmt, str::FromStr};
 use thiserror::Error;
 
-// ===================== Version ======================
+// ╭──────────────────────────────────────────────────────────╮
+// │                         Version                          │
+// ╰──────────────────────────────────────────────────────────╯
 
 /// Crate version -- used for making sure the user's database schema is up to
 /// date and will be compatible with the current version of `wutag`
@@ -44,9 +47,9 @@ impl Version {
             .collect::<Vec<_>>();
 
         Ok(Self {
-            major: *(split.get(0).context("failed to get major")?),
-            minor: *(split.get(1).context("failed to get minor")?),
-            patch: *(split.get(2).context("failed to get patch")?),
+            major: *(split.get(0).context(failt!("get major"))?),
+            minor: *(split.get(1).context(failt!("get minor"))?),
+            patch: *(split.get(2).context(failt!("get patch"))?),
         })
     }
 

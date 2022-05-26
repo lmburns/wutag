@@ -37,6 +37,7 @@ use crate::{
     cassert_eq,
     consts::encrypt::REGISTRY_UMASK,
     directories::PROJECT_DIRS,
+    fail, failt,
     util::{contains_upperchar, prompt},
     wutag_error, wutag_fatal, wutag_info,
 };
@@ -130,7 +131,9 @@ pub(crate) enum Error {
 //     v.iter().map(|p| p as &dyn rusqlite::ToSql).collect()
 // }
 
-// ========================== Registry ==========================
+// ╭──────────────────────────────────────────────────────────╮
+// │                         Registry                         │
+// ╰──────────────────────────────────────────────────────────╯
 
 // TODO: Possibly start using 'ON CONFLICT'
 
@@ -182,8 +185,8 @@ impl Registry {
 
             // let conn = Connection::open(&registry)?;
 
-            /// SQLITE_OPEN_SHARED_CACHE: shared cache enabled
-            /// SQLITE_OPEN_FULL_MUTEX: "serialized" threading mode
+            // SQLITE_OPEN_SHARED_CACHE: shared cache enabled
+            // SQLITE_OPEN_FULL_MUTEX: "serialized" threading mode
             // Others are default
             let conn = Connection::open_with_flags(
                 &registry,
@@ -220,6 +223,7 @@ impl Registry {
 
     /// Close the SQL connection
     pub(crate) fn close(self) -> Result<(), Error> {
+        log::debug!("closing the Registry({})", self.path.display());
         self.conn.close().map_err(|e| Error::CloseConnection(e.1))
     }
 
@@ -227,6 +231,7 @@ impl Registry {
     /// is made which may involve a call to a `regex`/`glob` function
     #[rustfmt::skip]
     pub(crate) fn init(&self) -> Result<()> {
+        log::debug!("initializing Registry({})", self.path.display());
         self.conn.busy_timeout(std::time::Duration::from_secs(0))?;
         self.conn.pragma_update(None, "locking_mode", &"exclusive")?;
         self.conn.pragma_update(None, "legacy_file_format", &false)?;
@@ -297,7 +302,7 @@ impl Registry {
 
         self.conn
             .create_collation("unicase", |s1, s2| UniCase::new(s1).cmp(&UniCase::new(s2)))
-            .context("failed to create `unicase` collation")?;
+            .context(fail!("creating Unicase collation"))?;
 
         Ok(())
     }
@@ -322,7 +327,7 @@ impl Registry {
 
         self.conn
             .execute(sql, params)
-            .context(format!("failed to execute command: {}", sql))?;
+            .context(failt!("execute command: {}", sql))?;
 
         Ok(())
     }
@@ -358,10 +363,10 @@ impl Registry {
         let mut stmt = self
             .conn
             .prepare_cached(sql)
-            .context(format!("failed to prepare sql: {}", sql))?;
+            .context(failt!("prepare sql: {}", sql))?;
 
         stmt.insert(params)
-            .context(format!("failed to insert item: {}", sql))?;
+            .context(fail!("inserting item: {}", sql))?;
 
         Ok(())
     }
@@ -384,14 +389,14 @@ impl Registry {
             "Registry".purple(),
             sql
         );
-        let error = format!("failed to select row: {}", sql);
 
         let mut stmt = self
             .conn
             .prepare_cached(sql)
-            .context(format!("failed to prepare sql: {}", sql))?;
+            .context(failt!("prepare sql: {}", sql))?;
 
-        stmt.query_row(params, f).context(error)
+        stmt.query_row(params, f)
+            .context(failt!("select row: {}", sql))
     }
 
     /// Select all matching rows. Implements a function on each of these
@@ -415,13 +420,13 @@ impl Registry {
         let mut stmt = self
             .conn
             .prepare_cached(sql)
-            .context(format!("failed to prepare sql: {}", sql))?;
+            .context(failt!("prepare sql: {}", sql))?;
         let mut rows = stmt
             .query(params)
-            .context(format!("failed to query row(s): {}", sql))?;
+            .context(fail!("querying row(s): {}", sql))?;
 
         let mut v = Vec::<T>::new();
-        while let Some(row) = rows.next().context("failed to get next item")? {
+        while let Some(row) = rows.next().context(fail!("getting next item"))? {
             v.push(f(row));
         }
 
@@ -434,18 +439,17 @@ impl Registry {
 
     /// Remove the database file
     pub(crate) fn clean_db(&self) -> Result<()> {
-        fs::remove_file(&self.path).context(format!(
-            "failed to remove database: {}",
-            self.path.display()
-        ))?;
+        log::debug!("deleting Registry({})", self.path.display());
+        fs::remove_file(&self.path).context(fail!("removing database: {}", self.path.display()))?;
 
         Ok(())
     }
 
     /// Recreate the `version` table
     pub(crate) fn recreate_version_table(&self) -> Result<()> {
+        log::debug!("recreating Version table");
         self.exec_no_params("DROP TABLE version")
-            .context("failed to drop `version` table")?;
+            .context(fail!("dropping Version table"))?;
 
         self.create_version_table()?;
         self.insert_version()?;
@@ -549,7 +553,7 @@ impl Registry {
     // chrono::Local::now() - x;                 Ok(from.to_string())
     //             },
     //         )
-    //         .context("failed to create `recent` function")
+    //         .context(fail!("creating `recent` function"))
     // }
 
     /// Return a `String` from a user-defined-function
@@ -599,7 +603,7 @@ impl Registry {
                     Ok(format!("{}/{}", dir, fname))
                 },
             )
-            .context("failed to create `fullpath` function")
+            .context(fail!("creating `fullpath` function"))
     }
 
     // TODO: Combine with `Search`
@@ -672,7 +676,7 @@ impl Registry {
                     Ok(matched)
                 },
             )
-            .context(format!("failed to create `{}` function", fname))
+            .context(fail!("creating `{}` function", fname))
     }
 
     /// Add regular expression functions to the database.
@@ -684,13 +688,13 @@ impl Registry {
     ///   - `iglob`:  case insensitive: true
     pub(crate) fn add_regex_funcs(&self) -> Result<()> {
         self.add_pattern_func("regex", false, false)
-            .context("failed to build `regex` func")?;
+            .context(fail!("building `regex` func"))?;
         self.add_pattern_func("iregex", true, false)
-            .context("failed to build `iregex` func")?;
+            .context(fail!("building `iregex` func"))?;
         self.add_pattern_func("glob", false, true)
-            .context("failed to build `glob` func")?;
+            .context(fail!("building `glob` func"))?;
         self.add_pattern_func("iglob", true, true)
-            .context("failed to build `iglob` func")?;
+            .context(fail!("building `iglob` func"))?;
 
         Ok(())
     }
@@ -734,7 +738,7 @@ impl Registry {
                     Ok(matched)
                 },
             )
-            .context("failed to create `pcre` function")
+            .context(fail!("creating `pcre` function"))
     }
 
     /// Add a [`blake3`] hashing function to the database. This hashes the given
@@ -755,7 +759,7 @@ impl Registry {
                     Ok(blake3_hash_text(text))
                 },
             )
-            .context("failed to create `blake3` function")
+            .context(fail!("creating `blake3` function"))
     }
 
     // TODO: Maybe delete
@@ -789,7 +793,7 @@ impl Registry {
                     Ok(hash.to_string())
                 },
             )
-            .context("failed to create `blake3` function")
+            .context(fail!("creating `blake3` function"))
     }
 }
 
@@ -833,10 +837,8 @@ pub(crate) fn set_perms<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
     let path = path.as_ref();
     let mut perms = fs::metadata(&path)?.permissions();
     perms.set_mode(*REGISTRY_UMASK);
-    fs::set_permissions(&path, perms).context(format!(
-        "failed to set permissions on database: {}",
-        path.display()
-    ))?;
+    fs::set_permissions(&path, perms)
+        .context(fail!("setting permissions on database: {}", path.display()))?;
 
     Ok(path.to_path_buf())
 }

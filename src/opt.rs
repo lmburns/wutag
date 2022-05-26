@@ -1,11 +1,15 @@
 //! Options used by the main executable
+use anyhow::{anyhow, Result};
+use atty::Stream;
 use clap::{crate_version, AppSettings, Parser, Subcommand, ValueHint};
-use std::{env, fs, path::PathBuf};
+use cli_table::ColorChoice;
+use std::{env, fs, path::PathBuf, str::FromStr};
 
 use crate::{
     consts::{
         AFTER_HELP, APP_ABOUT, APP_AUTHORS, DEFAULT_EDITOR, FILE_TYPE, OVERRIDE_HELP, RM_LONG_HELP,
     },
+    registry::types::Sort,
     subcommand::{
         clear::ClearOpts,
         cp::CpOpts,
@@ -21,8 +25,7 @@ use crate::{
     },
 };
 
-// INFO: Fully qualified path is needed after adding 'notify-rust' to
-// dependencies
+// INFO: Fully qualified path is needed after adding 'notify-rust'
 
 /// Command-line options
 #[derive(Parser, Default, Clone, Debug, PartialEq)]
@@ -205,12 +208,10 @@ pub(crate) struct Opts {
         long = "color",
         short = 'c',
         value_name = "when",
-        possible_values = &["never", "auto", "always"],
         long_help = "\
-        When to colorize output (usually meant for piping). Valid values are: always, \
-        auto, never. The always selection only applies to the path as of now."
+        When to colorize output. Valid values are: always, auto, never"
     )]
-    pub(crate) color_when: Option<String>,
+    pub(crate) color_when: Option<Colorization>,
 
     /// File-type(s) to filter by: f|file, d|directory, l|symlink, e|empty
     #[clap(
@@ -329,6 +330,8 @@ impl Default for Command {
                 formatted:   true,
                 border:      false,
                 garrulous:   false,
+                sort:        Sort::None,
+                relative:    false,
             },
             raw:    false,
         })
@@ -344,6 +347,10 @@ impl Default for Command {
 //         ).as_str()
 //     })
 // }
+
+// ╭──────────────────────────────────────────────────────────╮
+// │                        Subcommand                        │
+// ╰──────────────────────────────────────────────────────────╯
 
 // For subcommand inference and aliases to coexist, the subcommand inferences
 // must be listed as aliases
@@ -447,3 +454,94 @@ pub(crate) enum Command {
     )]
     Ui,
 }
+
+// ╭──────────────────────────────────────────────────────────╮
+// │                       Colorization                       │
+// ╰──────────────────────────────────────────────────────────╯
+
+/// When to colorize the output
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub(crate) enum Colorization {
+    Always,
+    Never,
+    Auto,
+}
+
+impl From<Colorization> for ColorChoice {
+    fn from(c: Colorization) -> Self {
+        match c {
+            Colorization::Always => Self::Always,
+            Colorization::Never => Self::Never,
+            Colorization::Auto => Self::Auto,
+        }
+    }
+}
+
+impl Default for Colorization {
+    fn default() -> Self {
+        Self::Auto
+    }
+}
+
+impl FromStr for Colorization {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, anyhow::Error> {
+        match s.to_ascii_lowercase().trim() {
+            "always" => Ok(Self::Always),
+            "never" => Ok(Self::Never),
+            "auto" =>
+                if env::var_os("NO_COLOR").is_none() && atty::is(Stream::Stdout) {
+                    Ok(Self::Auto)
+                } else {
+                    Ok(Self::Never)
+                },
+            _ => Err(anyhow!(
+                "\
+Valid values are:
+    - auto
+    - always
+    - never",
+            )),
+        }
+    }
+}
+
+// TODO: USE OR DELETE
+// "f", "file",
+// "d", "dir",
+// "l", "symlink",
+// "b", "block",
+// "c", "char",
+// "s", "socket",
+// "p", "fifo",
+// "x", "executable",
+// "e", "empty",
+
+// #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+// pub(crate) enum FileType {
+//     File,
+//     Directory,
+//     Symlink,
+//     BlockDevice,
+//     CharacterDevice,
+//     Socket,
+//     Fifo,
+//     Executable,
+//     Empty,
+// }
+
+// impl FromStr for FileType {
+//     type Err = anyhow::Error;
+//
+//     fn from_str(s: &str) -> Result<Self, anyhow::Error> {
+//         match s.to_ascii_lowercase().trim() {
+//             "file" | "f" => Ok(Self::Always),
+//             _ => Err(anyhow!(
+//                 "\
+// Valid values are:
+//     - auto
+//     - always
+//     - never", )), }
+//     }
+// }

@@ -12,7 +12,7 @@ use super::{
     },
     Registry,
 };
-use crate::filesystem as wfs;
+use crate::{fail, failt, filesystem as wfs};
 use anyhow::{Context, Result};
 use rusqlite::{self as rsq, params, Connection};
 use std::{env, os::unix::prelude::MetadataExt, path::PathBuf, str::FromStr};
@@ -106,7 +106,7 @@ fn txn_glob_matching() -> Result<()> {
                 params![],
                 |row| row.try_into().expect("failed to convert to `File`"),
             )
-            .context("failed to query for `File` with regex: ")?;
+            .context(failt!("query for `File` with regex: "))?;
 
         first_idx!(files);
 
@@ -257,7 +257,7 @@ fn txn_file_flags() -> Result<()> {
         mfile.set_flags(Flags::COMPR | flags)?;
 
         let new = txn.update_file(
-            og_files.get(0).context("failed to get first idx")?.id,
+            og_files.get(0).context(fail!("getting first idx"))?.id,
             &mfile,
         )?;
 
@@ -267,7 +267,7 @@ fn txn_file_flags() -> Result<()> {
         let selmore = txn.select_files_by_flag("ec")?;
         let e2pf = selmore
             .get(0)
-            .context("failed to get first idx")?
+            .context(fail!("getting first idx"))?
             .e2pflags();
         assert!(e2pf.has_extent(), "file does not have extent flag");
         assert!(e2pf.has_compressed(), "file does not have compressed flag");
@@ -358,7 +358,7 @@ fn txn_filetag_select() -> Result<()> {
         assert_eq!(txn.select_filetag_count()?, 1);
 
         let new = txn.select_filetags()?;
-        assert_eq!(*new.get(0).context("failed to get first idx")?, ftag);
+        assert_eq!(*new.get(0).context(fail!("getting first idx"))?, ftag);
 
         let ftag2 = FileTag::new(FileId::new(1), TagId::new(2), ValueId::new(2));
         txn.insert_filetag(&ftag2)?;

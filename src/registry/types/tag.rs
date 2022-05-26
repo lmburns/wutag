@@ -1,9 +1,6 @@
 //! A wrapper around the [`Tag`] found in [`wutag_core`]
 
-use super::{
-    filetag::FileTag, from_vec, impl_vec, implication::Implication, validate_name, value::ValueId,
-    ID,
-};
+use super::{filetag::FileTag, from_vec, impl_vec, validate_name, value::ValueId, ID};
 use crate::{consts::DEFAULT_COLOR, wutag_error};
 use anyhow::{anyhow, Context, Result};
 use colored::{Color, Colorize};
@@ -27,7 +24,9 @@ use wutag_core::{
     Error, WUTAG_NAMESPACE,
 };
 
-// ======================= TagId ======================
+// ╭──────────────────────────────────────────────────────────╮
+// │                          TagId                           │
+// ╰──────────────────────────────────────────────────────────╯
 
 /// Alias to [`ID`](super::ID)
 pub(crate) type TagId = ID;
@@ -51,7 +50,7 @@ pub(crate) trait DirEntryExt {
     /// Add a [`Tag`] to a directory entry
     ///
     /// # Errors
-    /// If the the `xattr` cannot be added
+    /// If the `xattr` cannot be added
     fn tag(&self, tag: &Tag) -> Result<(), Error>;
     /// Remove a [`Tag`] to a directory entry
     ///
@@ -78,7 +77,7 @@ pub(crate) trait DirEntryExt {
     /// # Errors
     /// If the action of clearing the tags failed
     fn clear_tags(&self) -> Result<(), Error>;
-    /// Check wheter a directory entry has any [`Tag`](s)
+    /// Check whether a directory entry has any [`Tag`](s)
     ///
     /// # Errors
     /// If the directory entry does not have any tags
@@ -717,7 +716,9 @@ impl From<FileTag> for TagValueCombo {
     }
 }
 
-// ===================== TagValueCombos =====================
+// ╭──────────────────────────────────────────────────────────╮
+// │                      TagValueCombos                      │
+// ╰──────────────────────────────────────────────────────────╯
 
 /// A vector of [`TagValueCombo`]s
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]

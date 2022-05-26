@@ -2,9 +2,11 @@
 
 use super::super::{
     common::path::FsPath,
-    sqlbuilder::Sort,
     transaction::Txn,
-    types::file::{File, FileId, FileIds, Files},
+    types::{
+        file::{File, FileId, FileIds, Files},
+        Sort,
+    },
     Registry,
 };
 use anyhow::{anyhow, Context, Result};
@@ -12,8 +14,9 @@ use colored::Colorize;
 use std::path::Path;
 
 impl Registry {
-    // ============================ Retrieving ============================
-    // ====================================================================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                        Retrieving                        │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Retrieve the number of [`File`]s within the database
     #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
@@ -96,7 +99,7 @@ impl Registry {
         self.txn_wrap(|txn| txn.select_files_by_mime(mime))
     }
 
-    // TODO: Parse datetime
+    // TODO: Parse datetime for Query
 
     /// Retrieve all [`Files`] matching a specific `mtime`
     pub(crate) fn files_by_mtime<S: AsRef<str>>(&self, mtime: S) -> Result<Files> {
@@ -174,8 +177,9 @@ impl Registry {
         self.txn_wrap(|txn| txn.select_files_duplicates())
     }
 
-    // ========================= Pattern Matching =========================
-    // ====================================================================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                     Pattern Matching                     │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Retrieve all [`Files`] with a given column matching a `pcre` regex
     pub(crate) fn files_by_pcre_generic(&self, column: &str, patt: &str) -> Result<Files> {
@@ -202,7 +206,9 @@ impl Registry {
         self.txn_wrap(|txn| txn.select_files_by_iglob(column, patt))
     }
 
-    // ==================== Most used pattern matching ====================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                Most used Pattern Matching                │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Retrieve all [`Files`] with a 'name' matching a `pcre` regex
     pub(crate) fn files_by_pcre_fname(&self, patt: &str) -> Result<Files> {
@@ -254,8 +260,9 @@ impl Registry {
         self.txn_wrap(|txn| txn.select_files_by_iglob_fp(patt))
     }
 
-    // ============================= Modifying ============================
-    // ====================================================================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                        Modifying                         │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Add a [`File`] to the database
     pub(crate) fn insert_file<P: AsRef<Path>>(&self, path: P) -> Result<File> {

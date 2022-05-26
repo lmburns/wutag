@@ -13,8 +13,9 @@ use colored::{Color, Colorize};
 use wutag_core::color::parse_color;
 
 impl Registry {
-    // ============================ Retrieving ============================
-    // ====================================================================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                        Retrieving                        │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Retrieve the number of [`Tag`]s within the database
     #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
@@ -95,7 +96,9 @@ impl Registry {
         self.txn_wrap(|txn| txn.select_files_tags(file))
     }
 
-    // ========================= Pattern Matching =========================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                     Pattern Matching                     │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Retrieve the [`Tags`] matching the given `pcre` regex
     pub(crate) fn tags_by_pcre_name<S: AsRef<str>>(&self, patt: S) -> Result<Tags> {
@@ -147,8 +150,9 @@ impl Registry {
         self.txn_wrap(|txn| txn.select_tags_by_glob("color", patt.as_ref()))
     }
 
-    // ============================= Modifying ============================
-    // ====================================================================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                        Modifying                         │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Insert a [`Tag`] into the database
     pub(crate) fn insert_tag(&self, tag: &Tag) -> Result<Tag> {
@@ -198,8 +202,9 @@ impl Registry {
         self.wrap_commit(|txn| txn.delete_dangling_tags())
     }
 
-    // ============================== Other ===============================
-    // ====================================================================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                          Other                           │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Show information about a [`Tag`]
     #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work

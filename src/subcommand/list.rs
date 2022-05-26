@@ -9,7 +9,10 @@ use super::App;
 use crate::{
     filesystem::contained_path,
     global_opts,
-    registry::{querier::Query, types::Tag},
+    registry::{
+        querier::Query,
+        types::{Sort, Tag},
+    },
     util::{fmt_local_path, fmt_path, raw_local_path},
 };
 
@@ -131,11 +134,20 @@ pub(crate) enum ListObject {
             requires = "with_tags"
         )]
         garrulous: bool,
+
+        /// Sort the output
+        #[clap(
+            long = "sort",
+            short = 's',
+            default_value = "none",
+            long_help = "Sort alphabetically with `no-count`, otherwise it is numerically sorted"
+        )]
+        sort: Sort,
+
+        /// Display paths relatie to current directory (requires --global)
+        #[clap(name = "relative", long, short = 'r')]
+        relative: bool,
     },
-    // ╭──────────────────────────────────────────────────────────╮
-    // │                          Values                          │
-    // ╰──────────────────────────────────────────────────────────╯
-    // Values,
 }
 
 /// Arguments used for the `list` subcommand
@@ -144,6 +156,7 @@ pub(crate) struct ListOpts {
     /// Object to list: 'tags', 'files'.
     #[clap(subcommand)]
     pub(crate) object: ListObject,
+
     /// Output will not be colorized
     #[clap(
         long = "raw",
@@ -151,7 +164,7 @@ pub(crate) struct ListOpts {
         long_help = "Output of command will not be colorized. This is equivalent to `NO_COLOR=1 \
                      wutag <cmd>`"
     )]
-    pub(crate) raw:    bool,
+    pub(crate) raw: bool,
 }
 
 impl App {
@@ -160,13 +173,10 @@ impl App {
     pub(crate) fn list(&self, opts: &ListOpts) -> Result<()> {
         log::debug!("ListOpts: {:#?}", opts);
 
-        let mut table = Vec::<Vec<CellStruct>>::new();
-        let colorchoice = match self.color_when.as_ref() {
-            "always" => ColorChoice::Always,
-            "never" => ColorChoice::Never,
-            _ => ColorChoice::Auto,
-        };
+        println!("OPTS: {:#?}", opts);
 
+        let mut table = Vec::<Vec<CellStruct>>::new();
+        let colorchoice: ColorChoice = self.color_when.into();
         let reg = self.registry.lock().expect("poisoned lock");
 
         /// If the `raw` option is given, do not colorize
@@ -178,7 +188,7 @@ impl App {
             };
 
             if with_values {
-                // FIX: As of now, only one value per tag because of xattr
+                // FIX: As of now, only one value per tag because of xattr ???
                 let values = reg.values_by_tagid(t.id()).map_or_else(
                     |_| String::from(""),
                     |values| {
@@ -211,9 +221,10 @@ impl App {
                 formatted,
                 border,
                 garrulous,
+                sort,
+                relative,
             } => {
-                // TODO: Allow sorting here
-                let files = reg.files(None)?;
+                let files = reg.files(Some(sort))?;
 
                 for file in files.iter() {
                     // Skips paths that are not contained within current directory to respect the
@@ -231,6 +242,14 @@ impl App {
                             garrulous
                         );
                     } else if !formatted {
+                        let path = if self.global && relative {
+                            pathdiff::diff_paths(file.path(), &self.base_dir).unwrap_or_else(|| {
+                                println!("FAILED");
+                                file.path()
+                            })
+                        } else {
+                            file.path()
+                        };
                         global_opts!(
                             fmt_local_path(
                                 &file.path(),
@@ -404,8 +423,6 @@ impl App {
                 }
             },
         }
-
-        // TODO: Values
 
         Ok(())
     }

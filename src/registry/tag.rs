@@ -7,18 +7,17 @@
 //!     name TEXT NOT NULL,
 //!     color TEXT NOT NULL
 //! );
-//! CREATE INDEX IF NOT EXISTS idx_tag_name
-//! ON tag(name);
+//! CREATE INDEX IF NOT EXISTS idx_tag_name ON tag(name);
 //! ```
 
 use super::{
-    sqlbuilder::{Sort, SqlBuilder},
+    sqlbuilder::SqlBuilder,
     types::{
         file::{File, FileId},
         filetag::{FileTag, FileTags},
         tag::{Tag, TagFileCnt, TagId, Tags},
         value::ValueId,
-        ID,
+        Sort, ID,
     },
     Error, Txn,
 };
@@ -35,12 +34,16 @@ use rusqlite::{
     ErrorCode, Row,
 };
 
-// ================================ Txn ===============================
-// ============================ Tag Actions ===========================
+// ╒══════════════════════════════════════════════════════════╕
+//                             Txn
+//                             ---
+//                         Tag Actions
+// ╘══════════════════════════════════════════════════════════╛
 
 impl Txn<'_> {
-    // ============================ Retrieving ============================
-    // ====================================================================
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                        Retrieving                        │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Retrieve the number of [`Tag`]s within the database
     pub(super) fn select_tag_count(&self) -> Result<u32> {
@@ -59,11 +62,18 @@ impl Txn<'_> {
         let debug = "retrieving Tag max";
         log::debug!("{}", debug);
 
-        self.select1::<u32>(
-            "SELECT max(id)
+        let max = self
+            .select1::<u32>(
+                "SELECT max(id)
             FROM tag",
-        )
-        .context(fail!("{}", debug))
+            )
+            .context(fail!("{}", debug));
+
+        if max.is_err() {
+            return Ok(0);
+        }
+
+        max
     }
 
     /// Retrieve the number of files a given [`Tag`] is associated with
@@ -377,29 +387,27 @@ impl Txn<'_> {
         Ok(tags.into())
     }
 
-    /// Query for tags using a the `pcre` custom function on `name`, or `color`
+    /// Query for tags using the `pcre` custom function on `name`, or `color`
     pub(super) fn select_tags_by_pcre<S: AsRef<str>>(&self, column: S, reg: S) -> Result<Tags> {
         self.select_tags_by_func("pcre", column.as_ref(), reg.as_ref())
     }
 
-    /// Query for tags using a the `regex` custom function on `name`, or `color`
+    /// Query for tags using the `regex` custom function on `name`, or `color`
     pub(super) fn select_tags_by_regex<S: AsRef<str>>(&self, column: S, reg: S) -> Result<Tags> {
         self.select_tags_by_func("regex", column.as_ref(), reg.as_ref())
     }
 
-    /// Query for tags using a the `iregex` custom function on `name`, or
-    /// `color`
+    /// Query for tags using the `iregex` custom function on `name`, or `color`
     pub(super) fn select_tags_by_iregex<S: AsRef<str>>(&self, column: S, reg: S) -> Result<Tags> {
         self.select_tags_by_func("iregex", column.as_ref(), reg.as_ref())
     }
 
-    /// Query for files using a the `glob` custom function on `name`, or `color`
+    /// Query for files using the `glob` custom function on `name`, or `color`
     pub(super) fn select_tags_by_glob<S: AsRef<str>>(&self, column: S, glob: S) -> Result<Tags> {
         self.select_tags_by_func("glob", column.as_ref(), glob.as_ref())
     }
 
-    /// Query for files using a the `iglob` custom function on `name`, or
-    /// `color`
+    /// Query for files using the `iglob` custom function on `name`, or `color`
     pub(super) fn select_tags_by_iglob<S: AsRef<str>>(&self, column: S, glob: S) -> Result<Tags> {
         self.select_tags_by_func("iglob", column.as_ref(), glob.as_ref())
     }

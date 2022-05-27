@@ -207,7 +207,7 @@ impl App {
 
                 if re.is_match(&search_bytes) {
                     if !self.quiet {
-                        println!("{}:", fmt_path(path, self.base_color, self.ls_colors));
+                        println!("{}:", fmt_path(path, self));
                     }
 
                     for (tag, value) in &combos {
@@ -487,7 +487,7 @@ impl App {
 
                     if let Ok(file) = reg.file_by_path(path) {
                         if !self.quiet {
-                            println!("{}:", fmt_path(path, self.base_color, self.ls_colors));
+                            println!("{}:", fmt_path(path, self));
                         }
 
                         // TODO: Reduce duplicate code

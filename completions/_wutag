@@ -147,8 +147,6 @@ _arguments "${_arguments_options[@]}" \
 '--clear[Clear the tags on the match(es) before the new one(s) are set]' \
 '-s[Arguments are expected to be passed through stdin]' \
 '--stdin[Arguments are expected to be passed through stdin]' \
-'-F[Force the creation of a new tag]' \
-'--force[Force the creation of a new tag]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
@@ -204,6 +202,8 @@ _arguments "${_arguments_options[@]}" \
 '--all[Files matching all tags (instead of any)]' \
 '(-a --all)-A[Files matching all and only all tags]' \
 '(-a --all)--only-all[Files matching all and only all tags]' \
+'-V[Display values along with the tags]' \
+'--with-values[Display values along with the tags]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \

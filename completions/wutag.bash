@@ -365,7 +365,7 @@ _wutag() {
             return 0
             ;;
         wutag__search)
-            opts="-r -f -x -X -G -a -A -t -h -v -g --raw --only-files --exec --exec-batch --garrulous --all --only-all --tags --help --verbose --global <pattern>"
+            opts="-r -f -x -X -G -a -A -V -t -h -v -g --raw --only-files --exec --exec-batch --garrulous --all --only-all --with-values --tags --help --verbose --global <pattern>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -403,7 +403,7 @@ _wutag() {
             return 0
             ;;
         wutag__set)
-            opts="-c -C -s -F -p -V -h -v -g --clear --color --stdin --force --pairs --value --help --verbose --global <PATTERN> <tags>..."
+            opts="-c -C -s -p -V -h -v -g --clear --color --stdin --pairs --value --help --verbose --global <PATTERN> <tags>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

@@ -3,7 +3,7 @@
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local};
 use clap_complete::{generate, Generator};
-use colored::{Color, ColoredString, Colorize};
+use colored::{ColoredString, Colorize};
 use crossbeam_channel as channel;
 use crossbeam_utils::thread;
 use env_logger::fmt::Color as LogColor;
@@ -96,9 +96,9 @@ pub(crate) fn fmt_err<E: Display>(err: E) -> String {
 // }
 
 /// Format the colored/non-colored output of a path
-pub(crate) fn fmt_path<P: AsRef<Path>>(path: P, base_color: Color, ls_colors: bool) -> String {
+pub(crate) fn fmt_path<P: AsRef<Path>>(path: P, app: &App) -> String {
     // ls_colors implies forced coloring
-    if ls_colors {
+    if app.ls_colors {
         LsColors::from_env()
             .unwrap_or_default()
             .style_for_path_components(path.as_ref())
@@ -115,20 +115,19 @@ pub(crate) fn fmt_path<P: AsRef<Path>>(path: P, base_color: Color, ls_colors: bo
     } else {
         format!(
             "{}",
-            path.as_ref().display().to_string().color(base_color).bold()
+            path.as_ref()
+                .display()
+                .to_string()
+                .color(app.base_color)
+                .bold()
         )
     }
 }
 
 /// Format a local path (i.e., remove path components before files local to
 /// directory)
-pub(crate) fn fmt_local_path<P: AsRef<Path>>(
-    path: P,
-    local_path: P,
-    base_color: Color,
-    ls_colors: bool,
-) -> String {
-    let mut replaced = local_path.as_ref().display().to_string();
+pub(crate) fn fmt_local_path<P: AsRef<Path>>(path: P, app: &App) -> String {
+    let mut replaced = app.base_dir.display().to_string();
     if !replaced.ends_with('/') {
         replaced.push('/');
     }
@@ -139,7 +138,7 @@ pub(crate) fn fmt_local_path<P: AsRef<Path>>(
         .to_string()
         .replace(replaced.as_str(), "");
 
-    if ls_colors {
+    if app.ls_colors {
         LsColors::from_env()
             .unwrap_or_default()
             .style_for_path_components(path.as_ref())
@@ -154,7 +153,7 @@ pub(crate) fn fmt_local_path<P: AsRef<Path>>(
             })
             .join("")
     } else {
-        format!("{}", path.color(base_color).bold())
+        format!("{}", path.color(app.base_color).bold())
     }
 }
 
@@ -415,7 +414,8 @@ pub(crate) fn reg_walker(app: &Arc<App>) -> Result<ignore::WalkParallel> {
     Ok(walker.build_parallel())
 }
 
-// NOTE: Old method to use for `reg_ok` function
+// Old method to use for `crawler` function
+//
 // type FnMutThread = Box<dyn FnMut(&ignore::DirEntry) + Send>;
 // static FN: Lazy<Mutex<Option<FnMutThread>>> = Lazy::new(|| Mutex::new(None));
 //

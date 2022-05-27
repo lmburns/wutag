@@ -63,7 +63,6 @@ complete -c wutag -n "__fish_seen_subcommand_from set" -s p -l pairs -d 'Specify
 complete -c wutag -n "__fish_seen_subcommand_from set" -s V -l value -d 'Specify a value to set all the tag(s) to' -r
 complete -c wutag -n "__fish_seen_subcommand_from set" -s c -l clear -d 'Clear the tags on the match(es) before the new one(s) are set'
 complete -c wutag -n "__fish_seen_subcommand_from set" -s s -l stdin -d 'Arguments are expected to be passed through stdin'
-complete -c wutag -n "__fish_seen_subcommand_from set" -s F -l force -d 'Force the creation of a new tag'
 complete -c wutag -n "__fish_seen_subcommand_from set" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from set" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from set" -s g -l global -d 'Apply operation to all tags and files instead of locally'
@@ -83,6 +82,7 @@ complete -c wutag -n "__fish_seen_subcommand_from search" -s f -l only-files -d 
 complete -c wutag -n "__fish_seen_subcommand_from search" -s G -l garrulous -d 'Display tags and files on separate lines'
 complete -c wutag -n "__fish_seen_subcommand_from search" -s a -l all -d 'Files matching all tags (instead of any)'
 complete -c wutag -n "__fish_seen_subcommand_from search" -s A -l only-all -d 'Files matching all and only all tags'
+complete -c wutag -n "__fish_seen_subcommand_from search" -s V -l with-values -d 'Display values along with the tags'
 complete -c wutag -n "__fish_seen_subcommand_from search" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from search" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from search" -s g -l global -d 'Apply operation to all tags and files instead of locally'

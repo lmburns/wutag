@@ -49,7 +49,7 @@ pub(crate) struct CommandTemplate {
 }
 
 impl CommandTemplate {
-    /// Create a new `CommandTemplate`
+    /// Create a new [`CommandTemplate`]
     pub(crate) fn new<I, S>(input: I) -> Self
     where
         I: IntoIterator<Item = S>,
@@ -58,7 +58,7 @@ impl CommandTemplate {
         Self::build(input, ExecutionMode::OneByOne)
     }
 
-    /// Create a new batch `CommandTemplate`
+    /// Create a new batch [`CommandTemplate`]
     pub(crate) fn new_batch<I, S>(input: I) -> Result<Self>
     where
         I: IntoIterator<Item = S>,
@@ -76,7 +76,7 @@ impl CommandTemplate {
         Ok(cmd)
     }
 
-    /// Build the `CommandTemplate`
+    /// Build the [`CommandTemplate`]
     fn build<I, S>(input: I, mode: ExecutionMode) -> Self
     where
         I: IntoIterator<Item = S>,
@@ -249,18 +249,27 @@ enum ArgumentTemplate {
 }
 
 impl ArgumentTemplate {
+    /// Does the [`ArgumentTemplate`] contain any [`Token`]s
     pub(crate) const fn has_tokens(&self) -> bool {
         matches!(self, ArgumentTemplate::Tokens(_))
     }
 
+    /// Does the [`ArgumentTemplate`] contain a `wutag` command
     pub(crate) fn contains_wutag(&self) -> bool {
         if let ArgumentTemplate::Tokens(ref tokens) = *self {
-            tokens[0] == Token::Wutag
-                || tokens[0] == Token::WutagColored
-                || tokens[0] == Token::WutagSet
-                || tokens[0] == Token::WutagRemove
-                || tokens[0] == Token::WutagClear
-                || tokens[0] == Token::WutagCp
+            if tokens.get(0).is_none() {
+                return false;
+            }
+
+            matches!(
+                tokens[0],
+                Token::Wutag
+                    | Token::WutagColored
+                    | Token::WutagSet
+                    | Token::WutagRemove
+                    | Token::WutagClear
+                    | Token::WutagCp
+            )
         } else {
             false
         }

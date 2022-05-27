@@ -319,10 +319,10 @@ impl fmt::Display for Sort {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Sort::Id => f.write_str(" ORDER BY id"),
-            Sort::Name => f.write_str(" ORDER BY directory || '/' || name"),
-            Sort::ModificationTime => f.write_str(" ORDER BY mtime, directory || '/' || name"),
-            Sort::CreationTime => f.write_str(" ORDER BY ctime, directory || '/' || name"),
-            Sort::FileSize => f.write_str(" ORDER BY size, directory || '/' || name"),
+            Sort::Name => f.write_str(" ORDER BY fullpath(directory, name)"),
+            Sort::ModificationTime => f.write_str(" ORDER BY mtime, fullpath(directory, name)"),
+            Sort::CreationTime => f.write_str(" ORDER BY ctime, fullpath(directory, name)"),
+            Sort::FileSize => f.write_str(" ORDER BY size, fullpath(directory, name)"),
             Sort::None => f.write_str(""),
         }
     }

@@ -138,7 +138,7 @@ tui:
   tags_bold: true
   # Whether paths should be bold
   paths_bold: true
-  # TODO: hex -- Color of file paths
+  # Color of file paths
   paths_color: "blue"
   # Completion pop-up color
   completion_color: "dark"

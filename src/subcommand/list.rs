@@ -146,7 +146,6 @@ pub(crate) enum ListObject {
         )]
         sort: Sort,
 
-        // TODO: Implement this better
         /// Display paths relative to current directory (requires --global)
         #[clap(
             name = "relative",
@@ -246,6 +245,7 @@ impl App {
                 relative,
                 duplicates,
             } => {
+                let mut curr_hash = None;
                 let files = if duplicates {
                     reg.duplicate_files()?
                 } else {
@@ -260,32 +260,40 @@ impl App {
                         continue;
                     }
 
+                    // Relative cannot be true without self.global
+                    let path = if relative {
+                        pathdiff::diff_paths(file.path(), &self.base_dir)
+                            .unwrap_or_else(|| file.path())
+                    } else {
+                        file.path()
+                    };
+
+                    if duplicates {
+                        let hash = file.hash();
+                        if Some(hash) != curr_hash {
+                            println!(
+                                "{}",
+                                tern::t!(opts.raw ? hash.clone() : hash.yellow().bold().to_string())
+                            );
+                        }
+                        curr_hash = Some(hash);
+                    }
+
+                    // The first argument to `global_opts` is the local file path
+                    // Since --relative requires global, the first branch of path
+                    // above will never be ran without --global
                     if opts.raw {
                         global_opts!(
-                            raw_local_path(&file.path(), &self.base_dir),
-                            file.path().display().to_string(),
-                            self,
+                            raw_local_path(&path, &self.base_dir),
+                            path.display().to_string(),
+                            self.global,
                             garrulous
                         );
                     } else if !formatted {
-                        let path = if self.global && relative {
-                            pathdiff::diff_paths(file.path(), &self.base_dir).unwrap_or_else(|| {
-                                println!("FAILED");
-                                file.path()
-                            })
-                        } else {
-                            file.path()
-                        };
-
                         global_opts!(
-                            fmt_local_path(
-                                &file.path(),
-                                &self.base_dir,
-                                self.base_color,
-                                self.ls_colors,
-                            ),
-                            fmt_path(file.path(), self.base_color, self.ls_colors),
-                            self,
+                            fmt_local_path(&path, self),
+                            fmt_path(&path, self),
+                            self.global,
                             garrulous
                         );
                     }
@@ -302,13 +310,8 @@ impl App {
                             table.push(vec![
                                 tern::t!(
                                     self.global
-                                        ? fmt_path(file.path(), self.base_color, self.ls_colors)
-                                        : fmt_local_path(
-                                            &file.path(),
-                                            &self.base_dir,
-                                            self.base_color,
-                                            self.ls_colors
-                                        )
+                                        ? fmt_path(&path, self)
+                                        : fmt_local_path(&path, self)
                                 )
                                 .cell(),
                                 tags.cell().justify(Justify::Right),

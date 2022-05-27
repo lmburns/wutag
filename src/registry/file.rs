@@ -107,7 +107,7 @@ impl Txn<'_> {
         let max = self
             .select1::<u32>(
                 "SELECT max(id)
-            FROM file",
+                FROM file",
             )
             .context(fail!("{}", debug));
 
@@ -200,7 +200,7 @@ impl Txn<'_> {
                     {}
                 FROM file
                 WHERE is_dir = true
-                ORDER BY directory || '/' || name",
+                ORDER BY fullpath(directory, name)",
                     e2p_feature_comma()
                 ),
                 params![],
@@ -342,7 +342,7 @@ impl Txn<'_> {
             s = format!("{} {}", s, "OR directory = '.' OR directory LIKE './%");
         }
 
-        s = format!("{} {}", s, "ORDER BY directory || '/' || name");
+        s = format!("{} {}", s, "ORDER BY fullpath(directory, name)");
 
         let files: Vec<File> = self
             .query_vec(&s, params![dir, format!("{}/%", dir)], |row| {
@@ -381,7 +381,7 @@ impl Txn<'_> {
                     {}
                 FROM file
                 WHERE hash = ?1
-                ORDER BY directory || '/' || name",
+                ORDER BY fullpath(directory, name)",
                     e2p_feature_comma()
                 ),
                 params![fp],
@@ -420,7 +420,7 @@ impl Txn<'_> {
                     {}
                 FROM file
                 WHERE mime = ?1
-                ORDER BY directory || '/' || name",
+                ORDER BY fullpath(directory, name)",
                     e2p_feature_comma()
                 ),
                 params![mime],
@@ -459,7 +459,7 @@ impl Txn<'_> {
                     {}
                 FROM file
                 WHERE mtime = ?1
-                ORDER BY directory || '/' || name",
+                ORDER BY fullpath(directory, name)",
                     e2p_feature_comma()
                 ),
                 params![mtime],
@@ -498,7 +498,7 @@ impl Txn<'_> {
                     {}
                 FROM file
                 WHERE ctime = ?1
-                ORDER BY directory || '/' || name",
+                ORDER BY fullpath(directory, name)",
                     e2p_feature_comma()
                 ),
                 params![ctime],
@@ -651,7 +651,7 @@ impl Txn<'_> {
                     {}
                 FROM file
                 WHERE uid = ?1
-                ORDER BY directory || '/' || name",
+                ORDER BY fullpath(directory, name)",
                     e2p_feature_comma()
                 ),
                 params![uid],
@@ -689,7 +689,7 @@ impl Txn<'_> {
                     {}
                 FROM file
                 WHERE gid = ?1
-                ORDER BY directory || '/' || name",
+                ORDER BY fullpath(directory, name)",
                     e2p_feature_comma()
                 ),
                 params![gid],
@@ -727,11 +727,11 @@ impl Txn<'_> {
                     {}
                 FROM file
                 WHERE size = ?1
-                ORDER BY directory || '/' || name",
+                ORDER BY fullpath(directory, name)",
                     e2p_feature_comma()
                 ),
                 params![size],
-                |row| row.try_into().expect("failed to convertt to `File`"),
+                |row| row.try_into().expect("failed to convert to `File`"),
             )
             .context(fail!("{}", debug))?;
 
@@ -858,7 +858,7 @@ impl Txn<'_> {
                     GROUP BY hash
                     HAVING count(1) > 1
                 )
-                ORDER BY hash, directory || '/' || name",
+                ORDER BY hash, fullpath(directory, name)",
                     e2p_feature_comma()
                 ),
                 params![],
@@ -913,27 +913,27 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    /// Query for [`Files`] using a the `pcre` regex function on any column
+    /// Query for [`Files`] using the `pcre` regex function on any column
     pub(super) fn select_files_by_pcre(&self, column: &str, reg: &str) -> Result<Files> {
         self.select_files_by_func("pcre", column, reg)
     }
 
-    /// Query for [`Files`] using a the `regex` custom function on any column
+    /// Query for [`Files`] using the `regex` custom function on any column
     pub(super) fn select_files_by_regex(&self, column: &str, reg: &str) -> Result<Files> {
         self.select_files_by_func("regex", column, reg)
     }
 
-    /// Query for [`Files`] using a the `iregex` custom function on any column
+    /// Query for [`Files`] using the `iregex` custom function on any column
     pub(super) fn select_files_by_iregex(&self, column: &str, reg: &str) -> Result<Files> {
         self.select_files_by_func("iregex", column, reg)
     }
 
-    /// Query for [`Files`] using a the `glob` custom function on any column
+    /// Query for [`Files`] using the `glob` custom function on any column
     pub(super) fn select_files_by_glob(&self, column: &str, glob: &str) -> Result<Files> {
         self.select_files_by_func("glob", column, glob)
     }
 
-    /// Query for [`Files`] using a the `iglob` custom function on any column
+    /// Query for [`Files`] using the `iglob` custom function on any column
     pub(super) fn select_files_by_iglob(&self, column: &str, glob: &str) -> Result<Files> {
         self.select_files_by_func("iglob", column, glob)
     }

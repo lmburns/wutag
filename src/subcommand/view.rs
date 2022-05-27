@@ -6,6 +6,7 @@ use crate::{
     consts::DEFAULT_EDITOR,
     filesystem::{contained_path, create_temp_path, osstr_to_bytes},
     oregistry::EntryData,
+    regex,
     util::{crawler, fmt_path, fmt_tag_old, glob_builder, raw_local_path, regex_builder},
     wutag_error, wutag_fatal, wutag_info,
 };
@@ -13,7 +14,7 @@ use anyhow::Result;
 use clap::Args;
 use colored::Colorize;
 use lexiclean::Lexiclean;
-use regex::{Captures, Regex};
+use regex::Captures;
 use std::{
     borrow::Cow, collections::BTreeMap, ffi::OsStr, fs, io::Write, path::PathBuf, process,
     sync::Arc,
@@ -247,7 +248,7 @@ impl App {
             .expect("could not spawn editor");
 
         // Used to help highlight errors for whatever reason
-        let re = Regex::new(r"^(\b[[:word:].]+\b): (.*)$").unwrap();
+        let re = regex!(r"^(\b[[:word:].]+\b): (.*)$");
         let color_file = |e: String| -> String {
             let cloned = e.clone();
             let string = if re.is_match(&cloned) {
@@ -368,7 +369,7 @@ impl App {
                 }
 
                 if !self.quiet {
-                    println!("{}:", fmt_path(entry, self.base_color, self.ls_colors));
+                    println!("{}:", fmt_path(entry, self));
                 }
 
                 match entry.has_tags() {

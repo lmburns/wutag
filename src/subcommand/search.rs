@@ -87,6 +87,15 @@ pub(crate) struct SearchOpts {
     )]
     pub(crate) only_all: bool,
 
+    /// Display values along with the tags
+    #[clap(
+        name = "with_values",
+        long = "with-values",
+        short = 'V',
+        // requires = "with_tags"
+    )]
+    pub(crate) with_values: bool,
+
     /// Search just by tags or along with a tag(s)
     #[clap(
         name = "tags",
@@ -109,7 +118,6 @@ impl App {
     /// Find files that match a given query
     pub(crate) fn search(&self, opts: &SearchOpts) {
         log::debug!("SearchOpts: {:#?}", opts);
-        log::debug!("Using registry: {}", self.oregistry.path.display());
 
         let re = regex_builder(
             &{

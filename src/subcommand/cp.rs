@@ -361,10 +361,7 @@ impl App {
                                     })()?;
 
                                     if !self.quiet {
-                                        println!(
-                                            "{}:",
-                                            fmt_path(entry.path(), self.base_color, self.ls_colors)
-                                        );
+                                        println!("{}:", fmt_path(entry.path(), self));
                                     }
 
                                     let mut dest = reg.file_by_path(entry.path());

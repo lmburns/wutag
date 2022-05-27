@@ -70,14 +70,9 @@ impl App {
             if exists && (entry.changed_since()? || opts.unmodified) {
                 table.push(vec![
                     if self.global || !opts.restrict {
-                        fmt_path(entry.path(), self.base_color, self.ls_colors)
+                        fmt_path(entry.path(), self)
                     } else {
-                        fmt_local_path(
-                            entry.path(),
-                            &self.base_dir,
-                            self.base_color,
-                            self.ls_colors,
-                        )
+                        fmt_local_path(entry.path(), self)
                     }
                     .cell(),
                     systemtime_to_datetime(*entry.modtime()).red().cell(),
@@ -102,7 +97,7 @@ impl App {
                     println!(
                         "{}: {}",
                         "Removed".red().bold(),
-                        fmt_path(entry.path(), self.base_color, self.ls_colors),
+                        fmt_path(entry.path(), self),
                     );
                 }
                 removed = true;

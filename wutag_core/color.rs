@@ -5,8 +5,6 @@ use crate::{Error, Result};
 use colored::Color;
 use tui::style as tui;
 
-// TODO: Add underline and inverse options
-
 /// Parses a [`Color`] from a foreground color string
 #[inline]
 #[must_use]

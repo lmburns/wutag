@@ -69,7 +69,7 @@ crossbeam-utils = "0.8.8"
 # rayon = "1.5.1"
 
 # Paths and patterns
-wax = { git = "https://github.com/lmburns/wax", version = "0.4.0", features = [
+wax = { git = "https://github.com/lmburns/wax", branch = "master", version = "0.5.0", features = [
   "diagnostics",
 ] }
 # wax = { path = "/home/lucas/projects/github/wax", features = ["diagnostics"] }
@@ -148,6 +148,7 @@ rusqlite = { version = "0.27", features = [
 cli-table = { version = "0.4.7", default-features = false }
 
 # Option: (default) -- TUI
+# FIX: This needs to be updated to work with ansi-to-tui
 tui = { version = "0.17.0", features = ["crossterm"], optional = true }
 crossterm = { version = "0.23.2", default-features = false, optional = true }
 rustyline = { version = "9.1.2", optional = true }

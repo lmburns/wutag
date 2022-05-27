@@ -1,5 +1,7 @@
+#![allow(unused)]
 //! Execute a search for tags asynchronously. Optionally execute a
 //! command on each result. Outline came from [fd](https://github.com/sharkdp/fd)
+
 use std::{
     borrow::Cow,
     ffi::OsStr,
@@ -7,21 +9,24 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-pub(crate) use crate::{
-    filesystem::{contained_path, osstr_to_bytes},
-    global_opts,
-    subcommand::{search::SearchOpts, App},
-    util::{fmt_local_path, fmt_path, fmt_tag_old, raw_local_path, regex_builder},
-    wutag_error,
-};
-
 use super::{
     exits::{generalize_exitcodes, ExitCode},
     CommandTemplate,
 };
+pub(crate) use crate::{
+    filesystem::{contained_path, osstr_to_bytes},
+    global_opts,
+    registry::types::{tag::Tag, ID},
+    subcommand::{search::SearchOpts, App},
+    util::{fmt_local_path, fmt_path, fmt_tag, fmt_tag_old, raw_local_path, regex_builder},
+    wutag_error,
+};
 
+use anyhow::Result;
+use colored::Colorize;
 use crossbeam_channel::{Receiver, Sender};
 use crossbeam_utils::thread;
+use itertools::Itertools;
 // use rayon::prelude::*;
 use regex::bytes::Regex;
 
@@ -29,7 +34,7 @@ use regex::bytes::Regex;
 #[allow(variant_size_differences)]
 pub(crate) enum WorkerResult {
     /// Entry and its' id
-    Entry((PathBuf, usize)),
+    Entry((PathBuf, ID)),
 
     /// An error
     #[allow(dead_code)] // Never constructed
@@ -52,6 +57,9 @@ pub(crate) fn receiver(
     let threads = num_cpus::get();
 
     std::thread::spawn(move || {
+        let reg = app.registry.clone();
+        let reg = reg.lock().expect("poisoned lock");
+
         if let Some(ref command) = cmd {
             if command.in_batch_mode() {
                 let paths = rx.iter().filter_map(|value| match value {
@@ -106,6 +114,40 @@ pub(crate) fn receiver(
                 generalize_exitcodes(exits)
             }
         } else {
+            let raw = |t: &Tag, with_values: bool| {
+                let tag = if opts.raw {
+                    t.name().clone()
+                } else {
+                    fmt_tag(t, &app.tag_effect).to_string()
+                };
+
+                if with_values {
+                    // FIX: As of now, only one value per tag because of xattr ???
+                    let values = reg.values_by_tagid(t.id()).map_or_else(
+                        |_| String::from(""),
+                        |values| {
+                            format!(
+                                "={}",
+                                values
+                                    .iter()
+                                    .map(|value| {
+                                        let v = value.name();
+                                        tern::t!(
+                                            opts.raw
+                                                ? v.clone()
+                                                : v.bold().to_string()
+                                        )
+                                    })
+                                    .join(",")
+                            )
+                        },
+                    );
+                    format!("{}{}", tag, values)
+                } else {
+                    tag
+                }
+            };
+
             for result in rx {
                 match result {
                     WorkerResult::Entry((entry, id)) => {
@@ -116,19 +158,14 @@ pub(crate) fn receiver(
                                     app.base_dir.display().to_string(),
                                 ),
                                 entry.display().to_string(),
-                                app,
+                                app.global,
                                 opts.garrulous
                             );
                         } else {
                             global_opts!(
-                                fmt_local_path(
-                                    &entry,
-                                    &app.base_dir,
-                                    app.base_color,
-                                    app.ls_colors,
-                                ),
-                                fmt_path(&entry, app.base_color, app.ls_colors),
-                                app,
+                                fmt_local_path(&entry, &app),
+                                fmt_path(&entry, &app),
+                                app.global,
                                 opts.garrulous
                             );
                         }
@@ -136,18 +173,11 @@ pub(crate) fn receiver(
                         if opts.only_files && !app.quiet {
                             println!();
                         } else {
-                            let tags = app
-                                .oregistry
-                                .list_entry_tags(id)
-                                .unwrap_or_default()
+                            let tags = reg
+                                .tags_by_fileid(id)
+                                .expect("failed to get Tags by FileId")
                                 .iter()
-                                .map(|t| {
-                                    if opts.raw {
-                                        t.name().to_owned()
-                                    } else {
-                                        fmt_tag_old(t).to_string()
-                                    }
-                                })
+                                .map(|t| raw(t, opts.with_values))
                                 .collect::<Vec<_>>()
                                 .join(" ");
 
@@ -169,7 +199,7 @@ pub(crate) fn receiver(
 }
 
 /// Spawn a sender channel that filters results and `sends` them to
-/// [receiver](self::receiver)
+/// [`receiver`]
 pub(crate) fn sender(
     app: &Arc<App>,
     opts: &Arc<SearchOpts>,
@@ -188,10 +218,13 @@ pub(crate) fn sender(
 
     thread::scope(move |s| {
         let tx_thread = tx.clone();
+        let reg = app.registry.clone();
         s.spawn(move |_| {
+            let reg = reg.lock().expect("poisoned lock");
+
             // Repeated code from calling function to run on multiple threads
-            for (&id, entry) in app.oregistry.list_entries_and_ids() {
-                if !app.global && !contained_path(entry.path(), &app.base_dir) {
+            for entry in reg.files(None).expect("failed to get Files").iter() {
+                if !app.global && !contained_path(entry.path(), app.base_dir.clone()) {
                     continue;
                 }
 
@@ -217,22 +250,22 @@ pub(crate) fn sender(
 
                 if re.is_match(&search_bytes) {
                     // Additional tag search
-                    if !opts.tags.is_empty()
-                        && ((opts.only_all
-                            && !opts.all
-                            && !app.oregistry.entry_has_only_all_tags(id, &opts.tags))
-                            || (!opts.only_all
-                                && opts.all
-                                && !app.oregistry.entry_has_all_tags(id, &opts.tags))
-                            || (!opts.only_all
-                                && !opts.all
-                                && !app.oregistry.entry_has_any_tags(id, &opts.tags)))
-                    {
-                        continue;
-                    }
+                    // if !opts.tags.is_empty()
+                    //     && ((opts.only_all
+                    //         && !opts.all
+                    //         && !app.oregistry.entry_has_only_all_tags(id, &opts.tags))
+                    //         || (!opts.only_all
+                    //             && opts.all
+                    //             && !app.oregistry.entry_has_all_tags(id, &opts.tags))
+                    //         || (!opts.only_all
+                    //             && !opts.all
+                    //             && !app.oregistry.entry_has_any_tags(id, &opts.tags)))
+                    // {
+                    //     continue;
+                    // }
 
                     tx_thread
-                        .send(WorkerResult::Entry((entry.path().to_owned(), id)))
+                        .send(WorkerResult::Entry((entry.path().clone(), entry.id())))
                         .expect("failed to send result across threads");
                 }
             }

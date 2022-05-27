@@ -64,17 +64,6 @@ pub(crate) struct SetOpts {
     pub(crate) stdin: bool,
 
     // TODO: Implement
-    /// Force the creation of a new tag
-    #[clap(
-        name = "force",
-        long,
-        short = 'F',
-        takes_value = false,
-        long_help = "Force a tag to be created even if the file does not exist"
-    )]
-    pub(crate) force: bool,
-
-    // TODO: Implement
     // /// Apply tags to the result of a query instead of a pattern match
     // #[clap(
     //     name = "query",
@@ -241,7 +230,7 @@ impl App {
                 })()?;
 
                 if !self.quiet {
-                    println!("{}:", fmt_path(path, self.base_color, self.ls_colors));
+                    println!("{}:", fmt_path(path, self));
                 }
 
                 let path_d = path.display();
@@ -416,7 +405,7 @@ impl App {
                     })()?;
 
                     if !self.quiet {
-                        println!("{}:", fmt_path(path, self.base_color, self.ls_colors));
+                        println!("{}:", fmt_path(path, self));
                     }
 
                     let path_d = path.display();

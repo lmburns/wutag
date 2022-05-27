@@ -108,6 +108,30 @@ impl FileInfo for &Path {
     }
 }
 
+impl FileInfo for PathBuf {
+    fn path(&self) -> &Path {
+        self.as_path()
+    }
+
+    fn file_type(&self) -> Option<fs::FileType> {
+        let metadata = fs::metadata(self.path()).expect("failed to determine file's metadata");
+        Some(metadata.file_type())
+    }
+
+    fn meta(&self) -> FileInfoResult<Metadata> {
+        match self.metadata() {
+            Ok(meta) => Ok(meta),
+            Err(e) => Err(Error::Metadata(e.to_string())),
+        }
+    }
+
+    fn is_executable(&self) -> bool {
+        self.metadata()
+            .map(|m| &m.permissions().mode() & 0o111 != 0)
+            .unwrap_or(false)
+    }
+}
+
 impl FileTypes {
     /// File types that should be ignored based on CLI arguments
     pub(crate) fn should_ignore(&self, entry: &impl FileInfo) -> bool {

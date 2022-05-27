@@ -20,10 +20,10 @@ macro_rules! err {
 /// Detect if the files should be displayed globally
 #[macro_export]
 macro_rules! global_opts {
-    ($local:expr, $global:expr, $app:ident, $garrulous:expr) => {
+    ($local:expr, $global:expr, $is_global:expr, $garrulous:expr) => {
         if $garrulous {
-            tern::t!($app.global ? println!("{}", $global) : println!("{}", $local));
-        } else if $app.global {
+            tern::t!($is_global ? println!("{}", $global) : println!("{}", $local));
+        } else if $is_global {
             print!("{}", $global);
         } else {
             print!("{}", $local);

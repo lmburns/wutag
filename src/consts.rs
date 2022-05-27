@@ -116,6 +116,26 @@ pub(crate) static EXEC_BATCH_EXPL: Lazy<String> = Lazy::new(|| {
     )
 });
 
+/// Colorized message to `list files -s` command
+#[rustfmt::skip]
+pub(crate) static SORT_FILES_EXPL: Lazy<String> = Lazy::new(|| {
+    format!(
+        "Sort the file output using one of the following:\n \
+            \t- {}id{}\n \
+            \t- {}name{}\n \
+            \t- {}modification{} | {}modificationtime{} | {}mod{}\n \
+            \t- {}creation{} | {}creationtime{} | {}create{}\n \
+            \t- {}filesize{} | {}size{} | {}fs{}\n \
+            \t- {}none{}",
+        GREEN, RES, GREEN, RES,
+        GREEN, RES, GREEN, RES,
+        GREEN, RES, GREEN, RES,
+        GREEN, RES, GREEN, RES,
+        GREEN, RES, GREEN, RES,
+        GREEN, RES, GREEN, RES
+    )
+});
+
 /// Colorized message to explain the -x flag to execute commands on tagged files
 pub(crate) static EXEC_EXPL: Lazy<String> = Lazy::new(|| {
     format!(

@@ -367,7 +367,7 @@ pub(crate) fn regex_builder(
 /// files, and uses max CPU's. If a `max_depth` is specified, the parallel
 /// walker will not traverse deeper than that, else if no `max_depth` is
 /// specified, it will use [DEFAULT_MAX_DEPTH](DEFAULT_MAX_DEPTH).
-pub(crate) fn reg_walker(app: &Arc<App>, follow_links: bool) -> Result<ignore::WalkParallel> {
+pub(crate) fn reg_walker(app: &Arc<App>) -> Result<ignore::WalkParallel> {
     let mut override_builder = OverrideBuilder::new(&app.base_dir);
     for excluded in &app.exclude {
         override_builder
@@ -388,7 +388,7 @@ pub(crate) fn reg_walker(app: &Arc<App>, follow_links: bool) -> Result<ignore::W
     //       The same result is returned for single files.
     walker
         .threads(num_cpus::get())
-        .follow_links(follow_links || app.follow_symlinks)
+        .follow_links(app.follow_symlinks)
         .hidden(false)
         .ignore(false)
         .overrides(overrides)
@@ -429,11 +429,11 @@ pub(crate) fn reg_walker(app: &Arc<App>, follow_links: bool) -> Result<ignore::W
 /// entry
 ///
 /// [`WalkParallel`]: ignore::WalkParallel
-pub(crate) fn crawler<F, T>(pattern: &Arc<Regex>, app: &Arc<App>, follow_links: bool, mut f: F)
+pub(crate) fn crawler<F, T>(pattern: &Arc<Regex>, app: &Arc<App>, mut f: F)
 where
     F: FnMut(&ignore::DirEntry) -> Result<T> + Send + Sync,
 {
-    let walker = reg_walker(app, follow_links).expect("failed to get `reg_walker` Result");
+    let walker = reg_walker(app).expect("failed to get `reg_walker` Result");
 
     // TODO: Look into order of execution
     // Scope here does not require ownership of all the variables, or the use of a

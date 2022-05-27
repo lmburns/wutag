@@ -53,13 +53,13 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--fixed-string', 'fixed-string', [CompletionResultType]::ParameterName, 'Search with a literal fixed-string')
             [CompletionResult]::new('-g', 'g', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
             [CompletionResult]::new('--global', 'global', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
-            [CompletionResult]::new('-L', 'L', [CompletionResultType]::ParameterName, 'Follow symlinks when peforming an action on a file')
-            [CompletionResult]::new('--follow', 'follow', [CompletionResultType]::ParameterName, 'Follow symlinks when peforming an action on a file')
-            [CompletionResult]::new('--no-follow', 'no-follow', [CompletionResultType]::ParameterName, 'Do not follow symlinks when peforming an action on a file')
+            [CompletionResult]::new('-L', 'L', [CompletionResultType]::ParameterName, 'Follow symlinks when performing an action on a file')
+            [CompletionResult]::new('--follow', 'follow', [CompletionResultType]::ParameterName, 'Follow symlinks when performing an action on a file')
+            [CompletionResult]::new('--no-follow', 'no-follow', [CompletionResultType]::ParameterName, 'Do not follow symlinks when performing an action on a file')
             [CompletionResult]::new('-l', 'l', [CompletionResultType]::ParameterName, 'Respect ''LS_COLORS'' environment variable when coloring the output')
             [CompletionResult]::new('--ls-colors', 'ls-colors', [CompletionResultType]::ParameterName, 'Respect ''LS_COLORS'' environment variable when coloring the output')
-            [CompletionResult]::new('-q', 'q', [CompletionResultType]::ParameterName, 'Do not display any output for any command')
-            [CompletionResult]::new('--quiet', 'quiet', [CompletionResultType]::ParameterName, 'Do not display any output for any command')
+            [CompletionResult]::new('-q', 'q', [CompletionResultType]::ParameterName, 'Do not display any output for a command')
+            [CompletionResult]::new('--quiet', 'quiet', [CompletionResultType]::ParameterName, 'Do not display any output for a command')
             [CompletionResult]::new('list', 'list', [CompletionResultType]::ParameterValue, 'Lists all available tags or files')
             [CompletionResult]::new('set', 'set', [CompletionResultType]::ParameterValue, 'Set tag(s) and/or value(s) on results from a patterned query')
             [CompletionResult]::new('rm', 'rm', [CompletionResultType]::ParameterValue, 'Remove tag(s) from the files that match the provided pattern')
@@ -82,6 +82,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
             [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('-g', 'g', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
+            [CompletionResult]::new('--global', 'global', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
             [CompletionResult]::new('tags', 'tags', [CompletionResultType]::ParameterValue, 'List the `Tags` within the database')
             [CompletionResult]::new('files', 'files', [CompletionResultType]::ParameterValue, 'List the `Files` within the database')
             break
@@ -91,10 +93,10 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--with-values', 'with-values', [CompletionResultType]::ParameterName, 'Display values along with the tags')
             [CompletionResult]::new('-c', 'c', [CompletionResultType]::ParameterName, 'Do not display tag count')
             [CompletionResult]::new('--no-count', 'no-count', [CompletionResultType]::ParameterName, 'Do not display tag count')
-            [CompletionResult]::new('-u', 'u', [CompletionResultType]::ParameterName, 'Only display unique occurences. (See --help)')
-            [CompletionResult]::new('--unique', 'unique', [CompletionResultType]::ParameterName, 'Only display unique occurences. (See --help)')
-            [CompletionResult]::new('-s', 's', [CompletionResultType]::ParameterName, 'Sort the output')
-            [CompletionResult]::new('--sort', 'sort', [CompletionResultType]::ParameterName, 'Sort the output')
+            [CompletionResult]::new('-u', 'u', [CompletionResultType]::ParameterName, 'Only display unique occurrences. (See --help)')
+            [CompletionResult]::new('--unique', 'unique', [CompletionResultType]::ParameterName, 'Only display unique occurrences. (See --help)')
+            [CompletionResult]::new('-s', 's', [CompletionResultType]::ParameterName, 'Sort the tag output. This is more limited than listing files')
+            [CompletionResult]::new('--sort', 'sort', [CompletionResultType]::ParameterName, 'Sort the tag output. This is more limited than listing files')
             [CompletionResult]::new('-1', '1', [CompletionResultType]::ParameterName, 'Display one tag per line instead of tags on files')
             [CompletionResult]::new('--one-per-line', 'one-per-line', [CompletionResultType]::ParameterName, 'Display one tag per line instead of tags on files')
             [CompletionResult]::new('-b', 'b', [CompletionResultType]::ParameterName, 'Use border separators when formatting output')
@@ -103,11 +105,13 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
             [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('-g', 'g', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
+            [CompletionResult]::new('--global', 'global', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
             break
         }
         'wutag;list;files' {
-            [CompletionResult]::new('-s', 's', [CompletionResultType]::ParameterName, 'Sort the output')
-            [CompletionResult]::new('--sort', 'sort', [CompletionResultType]::ParameterName, 'Sort the output')
+            [CompletionResult]::new('-s', 's', [CompletionResultType]::ParameterName, 'Sort the file paths. See --help for all ways to sort')
+            [CompletionResult]::new('--sort', 'sort', [CompletionResultType]::ParameterName, 'Sort the file paths. See --help for all ways to sort')
             [CompletionResult]::new('-t', 't', [CompletionResultType]::ParameterName, 'Display tags along with the files')
             [CompletionResult]::new('--with-tags', 'with-tags', [CompletionResultType]::ParameterName, 'Display tags along with the files')
             [CompletionResult]::new('-V', 'V', [CompletionResultType]::ParameterName, 'Display values along with the tags')
@@ -118,12 +122,16 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--border', 'border', [CompletionResultType]::ParameterName, 'Use border separators when formatting output')
             [CompletionResult]::new('-G', 'G', [CompletionResultType]::ParameterName, 'Display tags and files on separate lines')
             [CompletionResult]::new('--garrulous', 'garrulous', [CompletionResultType]::ParameterName, 'Display tags and files on separate lines')
-            [CompletionResult]::new('-r', 'r', [CompletionResultType]::ParameterName, 'Display paths relatie to current directory (requires --global)')
-            [CompletionResult]::new('--relative', 'relative', [CompletionResultType]::ParameterName, 'Display paths relatie to current directory (requires --global)')
+            [CompletionResult]::new('-r', 'r', [CompletionResultType]::ParameterName, 'Display paths relative to current directory (requires --global)')
+            [CompletionResult]::new('--relative', 'relative', [CompletionResultType]::ParameterName, 'Display paths relative to current directory (requires --global)')
+            [CompletionResult]::new('-d', 'd', [CompletionResultType]::ParameterName, 'Show duplicate file entries')
+            [CompletionResult]::new('--duplicates', 'duplicates', [CompletionResultType]::ParameterName, 'Show duplicate file entries')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
             [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('-g', 'g', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
+            [CompletionResult]::new('--global', 'global', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
             break
         }
         'wutag;set' {
@@ -139,34 +147,34 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--stdin', 'stdin', [CompletionResultType]::ParameterName, 'Arguments are expected to be passed through stdin')
             [CompletionResult]::new('-F', 'F', [CompletionResultType]::ParameterName, 'Force the creation of a new tag')
             [CompletionResult]::new('--force', 'force', [CompletionResultType]::ParameterName, 'Force the creation of a new tag')
-            [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Follow symlinks before setting tags')
-            [CompletionResult]::new('--follow-symlinks', 'follow-symlinks', [CompletionResultType]::ParameterName, 'Follow symlinks before setting tags')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
             [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('-g', 'g', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
+            [CompletionResult]::new('--global', 'global', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
             break
         }
         'wutag;rm' {
             [CompletionResult]::new('-p', 'p', [CompletionResultType]::ParameterName, 'Specify any number of tag=value pairs to delete')
             [CompletionResult]::new('--pairs', 'pairs', [CompletionResultType]::ParameterName, 'Specify any number of tag=value pairs to delete')
-            [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Follow symlinks before removing tags and/or values')
-            [CompletionResult]::new('--follow-symlinks', 'follow-symlinks', [CompletionResultType]::ParameterName, 'Follow symlinks before removing tags and/or values')
             [CompletionResult]::new('-V', 'V', [CompletionResultType]::ParameterName, 'Indicate the item(s) in the given list are values instead of tags')
             [CompletionResult]::new('--values', 'values', [CompletionResultType]::ParameterName, 'Indicate the item(s) in the given list are values instead of tags')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
             [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('-g', 'g', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
+            [CompletionResult]::new('--global', 'global', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
             break
         }
         'wutag;clear' {
-            [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Follow symlinks before clearing tags or values')
-            [CompletionResult]::new('--follow-symlinks', 'follow-symlinks', [CompletionResultType]::ParameterName, 'Follow symlinks before clearing tags or values')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
             [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('-g', 'g', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
+            [CompletionResult]::new('--global', 'global', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
             break
         }
         'wutag;search' {
@@ -190,6 +198,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
             [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('-g', 'g', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
+            [CompletionResult]::new('--global', 'global', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
             break
         }
         'wutag;cp' {
@@ -197,14 +207,14 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--tag', 'tag', [CompletionResultType]::ParameterName, 'Specify an individual tag to copy to the matching file(s)')
             [CompletionResult]::new('-p', 'p', [CompletionResultType]::ParameterName, 'Specify any number of tag=value pairs')
             [CompletionResult]::new('--pairs', 'pairs', [CompletionResultType]::ParameterName, 'Specify any number of tag=value pairs')
-            [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Follow symlinks before copying tags and/or values')
-            [CompletionResult]::new('--follow-symlinks', 'follow-symlinks', [CompletionResultType]::ParameterName, 'Follow symlinks before copying tags and/or values')
             [CompletionResult]::new('-G', 'G', [CompletionResultType]::ParameterName, 'Use a glob to match files (must be global)')
             [CompletionResult]::new('--glob', 'glob', [CompletionResultType]::ParameterName, 'Use a glob to match files (must be global)')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
             [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('-g', 'g', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
+            [CompletionResult]::new('--global', 'global', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
             break
         }
         'wutag;view' {
@@ -216,12 +226,14 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--tags', 'tags', [CompletionResultType]::ParameterName, 'Search with a tag as a filter')
             [CompletionResult]::new('-p', 'p', [CompletionResultType]::ParameterName, 'Pattern to search for and open result in editor')
             [CompletionResult]::new('--pattern', 'pattern', [CompletionResultType]::ParameterName, 'Pattern to search for and open result in editor')
-            [CompletionResult]::new('-a', 'a', [CompletionResultType]::ParameterName, 'a')
-            [CompletionResult]::new('--all', 'all', [CompletionResultType]::ParameterName, 'all')
+            [CompletionResult]::new('-a', 'a', [CompletionResultType]::ParameterName, 'View all tags')
+            [CompletionResult]::new('--all', 'all', [CompletionResultType]::ParameterName, 'View all tags')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
             [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('-g', 'g', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
+            [CompletionResult]::new('--global', 'global', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
             break
         }
         'wutag;edit' {
@@ -233,6 +245,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
             [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('-g', 'g', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
+            [CompletionResult]::new('--global', 'global', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
             break
         }
         'wutag;info' {
@@ -248,13 +262,15 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
             [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('-g', 'g', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
+            [CompletionResult]::new('--global', 'global', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
             break
         }
         'wutag;repair' {
             [CompletionResult]::new('-m', 'm', [CompletionResultType]::ParameterName, 'Manually set the file''s new location')
             [CompletionResult]::new('--manual', 'manual', [CompletionResultType]::ParameterName, 'Manually set the file''s new location')
-            [CompletionResult]::new('-u', 'u', [CompletionResultType]::ParameterName, 'Update the hashsum of all files, including unmodified files')
-            [CompletionResult]::new('--unmodified', 'unmodified', [CompletionResultType]::ParameterName, 'Update the hashsum of all files, including unmodified files')
+            [CompletionResult]::new('-u', 'u', [CompletionResultType]::ParameterName, 'Update the hash sum of all files, including unmodified files')
+            [CompletionResult]::new('--unmodified', 'unmodified', [CompletionResultType]::ParameterName, 'Update the hash sum of all files, including unmodified files')
             [CompletionResult]::new('-d', 'd', [CompletionResultType]::ParameterName, 'Do not actually update the registry')
             [CompletionResult]::new('--dry-run', 'dry-run', [CompletionResultType]::ParameterName, 'Do not actually update the registry')
             [CompletionResult]::new('-R', 'R', [CompletionResultType]::ParameterName, 'Remove files from the registry that no longer exist on the system')
@@ -265,6 +281,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
             [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('-g', 'g', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
+            [CompletionResult]::new('--global', 'global', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
             break
         }
         'wutag;print-completions' {
@@ -275,6 +293,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
             [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('-g', 'g', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
+            [CompletionResult]::new('--global', 'global', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
             break
         }
         'wutag;clean-cache' {
@@ -282,6 +302,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
             [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('-g', 'g', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
+            [CompletionResult]::new('--global', 'global', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
             break
         }
         'wutag;ui' {
@@ -289,6 +311,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
             [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('-g', 'g', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
+            [CompletionResult]::new('--global', 'global', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
             break
         }
     })

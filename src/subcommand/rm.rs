@@ -20,17 +20,6 @@ use std::{borrow::Cow, ffi::OsStr, fs, path::PathBuf, sync::Arc};
 /// Arguments to the `rm` subcommand
 #[derive(Args, Clone, Debug, PartialEq)]
 pub(crate) struct RmOpts {
-    /// Follow symlinks before removing tags and/or values
-    #[clap(
-        name = "follow-symlinks",
-        long,
-        short = 'f',
-        takes_value = false,
-        long_help = "If true, the symlink will be dereferenced before the tag or value is removed \
-                     from the file"
-    )]
-    pub(crate) follow_symlinks: bool,
-
     /// Specify any number of tag=value pairs to delete
     #[clap(
         name = "pairs",
@@ -477,12 +466,11 @@ impl App {
             crawler(
                 &Arc::new(re),
                 &Arc::new(self.clone()),
-                opts.follow_symlinks,
                 |entry: &ignore::DirEntry| {
                     let reg = self.registry.lock().expect("poisoned lock");
 
                     let path = &(|| -> Result<PathBuf> {
-                        if (opts.follow_symlinks || self.follow_symlinks)
+                        if self.follow_symlinks
                             && fs::symlink_metadata(entry.path())
                                 .ok()
                                 .map_or(false, |f| f.file_type().is_symlink())

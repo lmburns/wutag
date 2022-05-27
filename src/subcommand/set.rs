@@ -74,16 +74,6 @@ pub(crate) struct SetOpts {
     )]
     pub(crate) force: bool,
 
-    /// Follow symlinks before setting tags
-    #[clap(
-        name = "follow-symlinks",
-        long,
-        short = 'f',
-        takes_value = false,
-        long_help = "Should the symlink be dereferenced before the tag is set on the file"
-    )]
-    pub(crate) follow_symlinks: bool,
-
     // TODO: Implement
     // /// Apply tags to the result of a query instead of a pattern match
     // #[clap(
@@ -235,7 +225,7 @@ impl App {
             log::debug!("Using STDIN");
             for entry in &collect_stdin_paths(&self.base_dir) {
                 let path = &(|| -> Result<PathBuf> {
-                    if (opts.follow_symlinks || self.follow_symlinks)
+                    if self.follow_symlinks
                         && fs::symlink_metadata(entry.path())
                             .ok()
                             .map_or(false, |f| f.file_type().is_symlink())
@@ -403,7 +393,6 @@ impl App {
             crawler(
                 &Arc::new(re),
                 &Arc::new(self.clone()),
-                opts.follow_symlinks,
                 |entry: &ignore::DirEntry| {
                     let reg = self.registry.lock().expect("poisoned lock");
 
@@ -411,7 +400,7 @@ impl App {
                     // resolved symlink if it is a single file. However, symbolic directories are
                     // traversed
                     let path = &(|| -> Result<PathBuf> {
-                        if (opts.follow_symlinks || self.follow_symlinks)
+                        if self.follow_symlinks
                             && fs::symlink_metadata(entry.path())
                                 .ok()
                                 .map_or(false, |f| f.file_type().is_symlink())

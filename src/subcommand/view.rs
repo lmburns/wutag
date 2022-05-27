@@ -31,9 +31,12 @@ pub(crate) struct ViewOpts {
         hide_env = true,
         hide_default_value = true,
     )]
-    pub(crate) editor:  String,
+    pub(crate) editor: String,
+
+    /// View all tags
     #[clap(long, short = 'a')]
-    pub(crate) all:     bool,
+    pub(crate) all: bool,
+
     /// Format of file to view results (toml, yaml, json)
     #[clap(
         name = "format",
@@ -44,7 +47,8 @@ pub(crate) struct ViewOpts {
             Format of the file viewed in the editor with the matching search results.\
             The possible values are: 'toml', 'yaml|yml', 'json'.",
     )]
-    pub(crate) format:  Option<String>,
+    pub(crate) format: Option<String>,
+
     /// Search with a tag as a filter
     #[clap(
         name = "tags",
@@ -71,7 +75,7 @@ impl App {
     /// View tags within an `$EDITOR`
     pub(crate) fn view(&mut self, opts: &ViewOpts) -> Result<()> {
         log::debug!("ViewOpts: {:#?}", opts);
-        log::debug!("Using registry: {}", self.oregistry.path.display());
+
         let pat = if let Some(pattern) = &opts.pattern {
             if self.pat_regex {
                 String::from(pattern)
@@ -97,8 +101,6 @@ impl App {
             crawler(
                 &Arc::new(re),
                 &Arc::new(self.clone()),
-                // TODO: Add CLI option for symlinks
-                true,
                 |entry: &ignore::DirEntry| {
                     map.insert(
                         tern::t!(

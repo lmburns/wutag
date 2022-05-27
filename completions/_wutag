@@ -47,13 +47,13 @@ _wutag() {
 '--fixed-string[Search with a literal fixed-string]' \
 '-g[Apply operation to all tags and files instead of locally]' \
 '--global[Apply operation to all tags and files instead of locally]' \
-'-L[Follow symlinks when peforming an action on a file]' \
-'--follow[Follow symlinks when peforming an action on a file]' \
-'--no-follow[Do not follow symlinks when peforming an action on a file]' \
+'-L[Follow symlinks when performing an action on a file]' \
+'--follow[Follow symlinks when performing an action on a file]' \
+'--no-follow[Do not follow symlinks when performing an action on a file]' \
 '(-c --color)-l[Respect '\''LS_COLORS'\'' environment variable when coloring the output]' \
 '(-c --color)--ls-colors[Respect '\''LS_COLORS'\'' environment variable when coloring the output]' \
-'-q[Do not display any output for any command]' \
-'--quiet[Do not display any output for any command]' \
+'-q[Do not display any output for a command]' \
+'--quiet[Do not display any output for a command]' \
 ":: :_wutag_commands" \
 "*::: :->wutag" \
 && ret=0
@@ -71,6 +71,8 @@ _arguments "${_arguments_options[@]}" \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
+'-g[Apply operation to all tags and files instead of locally]' \
+'--global[Apply operation to all tags and files instead of locally]' \
 ":: :_wutag__list_commands" \
 "*::: :->list" \
 && ret=0
@@ -87,10 +89,10 @@ _arguments "${_arguments_options[@]}" \
 '--with-values[Display values along with the tags]' \
 '-c[Do not display tag count]' \
 '--no-count[Do not display tag count]' \
-'-u[Only display unique occurences. (See --help)]' \
-'--unique[Only display unique occurences. (See --help)]' \
-'-s[Sort the output]' \
-'--sort[Sort the output]' \
+'-u[Only display unique occurrences. (See --help)]' \
+'--unique[Only display unique occurrences. (See --help)]' \
+'-s[Sort the tag output. This is more limited than listing files]' \
+'--sort[Sort the tag output. This is more limited than listing files]' \
 '-1[Display one tag per line instead of tags on files]' \
 '--one-per-line[Display one tag per line instead of tags on files]' \
 '(-c --no-count)-b[Use border separators when formatting output]' \
@@ -99,12 +101,14 @@ _arguments "${_arguments_options[@]}" \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
+'-g[Apply operation to all tags and files instead of locally]' \
+'--global[Apply operation to all tags and files instead of locally]' \
 && ret=0
 ;;
 (files)
 _arguments "${_arguments_options[@]}" \
-'-s+[Sort the output]:SORT: ' \
-'--sort=[Sort the output]:SORT: ' \
+'-s+[Sort the file paths. See --help for all ways to sort]:method: ' \
+'--sort=[Sort the file paths. See --help for all ways to sort]:method: ' \
 '-t[Display tags along with the files]' \
 '--with-tags[Display tags along with the files]' \
 '-V[Display values along with the tags]' \
@@ -115,12 +119,16 @@ _arguments "${_arguments_options[@]}" \
 '--border[Use border separators when formatting output]' \
 '(-f --format)-G[Display tags and files on separate lines]' \
 '(-f --format)--garrulous[Display tags and files on separate lines]' \
-'-r[Display paths relatie to current directory (requires --global)]' \
-'--relative[Display paths relatie to current directory (requires --global)]' \
+'-r[Display paths relative to current directory (requires --global)]' \
+'--relative[Display paths relative to current directory (requires --global)]' \
+'(-s --sort)-d[Show duplicate file entries]' \
+'(-s --sort)--duplicates[Show duplicate file entries]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
+'-g[Apply operation to all tags and files instead of locally]' \
+'--global[Apply operation to all tags and files instead of locally]' \
 && ret=0
 ;;
         esac
@@ -141,12 +149,12 @@ _arguments "${_arguments_options[@]}" \
 '--stdin[Arguments are expected to be passed through stdin]' \
 '-F[Force the creation of a new tag]' \
 '--force[Force the creation of a new tag]' \
-'-f[Follow symlinks before setting tags]' \
-'--follow-symlinks[Follow symlinks before setting tags]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
+'-g[Apply operation to all tags and files instead of locally]' \
+'--global[Apply operation to all tags and files instead of locally]' \
 ':pattern -- A glob, regular expression, or fixed-string:_files' \
 '*::_wutag_tags:' \
 && ret=0
@@ -155,26 +163,26 @@ _arguments "${_arguments_options[@]}" \
 _arguments "${_arguments_options[@]}" \
 '(-V --values)*-p+[Specify any number of tag=value pairs to delete]:pairs: ' \
 '(-V --values)*--pairs=[Specify any number of tag=value pairs to delete]:pairs: ' \
-'-f[Follow symlinks before removing tags and/or values]' \
-'--follow-symlinks[Follow symlinks before removing tags and/or values]' \
 '-V[Indicate the item(s) in the given list are values instead of tags]' \
 '--values[Indicate the item(s) in the given list are values instead of tags]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
+'-g[Apply operation to all tags and files instead of locally]' \
+'--global[Apply operation to all tags and files instead of locally]' \
 ':pattern -- A glob pattern like "*.png" (or regex):_files' \
 '*::tags:_wutag_tags' \
 && ret=0
 ;;
 (clear)
 _arguments "${_arguments_options[@]}" \
-'-f[Follow symlinks before clearing tags or values]' \
-'--follow-symlinks[Follow symlinks before clearing tags or values]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
+'-g[Apply operation to all tags and files instead of locally]' \
+'--global[Apply operation to all tags and files instead of locally]' \
 ':pattern -- A glob pattern like "*.png":' \
 && ret=0
 ;;
@@ -200,6 +208,8 @@ _arguments "${_arguments_options[@]}" \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
+'-g[Apply operation to all tags and files instead of locally]' \
+'--global[Apply operation to all tags and files instead of locally]' \
 ':pattern -- Pattern to search tagged files:' \
 && ret=0
 ;;
@@ -209,14 +219,14 @@ _arguments "${_arguments_options[@]}" \
 '--tag=[Specify an individual tag to copy to the matching file(s)]:tag: ' \
 '(-t --tag)*-p+[Specify any number of tag=value pairs]:pairs: ' \
 '(-t --tag)*--pairs=[Specify any number of tag=value pairs]:pairs: ' \
-'-f[Follow symlinks before copying tags and/or values]' \
-'--follow-symlinks[Follow symlinks before copying tags and/or values]' \
 '-G[Use a glob to match files (must be global)]' \
 '--glob[Use a glob to match files (must be global)]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
+'-g[Apply operation to all tags and files instead of locally]' \
+'--global[Apply operation to all tags and files instead of locally]' \
 ':input-path -- Path to the file from which to copy tags from:_files' \
 ':pattern -- A glob, regular expression, or fixed-string:_files' \
 && ret=0
@@ -231,12 +241,14 @@ _arguments "${_arguments_options[@]}" \
 '*--tags=[Search with a tag as a filter]:tags: ' \
 '-p+[Pattern to search for and open result in editor]:pattern: ' \
 '--pattern=[Pattern to search for and open result in editor]:pattern: ' \
-'-a[]' \
-'--all[]' \
+'-a[View all tags]' \
+'--all[View all tags]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
+'-g[Apply operation to all tags and files instead of locally]' \
+'--global[Apply operation to all tags and files instead of locally]' \
 && ret=0
 ;;
 (edit)
@@ -249,6 +261,8 @@ _arguments "${_arguments_options[@]}" \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
+'-g[Apply operation to all tags and files instead of locally]' \
+'--global[Apply operation to all tags and files instead of locally]' \
 ':tag -- The tag to edit:_wutag_tags' \
 && ret=0
 ;;
@@ -266,14 +280,16 @@ _arguments "${_arguments_options[@]}" \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
+'-g[Apply operation to all tags and files instead of locally]' \
+'--global[Apply operation to all tags and files instead of locally]' \
 && ret=0
 ;;
 (repair)
 _arguments "${_arguments_options[@]}" \
 '*-m+[Manually set the file'\''s new location]:MANUAL:_files:MANUAL:_files' \
 '*--manual=[Manually set the file'\''s new location]:MANUAL:_files:MANUAL:_files' \
-'-u+[Update the hashsum of all files, including unmodified files]: : ' \
-'--unmodified=[Update the hashsum of all files, including unmodified files]: : ' \
+'-u+[Update the hash sum of all files, including unmodified files]: : ' \
+'--unmodified=[Update the hash sum of all files, including unmodified files]: : ' \
 '-d[Do not actually update the registry]' \
 '--dry-run[Do not actually update the registry]' \
 '-R[Remove files from the registry that no longer exist on the system]' \
@@ -284,6 +300,8 @@ _arguments "${_arguments_options[@]}" \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
+'-g[Apply operation to all tags and files instead of locally]' \
+'--global[Apply operation to all tags and files instead of locally]' \
 && ret=0
 ;;
 (print-completions)
@@ -295,6 +313,8 @@ _arguments "${_arguments_options[@]}" \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
+'-g[Apply operation to all tags and files instead of locally]' \
+'--global[Apply operation to all tags and files instead of locally]' \
 && ret=0
 ;;
 (clean-cache)
@@ -303,6 +323,8 @@ _arguments "${_arguments_options[@]}" \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
+'-g[Apply operation to all tags and files instead of locally]' \
+'--global[Apply operation to all tags and files instead of locally]' \
 && ret=0
 ;;
 (ui|tui)
@@ -311,6 +333,8 @@ _arguments "${_arguments_options[@]}" \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
+'-g[Apply operation to all tags and files instead of locally]' \
+'--global[Apply operation to all tags and files instead of locally]' \
 && ret=0
 ;;
         esac

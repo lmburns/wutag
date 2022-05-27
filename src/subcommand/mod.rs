@@ -90,26 +90,6 @@ impl App {
 
     /// Create a new instance of the application
     pub(crate) fn new(opts: &Opts, config: Config) -> Result<Self> {
-        // This ignores invalid colors (i.e., doesn't crash program)
-        // Could also be done with .fold()
-        let colors = config.colors.map_or_else(
-            || DEFAULT_COLORS.to_vec(),
-            |colors_| {
-                colors_
-                    .iter()
-                    .filter_map(|color| {
-                        let parsed = parse_color(color);
-                        if let Err(e) = parsed {
-                            wutag_error!("{e}");
-                            None
-                        } else {
-                            parsed.ok()
-                        }
-                    })
-                    .collect::<Vec<_>>()
-            },
-        );
-
         let follow_links = opts
             .no_follow_links
             .then(|| false)
@@ -173,7 +153,25 @@ impl App {
             case_insensitive: opts.case_insensitive,
             case_sensitive: opts.case_sensitive,
             color_when: opts.color_when.unwrap_or_default(),
-            colors,
+            // This ignores invalid colors (i.e., doesn't crash program)
+            // Could also be done with .fold()
+            colors: config.colors.map_or_else(
+                || DEFAULT_COLORS.to_vec(),
+                |colors_| {
+                    colors_
+                        .iter()
+                        .filter_map(|color| {
+                            let parsed = parse_color(color);
+                            if let Err(e) = parsed {
+                                wutag_error!("{e}");
+                                None
+                            } else {
+                                parsed.ok()
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                },
+            ),
             exclude: opts.exclude.as_ref().map_or_else(Vec::new, |v| {
                 v.iter().map(|ex| format!("!{}", ex.as_str())).collect()
             }),

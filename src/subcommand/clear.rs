@@ -20,17 +20,6 @@ use std::sync::Arc;
 /// Arguments used for the `clear` subcommand
 #[derive(Args, Debug, Clone, PartialEq)]
 pub(crate) struct ClearOpts {
-    /// Follow symlinks before clearing tags or values
-    #[clap(
-        name = "follow-symlinks",
-        long,
-        short = 'f',
-        takes_value = false,
-        long_help = "Should the symlink be dereferenced before the tag(s) are cleared from the \
-                     file"
-    )]
-    pub(crate) follow_symlinks: bool,
-
     // /// Clear values instead of tags
     // #[clap(
     //     name = "values",
@@ -45,7 +34,7 @@ pub(crate) struct ClearOpts {
 }
 
 impl App {
-    /// Clear `Tag`s from a given path
+    /// Clear [`Tag`]s from a given path
     pub(crate) fn clear(&mut self, opts: &ClearOpts) {
         log::debug!("ClearOpts: {:#?}", opts);
 
@@ -116,7 +105,6 @@ impl App {
             crawler(
                 &Arc::new(re),
                 &Arc::new(self.clone()),
-                opts.follow_symlinks,
                 |entry: &ignore::DirEntry| {
                     let reg = self.registry.lock().expect("poisoned lock");
 

@@ -164,8 +164,9 @@ pub(crate) struct Opts {
     /// Apply operation to all tags and files instead of locally
     #[clap(
         name = "global",
-        long,
-        short,
+        long = "global",
+        short = 'g',
+        global = true,
         long_help = "\
         Apply operation to files that are already tagged instead of traversing into local \
                      directories or directories specified with '-d|--dir'. Only applies to \
@@ -173,7 +174,7 @@ pub(crate) struct Opts {
     )]
     pub(crate) global: bool,
 
-    /// Follow symlinks when peforming an action on a file
+    /// Follow symlinks when performing an action on a file
     #[clap(
         name = "follow",
         long = "follow",
@@ -183,11 +184,11 @@ pub(crate) struct Opts {
         long_help = "\
         Peform the action (set, remove, modify) on the dereferenced file. This option can also be \
                      set in the configuration file. Overrides configuration and this option can \
-                     be overriden with '--no-follow'"
+                     be overridden with '--no-follow'"
     )]
     pub(crate) follow_links: bool,
 
-    /// Do not follow symlinks when peforming an action on a file
+    /// Do not follow symlinks when performing an action on a file
     #[clap(
         hide = true,
         name = "no_follow",
@@ -238,7 +239,6 @@ pub(crate) struct Opts {
     pub(crate) file_type: Option<Vec<String>>,
 
     #[clap(
-        // global = true,
         name = "extension",
         long = "ext",
         short = 'e',
@@ -248,8 +248,8 @@ pub(crate) struct Opts {
         value_name = "extension",
         long_help = "\
         Specify file extensions to match against (can be used multiple times) instead of using the \
-                      glob '*.{rs,go}' or the regex '.*.(rs|go)'. Used like: 'wutag -e rs set '*' \
-                      <tag>'. Can be used multiple times: e.g., -e rs -e go.
+                     glob '*.{rs,go}' or the regex '.*.(rs|go)'. Used like: 'wutag -e rs set '*' \
+                     <tag>'. Can be used multiple times: e.g., -e rs -e go.
         "
     )]
     /// Filter results by file extension
@@ -267,14 +267,13 @@ pub(crate) struct Opts {
         // conflicts_with = "global",
         long_help = "\
         Specify a pattern to exclude from the results. Can be used multiple times: e.g., \
-        -E path/here -E path/there.
-        "
+        -E path/here -E path/there."
     )]
     /// Exclude results that match pattern
     pub(crate) exclude: Option<Vec<String>>,
 
     // TODO: Implement all around
-    /// Do not display any output for any command
+    /// Do not display any output for a command
     #[clap(
         name = "quiet",
         long = "quiet",
@@ -332,6 +331,7 @@ impl Default for Command {
                 garrulous:   false,
                 sort:        Sort::None,
                 relative:    false,
+                duplicates:  false,
             },
             raw:    false,
         })

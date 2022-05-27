@@ -43,7 +43,7 @@ pub(crate) struct RepairOpts {
                             .map_err(|e| e.to_string()),
     )]
     pub(crate) manual:     Option<Vec<String>>,
-    /// Update the hashsum of all files, including unmodified files
+    /// Update the hash sum of all files, including unmodified files
     #[clap(short = 'u', long = "unmodified", takes_value = true)]
     pub(crate) unmodified: bool,
 }

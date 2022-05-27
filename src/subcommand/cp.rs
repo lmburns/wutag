@@ -31,17 +31,6 @@ use std::{borrow::Cow, env, ffi::OsStr, fs, path::PathBuf, sync::Arc};
 /// Arguments used for the `cp` subcommand
 #[derive(Args, Debug, Clone, PartialEq)]
 pub(crate) struct CpOpts {
-    /// Follow symlinks before copying tags and/or values
-    #[clap(
-        name = "follow-symlinks",
-        long,
-        short = 'f',
-        takes_value = false,
-        long_help = "If true, the symlink will be dereferenced on the target file(s) before the \
-                     tags/values are copied. The source file always has to be dereferenced"
-    )]
-    pub(crate) follow_symlinks: bool,
-
     /// Specify an individual tag to copy to the matching file(s)
     #[clap(
         name = "tag",
@@ -66,7 +55,7 @@ pub(crate) struct CpOpts {
     )]
     pub(crate) pairs: Vec<(String, String)>,
 
-    // XXX: Implement
+    // XXX: Implement or remove
     /// Use a glob to match files (must be global)
     #[clap(
         short = 'G',
@@ -127,7 +116,7 @@ impl App {
         //         path = env::current_dir()?.join(PathBuf::from(path_str.replace("./",
         // "")));     }
         //
-        //     if (opts.follow_symlinks || self.follow_symlinks)
+        //     if self.follow_symlinks
         //         && fs::symlink_metadata(&path)
         //             .ok()
         //             .map_or(false, |f| f.file_type().is_symlink())
@@ -346,13 +335,12 @@ impl App {
                             crawler(
                                 &Arc::new(re),
                                 &Arc::new(self.clone()),
-                                opts.follow_symlinks,
                                 |entry: &ignore::DirEntry| {
                                     let reg = self.registry.lock().expect("poisoned lock");
 
                                     // The destination files
                                     let entry = &(|| -> Result<PathBuf> {
-                                        if (opts.follow_symlinks || self.follow_symlinks)
+                                        if self.follow_symlinks
                                             && fs::symlink_metadata(entry.path())
                                                 .ok()
                                                 .map_or(false, |f| f.file_type().is_symlink())

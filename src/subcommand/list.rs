@@ -7,6 +7,7 @@
 
 use super::App;
 use crate::{
+    consts::SORT_FILES_EXPL,
     filesystem::contained_path,
     global_opts,
     registry::{
@@ -14,6 +15,7 @@ use crate::{
         types::{Sort, Tag},
     },
     util::{fmt_local_path, fmt_path, raw_local_path},
+    wutag_error,
 };
 
 use anyhow::{Context, Result};
@@ -43,7 +45,7 @@ pub(crate) enum ListObject {
         #[clap(name = "no-count", long = "no-count", short = 'c')]
         no_count: bool,
 
-        /// Only display unique occurences. (See --help)
+        /// Only display unique occurrences. (See --help)
         #[clap(
             long = "unique",
             short = 'u',
@@ -53,8 +55,7 @@ pub(crate) enum ListObject {
         )]
         unique: bool,
 
-        // TODO: Add sort kinds
-        /// Sort the output
+        /// Sort the tag output. This is more limited than listing files
         #[clap(
             long = "sort",
             short = 's',
@@ -135,18 +136,38 @@ pub(crate) enum ListObject {
         )]
         garrulous: bool,
 
-        /// Sort the output
+        /// Sort the file paths. See --help for all ways to sort
         #[clap(
             long = "sort",
             short = 's',
             default_value = "none",
-            long_help = "Sort alphabetically with `no-count`, otherwise it is numerically sorted"
+            value_name = "method",
+            long_help = <String as AsRef<str>>::as_ref(&SORT_FILES_EXPL)
         )]
         sort: Sort,
 
-        /// Display paths relatie to current directory (requires --global)
-        #[clap(name = "relative", long, short = 'r')]
+        // TODO: Implement this better
+        /// Display paths relative to current directory (requires --global)
+        #[clap(
+            name = "relative",
+            long,
+            short = 'r',
+            requires = "global",
+            long_help = "Show paths relative to the current directory. This will only work if the \
+                         --global option is given"
+        )]
         relative: bool,
+
+        /// Show duplicate file entries
+        #[clap(
+            name = "duplicates",
+            alias = "dupes",
+            long,
+            short = 'd',
+            conflicts_with = "sort",
+            long_help = "Display duplicate files based on their blake3 hash"
+        )]
+        duplicates: bool,
     },
 }
 
@@ -223,8 +244,13 @@ impl App {
                 garrulous,
                 sort,
                 relative,
+                duplicates,
             } => {
-                let files = reg.files(Some(sort))?;
+                let files = if duplicates {
+                    reg.duplicate_files()?
+                } else {
+                    reg.files(Some(sort))?
+                };
 
                 for file in files.iter() {
                     // Skips paths that are not contained within current directory to respect the
@@ -250,6 +276,7 @@ impl App {
                         } else {
                             file.path()
                         };
+
                         global_opts!(
                             fmt_local_path(
                                 &file.path(),
@@ -348,7 +375,7 @@ impl App {
                     }
                 }
 
-                // TODO: May need to recalculate count after icorporating value display
+                // TODO: May need to recalculate count after incorporating value display
                 let mut vec = utags
                     .iter()
                     .fold(HashMap::new(), |mut acc, t| {

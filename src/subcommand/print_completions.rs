@@ -1,7 +1,7 @@
 use super::App;
 use crate::{
-    bold_entry, comp_helper,
-    utils::{gen_completions, replace},
+    bold_entry,
+    utils::{comp_helper, gen_completions, replace},
     wutag_info, Opts,
 };
 use clap::{Args, CommandFactory, ValueHint};

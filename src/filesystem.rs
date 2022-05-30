@@ -387,7 +387,7 @@ pub(crate) fn delete_file<P: AsRef<Path>>(file: P) {
 }
 
 /// Determine whether file (path) contains path and if so, return true
-pub(crate) fn contained_path<P: AsRef<Path>>(file: P, path: P) -> bool {
+pub(crate) fn contained_path<P: AsRef<Path>, A: AsRef<Path>>(file: P, path: A) -> bool {
     file.as_ref()
         .to_string_lossy()
         .starts_with(&path.as_ref().to_string_lossy().to_string())

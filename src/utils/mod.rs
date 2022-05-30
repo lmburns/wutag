@@ -1,6 +1,7 @@
 //! Utility functions used throughout this crate
 
 pub(crate) mod color;
+pub(crate) mod comp_helper;
 pub(crate) mod fmt;
 
 use anyhow::{anyhow, Context, Result};

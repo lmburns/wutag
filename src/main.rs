@@ -112,7 +112,6 @@
     )
 )]
 
-mod comp_helper;
 mod config;
 mod consts;
 mod directories;

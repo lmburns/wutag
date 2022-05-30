@@ -18,14 +18,17 @@ use super::{
     from_vec, impl_vec, ID,
 };
 use crate::{fail, filesystem::ext4::FileFlag, inner_immute};
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local};
 use lexiclean::Lexiclean;
 use mime::Mime;
 use std::{
+    array::TryFromSliceError,
     borrow::Cow,
     convert::TryFrom,
+    fmt,
     fs::{self, Metadata},
+    ops::Deref,
     os::unix::fs::{MetadataExt, PermissionsExt},
     path::{Path, PathBuf},
     str::FromStr,
@@ -113,22 +116,35 @@ pub(crate) struct File {
     e2pflags: FileFlag,
 }
 
-#[rustfmt::skip]
 impl File {
     inner_immute!(id, FileId, false);
+
     inner_immute!(directory, String);
+
     inner_immute!(name, String);
+
     inner_immute!(hash, String);
+
     inner_immute!(mime, MimeType);
+
     inner_immute!(mtime, DateTime<Local>);
+
     inner_immute!(ctime, DateTime<Local>);
+
     inner_immute!(mode, u32, false);
+
     inner_immute!(inode, u64, false);
+
     inner_immute!(links, u64, false);
+
     inner_immute!(uid, u32, false);
+
     inner_immute!(gid, u32, false);
+
     inner_immute!(size, u64, false);
+
     inner_immute!(is_dir, bool, false);
+
     inner_immute!(is_symlink, bool, false);
 
     #[cfg(all(
@@ -209,8 +225,10 @@ impl File {
 
     /// Modify the [`File`]s modification time, due to file changes
     pub(crate) fn set_mtime(mut self, meta: &Metadata) -> Result<Self> {
-        self.mtime =
-            convert_to_datetime(meta.modified().context(fail!("getting modification time"))?);
+        self.mtime = convert_to_datetime(
+            meta.modified()
+                .context(fail!("getting modification time"))?,
+        );
         Ok(self)
     }
 
@@ -270,14 +288,39 @@ impl File {
         self
     }
 
+    /// Get the metadata of the file as it is right now on the system
+    pub(crate) fn get_fs_metadata(&self) -> Result<Metadata> {
+        let path = self.path();
+        fs::metadata(&path).map_err(|e| anyhow!("failed to get metadata for {}", path.display()))
+    }
+
+    /// Has the [`File`] changed since it has been added to the registry?
+    pub(crate) fn changed_since(&self) -> Result<bool> {
+        let curr = self.get_fs_metadata()?;
+        let mtime = convert_to_datetime(
+            curr.modified()
+                .context(fail!("get modification time for {}", self.path().display()))?,
+        );
+
+        if self.mtime() == &mtime && self.size() == curr.len() {
+            log::debug!("{}: has not modified", self.path().display());
+            return Ok(true);
+        }
+
+        log::debug!("{}: has been modified", self.path().display());
+        Ok(false)
+    }
+
     /// Modify the [`File`]s [`Metadata`] attributes
     pub(crate) fn set_metadata(mut self, meta: &Metadata) -> Result<Self> {
-        self.mtime =
-            convert_to_datetime(meta.modified().context(fail!("getting modification time"))?);
+        self.mtime = convert_to_datetime(
+            meta.modified()
+                .context(fail!("getting modification time"))?,
+        );
         self.ctime = convert_to_datetime(meta.created().context(fail!("getting created time"))?);
         self.mode = format!("{:o}", meta.permissions().mode())
             .parse::<u32>()
-            .expect("failed to parse octal digits");;
+            .expect("failed to parse octal digits");
         self.inode = meta.ino();
         self.links = meta.nlink();
         self.uid = meta.uid();
@@ -456,6 +499,77 @@ pub(crate) struct FileTagCnt {
 // }
 
 // ╭──────────────────────────────────────────────────────────╮
+// │                         Hashsum                          │
+// ╰──────────────────────────────────────────────────────────╯
+
+// TODO: USE THIS
+
+/// A [`blake3`] checksum for a file
+#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Copy)]
+pub(crate) struct Fingerprint(pub(crate) [u8; blake3::OUT_LEN]);
+
+impl FromSql for Fingerprint {
+    fn column_result(value: ValueRef<'_>) -> Result<Self, FromSqlError> {
+        match value {
+            ValueRef::Blob(bytes) => bytes
+                .try_into()
+                .context("ValueRef::Blob has wrong byte length for hashsum")
+                .map_err(|e| FromSqlError::Other(Box::from(e))),
+            _ => Err(FromSqlError::InvalidType),
+        }
+    }
+}
+
+impl ToSql for Fingerprint {
+    fn to_sql(&self) -> rsq::Result<ToSqlOutput<'_>> {
+        self.0.to_sql()
+    }
+}
+
+impl Deref for Fingerprint {
+    type Target = [u8; blake3::OUT_LEN];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl TryFrom<&[u8]> for Fingerprint {
+    type Error = TryFromSliceError;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        value.try_into().map(Self)
+    }
+}
+
+impl TryFrom<Vec<u8>> for Fingerprint {
+    type Error = Vec<u8>;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        value.try_into().map(Self)
+    }
+}
+
+impl fmt::Display for Fingerprint {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for byte in &self.0 {
+            write!(f, "{:02x}", byte)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl fmt::Debug for Fingerprint {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "\"")?;
+        let result = self.fmt(f);
+        write!(f, "\"")?;
+        result
+    }
+}
+
+// ╭──────────────────────────────────────────────────────────╮
 // │                         MimeType                         │
 // ╰──────────────────────────────────────────────────────────╯
 
@@ -507,8 +621,12 @@ impl ToSql for MimeType {
 }
 
 impl FromSql for MimeType {
-    fn column_result(val: ValueRef) -> rsq::Result<Self, FromSqlError> {
-        match Self::from_str(val.as_str().expect("failed to convert value to str")) {
+    fn column_result(val: ValueRef) -> Result<Self, FromSqlError> {
+        match Self::from_str(
+            val.as_str()
+                .context("failed to convert value to str")
+                .map_err(|e| FromSqlError::Other(Box::from(e)))?,
+        ) {
             Ok(v) => Ok(v),
             Err(err) => Err(FromSqlError::InvalidType),
         }

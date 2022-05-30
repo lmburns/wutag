@@ -124,6 +124,7 @@ pub(crate) struct SetOpts {
 
 // TODO: Condense all this duplicate code
 // TODO: Write xattr as tag=value
+// TODO: Check file permissions
 
 impl App {
     /// Set tags on a file

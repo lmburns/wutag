@@ -13,6 +13,8 @@ use clap::{Args, ValueHint};
 use crossbeam_channel as channel;
 use std::sync::Arc;
 
+// TODO: Search for files with xattrs
+
 /// Options used for the `search` subcommand
 #[derive(Args, Clone, Debug, PartialEq)]
 pub(crate) struct SearchOpts {
@@ -31,7 +33,6 @@ pub(crate) struct SearchOpts {
     pub(crate) only_files: bool,
 
     /// Execute a command on each individual file
-    #[rustfmt::skip]
     #[clap(
         name = "exec",
         long = "exec", short = 'x',
@@ -44,7 +45,8 @@ pub(crate) struct SearchOpts {
         long_help = EXEC_EXPL.as_ref(),
         value_hint = ValueHint::CommandName,
     )]
-    pub(crate) execute:       Option<Vec<String>>,
+    pub(crate) execute: Option<Vec<String>>,
+
     /// Execute a command on the batch of matching files
     #[clap(
         name = "exec-batch",
@@ -102,8 +104,8 @@ pub(crate) struct SearchOpts {
         long,
         short,
         long_help = "\
-        Limit search results even further by using a tag. To search just by tags use 'wutag search \
-                     '*' --tag <tag>'"
+        Limit search results even further by using a tag. To search just by tags use 'search '*' \
+                     --tag <tag>'"
     )]
     pub(crate) tags: Vec<String>,
 
@@ -135,10 +137,9 @@ impl App {
 
         let command = opts.execute.as_ref().map_or_else(
             || {
-                opts.execute_batch.as_ref().map_or_else(
-                    || None,
-                    |cmd| Some(CommandTemplate::new_batch(cmd).expect("invalid batch command")),
-                )
+                opts.execute_batch
+                    .as_ref()
+                    .map(|cmd| CommandTemplate::new_batch(cmd).expect("invalid batch command"))
             },
             |cmd| Some(CommandTemplate::new(cmd)),
         );

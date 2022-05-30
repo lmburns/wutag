@@ -251,6 +251,15 @@ impl App {
                     reg.files(Some(sort))?
                 };
 
+                // TODO: Maybe use this instead of checking global contained_path
+                // let files = if duplicates {
+                //     reg.duplicate_files()?
+                // } else if self.global {
+                //     reg.files_by_directory(&self.base_dir)?
+                // } else {
+                //     reg.files(Some(sort))?
+                // };
+
                 for file in files.iter() {
                     // Skips paths that are not contained within current directory to respect the
                     // `-d` flag. Global is just another way to specify -d=~ (list files locally by

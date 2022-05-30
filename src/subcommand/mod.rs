@@ -28,7 +28,12 @@ use crate::{
     oregistry,
     oregistry::TagRegistry,
     registry::{types::tag::Tag, Registry},
-    ui, wutag_error, wutag_fatal,
+    ui,
+    utils::{
+        color::{parse_color, parse_color_cli_table},
+        fmt,
+    },
+    wutag_error, wutag_fatal,
 };
 use anyhow::{Context, Result};
 use colored::{Color, ColoredString, Colorize};
@@ -36,11 +41,10 @@ use regex::bytes::{RegexSet, RegexSetBuilder};
 use std::{
     env,
     error::Error,
-    path::PathBuf,
+    path::{Path, PathBuf},
     str::FromStr,
     sync::{Arc, Mutex},
 };
-use wutag_core::color::{parse_color, parse_color_cli_table};
 
 /// A structure that is built from a parsed `Config` and parsed `Opts`
 #[allow(clippy::missing_docs_in_private_items)]
@@ -296,22 +300,26 @@ impl App {
 
     /// Format a tag according to the [`Tag`]'s color and an optional effect
     pub(crate) fn fmt_tag(&self, tag: &Tag) -> ColoredString {
-        let mut s = tag.name().color(tag.color());
-        for effect in &self.tag_effect {
-            match effect.to_ascii_lowercase().trim() {
-                "underline" | "u" | "ul" => s = s.underline(),
-                "italic" | "i" | "it" => s = s.italic(),
-                "reverse" | "r" | "rev" => s = s.reversed(),
-                "dimmed" | "d" | "dim" => s = s.dimmed(),
-                "blink" | "bl" => s = s.blink(),
-                "strikethrough" | "s" | "st" => s = s.strikethrough(),
-                "none" | "n" => s = s.clear(),
-                // Bold is the default
-                _ => s = s.bold(),
-            }
-        }
+        fmt::tag(tag, &self.tag_effect)
+    }
 
-        s
+    /// Format the colored/non-colored output of a [`Path`]
+    pub(crate) fn fmt_path<P: AsRef<Path>>(&self, path: P) -> String {
+        fmt::path(path, self)
+    }
+
+    /// Return a path in a format that only shows components from the CWD and
+    /// any level of depth beneath that
+    pub(crate) fn fmt_local_path<P: AsRef<Path>>(&self, path: P) -> String {
+        fmt::local_path(path, self)
+    }
+
+    /// Return a local path with no color, i.e., one in which /home/user/... is
+    /// not used and it is relative to the current directory. The searching
+    /// of the paths does not go above the folder in which this command is
+    /// read and only searches recursively
+    pub(crate) fn fmt_raw_local_path<P: AsRef<Path>>(&self, path: P) -> String {
+        fmt::raw_local_path(path, &self.base_dir)
     }
 }
 

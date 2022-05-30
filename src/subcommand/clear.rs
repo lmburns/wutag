@@ -6,12 +6,10 @@ use super::App;
 use crate::{
     bold_entry, err,
     filesystem::osstr_to_bytes,
-    registry::types::{
-        tag::{clear_tags, has_tags, DirEntryExt},
-        ID,
-    },
-    util::{crawler, fmt_path, glob_builder, regex_builder},
+    registry::types::ID,
+    utils::{crawler, fmt, glob_builder, regex_builder},
     wutag_error, wutag_info,
+    xattr::tag::{clear_tags, has_tags, DirEntryExt},
 };
 use clap::Args;
 // use colored::Colorize;
@@ -83,12 +81,12 @@ impl App {
             //                 if has_tags && !self.quiet {
             //                     println!(
             //                         "{}:",
-            //                         fmt_path(entry.path(), self.base_color,
+            //                         fmt::path(entry.path(), self.base_color,
             // self.ls_colors)                     );
             //                     if let Err(e) = clear_tags(entry.path()) {
             //                         err!('\t', e, entry);
             //                     } else if !self.quiet {
-            //                         println!("\t{}", fmt_ok("cleared"));
+            //                         println!("\t{}", fmt::ok("cleared"));
             //                     }
             //                 },
             //             Err(e) => {
@@ -159,12 +157,12 @@ impl App {
                     //         if has_tags && !self.quiet {
                     //             println!(
                     //                 "{}:",
-                    //                 fmt_path(entry.path(), self.base_color, self.ls_colors)
+                    //                 fmt::path(entry.path(), self.base_color, self.ls_colors)
                     //             );
                     //             if let Err(e) = entry.clear_tags() {
                     //                 err!('\t', e, entry);
                     //             } else if !self.quiet {
-                    //                 println!("\t{}", fmt_ok("cleared"));
+                    //                 println!("\t{}", fmt::ok("cleared"));
                     //             }
                     //         },
                     //     Err(e) => {

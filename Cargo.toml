@@ -1,6 +1,3 @@
-# wojciechkepka <wojtek.kepka@protonmail.com> is the original
-# Fork has been modified so much that everything except from `wutag_core` is different
-
 [package]
 name = "wutag"
 version = "0.7.1"
@@ -13,10 +10,6 @@ homepage = "https://git.lmburns.com/wutag"
 categories = ["command-line-utilities", "filesystem", "tagging"]
 keywords = ["cli", "shell", "utility", "tag", "files"]
 readme = "README.md"
-
-[lib]
-name = "wutag_core"
-path = "wutag_core/lib.rs"
 
 [features]
 default = ["encrypt-gpgme", "ui", "yaml-backend", "file-flags"]

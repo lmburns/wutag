@@ -41,7 +41,6 @@ colors:
 # Global directories/files to ignore
 ignores:
   - "target/"
-  - "wutag_core/"
 # Format that is displayed when using view subcommand
 format: yaml
 

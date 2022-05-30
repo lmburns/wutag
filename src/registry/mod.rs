@@ -39,7 +39,7 @@ use crate::{
     directories::PROJECT_DIRS,
     fail, failt,
     subcommand::App,
-    util::{contains_upperchar, prompt},
+    utils::{contains_upperchar, prompt},
     wutag_error, wutag_fatal, wutag_info,
 };
 use anyhow::{Context as _, Result};

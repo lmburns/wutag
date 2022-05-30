@@ -5,12 +5,10 @@ use super::{parse_tag_val, App};
 use crate::{
     bold_entry,
     filesystem::osstr_to_bytes,
-    registry::types::{
-        tag::{DirEntryExt, Tag},
-        value::Value,
-    },
-    util::{crawler, fmt_path, glob_builder, regex_builder},
+    registry::types::{Tag, Value},
+    utils::{crawler, glob_builder, regex_builder},
     wutag_error, wutag_info,
+    xattr::tag::DirEntryExt,
 };
 use anyhow::{anyhow, Context, Result};
 use clap::{Args, ValueHint};
@@ -207,7 +205,7 @@ impl App {
 
                 if re.is_match(&search_bytes) {
                     if !self.quiet {
-                        println!("{}:", fmt_path(path, self));
+                        println!("{}:", self.fmt_path(path));
                     }
 
                     for (tag, value) in &combos {
@@ -487,7 +485,7 @@ impl App {
 
                     if let Ok(file) = reg.file_by_path(path) {
                         if !self.quiet {
-                            println!("{}:", fmt_path(path, self));
+                            println!("{}:", self.fmt_path(path));
                         }
 
                         // TODO: Reduce duplicate code

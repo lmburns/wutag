@@ -6,7 +6,7 @@
 #![allow(clippy::cast_precision_loss)]
 
 use super::App;
-use crate::{bold_entry, registry::types::tag::DirEntryExt, wutag_error};
+use crate::{bold_entry, wutag_error, xattr::tag::DirEntryExt};
 use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
 use cli_table::{

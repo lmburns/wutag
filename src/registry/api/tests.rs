@@ -12,11 +12,10 @@ use super::super::{
     },
     Registry,
 };
-use crate::filesystem as wfs;
+use crate::{filesystem as wfs, utils::color::parse_color};
 use anyhow::{Context, Result};
 use rusqlite::{self as rsq, params, Connection};
 use std::{env, os::unix::prelude::MetadataExt, path::PathBuf, str::FromStr};
-use wutag_core::color::parse_color;
 
 const DB_NAME: &str = "./tests/my.db";
 

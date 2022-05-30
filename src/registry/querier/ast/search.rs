@@ -1,6 +1,6 @@
 //! Pattern or exact searches into the database
 
-use crate::util::contains_upperchar;
+use crate::utils::contains_upperchar;
 use anyhow::{anyhow, Result};
 use colored::Colorize;
 use regex::bytes::Regex;

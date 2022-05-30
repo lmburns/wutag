@@ -4,7 +4,7 @@ use std::path::Path;
 
 use crate::Result;
 
-pub fn set_xattr<P, S>(path: P, name: S, value: S) -> Result<()>
+pub(crate) fn set_xattr<P, S>(path: P, name: S, value: S) -> Result<()>
 where
     P: AsRef<Path>,
     S: AsRef<str>,
@@ -12,7 +12,7 @@ where
     Ok(())
 }
 
-pub fn get_xattr<P, S>(path: P, name: S) -> Result<String>
+pub(crate) fn get_xattr<P, S>(path: P, name: S) -> Result<String>
 where
     P: AsRef<Path>,
     S: AsRef<str>,
@@ -20,14 +20,14 @@ where
     Ok(String::new())
 }
 
-pub fn list_xattrs<P>(path: P) -> Result<Vec<(String, String)>>
+pub(crate) fn list_xattrs<P>(path: P) -> Result<Vec<(String, String)>>
 where
     P: AsRef<Path>,
 {
     Ok(Vec::new())
 }
 
-pub fn remove_xattr<P, S>(path: P, name: S) -> Result<()>
+pub(crate) fn remove_xattr<P, S>(path: P, name: S) -> Result<()>
 where
     P: AsRef<Path>,
     S: AsRef<str>,

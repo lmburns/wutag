@@ -7,8 +7,9 @@ use crate::{
     filesystem::{contained_path, create_temp_path, osstr_to_bytes},
     oregistry::EntryData,
     regex,
-    util::{crawler, fmt_path, fmt_tag_old, glob_builder, raw_local_path, regex_builder},
+    utils::{crawler, fmt, glob_builder, regex_builder},
     wutag_error, wutag_fatal, wutag_info,
+    xattr::tag_old::{clear_tags, DirEntryExt, Tag},
 };
 use anyhow::Result;
 use clap::Args;
@@ -19,7 +20,6 @@ use std::{
     borrow::Cow, collections::BTreeMap, ffi::OsStr, fs, io::Write, path::PathBuf, process,
     sync::Arc,
 };
-use wutag_core::tag::{clear_tags, DirEntryExt, Tag};
 
 #[derive(Args, Debug, Clone, PartialEq, Default)]
 pub(crate) struct ViewOpts {
@@ -107,7 +107,7 @@ impl App {
                         tern::t!(
                             self.global
                             ? entry.path().display().to_string()
-                            : raw_local_path(entry.path(), &self.base_dir)
+                            : self.fmt_raw_local_path(entry.path())
                         ),
                         match entry.has_tags() {
                             Ok(has_tags) =>
@@ -168,7 +168,7 @@ impl App {
                         tern::t!(
                             self.global
                             ? entry.path().display().to_string()
-                            : raw_local_path(entry.path(), &self.base_dir)
+                            : self.fmt_raw_local_path(entry.path())
                         ),
                         self.oregistry
                             .list_entry_tags(*id)
@@ -369,7 +369,7 @@ impl App {
                 }
 
                 if !self.quiet {
-                    println!("{}:", fmt_path(entry, self));
+                    println!("{}:", self.fmt_path(entry));
                 }
 
                 match entry.has_tags() {
@@ -406,7 +406,7 @@ impl App {
                         let id = self.oregistry.add_or_update_entry(entry);
                         self.oregistry.tag_entry(&tag, id);
                         if !self.quiet {
-                            println!("\t{} {}", "+".bold().green(), fmt_tag_old(&tag));
+                            println!("\t{} {}", "+".bold().green(), fmt::tag_old(&tag));
                         }
                     }
                 }

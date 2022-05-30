@@ -12,8 +12,9 @@ use crate::{
     encryption::{util, InnerCtx, Plaintext, Recipients},
     filesystem::contained_path,
     opt::Opts,
-    util::prompt,
+    utils::prompt,
     wutag_error, wutag_fatal, wutag_info,
+    xattr::tag_old::Tag,
 };
 use anyhow::{anyhow, Context, Result};
 use colored::{Color, Colorize};
@@ -32,7 +33,6 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
     time::SystemTime,
 };
-use wutag_core::tag::Tag;
 
 // ================== Old Registry ==================
 
@@ -625,7 +625,7 @@ impl TagRegistry {
                 .remove(&t)
                 .unwrap_or_else(|| wutag_fatal!("failure to remove tag: {}", t));
 
-            t.set_color(&color);
+            t.set_color(color);
             self.tags.insert(t, data);
             true
         } else {

@@ -1,7 +1,7 @@
 //! `clean-cache` - Remove all paths that are found within the `Registry`
 
 use super::App;
-use crate::{util::prompt, wutag_error, wutag_info};
+use crate::{utils::prompt, wutag_error, wutag_info};
 use colored::Colorize;
 
 // TODO: List all files, go through and remove extended attributes

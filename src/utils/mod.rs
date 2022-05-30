@@ -1,22 +1,23 @@
 //! Utility functions used throughout this crate
 
+pub(crate) mod color;
+pub(crate) mod fmt;
+
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local};
 use clap_complete::{generate, Generator};
-use colored::{ColoredString, Colorize};
+use colored::Colorize;
 use crossbeam_channel as channel;
 use crossbeam_utils::thread;
 use env_logger::fmt::Color as LogColor;
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
 use lexiclean::Lexiclean;
 use log::LevelFilter;
-use lscolors::{LsColors, Style};
 use once_cell::sync::OnceCell;
 use regex::bytes::{Regex, RegexBuilder};
 use std::{
     borrow::Cow,
     ffi::{OsStr, OsString},
-    fmt::Display,
     fs,
     io::{self, BufRead, BufReader, Cursor, Write},
     path::{Path, PathBuf},
@@ -29,11 +30,9 @@ use crate::{
     consts::{APP_NAME, DEFAULT_MAX_DEPTH},
     failt,
     filesystem::{create_temp_ignore, delete_file, osstr_to_bytes, write_temp_ignore},
-    registry::types::Tag,
     subcommand::App,
     wutag_error, wutag_fatal, Opts,
 };
-use wutag_core::tag::Tag as WTag;
 
 /// Run `initialize_logging` one time
 static ONCE: Once = Once::new();
@@ -83,120 +82,6 @@ pub(crate) fn parse_path<P: AsRef<Path>>(path: P) -> Result<(), String> {
         .map_err(|_e| "must be a valid path")
         .map(|_| ())
         .map_err(ToString::to_string)
-}
-
-/// Format one style of an error message
-pub(crate) fn fmt_err<E: Display>(err: E) -> String {
-    format!("{} {}", "ERROR:".red().bold(), format!("{}", err).white())
-}
-
-// /// Format an `OK` message
-// pub(crate) fn fmt_ok<S: AsRef<str>>(msg: S) -> String {
-//     format!("{} {}", "OK".green().bold(), msg.as_ref().white())
-// }
-
-/// Format the colored/non-colored output of a path
-pub(crate) fn fmt_path<P: AsRef<Path>>(path: P, app: &App) -> String {
-    // ls_colors implies forced coloring
-    if app.ls_colors {
-        LsColors::from_env()
-            .unwrap_or_default()
-            .style_for_path_components(path.as_ref())
-            .fold(Vec::new(), |mut acc, (component, style)| {
-                acc.push(
-                    style
-                        .map_or_else(|| ansi_term::Color::Blue.bold(), Style::to_ansi_term_style)
-                        .paint(component.to_string_lossy())
-                        .to_string(),
-                );
-                acc
-            })
-            .join("")
-    } else {
-        format!(
-            "{}",
-            path.as_ref()
-                .display()
-                .to_string()
-                .color(app.base_color)
-                .bold()
-        )
-    }
-}
-
-/// Format a local path (i.e., remove path components before files local to
-/// directory)
-pub(crate) fn fmt_local_path<P: AsRef<Path>>(path: P, app: &App) -> String {
-    let mut replaced = app.base_dir.display().to_string();
-    if !replaced.ends_with('/') {
-        replaced.push('/');
-    }
-
-    let path = path
-        .as_ref()
-        .display()
-        .to_string()
-        .replace(replaced.as_str(), "");
-
-    if app.ls_colors {
-        LsColors::from_env()
-            .unwrap_or_default()
-            .style_for_path_components(path.as_ref())
-            .fold(Vec::new(), |mut acc, (component, style)| {
-                acc.push(
-                    style
-                        .map_or_else(|| ansi_term::Color::Blue.bold(), Style::to_ansi_term_style)
-                        .paint(component.to_string_lossy())
-                        .to_string(),
-                );
-                acc
-            })
-            .join("")
-    } else {
-        format!("{}", path.color(app.base_color).bold())
-    }
-}
-
-/// Format the tag by coloring it the specified color
-// XXX: Remove once ready
-pub(crate) fn fmt_tag_old(tag: &WTag) -> ColoredString {
-    tag.name().color(*tag.color()).bold()
-}
-
-/// Format the tag by coloring it the specified color
-#[allow(dead_code)]
-pub(crate) fn fmt_tag<S: AsRef<str>>(tag: &Tag, effects: &[S]) -> ColoredString {
-    let mut s = tag.name().color(tag.color());
-    for effect in effects {
-        match effect.as_ref().to_ascii_lowercase().trim() {
-            "underline" | "u" | "ul" => s = s.underline(),
-            "italic" | "i" | "it" => s = s.italic(),
-            "reverse" | "r" | "rev" => s = s.reversed(),
-            "dimmed" | "d" | "dim" => s = s.dimmed(),
-            "blink" | "bl" => s = s.blink(),
-            "strikethrough" | "s" | "st" => s = s.strikethrough(),
-            "none" | "n" => s = s.clear(),
-            // Bold is the default
-            _ => s = s.bold(),
-        }
-    }
-
-    s
-}
-
-/// Return a local path with no color, i.e., one in which /home/user/... is not
-/// used and it is relative to the current directory. The searching of the paths
-/// does not go above the folder in which this command is read and only searches
-/// recursively
-pub(crate) fn raw_local_path<P: AsRef<Path>>(path: P, local: P) -> String {
-    let mut replaced = local.as_ref().display().to_string();
-    if !replaced.ends_with('/') {
-        replaced.push('/');
-    }
-    path.as_ref()
-        .display()
-        .to_string()
-        .replace(replaced.as_str(), "")
 }
 
 /// Modify completion output by using [comp_helper](crate::comp_helper)

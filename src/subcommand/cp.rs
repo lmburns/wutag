@@ -11,16 +11,12 @@ use crate::{
     bold_entry, err,
     filesystem::osstr_to_bytes,
     registry::{
-        types::{
-            filetag::FileTag,
-            tag::{list_tags, DirEntryExt, Tag, TagValueCombo},
-            value::Value,
-            ID,
-        },
+        types::{FileTag, Tag, TagValueCombo, Value, ID},
         Error,
     },
-    util::{crawler, fmt_err, fmt_path, glob_builder, parse_path, regex_builder},
+    utils::{crawler, fmt, glob_builder, parse_path, regex_builder},
     wutag_error, wutag_fatal,
+    xattr::tag::{list_tags, DirEntryExt},
 };
 use anyhow::{anyhow, Context, Result};
 use clap::{Args, ValueHint};
@@ -361,7 +357,7 @@ impl App {
                                     })()?;
 
                                     if !self.quiet {
-                                        println!("{}:", fmt_path(entry.path(), self));
+                                        println!("{}:", self.fmt_path(entry.path()));
                                     }
 
                                     let mut dest = reg.file_by_path(entry.path());
@@ -473,7 +469,7 @@ impl App {
                                                     wutag_error!(
                                                         "{}: already has {}",
                                                         bold_entry!(entry),
-                                                        self.fmt_tag(&tag)
+                                                        self.fmt_tag(&tag),
                                                     );
                                                 } else {
                                                     let value = reg.value(combo.value_id())?;
@@ -499,7 +495,7 @@ impl App {
                                                     wutag_error!(
                                                         "{}: failed to copy {}",
                                                         bold_entry!(entry),
-                                                        self.fmt_tag(&tag)
+                                                        self.fmt_tag(&tag),
                                                     );
                                                 } else {
                                                     let value = reg.value(combo.value_id())?;
@@ -525,7 +521,7 @@ impl App {
                                                     print!(
                                                         "\t{} {}",
                                                         "+".bold().green(),
-                                                        self.fmt_tag(&tag)
+                                                        self.fmt_tag(&tag),
                                                     );
 
                                                     if combo.value_id().id() != 0 {

@@ -2,10 +2,7 @@
 // TODO: confirm all options work
 
 use super::App;
-use crate::{
-    filesystem::contained_path,
-    util::{fmt_local_path, fmt_path, systemtime_to_datetime},
-};
+use crate::{filesystem::contained_path, utils::systemtime_to_datetime};
 use anyhow::{Context, Result};
 use clap::{Args, ValueHint};
 use cli_table::{
@@ -70,9 +67,9 @@ impl App {
             if exists && (entry.changed_since()? || opts.unmodified) {
                 table.push(vec![
                     if self.global || !opts.restrict {
-                        fmt_path(entry.path(), self)
+                        self.fmt_path(entry.path())
                     } else {
-                        fmt_local_path(entry.path(), self)
+                        self.fmt_local_path(entry.path())
                     }
                     .cell(),
                     systemtime_to_datetime(*entry.modtime()).red().cell(),
@@ -97,7 +94,7 @@ impl App {
                     println!(
                         "{}: {}",
                         "Removed".red().bold(),
-                        fmt_path(entry.path(), self),
+                        self.fmt_path(entry.path()),
                     );
                 }
                 removed = true;

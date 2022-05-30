@@ -1,14 +1,12 @@
 //! Utility functions used through this crate and by the main executable
+use crate::xattr::{Error, Result};
 use std::str::FromStr;
 
-use crate::{Error, Result};
 use colored::Color;
 use tui::style as tui;
 
 /// Parses a [`Color`] from a foreground color string
-#[inline]
-#[must_use]
-pub fn color_from_fg_str(s: &str) -> Option<Color> {
+pub(crate) fn color_from_fg_str(s: &str) -> Option<Color> {
     match s {
         "30" => Some(Color::Black),
         "31" => Some(Color::Red),
@@ -43,10 +41,8 @@ pub fn color_from_fg_str(s: &str) -> Option<Color> {
 }
 
 /// Parses a [`Color`](tui::Color) from a foreground color string
-#[inline]
-#[must_use]
 #[cfg(feature = "ui")]
-pub fn color_tui_from_fg_str(s: &str) -> Option<tui::Color> {
+pub(crate) fn color_tui_from_fg_str(s: &str) -> Option<tui::Color> {
     match s {
         "30" => Some(tui::Color::Black),
         "31" => Some(tui::Color::Red),
@@ -121,8 +117,7 @@ fn parse_hex(color: &str) -> Option<(u8, u8, u8)> {
 /// If the color is unable to be parsed into a [`Color`], an `Error` is raised
 ///
 /// [`Color`]: colored::Color
-#[inline]
-pub fn parse_color<S: AsRef<str>>(color: S) -> Result<Color> {
+pub(crate) fn parse_color<S: AsRef<str>>(color: S) -> Result<Color> {
     let color = color.as_ref();
 
     /// If the given item is 6 in length, wrap it in `Some`, else `None`
@@ -165,8 +160,7 @@ pub fn parse_color<S: AsRef<str>>(color: S) -> Result<Color> {
 /// If the color is unable to be parsed into a [`Color`], an `Error` is raised
 ///
 /// [`Color`]: cli_table::Color
-#[inline]
-pub fn parse_color_cli_table<S: AsRef<str>>(color: S) -> Result<cli_table::Color> {
+pub(crate) fn parse_color_cli_table<S: AsRef<str>>(color: S) -> Result<cli_table::Color> {
     let color = color.as_ref();
 
     /// If the given item is 6 in length, wrap it in `Some`, else `None`
@@ -208,9 +202,8 @@ pub fn parse_color_cli_table<S: AsRef<str>>(color: S) -> Result<cli_table::Color
 /// If the color is unable to be parsed into a [`Color`], an `Error` is raised
 ///
 /// [`Color`]: tui::style::Color
-#[inline]
 #[cfg(feature = "ui")]
-pub fn parse_color_tui<S: AsRef<str>>(color: S) -> Result<tui::Color> {
+pub(crate) fn parse_color_tui<S: AsRef<str>>(color: S) -> Result<tui::Color> {
     let color = color.as_ref();
 
     /// If the given item is 6 in length, wrap it in `Some`, else `None`
@@ -241,7 +234,7 @@ pub fn parse_color_tui<S: AsRef<str>>(color: S) -> Result<tui::Color> {
 /// Wrapper for [`tui`] widget colors
 #[cfg(feature = "ui")]
 #[derive(Clone, Copy, Debug)]
-pub struct TuiColor {
+pub(crate) struct TuiColor {
     /// Inner [`tui`] widget color type
     inner: tui::Color,
 }
@@ -250,15 +243,12 @@ impl TuiColor {
     /// Returns the underlying [`Color`] type
     ///
     /// [`Color`](tui::Color)
-    #[inline]
-    #[must_use]
-    pub const fn get(self) -> tui::Color {
+    pub(crate) const fn get(self) -> tui::Color {
         self.inner
     }
 }
 
 impl<'a> From<&'a str> for TuiColor {
-    #[inline]
     fn from(s: &'a str) -> Self {
         Self {
             inner: match s.to_ascii_lowercase().trim() {

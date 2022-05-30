@@ -4,21 +4,17 @@ use crate::{
     bold_entry,
     registry::{
         common::hash,
-        types::{
-            filetag::FileTag,
-            tag::{DirEntryExt, Tag, TagValueCombo},
-            ID,
-        },
+        types::{FileTag, Tag, TagValueCombo, ID},
     },
-    util::{collect_stdin_paths, crawler, fmt_path, glob_builder, regex_builder},
+    utils::{collect_stdin_paths, color::parse_color, crawler, glob_builder, regex_builder},
     wutag_error, wutag_warning,
+    xattr::tag::DirEntryExt,
 };
 use anyhow::{anyhow, Context, Result};
 use clap::{Args, ValueHint};
 use colored::Colorize;
 use rusqlite as rsq;
 use std::{fs, path::PathBuf, sync::Arc};
-use wutag_core::color::parse_color;
 
 /// Options used for the `set` subcommand
 #[derive(Args, Clone, Debug, PartialEq)]
@@ -230,7 +226,7 @@ impl App {
                 })()?;
 
                 if !self.quiet {
-                    println!("{}:", fmt_path(path, self));
+                    println!("{}:", self.fmt_path(path));
                 }
 
                 let path_d = path.display();
@@ -405,7 +401,7 @@ impl App {
                     })()?;
 
                     if !self.quiet {
-                        println!("{}:", fmt_path(path, self));
+                        println!("{}:", self.fmt_path(path));
                     }
 
                     let path_d = path.display();

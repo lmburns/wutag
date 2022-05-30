@@ -7,7 +7,7 @@ use crate::{
         job::{receiver, sender, WorkerResult},
         CommandTemplate,
     },
-    util::{glob_builder, regex_builder},
+    utils::{glob_builder, regex_builder},
 };
 use clap::{Args, ValueHint};
 use crossbeam_channel as channel;

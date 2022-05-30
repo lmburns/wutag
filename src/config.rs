@@ -19,8 +19,10 @@ use std::{
 };
 use tui::layout::Alignment;
 
-use crate::{directories::PROJECT_DIRS, fail, failt, inner_immute, ui::event::Key, wutag_fatal};
-use wutag_core::color::TuiColor;
+use crate::{
+    directories::PROJECT_DIRS, fail, failt, inner_immute, ui::event::Key, utils::color::TuiColor,
+    wutag_fatal,
+};
 
 /// Configuration file name
 const CONFIG_FILE: &str = "wutag.yml";

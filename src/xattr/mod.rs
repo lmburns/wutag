@@ -1,20 +1,17 @@
 //! Modules that allow for `xattr` manipulation of tags
 
-pub mod color;
-pub mod tag;
-pub mod xattr;
+pub(crate) mod core;
+pub(crate) mod tag;
+pub(crate) mod tag_old;
 
 use colored::{ColoredString, Colorize};
 use std::{ffi, io, string};
 use thiserror::Error;
 
-/// Prefix used to identify extra attributes on files that were added by `wutag`
-pub const WUTAG_NAMESPACE: &str = "user.wutag";
-
-/// Default error used throughout this `wutag_core`
+/// Default error used throughout this `xattr` module
 #[non_exhaustive]
 #[derive(Debug, Error)]
-pub enum Error {
+pub(crate) enum Error {
     /// Tag already exists within the database
     #[error("tag {0} already exists")]
     TagExists(ColoredString),
@@ -85,7 +82,7 @@ sticky bit set. See xattr(7), attr(1), setfattr(1), lsetxattr(2)"#
 }
 
 /// Shorter `Result`, used for ergonomics
-pub type Result<T> = std::result::Result<T, Error>;
+pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 impl From<io::Error> for Error {
     #[inline]

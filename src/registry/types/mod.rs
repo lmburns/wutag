@@ -5,12 +5,12 @@ pub(crate) mod file;
 pub(crate) mod filetag;
 pub(crate) mod query;
 pub(crate) mod tag;
-pub(crate) mod tag_color;
 pub(crate) mod value;
 
 pub(crate) use file::{File, FileId, Files};
 pub(crate) use filetag::{FileTag, FileTags};
-pub(crate) use tag::{Tag, TagId, Tags};
+pub(crate) use query::{Queries, Query};
+pub(crate) use tag::{Tag, TagId, TagValueCombo, Tags};
 pub(crate) use value::{Value, ValueId, Values};
 
 use crate::wutag_error;

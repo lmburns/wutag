@@ -27,6 +27,9 @@ pub(crate) const RES: &str = "\x1b[0m";
 /// The app name to use for `clap`
 pub(crate) const APP_NAME: &str = "wutag";
 
+/// Prefix used to identify extra attributes on files that were added by `wutag`
+pub(crate) const WUTAG_NAMESPACE: &str = "user.wutag";
+
 /// Default base color for printing files
 pub(crate) const DEFAULT_BASE_COLOR: Color = Blue;
 /// Default border color for printing formatted tags

@@ -8,9 +8,9 @@ use super::super::{
     },
     Registry,
 };
+use crate::utils::color::parse_color;
 use anyhow::{anyhow, Context, Result};
 use colored::{Color, Colorize};
-use wutag_core::color::parse_color;
 
 impl Registry {
     // ╭──────────────────────────────────────────────────────────╮

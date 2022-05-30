@@ -14,7 +14,7 @@ use crate::{
         querier::Query,
         types::{Sort, Tag},
     },
-    util::{fmt_local_path, fmt_path, raw_local_path},
+    utils::fmt,
     wutag_error,
 };
 
@@ -27,7 +27,6 @@ use cli_table::{
 use colored::Colorize;
 use itertools::Itertools;
 use std::collections::HashMap;
-use wutag_core::tag::Tag as WTag;
 
 /// Subcommands used for the `list` subcommand
 #[derive(Subcommand, Debug, Clone, PartialEq)]
@@ -284,15 +283,15 @@ impl App {
                     // above will never be ran without --global
                     if opts.raw {
                         global_opts!(
-                            raw_local_path(&path, &self.base_dir),
+                            self.fmt_raw_local_path(&path),
                             path.display().to_string(),
                             self.global,
                             garrulous
                         );
                     } else if !formatted {
                         global_opts!(
-                            fmt_local_path(&path, self),
-                            fmt_path(&path, self),
+                            self.fmt_local_path(&path),
+                            self.fmt_path(&path),
                             self.global,
                             garrulous
                         );
@@ -310,8 +309,8 @@ impl App {
                             table.push(vec![
                                 tern::t!(
                                     self.global
-                                        ? fmt_path(&path, self)
-                                        : fmt_local_path(&path, self)
+                                        ? self.fmt_path(&path)
+                                        : self.fmt_local_path(&path)
                                 )
                                 .cell(),
                                 tags.cell().justify(Justify::Right),

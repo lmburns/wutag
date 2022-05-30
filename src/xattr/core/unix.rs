@@ -1,7 +1,10 @@
 #![allow(clippy::cast_sign_loss)]
+#![allow(clippy::ptr_as_ptr)]
 #![cfg(unix)]
 
+use super::{Error, Result};
 use colored::Colorize;
+
 #[cfg(target_os = "macos")]
 use libc::XATTR_NOFOLLOW;
 
@@ -18,8 +21,6 @@ use std::{
     ptr,
 };
 
-use crate::{Error, Result};
-
 /// Check whether the given `Path` is a symlink
 fn is_symlink(path: &Path) -> bool {
     fs::symlink_metadata(path).map_or(false, |f| f.file_type().is_symlink())
@@ -27,7 +28,7 @@ fn is_symlink(path: &Path) -> bool {
 
 /// Sets the value of the extended attribute identified by `name` and associated
 /// with the given `path` in the filesystem.
-pub(crate) fn set_xattr<P, S>(path: P, name: S, value: S) -> Result<()>
+pub(super) fn set_xattr<P, S>(path: P, name: S, value: S) -> Result<()>
 where
     P: AsRef<Path>,
     S: AsRef<str>,
@@ -40,7 +41,7 @@ where
 
 /// Retrieves the value of the extended attribute identified by `name` and
 /// associated with the given `path` in the filesystem.
-pub(crate) fn get_xattr<P, S>(path: P, name: S) -> Result<String>
+pub(super) fn get_xattr<P, S>(path: P, name: S) -> Result<String>
 where
     P: AsRef<Path>,
     S: AsRef<str>,
@@ -51,7 +52,7 @@ where
 
 /// Retrieves a list of all extended attributes with their values associated
 /// with the given `path` in the filesystem.
-pub(crate) fn list_xattrs<P>(path: P) -> Result<Vec<(String, String)>>
+pub(super) fn list_xattrs<P>(path: P) -> Result<Vec<(String, String)>>
 where
     P: AsRef<Path>,
 {
@@ -61,7 +62,7 @@ where
 
 /// Removes the extended attribute identified by `name` and associated with the
 /// given `path` in the filesystem.
-pub(crate) fn remove_xattr<P, S>(path: P, name: S) -> Result<()>
+pub(super) fn remove_xattr<P, S>(path: P, name: S) -> Result<()>
 where
     P: AsRef<Path>,
     S: AsRef<str>,
@@ -174,7 +175,7 @@ unsafe fn __removexattr(path: *const i8, name: *const i8, symlink: bool) -> isiz
 unsafe fn __listxattr(path: *const i8, list: *mut i8, size: usize, symlink: bool) -> isize {
     let func = if symlink { llistxattr } else { listxattr };
 
-    func(path, list, size) as isize
+    func(path, list, size)
 }
 
 /// Call to the `C` function to list extended attribute(s)
@@ -241,8 +242,6 @@ fn _remove_xattr(path: &Path, name: &str, symlink: bool) -> Result<()> {
 /// the sticky bit set (see the chmod(1) manual page  for an explanation of the
 /// sticky bit).
 fn _set_xattr(path: &Path, name: &str, value: &str, size: usize, symlink: bool) -> Result<()> {
-    // ::xattr::set(&path, "user", value.as_bytes())?;
-
     let path = CString::new(path.as_os_str().as_bytes())?;
     let name = {
         if symlink && cfg!(target_os = "linux") {
@@ -266,17 +265,15 @@ fn _set_xattr(path: &Path, name: &str, value: &str, size: usize, symlink: bool) 
 
     if ret != 0 {
         let last_os = io::Error::last_os_error();
-        if let Some(95) = last_os.raw_os_error() {
+        if last_os.raw_os_error() == Some(95) {
             return Err(Error::SymlinkUnavailable95(last_os.to_string()));
         }
 
-        if let Some(1) = last_os.raw_os_error() {
-            if symlink {
-                return Err(Error::SymlinkUnavailable1(
-                    last_os.to_string(),
-                    "privileged".green().bold().to_string(),
-                ));
-            }
+        if last_os.raw_os_error() == Some(1) && symlink {
+            return Err(Error::SymlinkUnavailable1(
+                last_os.to_string(),
+                "privileged".green().bold().to_string(),
+            ));
         }
 
         return Err(Error::from(io::Error::last_os_error()));

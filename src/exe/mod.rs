@@ -30,7 +30,7 @@ pub(crate) use self::{
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum ExecutionMode {
     /// Command is executed for each search result
-    OneByOne,
+    Single,
     /// Command is run for a batch of results at once
     Batch,
 }
@@ -44,7 +44,7 @@ pub(crate) enum ExecutionMode {
 pub(crate) struct CommandTemplate {
     /// Arguments to the command
     args: Vec<ArgumentTemplate>,
-    /// `Batch` or `OneByOne`
+    /// `Batch` or `Single`
     mode: ExecutionMode,
 }
 
@@ -55,7 +55,7 @@ impl CommandTemplate {
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
-        Self::build(input, ExecutionMode::OneByOne)
+        Self::build(input, ExecutionMode::Single)
     }
 
     /// Create a new batch [`CommandTemplate`]

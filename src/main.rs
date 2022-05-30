@@ -45,7 +45,7 @@
     unaligned_references,
     unconditional_recursion,
     unreachable_pub,
-    unsafe_code,
+    // unsafe_code,
     // unused,
     // unused_allocation,
     // unused_comparisons,
@@ -127,7 +127,8 @@ mod registry;
 mod subcommand;
 #[cfg(feature = "ui")]
 mod ui;
-mod util;
+mod utils;
+mod xattr;
 
 use config::Config;
 use opt::Opts;
@@ -136,7 +137,7 @@ use subcommand::App;
 fn main() {
     let config = Config::load_default_location().unwrap_or_default();
     let args = Opts::get_args();
-    util::initialize_logging(&args);
+    utils::initialize_logging(&args);
 
     if let Err(e) = App::run(args, &config) {
         wutag_error!("{}", e);

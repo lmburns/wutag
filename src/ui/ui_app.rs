@@ -53,6 +53,10 @@ use tui::{
     Terminal,
 };
 
+use crate::{
+    utils::color::{color_tui_from_fg_str, parse_color_tui, TuiColor},
+    xattr::tag_old::Tag,
+};
 use once_cell::sync::{Lazy, OnceCell};
 use regex::{Captures, Regex};
 use rustyline::{
@@ -61,10 +65,6 @@ use rustyline::{
 use rustyline_derive::Helper;
 use unicode_segmentation::{Graphemes, UnicodeSegmentation};
 use unicode_width::UnicodeWidthStr;
-use wutag_core::{
-    color::{color_tui_from_fg_str, parse_color_tui, TuiColor},
-    tag::Tag,
-};
 
 use super::{
     banner::Banner,

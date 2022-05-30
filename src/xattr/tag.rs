@@ -1,210 +1,166 @@
 //! Functions for manipulating tags on files.
-use colored::{Color, Colorize};
-use rand::prelude::*;
-use serde::{Deserialize, Serialize};
+use super::{
+    core::{list_xattrs, remove_xattr, set_xattr, Xattr},
+    Error, Result as XResult,
+};
+use crate::{consts::WUTAG_NAMESPACE, registry::types::Tag};
+use colored::Colorize;
 use std::{
-    cmp::Ordering,
     collections::BTreeSet,
     convert::TryFrom,
-    fmt,
-    hash::{Hash, Hasher},
-    path::Path,
+    path::{Display, Path, PathBuf},
 };
-
-use crate::{
-    xattr::{list_xattrs, remove_xattr, set_xattr, Xattr},
-    Error, Result, WUTAG_NAMESPACE,
-};
-
-/// Default [`Color`] to use
-pub const DEFAULT_COLOR: Color = Color::BrightWhite;
-
-/// A representation of a `Tag`
-/// Used to set `xattr` on files
-#[derive(Clone, Debug, Deserialize, Eq, Serialize)]
-pub struct Tag {
-    /// The name of the tag
-    pub name:  String,
-    /// The color of the tag
-    pub color: Color,
-}
-
-impl Hash for Tag {
-    #[inline]
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.name.hash(state);
-        self.color.to_fg_str().hash(state);
-    }
-}
 
 /// Extend a directory entry's ability to interact with `xattrs`
-pub trait DirEntryExt {
+pub(crate) trait DirEntryExt {
     /// Add a [`Tag`] to a directory entry
     ///
     /// # Errors
-    /// If the the `xattr` cannot be added
-    fn tag(&self, tag: &Tag) -> Result<()>;
+    /// If the `xattr` cannot be added
+    fn tag(&self, tag: &Tag) -> XResult<()>;
     /// Remove a [`Tag`] to a directory entry
     ///
     /// # Errors
     /// If the tag doesn't exist or the `xattr` cannot be removed
-    fn untag(&self, tag: &Tag) -> Result<()>;
+    fn untag(&self, tag: &Tag) -> XResult<()>;
     /// Retrieve a [`Tag`] to a directory entry
     ///
     /// # Errors
     /// If there are no tags on the directory entry
-    fn get_tag<T: AsRef<str>>(&self, tag: T) -> Result<Tag>;
+    fn get_tag<T: AsRef<str>>(&self, tag: T) -> XResult<Tag>;
     /// List the [`Tag`](s) on a directory entry as a [`Vec`]
     ///
     /// # Errors
     /// If there are no tags or if the collection into a [`Vec`] fails
-    fn list_tags(&self) -> Result<Vec<Tag>>;
+    fn list_tags(&self) -> XResult<Vec<Tag>>;
     /// List the [`Tag`](s) on a directory entry as a [`BTreeSet`]
     ///
     /// # Errors
     /// If there are no tags or if the collection into a [`BTreeSet`] fails
-    fn list_tags_btree(&self) -> Result<BTreeSet<Tag>>;
+    fn list_tags_btree(&self) -> XResult<BTreeSet<Tag>>;
     /// Remove all [`Tag`](s) on a directory entry
     ///
     /// # Errors
     /// If the action of clearing the tags failed
-    fn clear_tags(&self) -> Result<()>;
-    /// Check wheter a directory entry has any [`Tag`](s)
+    fn clear_tags(&self) -> XResult<()>;
+    /// Check whether a directory entry has any [`Tag`](s)
     ///
     /// # Errors
     /// If the directory entry does not have any tags
-    fn has_tags(&self) -> Result<bool>;
+    fn has_tags(&self) -> XResult<bool>;
+
+    /// Nothing more than a helper function for this trait to assist in writing
+    /// generics
+    fn path(&self) -> &Path;
+    /// Nothing more than a helper function for this trait to assist in writing
+    /// generics
+    fn display(&self) -> Display;
 }
 
-impl DirEntryExt for &std::path::PathBuf {
+impl DirEntryExt for &PathBuf {
     #[inline]
-    fn tag(&self, tag: &Tag) -> Result<()> {
+    fn tag(&self, tag: &Tag) -> XResult<()> {
         tag.save_to(self)
     }
 
     #[inline]
-    fn untag(&self, tag: &Tag) -> Result<()> {
+    fn untag(&self, tag: &Tag) -> XResult<()> {
         tag.remove_from(self)
     }
 
     #[inline]
-    fn get_tag<T: AsRef<str>>(&self, tag: T) -> Result<Tag> {
+    fn get_tag<T: AsRef<str>>(&self, tag: T) -> XResult<Tag> {
         get_tag(self, tag)
     }
 
     #[inline]
-    fn list_tags(&self) -> Result<Vec<Tag>> {
+    fn list_tags(&self) -> XResult<Vec<Tag>> {
         list_tags(self)
     }
 
     #[inline]
-    fn list_tags_btree(&self) -> Result<BTreeSet<Tag>> {
+    fn list_tags_btree(&self) -> XResult<BTreeSet<Tag>> {
         list_tags_btree(self)
     }
 
     #[inline]
-    fn clear_tags(&self) -> Result<()> {
+    fn clear_tags(&self) -> XResult<()> {
         clear_tags(self)
     }
 
     #[inline]
-    fn has_tags(&self) -> Result<bool> {
+    fn has_tags(&self) -> XResult<bool> {
         has_tags(self)
+    }
+
+    #[inline]
+    fn path(&self) -> &Path {
+        self.as_path()
+    }
+
+    #[inline]
+    fn display(&self) -> Display {
+        // How to use fully qualified syntax here to prevent recursion?
+        // <&PathBuf>::display(self)
+        self.path().display()
     }
 }
 
 impl DirEntryExt for ignore::DirEntry {
     #[inline]
-    fn tag(&self, tag: &Tag) -> Result<()> {
+    fn tag(&self, tag: &Tag) -> XResult<()> {
         tag.save_to(self.path())
     }
 
     #[inline]
-    fn untag(&self, tag: &Tag) -> Result<()> {
+    fn untag(&self, tag: &Tag) -> XResult<()> {
         tag.remove_from(self.path())
     }
 
     #[inline]
-    fn get_tag<T: AsRef<str>>(&self, tag: T) -> Result<Tag> {
+    fn get_tag<T: AsRef<str>>(&self, tag: T) -> XResult<Tag> {
         get_tag(self.path(), tag)
     }
 
     #[inline]
-    fn list_tags(&self) -> Result<Vec<Tag>> {
+    fn list_tags(&self) -> XResult<Vec<Tag>> {
         list_tags(self.path())
     }
 
     #[inline]
-    fn list_tags_btree(&self) -> Result<BTreeSet<Tag>> {
+    fn list_tags_btree(&self) -> XResult<BTreeSet<Tag>> {
         list_tags_btree(self.path())
     }
 
     #[inline]
-    fn clear_tags(&self) -> Result<()> {
+    fn clear_tags(&self) -> XResult<()> {
         clear_tags(self.path())
     }
 
     #[inline]
-    fn has_tags(&self) -> Result<bool> {
+    fn has_tags(&self) -> XResult<bool> {
         has_tags(self.path())
+    }
+
+    #[inline]
+    fn path(&self) -> &Path {
+        self.path()
+    }
+
+    #[inline]
+    fn display(&self) -> Display {
+        self.path().display()
     }
 }
 
 impl Tag {
-    /// Generate a new tag with a specified color
-    #[inline]
-    pub fn new<S>(name: S, color: Color) -> Self
-    where
-        S: Into<String>,
-    {
-        Self {
-            name: name.into(),
-            color,
-        }
-    }
-
-    /// Generate a new tag with a random color
-    #[inline]
-    pub fn random<S>(name: S, colors: &[Color]) -> Self
-    where
-        S: Into<String>,
-    {
-        let mut rng = thread_rng();
-        Self::new(
-            name,
-            colors.choose(&mut rng).copied().unwrap_or(DEFAULT_COLOR),
-        )
-    }
-
-    /// Get the tag's name
-    #[inline]
-    #[must_use]
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    /// Get the tag's color
-    #[inline]
-    #[must_use]
-    pub const fn color(&self) -> &Color {
-        &self.color
-    }
-
-    /// Change or set the tag's color
-    #[inline]
-    pub fn set_color(&mut self, color: &Color) {
-        self.color = *color;
-    }
-
-    /// Change or set the tag's name
-    #[inline]
-    pub fn set_name<T: AsRef<str>>(&mut self, name: T) {
-        self.name = name.as_ref().to_owned();
-    }
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                   Extended Attributes                    │
+    // ╰──────────────────────────────────────────────────────────╯
 
     /// Custom implementation of `Hash`
     #[allow(clippy::same_name_method)]
-    fn hash(&self) -> Result<String> {
+    fn hash(&self) -> XResult<String> {
         serde_cbor::to_vec(&self)
             .map(|tag| format!("{}.{}", WUTAG_NAMESPACE, base64::encode(tag)))
             .map_err(Error::from)
@@ -214,8 +170,7 @@ impl Tag {
     ///
     /// # Errors
     /// If the tag exists it returns an [`Error`]
-    #[inline]
-    pub fn save_to<P>(&self, path: P) -> Result<()>
+    pub(crate) fn save_to<P>(&self, path: P) -> XResult<()>
     where
         P: AsRef<Path>,
     {
@@ -233,8 +188,7 @@ impl Tag {
     /// If the tag doesn't exist it returns [`TagNotFound`]
     ///
     /// [`TagNotFound`]: crate::Error::TagNotFound
-    #[inline]
-    pub fn remove_from<P>(&self, path: P) -> Result<()>
+    pub(crate) fn remove_from<P>(&self, path: P) -> XResult<()>
     where
         P: AsRef<Path>,
     {
@@ -252,34 +206,6 @@ impl Tag {
     }
 }
 
-impl fmt::Display for Tag {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.name)
-    }
-}
-
-impl Ord for Tag {
-    #[inline]
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.name.cmp(&other.name)
-    }
-}
-
-impl PartialEq for Tag {
-    #[inline]
-    fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
-    }
-}
-
-impl PartialOrd for Tag {
-    #[inline]
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.name.partial_cmp(&other.name)
-    }
-}
-
 /// Get the `next` item or return an `Error`
 macro_rules! next_or_else {
     ($it:ident, $msg:expr) => {
@@ -292,7 +218,7 @@ impl TryFrom<Xattr> for Tag {
     type Error = Error;
 
     #[inline]
-    fn try_from(xattr: Xattr) -> Result<Self> {
+    fn try_from(xattr: Xattr) -> XResult<Self> {
         let key = xattr.key();
 
         let mut elems = key.split("wutag.");
@@ -319,7 +245,7 @@ impl TryFrom<Xattr> for Tag {
 ///
 /// [`TagNotFound`]: crate::Error::TagNotFound
 #[inline]
-pub fn get_tag<P, T>(path: P, tag: T) -> Result<Tag>
+pub(crate) fn get_tag<P, T>(path: P, tag: T) -> XResult<Tag>
 where
     P: AsRef<Path>,
     T: AsRef<str>,
@@ -340,7 +266,7 @@ where
 /// # Errors
 /// If there are no tags or if the collection into a [`Vec`] fails
 #[inline]
-pub fn list_tags<P>(path: P) -> Result<Vec<Tag>>
+pub(crate) fn list_tags<P>(path: P) -> XResult<Vec<Tag>>
 where
     P: AsRef<Path>,
 {
@@ -363,7 +289,7 @@ where
 /// # Errors
 /// If there are no tags or if the collection into a [`BTreeSet`] fails
 #[inline]
-pub fn list_tags_btree<P>(path: P) -> Result<BTreeSet<Tag>>
+pub(crate) fn list_tags_btree<P>(path: P) -> XResult<BTreeSet<Tag>>
 where
     P: AsRef<Path>,
 {
@@ -386,7 +312,7 @@ where
 /// # Errors
 /// If the action of clearing the tags failed
 #[inline]
-pub fn clear_tags<P>(path: P) -> Result<()>
+pub(crate) fn clear_tags<P>(path: P) -> XResult<()>
 where
     P: AsRef<Path>,
 {
@@ -405,7 +331,7 @@ where
 /// # Errors
 /// If the directory entry does not have any tags
 #[inline]
-pub fn has_tags<P>(path: P) -> Result<bool>
+pub(crate) fn has_tags<P>(path: P) -> XResult<bool>
 where
     P: AsRef<Path>,
 {

@@ -23,7 +23,7 @@ pub(crate) use crate::{
         Registry,
     },
     subcommand::{search::SearchOpts, App},
-    util::{fmt_local_path, fmt_path, fmt_tag, fmt_tag_old, raw_local_path, regex_builder},
+    utils::{fmt, regex_builder},
     wutag_error,
 };
 
@@ -123,7 +123,7 @@ pub(crate) fn receiver(
                 let tag = if opts.raw {
                     t.name().clone()
                 } else {
-                    fmt_tag(t, &app.tag_effect).to_string()
+                    app.fmt_tag(t).to_string()
                 };
 
                 if with_values {
@@ -158,18 +158,15 @@ pub(crate) fn receiver(
                     WorkerResult::Entry((entry, id)) => {
                         if opts.raw {
                             global_opts!(
-                                raw_local_path(
-                                    entry.display().to_string(),
-                                    app.base_dir.display().to_string(),
-                                ),
+                                app.fmt_raw_local_path(entry.display().to_string()),
                                 entry.display().to_string(),
                                 app.global,
                                 opts.garrulous
                             );
                         } else {
                             global_opts!(
-                                fmt_local_path(&entry, &app),
-                                fmt_path(&entry, &app),
+                                app.fmt_local_path(&entry),
+                                app.fmt_path(&entry),
                                 app.global,
                                 opts.garrulous
                             );

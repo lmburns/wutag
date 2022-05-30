@@ -69,7 +69,8 @@ pub(crate) struct App {
     pub(crate) fixed_string:         bool,
     pub(crate) oregistry:            TagRegistry,
 
-    pub(crate) registry: Arc<Mutex<Registry>>,
+    pub(crate) registry:      Arc<Mutex<Registry>>,
+    pub(crate) registry_path: PathBuf,
 
     pub(crate) border_color: cli_table::Color,
 
@@ -223,6 +224,7 @@ impl App {
             quiet: opts.quiet,
             oregistry,
 
+            registry_path: registry.path().clone(),
             registry: Arc::new(Mutex::new(registry)),
 
             #[cfg(feature = "encrypt-gpgme")]
@@ -340,6 +342,7 @@ impl Clone for App {
             fixed_string:         self.fixed_string,
             oregistry:            self.oregistry.clone(),
             registry:             self.registry.clone(),
+            registry_path:        self.registry_path.clone(),
 
             border_color: self.border_color,
 

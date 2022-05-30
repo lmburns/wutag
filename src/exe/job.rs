@@ -2,6 +2,8 @@
 //! Execute a search for tags asynchronously. Optionally execute a
 //! command on each result. Outline came from [fd](https://github.com/sharkdp/fd)
 
+// XXX: Fix asynchronously writing sqlite db
+
 use std::{
     borrow::Cow,
     ffi::OsStr,
@@ -16,7 +18,10 @@ use super::{
 pub(crate) use crate::{
     filesystem::{contained_path, osstr_to_bytes},
     global_opts,
-    registry::types::{tag::Tag, ID},
+    registry::{
+        types::{tag::Tag, ID},
+        Registry,
+    },
     subcommand::{search::SearchOpts, App},
     util::{fmt_local_path, fmt_path, fmt_tag, fmt_tag_old, raw_local_path, regex_builder},
     wutag_error,
@@ -53,12 +58,12 @@ pub(crate) fn receiver(
 ) -> std::thread::JoinHandle<ExitCode> {
     let app = Arc::clone(app);
     let opts = Arc::clone(opts);
+    // let reg = app.registry.clone();
 
     let threads = num_cpus::get();
 
     std::thread::spawn(move || {
-        let reg = app.registry.clone();
-        let reg = reg.lock().expect("poisoned lock");
+        let reg = app.registry.lock().expect("poisoned lock");
 
         if let Some(ref command) = cmd {
             if command.in_batch_mode() {
@@ -218,9 +223,10 @@ pub(crate) fn sender(
 
     thread::scope(move |s| {
         let tx_thread = tx.clone();
-        let reg = app.registry.clone();
+
         s.spawn(move |_| {
-            let reg = reg.lock().expect("poisoned lock");
+            // A new connection to the database has to be opened on each thread
+            let reg = Registry::from(&app);
 
             // Repeated code from calling function to run on multiple threads
             for entry in reg.files(None).expect("failed to get Files").iter() {

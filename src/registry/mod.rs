@@ -38,6 +38,7 @@ use crate::{
     consts::encrypt::REGISTRY_UMASK,
     directories::PROJECT_DIRS,
     fail, failt,
+    subcommand::App,
     util::{contains_upperchar, prompt},
     wutag_error, wutag_fatal, wutag_info,
 };
@@ -137,6 +138,17 @@ pub(crate) enum Error {
 
 // TODO: Possibly start using 'ON CONFLICT'
 
+impl From<&Arc<App>> for Registry {
+    fn from(app: &Arc<App>) -> Self {
+        Self {
+            conn:            Connection::open(&app.registry_path)
+                .expect("failed to create new connection"),
+            follow_symlinks: app.follow_symlinks,
+            path:            app.registry_path.clone(),
+        }
+    }
+}
+
 /// The `Tag` database
 #[derive(Debug)]
 pub(crate) struct Registry {
@@ -164,6 +176,15 @@ impl Registry {
         self.follow_symlinks
     }
 
+    // TODO: Use or delete
+    /// Return a clone of the current [`Registry`] with a **new** [`Connection`]
+    /// to the database
+    pub(crate) fn new_connection(self) -> Result<Self> {
+        let mut now = self;
+        now.conn = Connection::open(&now.path)?;
+        Ok(now)
+    }
+
     /// Create a new [`Registry`]
     pub(crate) fn new<P: AsRef<Path>>(path: Option<P>, follow_symlinks: bool) -> Result<Self> {
         use rusqlite::OpenFlags;
@@ -183,19 +204,19 @@ impl Registry {
                     .to_string(),
             );
 
-            // let conn = Connection::open(&registry)?;
+            let conn = Connection::open(&registry)?;
 
             // SQLITE_OPEN_SHARED_CACHE: shared cache enabled
             // SQLITE_OPEN_FULL_MUTEX: "serialized" threading mode
             // Others are default
-            let conn = Connection::open_with_flags(
-                &registry,
-                OpenFlags::SQLITE_OPEN_READ_WRITE
-                    | OpenFlags::SQLITE_OPEN_CREATE
-                    | OpenFlags::SQLITE_OPEN_SHARED_CACHE
-                    | OpenFlags::SQLITE_OPEN_FULL_MUTEX
-                    | OpenFlags::SQLITE_OPEN_URI,
-            )?;
+            // let conn = Connection::open_with_flags(
+            //     &registry,
+            //     OpenFlags::SQLITE_OPEN_READ_WRITE
+            //         | OpenFlags::SQLITE_OPEN_CREATE
+            //         | OpenFlags::SQLITE_OPEN_SHARED_CACHE
+            //         | OpenFlags::SQLITE_OPEN_NO_MUTEX
+            //         | OpenFlags::SQLITE_OPEN_URI,
+            // )?;
 
             // The file is created using `Connection`, so set perms after
             self::set_perms(&registry)?;

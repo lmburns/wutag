@@ -1,6 +1,7 @@
 
 complete -c wutag -n "__fish_use_subcommand" -s d -l dir -d 'Specify starting path for filesystem traversal' -r -f -a "(__fish_complete_directories)"
 complete -c wutag -n "__fish_use_subcommand" -s m -l max-depth -d 'Set maximum depth to recurse into' -r
+complete -c wutag -n "__fish_use_subcommand" -s M -l min-depth -d 'Only show the results starting at a given depth' -r
 complete -c wutag -n "__fish_use_subcommand" -s R -l registry -d 'Specify a different registry to use' -r -F
 complete -c wutag -n "__fish_use_subcommand" -s c -l color -d 'When to colorize output' -r
 complete -c wutag -n "__fish_use_subcommand" -s t -l type -d 'File-type(s) to filter by: f|file, d|directory, l|symlink, e|empty' -r -f -a "{f	,file	,d	,dir	,l	,symlink	,b	,block	,c	,char	,s	,socket	,p	,fifo	,x	,executable	,e	,empty	}"
@@ -9,6 +10,7 @@ complete -c wutag -n "__fish_use_subcommand" -s E -l exclude -d 'Exclude results
 complete -c wutag -n "__fish_use_subcommand" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_use_subcommand" -s V -l version -d 'Print version information'
 complete -c wutag -n "__fish_use_subcommand" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
+complete -c wutag -n "__fish_use_subcommand" -s p -l prune -d 'Do not traverse into directories that match the query'
 complete -c wutag -n "__fish_use_subcommand" -s i -l case-insensitive -d 'Case insensitively search'
 complete -c wutag -n "__fish_use_subcommand" -s s -l case-sensitive -d 'Case sensitively search'
 complete -c wutag -n "__fish_use_subcommand" -s r -l regex -d 'Search with a regular expressions'

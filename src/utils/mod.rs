@@ -29,8 +29,7 @@ use std::{
 
 use crate::{
     consts::{APP_NAME, DEFAULT_MAX_DEPTH},
-    failt,
-    filesystem::{create_temp_ignore, delete_file, osstr_to_bytes, write_temp_ignore},
+    failt, filesystem as wfs,
     subcommand::App,
     wutag_error, wutag_fatal, Opts,
 };
@@ -213,7 +212,7 @@ pub(crate) fn contains_upperchar(pattern: &str) -> bool {
     let cow_pat: Cow<OsStr> = Cow::Owned(OsString::from(pattern));
     UPPER_REG
         .get_or_init(|| Regex::new(r"[[:upper:]]").expect("failed to build upper Regex"))
-        .is_match(&osstr_to_bytes(cow_pat.as_ref()))
+        .is_match(&wfs::osstr_to_bytes(cow_pat.as_ref()))
 }
 
 /// Build a regular expression with [`RegexBuilder`](regex::bytes::RegexBuilder)
@@ -284,9 +283,11 @@ pub(crate) fn reg_walker(app: &Arc<App>) -> Result<ignore::WalkParallel> {
         .max_depth(app.max_depth);
 
     if let Some(ignore) = &app.ignores {
-        let tmp = create_temp_ignore(&move |file: &mut fs::File| write_temp_ignore(ignore, file));
+        let tmp = wfs::create_temp_ignore(&move |file: &mut fs::File| {
+            wfs::write_temp_ignore(ignore, file)
+        });
         let res = walker.add_ignore(&tmp);
-        scopeguard::defer!(delete_file(tmp));
+        scopeguard::defer!(wfs::delete_file(tmp));
         match res {
             Some(ignore::Error::Partial(_)) | None => (),
             Some(err) => {
@@ -360,24 +361,30 @@ where
                         return ignore::WalkState::Continue;
                     }
 
-                    let entry_path = entry.path();
+                    let path = entry.path();
 
                     // Verify a file name is actually present
-                    let entry_fname: Cow<OsStr> = match entry_path.file_name() {
-                        Some(f) => Cow::Borrowed(f),
-                        _ => unreachable!("Invalid file reached"),
-                    };
+                    let fname: Cow<OsStr> = path.file_name().map_or_else(
+                        || {
+                            unreachable!(
+                                "Invalid file reached: {}. Please do not use '/' or '..' as \
+                                 filenames.",
+                                path.to_string_lossy()
+                            )
+                        },
+                        Cow::Borrowed,
+                    );
 
                     // Filter out patterns that don't match
-                    if !pattern.is_match(&osstr_to_bytes(entry_fname.as_ref())) {
-                        log::trace!("no match, skipping");
+                    if !pattern.is_match(&wfs::osstr_to_bytes(fname.as_ref())) {
+                        log::trace!("skipping file, non-matching pattern: {:?}", path);
                         return ignore::WalkState::Continue;
                     }
 
                     // Filter out extensions that don't match (if present)
                     if let Some(ref ext) = app.extension {
-                        if let Some(fname) = entry_path.file_name() {
-                            if !ext.is_match(&osstr_to_bytes(fname)) {
+                        if let Some(fname) = path.file_name() {
+                            if !ext.is_match(&wfs::osstr_to_bytes(fname)) {
                                 return ignore::WalkState::Continue;
                             }
                         } else {
@@ -388,15 +395,19 @@ where
                     // Filter out non-matching file types
                     if let Some(ref file_types) = app.file_type {
                         if file_types.should_ignore(&entry) {
-                            log::debug!("Ignoring: {}", entry_path.display());
+                            log::debug!("Ignoring: {}", path.display());
                             return ignore::WalkState::Continue;
                         }
                     }
 
                     // Using a match statement does not preserve output order for some reason
                     if let Err(e) = tx.send(entry) {
-                        log::debug!("Sent quit: {:?}", e);
+                        log::debug!("Sent quit: {}", e.to_string());
                         return ignore::WalkState::Quit;
+                    }
+
+                    if app.prune {
+                        return ignore::WalkState::Skip;
                     }
 
                     log::trace!("Sent continue");

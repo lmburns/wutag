@@ -1,9 +1,8 @@
 //! Execute the given command passed to `-x` or `-X`
 
-use std::{io, io::Write, process::Command, sync::Mutex};
-
 use super::exits::ExitCode;
 use crate::wutag_error;
+use std::{io, io::Write, process::Command, sync::Mutex};
 
 /// Execute the given command, writing the output to [`stdout`] and [`stderr`]
 ///

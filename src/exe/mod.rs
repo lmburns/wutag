@@ -134,6 +134,10 @@ impl CommandTemplate {
             args.push(ArgumentTemplate::Tokens(tokens));
         }
 
+        // if args.is_empty() {
+        //     anyhow::bail!("No executable provided for --exec or --exec-batch");
+        // }
+
         // If a placeholder token was not supplied, append one at the end of the
         // command.
         if !has_placeholder {
@@ -143,7 +147,7 @@ impl CommandTemplate {
         Self { args, mode }
     }
 
-    /// Return the number of `Token`s within the command
+    /// Return the number of [`Token`]s within the command
     fn number_of_tokens(&self) -> usize {
         self.args.iter().filter(|arg| arg.has_tokens()).count()
     }

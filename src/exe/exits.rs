@@ -9,6 +9,7 @@ pub(crate) enum ExitCode {
     Success,
     /// General error exit (!0)
     GeneralError,
+
     /// Interrupted exit (130)
     #[allow(dead_code)]
     Sigint,
@@ -25,7 +26,7 @@ impl From<ExitCode> for i32 {
 }
 
 impl ExitCode {
-    /// Is the `ExitCode` an error?
+    /// Is the [`ExitCode`] an error?
     fn is_error(self) -> bool {
         self != Self::Success
     }
@@ -35,10 +36,44 @@ impl ExitCode {
 
 /// If there are any errors in the vector of `ExitCode`s, return a
 /// [`GeneralError`](ExitCode::GeneralError)
-#[allow(clippy::needless_pass_by_value)]
-pub(crate) fn generalize_exitcodes(results: Vec<ExitCode>) -> ExitCode {
-    if results.iter().any(|&c| ExitCode::is_error(c)) {
-        return ExitCode::GeneralError;
+pub(crate) fn generalize_exitcodes<R: IntoIterator<Item = ExitCode>>(results: R) -> ExitCode {
+    results
+        .into_iter()
+        .any(ExitCode::is_error)
+        .then(|| ExitCode::GeneralError)
+        .unwrap_or(ExitCode::Success)
+}
+
+#[cfg(test)]
+mod test {
+    use super::{generalize_exitcodes, ExitCode};
+
+    #[test]
+    fn success() {
+        assert_eq!(
+            generalize_exitcodes(vec![ExitCode::Success]),
+            ExitCode::Success
+        );
+        assert_eq!(
+            generalize_exitcodes(vec![ExitCode::Success, ExitCode::Success]),
+            ExitCode::Success
+        );
     }
-    ExitCode::Success
+
+    #[test]
+    fn success_on_empty() {
+        assert_eq!(generalize_exitcodes(vec![]), ExitCode::Success);
+    }
+
+    #[test]
+    fn general_errors() {
+        assert_eq!(
+            generalize_exitcodes(vec![ExitCode::GeneralError]),
+            ExitCode::GeneralError
+        );
+        assert_eq!(
+            generalize_exitcodes(vec![ExitCode::Success, ExitCode::GeneralError]),
+            ExitCode::GeneralError
+        );
+    }
 }

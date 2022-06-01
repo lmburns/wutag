@@ -17,8 +17,10 @@ _wutag() {
     _arguments "${_arguments_options[@]}" \
 '-d+[Specify starting path for filesystem traversal]:dir:_files -/' \
 '--dir=[Specify starting path for filesystem traversal]:dir:_files -/' \
-'-m+[Set maximum depth to recurse into]:num: ' \
-'--max-depth=[Set maximum depth to recurse into]:num: ' \
+'-m+[Set maximum depth to recurse into]:depth: ' \
+'--max-depth=[Set maximum depth to recurse into]:depth: ' \
+'-M+[Only show the results starting at a given depth]:depth: ' \
+'--min-depth=[Only show the results starting at a given depth]:depth: ' \
 '-R+[Specify a different registry to use]:file:_files' \
 '--registry=[Specify a different registry to use]:file:_files' \
 '-c+[When to colorize output]:when: ' \
@@ -35,6 +37,8 @@ _wutag() {
 '--version[Print version information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
+'-p[Do not traverse into directories that match the query]' \
+'--prune[Do not traverse into directories that match the query]' \
 '-i[Case insensitively search]' \
 '--case-insensitive[Case insensitively search]' \
 '-s[Case sensitively search]' \
@@ -186,8 +190,8 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (search)
 _arguments "${_arguments_options[@]}" \
-'(-X --exec-batch)*-x+[Execute a command on each individual file]:cmd:_command_names -e' \
-'(-X --exec-batch)*--exec=[Execute a command on each individual file]:cmd:_command_names -e' \
+'*-x+[Execute a command on each individual file]:cmd:_command_names -e' \
+'*--exec=[Execute a command on each individual file]:cmd:_command_names -e' \
 '(-x --exec)*-X+[Execute a command on the batch of matching files]:cmd:_command_names -e' \
 '(-x --exec)*--exec-batch=[Execute a command on the batch of matching files]:cmd:_command_names -e' \
 '*-t+[Search just by tags or along with a tag(s)]:tags:_wutag_tags' \

@@ -4,7 +4,7 @@ use super::App;
 use crate::{
     consts::{EXEC_BATCH_EXPL, EXEC_EXPL},
     exe::{
-        job::{receiver, sender, WorkerResult},
+        job::{self, WorkerResult},
         CommandTemplate,
     },
     utils::{glob_builder, regex_builder},
@@ -35,13 +35,14 @@ pub(crate) struct SearchOpts {
     /// Execute a command on each individual file
     #[clap(
         name = "exec",
-        long = "exec", short = 'x',
+        long = "exec",
+        short = 'x',
         takes_value = true,
         min_values = 1,
         value_name = "cmd",
         value_terminator = ";",
         allow_hyphen_values = true,
-        conflicts_with = "exec-batch",
+        // multiple_occurrences = true,
         long_help = EXEC_EXPL.as_ref(),
         value_hint = ValueHint::CommandName,
     )]
@@ -50,12 +51,14 @@ pub(crate) struct SearchOpts {
     /// Execute a command on the batch of matching files
     #[clap(
         name = "exec-batch",
-        long = "exec-batch", short = 'X',
+        long = "exec-batch",
+        short = 'X',
         takes_value = true,
         min_values = 1,
         value_name = "cmd",
         value_terminator = ";",
         allow_hyphen_values = true,
+        // multiple_occurrences = true,
         conflicts_with = "exec",
         long_help = EXEC_BATCH_EXPL.as_ref(),
         value_hint = ValueHint::CommandName,
@@ -159,8 +162,8 @@ impl App {
 
         let (tx, rx) = channel::unbounded::<WorkerResult>();
 
-        let rec = receiver(&app, &opts, command, rx);
-        sender(&app, &opts, &re, tx);
+        let rec = job::receiver(&app, &opts, command, rx);
+        job::sender(&app, &opts, &re, tx);
         rec.join().expect("failed to join receiver `JoinHandle`");
     }
 }

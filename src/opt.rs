@@ -71,7 +71,8 @@ pub(crate) struct Opts {
         name = "max-depth",
         long = "max-depth",
         short = 'm',
-        value_name = "num",
+        value_name = "depth",
+        takes_value = true,
         validator = |t| t.parse::<usize>()
                             .map_err(|_| "must be a number")
                             .map(|_| ())
@@ -81,6 +82,36 @@ pub(crate) struct Opts {
                       Only applies to subcommands that take a pattern as a positional argument."
     )]
     pub(crate) max_depth: Option<usize>,
+
+    /// Only show the results starting at a given depth
+    #[clap(
+        name = "min-depth",
+        long = "min-depth",
+        short = 'M',
+        value_name = "depth",
+        takes_value = true,
+        validator = |t| t.parse::<usize>()
+                            .map_err(|_| "must be a number")
+                            .map(|_| ())
+                            .map_err(|e| e.to_string()),
+        long_help = "\
+        Increase maximum recursion depth of filesystem traversal to specified value (default: 2). \
+        Only applies to subcommands that take a pattern as a positional argument. This argument \
+        can also be set in the configuration file"
+    )]
+    pub(crate) min_depth: Option<usize>,
+
+    /// Do not traverse into directories that match the query
+    #[clap(
+        name = "prune",
+        long = "prune",
+        short = 'p',
+        overrides_with = "full-path",
+        requires = "fixed_string",
+        long_help = "Don't traverse into matching directories. If a directory needs to be \
+                     excluded, use --exclude=<dir>"
+    )]
+    pub(crate) prune: bool,
 
     /// Specify a different registry to use
     #[clap(

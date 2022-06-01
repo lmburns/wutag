@@ -71,6 +71,7 @@ pub(crate) struct App {
     pub(crate) wildcard_matches_sep: bool,
     pub(crate) pat_regex:            bool,
     pub(crate) fixed_string:         bool,
+    pub(crate) prune:                bool,
     pub(crate) oregistry:            TagRegistry,
 
     pub(crate) registry:      Arc<Mutex<Registry>>,
@@ -225,6 +226,7 @@ impl App {
             wildcard_matches_sep: config.glob_wildcard_match_separator,
             pat_regex: opts.regex,
             fixed_string: opts.fixed_string,
+            prune: opts.prune,
             quiet: opts.quiet,
             oregistry,
 
@@ -348,6 +350,7 @@ impl Clone for App {
             wildcard_matches_sep: self.wildcard_matches_sep,
             pat_regex:            self.pat_regex,
             fixed_string:         self.fixed_string,
+            prune:                self.prune,
             oregistry:            self.oregistry.clone(),
             registry:             self.registry.clone(),
             registry_path:        self.registry_path.clone(),

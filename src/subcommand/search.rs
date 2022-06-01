@@ -4,8 +4,8 @@ use super::App;
 use crate::{
     consts::{EXEC_BATCH_EXPL, EXEC_EXPL},
     exe::{
-        job::{receiver, sender, WorkerResult},
-        CommandTemplate,
+        job::{self, WorkerResult},
+        CommandSet, CommandTemplate,
     },
     utils::{glob_builder, regex_builder},
 };
@@ -35,32 +35,35 @@ pub(crate) struct SearchOpts {
     /// Execute a command on each individual file
     #[clap(
         name = "exec",
-        long = "exec", short = 'x',
+        long = "exec",
+        short = 'x',
         takes_value = true,
         min_values = 1,
         value_name = "cmd",
         value_terminator = ";",
         allow_hyphen_values = true,
-        conflicts_with = "exec-batch",
+        multiple_occurrences = true,
         long_help = EXEC_EXPL.as_ref(),
         value_hint = ValueHint::CommandName,
     )]
-    pub(crate) execute: Option<Vec<String>>,
+    pub(crate) execute: Option<Vec<Vec<String>>>,
 
-    /// Execute a command on the batch of matching files
+    /// Execute a command on all the matching files
     #[clap(
         name = "exec-batch",
-        long = "exec-batch", short = 'X',
+        long = "exec-batch",
+        short = 'X',
         takes_value = true,
         min_values = 1,
         value_name = "cmd",
         value_terminator = ";",
         allow_hyphen_values = true,
+        multiple_occurrences = true,
         conflicts_with = "exec",
         long_help = EXEC_BATCH_EXPL.as_ref(),
         value_hint = ValueHint::CommandName,
     )]
-    pub(crate) execute_batch: Option<Vec<String>>,
+    pub(crate) execute_batch: Option<Vec<Vec<String>>>,
 
     /// Display tags and files on separate lines
     #[clap(name = "garrulous", long, short = 'G', conflicts_with = "only-files")]
@@ -139,9 +142,9 @@ impl App {
             || {
                 opts.execute_batch
                     .as_ref()
-                    .map(|cmd| CommandTemplate::new_batch(cmd).expect("invalid batch command"))
+                    .map(|cmd| CommandSet::new_batch(cmd.clone()).expect("invalid batch command"))
             },
-            |cmd| Some(CommandTemplate::new(cmd)),
+            |cmd| Some(CommandSet::new(cmd.clone())),
         );
 
         // let command = if let Some(cmd) = &opts.execute {
@@ -159,8 +162,8 @@ impl App {
 
         let (tx, rx) = channel::unbounded::<WorkerResult>();
 
-        let rec = receiver(&app, &opts, command, rx);
-        sender(&app, &opts, &re, tx);
+        let rec = job::receiver(&app, &opts, command, rx);
+        job::sender(&app, &opts, &re, tx);
         rec.join().expect("failed to join receiver `JoinHandle`");
     }
 }

@@ -1,3 +1,4 @@
+#![allow(unused)]
 //! Execute a command on a result from a `search`
 
 mod command;
@@ -8,16 +9,18 @@ pub(crate) mod token;
 
 use std::{
     ffi::OsString,
+    io, iter,
     path::{Path, PathBuf},
-    process::{Command, Stdio},
+    process::Stdio,
     sync::{Arc, Mutex},
 };
 
 use crate::regex;
 use anyhow::{anyhow, Result};
+use argmax::Command;
 
 pub(crate) use self::{
-    command::execute_command,
+    command::{execute_commands, handle_cmd_error},
     exits::ExitCode,
     input::{
         basename, dirname, remove_extension, strip_current_dir, wutag_clear_tag, wutag_colored_dir,
@@ -35,49 +38,174 @@ pub(crate) enum ExecutionMode {
     Batch,
 }
 
-/// Represents a template that is utilized to generate command strings.
-///
-/// The template is meant to be coupled with an input in order to generate a
-/// command. The `generate_and_execute()` method will be used to generate a
-/// command and execute it.
+/// Representation of multiple exec commands
+#[derive(Debug, Clone, PartialEq)]
+pub struct CommandSet {
+    /// Mode that commands are
+    mode:     ExecutionMode,
+    /// The actual commands to be executed
+    commands: Vec<CommandTemplate>,
+}
+
+impl CommandSet {
+    /// Create a new [`CommandSet`]
+    pub(crate) fn new<I, S>(input: I) -> Result<CommandSet>
+    where
+        I: IntoIterator<Item = Vec<S>>,
+        S: AsRef<str>,
+    {
+        Ok(CommandSet {
+            mode:     ExecutionMode::Single,
+            commands: input
+                .into_iter()
+                .map(CommandTemplate::new)
+                .collect::<Result<_>>()?,
+        })
+    }
+
+    /// Create a new batch [`CommandSet`]
+    pub(crate) fn new_batch<I, S>(input: I) -> Result<CommandSet>
+    where
+        I: IntoIterator<Item = Vec<S>>,
+        S: AsRef<str>,
+    {
+        Ok(CommandSet {
+            mode:     ExecutionMode::Batch,
+            commands: input
+                .into_iter()
+                .map(|args| {
+                    let cmd = CommandTemplate::new(args)?;
+
+                    if cmd.number_of_tokens() > 1 {
+                        return Err(anyhow!("only one placeholder allowed for batch commands"));
+                    }
+                    if cmd.args[0].has_tokens() {
+                        return Err(anyhow!(
+                            "first argument of --exec-batch is expected to be an executable"
+                        ));
+                    }
+                    Ok(cmd)
+                })
+                .collect::<Result<Vec<_>>>()?,
+        })
+    }
+
+    /// Is the command in batch mode?
+    pub(crate) fn in_batch_mode(&self) -> bool {
+        self.mode == ExecutionMode::Batch
+    }
+
+    // /// Generates and executes a command.
+    // ///
+    // /// Using the internal `args` field, and a supplied `input` variable, a
+    // /// `Command` will be build. Once all arguments have been processed, the
+    // /// command is executed.
+    // pub(crate) fn generate_and_execute(&self, input: &Path, out_perm:
+    // &Arc<Mutex<()>>) -> ExitCode {     let input = strip_current_dir(input);
+    //
+    //     let args = if self.args[0].contains_wutag() {
+    //         self.split_first_arg(&input)
+    //     } else {
+    //         self.args.clone()
+    //     };
+    //
+    //     let mut cmd = Command::new(args[0].generate(&input));
+    //     for arg in &args[1..] {
+    //         cmd.arg(arg.generate(&input));
+    //     }
+    //
+    //     execute_command(cmd, out_perm)
+    // }
+
+    pub(crate) fn execute(
+        &self,
+        input: &Path,
+        out_perm: Arc<Mutex<()>>,
+        buffer_output: bool,
+    ) -> ExitCode {
+        let commands = self.commands.iter().map(|c| c.generate(input));
+        execute_commands(commands, &out_perm, buffer_output)
+    }
+
+    // pub(crate) fn generate_and_execute_batch<I>(&self, paths: I) -> ExitCode
+    // where
+    //     I: Iterator<Item = PathBuf>,
+    // {
+    //     // FIX: Have to change batch limit of 1 token
+    //     let mut cmd = Command::new(self.args[0].generate(""));
+    //     cmd.stdin(Stdio::inherit());
+    //     cmd.stdout(Stdio::inherit());
+    //     cmd.stderr(Stdio::inherit());
+    //
+    //     let mut paths = paths.collect::<Vec<_>>();
+    //     let mut has_path = false;
+    //
+    //     for arg in &self.args[1..] {
+    //         if arg.has_tokens() {
+    //             paths.sort();
+    //
+    //             // A single `Tokens` is expected
+    //             // So we can directly consume the iterator once and for all
+    //             for path in &mut paths {
+    //                 cmd.arg(arg.generate(strip_current_dir(path)));
+    //                 has_path = true;
+    //             }
+    //         } else {
+    //             cmd.arg(arg.generate(""));
+    //         }
+    //     }
+    //
+    //     if has_path {
+    //         execute_command(cmd, &Mutex::new(()))
+    //     } else {
+    //         ExitCode::Success
+    //     }
+    // }
+
+    /// Generate the command and execute it if it is a `batch`
+    pub(crate) fn execute_batch<I>(&self, paths: I, limit: usize) -> ExitCode
+    where
+        I: Iterator<Item = PathBuf>,
+    {
+        let builders = self
+            .commands
+            .iter()
+            .map(|c| CommandBuilder::new(c, limit))
+            .collect::<Result<Vec<_>>>();
+
+        match builders {
+            Ok(mut builders) => {
+                for path in paths {
+                    for builder in &mut builders {
+                        if let Err(e) = builder.push(&path) {
+                            return handle_cmd_error(Some(&builder.cmd), e.into());
+                        }
+                    }
+                }
+
+                for builder in &mut builders {
+                    if let Err(e) = builder.finish() {
+                        return handle_cmd_error(Some(&builder.cmd), e.into());
+                    }
+                }
+
+                ExitCode::Success
+            },
+            Err(e) => handle_cmd_error(None, e),
+        }
+    }
+}
+
+/// Template that generates [`Command`] strings
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct CommandTemplate {
     /// Arguments to the command
     args: Vec<ArgumentTemplate>,
-    /// `Batch` or `Single`
-    mode: ExecutionMode,
 }
 
 impl CommandTemplate {
     /// Create a new [`CommandTemplate`]
-    pub(crate) fn new<I, S>(input: I) -> Self
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
-        Self::build(input, ExecutionMode::Single)
-    }
-
-    /// Create a new batch [`CommandTemplate`]
-    pub(crate) fn new_batch<I, S>(input: I) -> Result<Self>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
-        let cmd = Self::build(input, ExecutionMode::Batch);
-        if cmd.number_of_tokens() > 1 {
-            return Err(anyhow!("Only one placeholder allowed for batch commands"));
-        }
-        if cmd.args[0].has_tokens() {
-            return Err(anyhow!(
-                "First argument of exec-batch is expected to be a fixed executable"
-            ));
-        }
-        Ok(cmd)
-    }
-
-    /// Build the [`CommandTemplate`]
-    fn build<I, S>(input: I, mode: ExecutionMode) -> Self
+    fn new<I, S>(input: I) -> Result<Self>
     where
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
@@ -134,22 +262,40 @@ impl CommandTemplate {
             args.push(ArgumentTemplate::Tokens(tokens));
         }
 
+        if args.is_empty() {}
+
         // If a placeholder token was not supplied, append one at the end of the
         // command.
         if !has_placeholder {
             args.push(ArgumentTemplate::Tokens(vec![Token::Placeholder]));
         }
 
-        Self { args, mode }
+        Ok(Self { args })
     }
 
-    /// Return the number of `Token`s within the command
+    /// Return the number of [`Token`]s within the command
     fn number_of_tokens(&self) -> usize {
         self.args.iter().filter(|arg| arg.has_tokens()).count()
     }
 
+    /// Generates and executes a command
+    fn generate(&self, input: &Path) -> Result<Command> {
+        let mut cmd = Command::new(self.args[0].generate(&input));
+
+        // let args = if self.args[0].contains_wutag() {
+        //     self.split_first_arg(&input)
+        // } else {
+        //     self.args.clone()
+        // };
+
+        for arg in &self.args[1..] {
+            cmd.try_arg(arg.generate(&input))?;
+        }
+        Ok(cmd)
+    }
+
     /// Split the first argument in the command
-    fn split_first_arg(&self, input: impl AsRef<Path>) -> Vec<ArgumentTemplate> {
+    fn split_first_arg<P: AsRef<Path>>(&self, input: P) -> Vec<ArgumentTemplate> {
         let input = input.as_ref();
         let mut cloned_args = self.args.clone();
         log::debug!("Cloned args: {:?}", cloned_args);
@@ -171,72 +317,175 @@ impl CommandTemplate {
         new_args
     }
 
-    /// Generates and executes a command.
-    ///
-    /// Using the internal `args` field, and a supplied `input` variable, a
-    /// `Command` will be build. Once all arguments have been processed, the
-    /// command is executed.
-    pub(crate) fn generate_and_execute(&self, input: &Path, out_perm: &Arc<Mutex<()>>) -> ExitCode {
-        let input = strip_current_dir(input);
+    // fn generate(&self, input: &Path, path_separator: Option<&str>) ->
+    // Result<Command> {     let mut cmd =
+    // Command::new(self.args[0].generate(&input, path_separator));     for arg
+    // in &self.args[1..] {         cmd.try_arg(arg.generate(&input,
+    // path_separator))?;     }
+    //     Ok(cmd)
+    // }
 
-        log::debug!("=== Args before ===: {:#?}", self.args);
-        let args = if self.args[0].contains_wutag() {
-            self.split_first_arg(&input)
-        } else {
-            self.args.clone()
-        };
-        log::debug!("=== Args after ===: {:#?}", args);
+    // /// Generates and executes a command.
+    // ///
+    // /// Using the internal `args` field, and a supplied `input` variable, a
+    // /// `Command` will be build. Once all arguments have been processed, the
+    // /// command is executed.
+    // pub(crate) fn generate_and_execute(&self, input: &Path, out_perm:
+    // &Arc<Mutex<()>>) -> ExitCode {     let input = strip_current_dir(input);
+    //
+    //     log::debug!("=== Args before ===: {:#?}", self.args);
+    //     let args = if self.args[0].contains_wutag() {
+    //         self.split_first_arg(&input)
+    //     } else {
+    //         self.args.clone()
+    //     };
+    //     log::debug!("=== Args after ===: {:#?}", args);
+    //
+    //     let mut cmd = Command::new(args[0].generate(&input));
+    //     for arg in &args[1..] {
+    //         cmd.arg(arg.generate(&input));
+    //     }
+    //
+    //     log::debug!("=== Final command ===: {:#?}", cmd);
+    //     execute_command(cmd, out_perm)
+    // }
 
-        let mut cmd = Command::new(args[0].generate(&input));
-        for arg in &args[1..] {
-            cmd.arg(arg.generate(&input));
-        }
+    // /// Generate the command and execute it if it is a `batch`
+    // pub(crate) fn generate_and_execute_batch<I>(&self, paths: I) -> ExitCode
+    // where
+    //     I: Iterator<Item = PathBuf>,
+    // {
+    //     // FIX: Have to change batch limit of 1 token
+    //     let mut cmd = Command::new(self.args[0].generate(""));
+    //     cmd.stdin(Stdio::inherit());
+    //     cmd.stdout(Stdio::inherit());
+    //     cmd.stderr(Stdio::inherit());
+    //
+    //     let mut paths = paths.collect::<Vec<_>>();
+    //     let mut has_path = false;
+    //
+    //     for arg in &self.args[1..] {
+    //         if arg.has_tokens() {
+    //             paths.sort();
+    //
+    //             // A single `Tokens` is expected
+    //             // So we can directly consume the iterator once and for all
+    //             for path in &mut paths {
+    //                 cmd.arg(arg.generate(strip_current_dir(path)));
+    //                 has_path = true;
+    //             }
+    //         } else {
+    //             cmd.arg(arg.generate(""));
+    //         }
+    //     }
+    //
+    //     if has_path {
+    //         execute_command(cmd, &Mutex::new(()))
+    //     } else {
+    //         ExitCode::Success
+    //     }
+    // }
+}
 
-        log::debug!("=== Final command ===: {:#?}", cmd);
-        execute_command(cmd, out_perm)
-    }
+// ╭──────────────────────────────────────────────────────────╮
+// │                      CommandBuilder                      │
+// ╰──────────────────────────────────────────────────────────╯
 
-    /// Is the command in batch mode?
-    pub(crate) fn in_batch_mode(&self) -> bool {
-        self.mode == ExecutionMode::Batch
-    }
+// A command that is to be ran in batch mode
+#[derive(Debug)]
+struct CommandBuilder {
+    /// Arguments added before the command has began building
+    pre_args:  Vec<OsString>,
+    /// Arguments that will be exec TODO:
+    path_arg:  ArgumentTemplate,
+    /// Arguments added after the command has finished building
+    post_args: Vec<OsString>,
+    /// The command that is to be executed
+    cmd:       Command,
+    /// Current number of arguments
+    count:     usize,
+    /// Maximum number of arguments that are allowed
+    limit:     usize,
+}
 
-    /// Generate the command and execute it if it is a `batch`
-    pub(crate) fn generate_and_execute_batch<I>(&self, paths: I) -> ExitCode
-    where
-        I: Iterator<Item = PathBuf>,
-    {
-        // FIX: Have to change batch limit of 1 token
-        let mut cmd = Command::new(self.args[0].generate(""));
-        cmd.stdin(Stdio::inherit());
-        cmd.stdout(Stdio::inherit());
-        cmd.stderr(Stdio::inherit());
+impl CommandBuilder {
+    /// Create a new [`CommandBuilder`]
+    fn new(template: &CommandTemplate, limit: usize) -> Result<Self> {
+        let mut pre_args = vec![];
+        let mut path_arg = None;
+        let mut post_args = vec![];
 
-        let mut paths = paths.collect::<Vec<_>>();
-        let mut has_path = false;
-
-        for arg in &self.args[1..] {
+        for arg in &template.args {
             if arg.has_tokens() {
-                paths.sort();
-
-                // A single `Tokens` is expected
-                // So we can directly consume the iterator once and for all
-                for path in &mut paths {
-                    cmd.arg(arg.generate(strip_current_dir(path)));
-                    has_path = true;
-                }
+                path_arg = Some(arg.clone());
+            } else if path_arg == None {
+                pre_args.push(arg.generate(""));
             } else {
-                cmd.arg(arg.generate(""));
+                post_args.push(arg.generate(""));
             }
         }
 
-        if has_path {
-            execute_command(cmd, &Mutex::new(()))
-        } else {
-            ExitCode::Success
+        let cmd = Self::new_command(&pre_args)?;
+
+        Ok(Self {
+            pre_args,
+            path_arg: path_arg.unwrap(),
+            post_args,
+            cmd,
+            count: 0,
+            limit,
+        })
+    }
+
+    /// Create a new [`Command`]
+    fn new_command(pre_args: &[OsString]) -> io::Result<Command> {
+        let mut cmd = Command::new(&pre_args[0]);
+        cmd.stdin(Stdio::inherit());
+        cmd.stdout(Stdio::inherit());
+        cmd.stderr(Stdio::inherit());
+        cmd.try_args(&pre_args[1..])?;
+        Ok(cmd)
+    }
+
+    /// Add an argument to the [`Command`]
+    ///
+    /// If the limit is reached or the argument will not fit, the command is
+    /// finished
+    fn push(&mut self, path: &Path) -> io::Result<()> {
+        if self.limit > 0 && self.count >= self.limit {
+            self.finish()?;
         }
+
+        let arg = self.path_arg.generate(path);
+        if !self
+            .cmd
+            .args_would_fit(iter::once(&arg).chain(&self.post_args))
+        {
+            self.finish()?;
+        }
+
+        self.cmd.try_arg(arg)?;
+        self.count += 1;
+        Ok(())
+    }
+
+    /// Finish the building of the [`Command`]
+    fn finish(&mut self) -> io::Result<()> {
+        if self.count > 0 {
+            self.cmd.try_args(&self.post_args)?;
+            self.cmd.status()?;
+
+            self.cmd = Self::new_command(&self.pre_args)?;
+            self.count = 0;
+        }
+
+        Ok(())
     }
 }
+
+// ╭──────────────────────────────────────────────────────────╮
+// │                     ArgumentTemplate                     │
+// ╰──────────────────────────────────────────────────────────╯
 
 /// Represents a template for a single command argument.
 ///
@@ -279,11 +528,8 @@ impl ArgumentTemplate {
     /// it will replace the path separator in all placeholder tokens. Text
     /// arguments and tokens are not affected by path separator
     /// substitution.
-    pub(crate) fn generate(&self, path: impl AsRef<Path>) -> OsString {
-        use self::Token::{
-            Basename, BasenameNoExt, NoExt, Parent, Placeholder, Text, Wutag, WutagClear,
-            WutagColored, WutagCp, WutagRemove, WutagSet,
-        };
+    pub(crate) fn generate<P: AsRef<Path>>(&self, path: P) -> OsString {
+        use self::Token as T;
         let path = path.as_ref();
 
         match *self {
@@ -291,18 +537,18 @@ impl ArgumentTemplate {
                 let mut s = OsString::new();
                 for token in tokens {
                     match *token {
-                        Basename => s.push(basename(path)),
-                        BasenameNoExt => s.push(&remove_extension(basename(path).as_ref())),
-                        NoExt => s.push(&remove_extension(path)),
-                        Parent => s.push(&dirname(path)),
-                        Placeholder => s.push(path),
-                        Wutag => s.push(&wutag_dir(path)),
-                        WutagColored => s.push(&wutag_colored_dir(path)),
-                        WutagSet => s.push(&wutag_set_tag(path)),
-                        WutagRemove => s.push(&wutag_remove_tag(path)),
-                        WutagClear => s.push(&wutag_clear_tag(path)),
-                        WutagCp => s.push(&wutag_cp_tag(path)),
-                        Text(ref string) => s.push(string),
+                        T::Basename => s.push(basename(path)),
+                        T::BasenameNoExt => s.push(&remove_extension(basename(path).as_ref())),
+                        T::NoExt => s.push(&remove_extension(path)),
+                        T::Parent => s.push(&dirname(path)),
+                        T::Placeholder => s.push(path),
+                        T::Wutag => s.push(&wutag_dir(path)),
+                        T::WutagColored => s.push(&wutag_colored_dir(path)),
+                        T::WutagSet => s.push(&wutag_set_tag(path)),
+                        T::WutagRemove => s.push(&wutag_remove_tag(path)),
+                        T::WutagClear => s.push(&wutag_clear_tag(path)),
+                        T::WutagCp => s.push(&wutag_cp_tag(path)),
+                        T::Text(ref string) => s.push(string),
                     }
                 }
                 s

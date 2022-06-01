@@ -13,11 +13,10 @@ use std::{
 
 use super::{
     exits::{generalize_exitcodes, ExitCode},
-    CommandTemplate,
+    CommandSet, CommandTemplate,
 };
 pub(crate) use crate::{
-    filesystem::{contained_path, osstr_to_bytes},
-    global_opts,
+    filesystem as wfs, global_opts,
     registry::{
         types::{tag::Tag, ID},
         Registry,
@@ -46,6 +45,55 @@ pub(crate) enum WorkerResult {
     Error(std::io::Error),
 }
 
+/// Generate and execute a command that is not in batch mode
+pub(crate) fn process_single(
+    rx: &Arc<Mutex<Receiver<WorkerResult>>>,
+    command: &Arc<CommandSet>,
+    out_perm: &Arc<Mutex<()>>,
+    buffer_output: bool,
+) -> ExitCode {
+    let mut inner = Vec::<ExitCode>::new();
+
+    loop {
+        // Lock the shared receiver for the current thread
+        let lock = rx.lock().expect("failed to lock receiver");
+
+        // Get the next item from the receiver
+        let value: PathBuf = match lock.recv() {
+            Ok(WorkerResult::Entry((entry, _id))) => entry,
+            Ok(WorkerResult::Error(err)) => {
+                wutag_error!("{}", err.to_string());
+                continue;
+            },
+            Err(_) => break,
+        };
+
+        drop(lock);
+
+        // Generate the command, return the `ExitCode`
+        inner.push(command.execute(&value, Arc::clone(out_perm), buffer_output));
+    }
+
+    generalize_exitcodes(inner)
+}
+
+/// Generate and execute a command that is in batch mode
+pub(crate) fn process_batch(
+    rx: &Receiver<WorkerResult>,
+    command: &CommandSet,
+    limit: usize,
+) -> ExitCode {
+    let paths = rx.iter().filter_map(|value| match value {
+        WorkerResult::Entry((entry, _id)) => Some(entry),
+        WorkerResult::Error(err) => {
+            wutag_error!("{}", err.to_string());
+            None
+        },
+    });
+
+    command.execute_batch(paths, limit)
+}
+
 /// Spawn a receiver channel that prints the result by default, but will execute
 /// a command on the result if `-x|--exec` or `-X|--exec-batch` if passed using
 /// `generate_and_execute` or `generate_and_execute_batch` from
@@ -53,34 +101,26 @@ pub(crate) enum WorkerResult {
 pub(crate) fn receiver(
     app: &Arc<App>,
     opts: &Arc<SearchOpts>,
-    cmd: Option<Arc<CommandTemplate>>,
+    cmd: Option<Arc<CommandSet>>,
     rx: Receiver<WorkerResult>,
 ) -> std::thread::JoinHandle<ExitCode> {
     let app = Arc::clone(app);
     let opts = Arc::clone(opts);
-    // let reg = app.registry.clone();
 
     let threads = num_cpus::get();
+    let buffer_output = threads > 1;
 
     std::thread::spawn(move || {
-        let reg = app.registry.lock().expect("poisoned lock");
+        let reg = app.registry.lock().expect("poisoned registry lock");
 
         if let Some(ref command) = cmd {
             if command.in_batch_mode() {
-                let paths = rx.iter().filter_map(|value| match value {
-                    WorkerResult::Entry((entry, _id)) => Some(entry),
-                    WorkerResult::Error(err) => {
-                        wutag_error!("{}", err.to_string());
-                        None
-                    },
-                });
-
-                command.generate_and_execute_batch(paths)
+                self::process_batch(&rx, command, 10)
             } else {
                 let shared_rx = Arc::new(Mutex::new(rx));
                 let out_perm = Arc::new(Mutex::new(()));
 
-                let exits = thread::scope(|s| {
+                let exits: Vec<ExitCode> = thread::scope(|s| {
                     let mut results = Vec::new();
                     for _ in 0..threads {
                         let command = Arc::clone(command);
@@ -88,32 +128,16 @@ pub(crate) fn receiver(
                         let rx = Arc::clone(&shared_rx);
 
                         results.push(s.spawn(move |_| {
-                            let mut inner: Vec<ExitCode> = Vec::new();
-
-                            loop {
-                                let lock = rx.lock().expect("failed to lock receiver");
-                                let value: PathBuf = match lock.recv() {
-                                    Ok(WorkerResult::Entry((entry, _id))) => entry,
-                                    Ok(WorkerResult::Error(err)) => {
-                                        wutag_error!("{}", err.to_string());
-                                        continue;
-                                    },
-                                    Err(_) => break,
-                                };
-
-                                inner.push(
-                                    command.generate_and_execute(&value, &Arc::clone(&out_perm)),
-                                );
-                            }
-                            generalize_exitcodes(inner)
+                            self::process_single(&rx, &command, &out_perm, buffer_output)
                         }));
                     }
+
                     results
                         .into_iter()
                         .map(thread::ScopedJoinHandle::join)
                         .collect::<Result<_, _>>()
                 })
-                .expect("failed to unwrap scope thread")
+                .expect("failed to unwrap ScopedJoinHandle")
                 .expect("failed to unwrap scope thread");
 
                 generalize_exitcodes(exits)
@@ -227,12 +251,12 @@ pub(crate) fn sender(
 
             // Repeated code from calling function to run on multiple threads
             for entry in reg.files(None).expect("failed to get Files").iter() {
-                if !app.global && !contained_path(entry.path(), app.base_dir.clone()) {
+                if !app.global && !wfs::contained_path(entry.path(), app.base_dir.clone()) {
                     continue;
                 }
 
                 let search_str: Cow<OsStr> = Cow::Owned(entry.path().as_os_str().to_os_string());
-                let search_bytes = osstr_to_bytes(search_str.as_ref());
+                let search_bytes = wfs::osstr_to_bytes(search_str.as_ref());
 
                 if !app.exclude.is_empty() && exclude_pattern.is_match(&search_bytes) {
                     continue;
@@ -267,9 +291,22 @@ pub(crate) fn sender(
                     //     continue;
                     // }
 
-                    tx_thread
+                    // TODO: How to prune here?
+                    if app.prune && wfs::contained_path(entry.path(), app.base_dir.clone()) {
+                        println!("PRUNING");
+                        continue;
+                    }
+
+                    if tx_thread
                         .send(WorkerResult::Entry((entry.path().clone(), entry.id())))
-                        .expect("failed to send result across threads");
+                        .is_err()
+                    {
+                        wutag_error!(
+                            "failed to send result across threads: {}",
+                            entry.path().display()
+                        );
+                        return;
+                    }
                 }
             }
         });

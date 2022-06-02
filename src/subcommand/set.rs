@@ -10,11 +10,11 @@ use crate::{
     wutag_error, wutag_warning,
     xattr::tag::DirEntryExt,
 };
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use clap::{Args, ValueHint};
 use colored::Colorize;
 use rusqlite as rsq;
-use std::{fs, path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
 /// Options used for the `set` subcommand
 #[derive(Args, Clone, Debug, PartialEq)]
@@ -101,6 +101,8 @@ pub(crate) struct SetOpts {
 
     /// A glob, regular expression, or fixed-string
     #[clap(
+        name = "pattern",
+        takes_value = true,
         required_unless_present = "stdin",
         value_hint = ValueHint::FilePath,
     )]
@@ -210,21 +212,7 @@ impl App {
         if (opts.stdin || atty::isnt(atty::Stream::Stdin)) && atty::is(atty::Stream::Stdout) {
             log::debug!("Using STDIN");
             for entry in &collect_stdin_paths(&self.base_dir) {
-                let path = &(|| -> Result<PathBuf> {
-                    if self.follow_symlinks
-                        && fs::symlink_metadata(entry.path())
-                            .ok()
-                            .map_or(false, |f| f.file_type().is_symlink())
-                    {
-                        log::debug!("{}: resolving symlink", entry.path().display());
-                        return fs::canonicalize(entry.path()).context(format!(
-                            "{}: failed to canonicalize",
-                            entry.path().display()
-                        ));
-                    }
-
-                    return Ok(entry.path().to_path_buf());
-                })()?;
+                let path = &self.resolve_symlink(entry.path())?;
 
                 if !self.quiet {
                     println!("{}:", self.fmt_path(path));
@@ -385,21 +373,7 @@ impl App {
                     // This is needed for single files. The WalkBuilder doesn't seem to list the
                     // resolved symlink if it is a single file. However, symbolic directories are
                     // traversed
-                    let path = &(|| -> Result<PathBuf> {
-                        if self.follow_symlinks
-                            && fs::symlink_metadata(entry.path())
-                                .ok()
-                                .map_or(false, |f| f.file_type().is_symlink())
-                        {
-                            log::debug!("{}: resolving symlink", entry.path().display());
-                            return fs::canonicalize(entry.path()).context(format!(
-                                "{}: failed to canonicalize",
-                                entry.path().display()
-                            ));
-                        }
-
-                        return Ok(entry.path().to_path_buf());
-                    })()?;
+                    let path = &self.resolve_symlink(entry.path())?;
 
                     if !self.quiet {
                         println!("{}:", self.fmt_path(path));

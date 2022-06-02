@@ -10,10 +10,10 @@ use crate::{
     wutag_error, wutag_info,
     xattr::tag::DirEntryExt,
 };
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use clap::{Args, ValueHint};
 use colored::Colorize;
-use std::{borrow::Cow, ffi::OsStr, fs, path::PathBuf, sync::Arc};
+use std::{borrow::Cow, ffi::OsStr, path::PathBuf, sync::Arc};
 
 /// Arguments to the `rm` subcommand
 #[derive(Args, Clone, Debug, PartialEq)]
@@ -45,13 +45,13 @@ pub(crate) struct RmOpts {
     )]
     pub(crate) values: bool,
 
-    /// A glob pattern like "*.png" (or regex).
+    /// A glob, regular expression, or fixed-string
     #[clap(
         name = "pattern",
         takes_value = true,
         required = true,
         value_hint = ValueHint::FilePath,
-)]
+    )]
     pub(crate) pattern: String,
 
     /// Tags or values (requires --values) to remove from the matching pattern
@@ -381,9 +381,9 @@ impl App {
 
                                     // Otherwise, just remove it from this
                                     // single file
-                                } else if let Err(e) =
-                                    reg.update_filetag_valueid(value.id(), file.id())
-                                {
+                                }
+
+                                if let Err(e) = reg.update_filetag_valueid(value.id(), file.id()) {
                                     wutag_error!(
                                         "{}: failed to update value {}: {}",
                                         bold_entry!(path),
@@ -409,6 +409,8 @@ impl App {
                                         continue;
                                     }
 
+                                    // TODO: Make sure that if file is not deleted it still has
+                                    // xattr
                                     handle_xattr(tag, path);
                                 }
 
@@ -467,21 +469,7 @@ impl App {
                 |entry: &ignore::DirEntry| {
                     let reg = self.registry.lock().expect("poisoned lock");
 
-                    let path = &(|| -> Result<PathBuf> {
-                        if self.follow_symlinks
-                            && fs::symlink_metadata(entry.path())
-                                .ok()
-                                .map_or(false, |f| f.file_type().is_symlink())
-                        {
-                            log::debug!("{}: resolving symlink", entry.path().display());
-                            return fs::canonicalize(entry.path()).context(format!(
-                                "{}: failed to canonicalize",
-                                entry.path().display()
-                            ));
-                        }
-
-                        return Ok(entry.path().to_path_buf());
-                    })()?;
+                    let path = &self.resolve_symlink(entry.path())?;
 
                     if let Ok(file) = reg.file_by_path(path) {
                         if !self.quiet {
@@ -726,7 +714,9 @@ impl App {
                                             );
                                             continue;
                                         }
-                                    } else if let Err(e) =
+                                    }
+
+                                    if let Err(e) =
                                         reg.update_filetag_valueid(value.id(), file.id())
                                     {
                                         // Otherwise, just remove it from this single file
@@ -802,6 +792,8 @@ impl App {
                         log::trace!("{}: skipping", path.display());
                     }
 
+                    // TODO: It'd be nice to have a way to track whether or not an error was
+                    //       printed. If it was, don't print this
                     if !self.quiet {
                         println!();
                     }
@@ -813,4 +805,32 @@ impl App {
 
         Ok(())
     }
+
+    // // TODO: This doesn't work
+    // /// Easier to write this code once.
+    // ///
+    // /// Delete a tag and properly display errors
+    // pub(crate) fn delete_tag(&self, tag: &Tag, path: &PathBuf) -> Result<()> {
+    //     // This stops the database from locking
+    //     // It creates a new connection
+    //     println!("BEFORE");
+    //     let reg = Registry::from(self);
+    //     println!("AFTER");
+    //
+    //     log::debug!("{}: deleting tag {}", path.display(), tag.name());
+    //     if let Err(e) = reg.delete_tag(tag.id()) {
+    //         wutag_error!(
+    //             "{}: failed to delete tag {}: {}",
+    //             bold_entry!(path),
+    //             self.fmt_tag(tag),
+    //             e
+    //         );
+    //
+    //         return Err(anyhow!("anything"));
+    //     }
+    //
+    //     println!("before drop");
+    //     drop(reg);
+    //     Ok(())
+    // }
 }

@@ -75,9 +75,10 @@ pub(crate) struct CpOpts {
 
     /// A glob, regular expression, or fixed-string
     #[clap(
-        value_hint = ValueHint::FilePath,
-        takes_value = false,
+        name = "pattern",
+        takes_value = true,
         required = true,
+        value_hint = ValueHint::FilePath,
     )]
     pub(crate) pattern: String,
 }
@@ -104,28 +105,6 @@ impl App {
             self.case_insensitive,
             self.case_sensitive,
         );
-
-        // let path = &(|| -> Result<PathBuf> {
-        //     let mut path = opts.input_path.clone();
-        //     let path_str = path.to_string_lossy().to_string();
-        //     if path_str.starts_with("./") {
-        //         path = env::current_dir()?.join(PathBuf::from(path_str.replace("./",
-        // "")));     }
-        //
-        //     if self.follow_symlinks
-        //         && fs::symlink_metadata(&path)
-        //             .ok()
-        //             .map_or(false, |f| f.file_type().is_symlink())
-        //     {
-        //         log::debug!("{}: resolving symlink", path.display());
-        //         return fs::canonicalize(&path).context(format!(
-        //             "{}: failed to canonicalize",
-        //             path.display()
-        //         ));
-        //     }
-        //
-        //     Ok(opts.input_path.clone())
-        // })()?;
 
         // Maybe try and not have to canonicalize this
         let path = &fs::canonicalize(&opts.input_path).context(format!(
@@ -335,26 +314,7 @@ impl App {
                                     let reg = self.registry.lock().expect("poisoned lock");
 
                                     // The destination files
-                                    let entry = &(|| -> Result<PathBuf> {
-                                        if self.follow_symlinks
-                                            && fs::symlink_metadata(entry.path())
-                                                .ok()
-                                                .map_or(false, |f| f.file_type().is_symlink())
-                                        {
-                                            log::debug!(
-                                                "{}: resolving symlink",
-                                                entry.path().display()
-                                            );
-                                            return fs::canonicalize(entry.path()).context(
-                                                format!(
-                                                    "{}: failed to canonicalize",
-                                                    entry.path().display()
-                                                ),
-                                            );
-                                        }
-
-                                        return Ok(entry.path().to_path_buf());
-                                    })()?;
+                                    let path = &self.resolve_symlink(entry.path())?;
 
                                     if !self.quiet {
                                         println!("{}:", self.fmt_path(entry.path()));

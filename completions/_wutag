@@ -173,19 +173,21 @@ _arguments "${_arguments_options[@]}" \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '-g[Apply operation to all tags and files instead of locally]' \
 '--global[Apply operation to all tags and files instead of locally]' \
-':pattern -- A glob pattern like "*.png" (or regex):_files' \
+':pattern -- A glob, regular expression, or fixed-string:_files' \
 '*::tags:_wutag_tags' \
 && ret=0
 ;;
 (clear)
 _arguments "${_arguments_options[@]}" \
+'-V[Clear values from files instead of tags]' \
+'--values[Clear values from files instead of tags]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '-g[Apply operation to all tags and files instead of locally]' \
 '--global[Apply operation to all tags and files instead of locally]' \
-':pattern -- A glob pattern like "*.png":' \
+':pattern -- A glob, regular expression, or fixed-string pattern A glob, regular expression, or fixed-string:_files' \
 && ret=0
 ;;
 (search)
@@ -214,7 +216,7 @@ _arguments "${_arguments_options[@]}" \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '-g[Apply operation to all tags and files instead of locally]' \
 '--global[Apply operation to all tags and files instead of locally]' \
-':pattern -- Pattern to search tagged files:' \
+':pattern -- A glob, regular expression, or fixed-string:_files' \
 && ret=0
 ;;
 (cp)

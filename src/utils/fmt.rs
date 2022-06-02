@@ -10,12 +10,11 @@ use std::path::Path;
 // pub(crate) fn err<E: Display>(err: E) -> String {
 //     format!("{} {}", "ERROR:".red().bold(), format!("{}", err).white())
 // }
-//
-// /// Format an `OK` message
-// #[allow(dead_code)]
-// pub(crate) fn ok<S: AsRef<str>>(msg: S) -> String {
-//     format!("{} {}", "OK".green().bold(), msg.as_ref().white())
-// }
+
+/// Format an `OK` message
+pub(crate) fn ok<S: AsRef<str>>(msg: S) -> String {
+    format!("{} {}", "OK".green().bold(), msg.as_ref().white())
+}
 
 /// Format the colored/non-colored output of a [`Path`]
 pub(crate) fn path<P: AsRef<Path>>(path: P, app: &App) -> String {

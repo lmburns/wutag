@@ -112,8 +112,13 @@ pub(crate) struct SearchOpts {
     )]
     pub(crate) tags: Vec<String>,
 
-    /// Pattern to search tagged files
-    #[clap(name = "pattern")]
+    /// A glob, regular expression, or fixed-string
+    #[clap(
+        name = "pattern",
+        takes_value = true,
+        required = true,
+        value_hint = ValueHint::FilePath,
+    )]
     pub(crate) pattern: String,
 }
 

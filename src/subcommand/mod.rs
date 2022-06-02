@@ -34,6 +34,7 @@ use crate::{
         fmt,
     },
     wutag_error, wutag_fatal,
+    xattr::tag::DirEntryExt,
 };
 use anyhow::{Context, Result};
 use colored::{Color, ColoredString, Colorize};
@@ -41,6 +42,7 @@ use regex::bytes::{RegexSet, RegexSetBuilder};
 use std::{
     env,
     error::Error,
+    fs,
     path::{Path, PathBuf},
     str::FromStr,
     sync::{Arc, Mutex},
@@ -322,6 +324,26 @@ impl App {
     /// read and only searches recursively
     pub(crate) fn fmt_raw_local_path<P: AsRef<Path>>(&self, path: P) -> String {
         fmt::raw_local_path(path, &self.base_dir)
+    }
+
+    /// Resolve the given entry if `follow_symlinks` is enabled
+    ///
+    /// Note that [`ignore::WalkParallel`] has an option to resolve symlinks,
+    /// but it does not seem to resolve individual file symlinks. It only
+    /// works with directories
+    pub(crate) fn resolve_symlink<P: AsRef<Path>>(&self, entry: P) -> Result<PathBuf> {
+        let entry = entry.as_ref();
+        if self.follow_symlinks
+            && fs::symlink_metadata(entry)
+                .ok()
+                .map_or(false, |f| f.file_type().is_symlink())
+        {
+            log::debug!("{}: resolving symlink", entry.display());
+            return fs::canonicalize(entry)
+                .context(format!("{}: failed to canonicalize", entry.display()));
+        }
+
+        Ok(entry.to_path_buf())
     }
 }
 

@@ -157,7 +157,7 @@ _wutag() {
             return 0
             ;;
         wutag__clear)
-            opts="-h -v -g --help --verbose --global <PATTERN>"
+            opts="-V -h -v -g --values --help --verbose --global <pattern>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -171,7 +171,7 @@ _wutag() {
             return 0
             ;;
         wutag__cp)
-            opts="-t -p -G -h -v -g --tag --pairs --glob --help --verbose --global <INPUT_PATH> <PATTERN>"
+            opts="-t -p -G -h -v -g --tag --pairs --glob --help --verbose --global <INPUT_PATH> <pattern>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -411,7 +411,7 @@ _wutag() {
             return 0
             ;;
         wutag__set)
-            opts="-c -C -s -p -V -h -v -g --clear --color --stdin --pairs --value --help --verbose --global <PATTERN> <tags>..."
+            opts="-c -C -s -p -V -h -v -g --clear --color --stdin --pairs --value --help --verbose --global <pattern> <tags>..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

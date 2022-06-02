@@ -1,4 +1,4 @@
-//! `clear` - Clear tags from a given path
+//! `clear` - Clear tags on results of a query
 
 #![allow(unused)]
 
@@ -6,33 +6,41 @@ use super::App;
 use crate::{
     bold_entry, err,
     filesystem::osstr_to_bytes,
-    registry::types::ID,
+    registry::types::{Tag, ID},
     utils::{crawler, fmt, glob_builder, regex_builder},
     wutag_error, wutag_info,
     xattr::tag::{clear_tags, has_tags, DirEntryExt},
 };
-use clap::Args;
-// use colored::Colorize;
-use std::sync::Arc;
+use clap::{Args, ValueHint};
+use colored::Colorize;
+use std::{path::PathBuf, sync::Arc};
 
 /// Arguments used for the `clear` subcommand
 #[derive(Args, Debug, Clone, PartialEq)]
 pub(crate) struct ClearOpts {
-    // /// Clear values instead of tags
-    // #[clap(
-    //     name = "values",
-    //     long,
-    //     short = 'V',
-    //     takes_value = false,
-    //     long_help = "Should the symlink be dereferenced before the tag is removed from the file"
-    // )]
-    // pub(crate) values: bool,
-    /// A glob pattern like "*.png".
+    /// Clear values from files instead of tags
+    #[clap(
+        name = "values",
+        long,
+        short = 'V',
+        takes_value = false,
+        long_help = "By default this command will clear all tags and values from the results. \
+                     With this flag only the values will be removed"
+    )]
+    pub(crate) values: bool,
+
+    /// A glob, regular expression, or fixed-string pattern
+    /// A glob, regular expression, or fixed-string
+    #[clap(
+        name = "pattern",
+        takes_value = true,
+        value_hint = ValueHint::FilePath,
+    )]
     pub(crate) pattern: String,
 }
 
 impl App {
-    /// Clear [`Tag`]s from a given path
+    /// Clear [`Tag`]s or [`Value`]s from a given path
     pub(crate) fn clear(&mut self, opts: &ClearOpts) {
         log::debug!("ClearOpts: {:#?}", opts);
 
@@ -106,71 +114,112 @@ impl App {
                 |entry: &ignore::DirEntry| {
                     let reg = self.registry.lock().expect("poisoned lock");
 
+                    let handle_xattr = |tag: &Tag, path: &PathBuf| {
+                        log::debug!("removing xattr for Tag({})", tag.name());
+                        match path.has_tags() {
+                            Ok(has_tags) =>
+                                if has_tags && !self.quiet {
+                                    println!("{}:", self.fmt_path(entry.path(),));
+                                    if path.get_tag(tag).is_err() {
+                                        wutag_error!(
+                                            "{}: found ({}) in database, though file has no xattrs",
+                                            bold_entry!(path),
+                                            self.fmt_tag(tag)
+                                        );
+                                    } else if let Err(e) = path.clear_tags() {
+                                        wutag_error!("\t{} {}", e, bold_entry!(path));
+                                    } else {
+                                        println!("\t{}", fmt::ok("cleared"));
+                                    }
+                                },
+                            Err(e) => {
+                                wutag_error!("{}: {}", e, bold_entry!(path));
+                            },
+                        };
+                    };
+
+                    // For each file
                     if let Ok(file) = reg.file_by_path(entry.path()) {
                         let path = &file.path();
-                        let ftags = reg.tags_for_file(&file)?;
+                        let tags = reg.tags_for_file(&file)?;
 
-                        for t in ftags.iter() {
-                            // If the tag has values
-                            if let Ok(values) = reg.values_by_tagid(t.id()) {
-                                for value in values.iter() {
-                                    if reg.value_count_by_id(value.id())? == 1 {
-                                        reg.delete_value(value.id())?;
-                                    } else {
-                                        reg.delete_filetag(file.id(), t.id(), value.id())?;
+                        println!("FILE: {:#?}", path);
+                        if opts.values {
+                            println!("HAS VALUE FLAG");
+
+                            for value in reg.values_by_fileid(file.id())?.iter() {
+                                println!("VALUE: {:#?}", value);
+
+                                if reg.value_count_by_id(value.id())? == 1 {
+                                    // Then go ahead and delete it
+                                    if let Err(e) = reg.delete_value_only(value.id()) {
+                                        println!("FAIL DELETE VALUE");
+                                        wutag_error!(
+                                            "{}: failed to delete value {}: {}",
+                                            bold_entry!(path),
+                                            value.name().color(self.base_color).bold(),
+                                            e
+                                        );
+                                        continue;
                                     }
                                 }
-                                if reg.tag_count_by_id(t.id())? == 1 {
-                                    reg.delete_tag(t.id())?;
+                                if let Err(e) = reg.update_filetag_valueid(value.id(), file.id()) {
+                                    println!("FAIL UPDATE");
+                                    // Otherwise, just remove it from this single file
+                                    wutag_error!(
+                                        "{}: failed to update value {}: {}",
+                                        bold_entry!(path),
+                                        value.name().color(self.base_color).bold(),
+                                        e
+                                    );
+                                    continue;
                                 }
-                            // If the tag is only connected to this file
-                            // } else if reg.tag_count_by_id(t.id())? == 1 {
-                            //     for pair in &combos {
-                            //         if t.id() != pair.tag_id() {
-                            //             reg.delete_tag(t.id())?;
-                            //         }
-                            //     }
-                            } else {
-                                reg.delete_filetag(file.id(), t.id(), ID::null())?;
-                            }
 
-                            match path.has_tags() {
-                                Ok(has_tags) =>
-                                    if has_tags {
-                                        if let Err(e) = path.clear_tags() {
-                                            wutag_error!("\t{} {}", e, bold_entry!(path));
+                                print!(
+                                    "\t{} {} (V)",
+                                    "X".bold().red(),
+                                    value.name().color(self.base_color).bold(),
+                                );
+                            }
+                        } else {
+                            // For each tag
+                            for tag in tags.iter() {
+                                let mut values_ = vec![];
+                                if let Ok(values) = reg.values_by_tagid(tag.id()) {
+                                    // For each value
+                                    for value in values.iter().cloned() {
+                                        if reg.value_count_by_id(value.id())? == 1 {
+                                            values_.push(value);
                                         }
-                                    },
-                                Err(e) => {
-                                    wutag_error!("{} {}", e, bold_entry!(path));
-                                },
+                                    }
+                                }
+
+                                if reg.tag_count_by_id(tag.id())? == 1 {
+                                    log::debug!("{}: deleting tag {}", path.display(), tag.name());
+                                    if let Err(e) = reg.delete_tag(tag.id()) {
+                                        wutag_error!(
+                                            "{}: failed to delete tag {}: {}",
+                                            bold_entry!(path),
+                                            self.fmt_tag(tag),
+                                            e
+                                        );
+                                        continue;
+                                    }
+                                } else if let Err(e) =
+                                    reg.delete_filetag_by_fileid_tagid(file.id(), tag.id())
+                                {
+                                    wutag_error!(
+                                        "{}: failed to delete FileTag {}",
+                                        path.display(),
+                                        e
+                                    );
+                                    continue;
+                                }
+
+                                handle_xattr(tag, path);
                             }
                         }
                     }
-
-                    // if let Some(id) = self.oregistry.find_entry(entry.path()) {
-                    //     self.oregistry.clear_entry(id);
-                    // }
-                    //
-                    // match entry.has_tags() {
-                    //     Ok(has_tags) =>
-                    //         if has_tags && !self.quiet {
-                    //             println!(
-                    //                 "{}:",
-                    //                 fmt::path(entry.path(), self.base_color, self.ls_colors)
-                    //             );
-                    //             if let Err(e) = entry.clear_tags() {
-                    //                 err!('\t', e, entry);
-                    //             } else if !self.quiet {
-                    //                 println!("\t{}", fmt::ok("cleared"));
-                    //             }
-                    //         },
-                    //     Err(e) => {
-                    //         err!(e, entry);
-                    //     },
-                    // }
-                    // log::debug!("Saving registry...");
-                    // self.save_registry();
 
                     Ok(())
                 },

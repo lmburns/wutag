@@ -11,7 +11,7 @@ use std::{
     path::{Display, Path, PathBuf},
 };
 
-/// Extend a directory entry's ability to interact with `xattrs`
+/// Extend a file-path's ability to interact with `xattrs`
 pub(crate) trait DirEntryExt {
     /// Add a [`Tag`] to a directory entry
     ///

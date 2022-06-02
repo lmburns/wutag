@@ -162,6 +162,8 @@ set edit:completion:arg-completer[wutag] = {|@words|
             cand --global 'Apply operation to all tags and files instead of locally'
         }
         &'wutag;clear'= {
+            cand -V 'Clear values from files instead of tags'
+            cand --values 'Clear values from files instead of tags'
             cand -h 'Print help information'
             cand --help 'Print help information'
             cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'

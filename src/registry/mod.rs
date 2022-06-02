@@ -138,17 +138,6 @@ pub(crate) enum Error {
 
 // TODO: Possibly start using 'ON CONFLICT'
 
-impl From<&Arc<App>> for Registry {
-    fn from(app: &Arc<App>) -> Self {
-        Self {
-            conn:            Connection::open(&app.registry_path)
-                .expect("failed to create new connection"),
-            follow_symlinks: app.follow_symlinks,
-            path:            app.registry_path.clone(),
-        }
-    }
-}
-
 /// The `Tag` database
 #[derive(Debug)]
 pub(crate) struct Registry {
@@ -829,6 +818,28 @@ impl fmt::Display for Registry {
                 .to_string()
                 .green()
         )
+    }
+}
+
+impl From<&Arc<App>> for Registry {
+    fn from(app: &Arc<App>) -> Self {
+        Self {
+            conn:            Connection::open(&app.registry_path)
+                .expect("failed to create new connection"),
+            follow_symlinks: app.follow_symlinks,
+            path:            app.registry_path.clone(),
+        }
+    }
+}
+
+impl From<&App> for Registry {
+    fn from(app: &App) -> Self {
+        Self {
+            conn:            Connection::open(&app.registry_path)
+                .expect("failed to create new connection"),
+            follow_symlinks: app.follow_symlinks,
+            path:            app.registry_path.clone(),
+        }
     }
 }
 

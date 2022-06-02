@@ -73,6 +73,7 @@ complete -c wutag -n "__fish_seen_subcommand_from rm" -s V -l values -d 'Indicat
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s g -l global -d 'Apply operation to all tags and files instead of locally'
+complete -c wutag -n "__fish_seen_subcommand_from clear" -s V -l values -d 'Clear values from files instead of tags'
 complete -c wutag -n "__fish_seen_subcommand_from clear" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from clear" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from clear" -s g -l global -d 'Apply operation to all tags and files instead of locally'

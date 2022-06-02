@@ -43,6 +43,11 @@ _wutag__list_commands() {
     )
     _describe -t commands 'wutag list commands' commands \"$@\"
 }
+(( $+functions[_wutag__merge_commands] )) ||
+_wutag__merge_commands() {
+    local commands; commands=()
+    _describe -t commands 'wutag merge commands' commands \"$@\"
+}
 (( $+functions[_wutag__print-completions_commands] )) ||
 _wutag__print-completions_commands() {
     local commands; commands=()
@@ -113,8 +118,8 @@ _wutag_tags() {
         r#"'*::tags:_wutag_tags' \"#,
     ),
     (
-        r#"':tag -- The tag to edit:' \"#,
-        r#"':tag -- The tag to edit:_wutag_tags' \"#,
+        r#"':tag -- Tag to modify:' \"#,
+        r#"':tag -- Tag to modify:_wutag_tags' \"#,
     ),
     (
         r#"'*-t+[Search just by tags or along with a tag(s)]:tags: ' \

@@ -46,6 +46,7 @@ pub(crate) enum ListObject {
 
         /// Only display unique occurrences. (See --help)
         #[clap(
+            name = "unique",
             long = "unique",
             short = 'u',
             long_help = "When using -cu, unique combinations of tags on files will be displayed. \
@@ -56,6 +57,7 @@ pub(crate) enum ListObject {
 
         /// Sort the tag output. This is more limited than listing files
         #[clap(
+            name = "sort",
             long = "sort",
             short = 's',
             long_help = "Sort alphabetically with `no-count`, otherwise it is numerically sorted"
@@ -64,6 +66,7 @@ pub(crate) enum ListObject {
 
         /// Display one tag per line instead of tags on files
         #[clap(
+            name = "one_per_line",
             long = "one-per-line",
             short = '1',
             long_help = "Display one tag per line. Usually tags are displayed as unique \
@@ -75,6 +78,7 @@ pub(crate) enum ListObject {
 
         /// Use border separators when formatting output
         #[clap(
+            name = "border",
             long = "border",
             short = 'b',
             conflicts_with = "no-count",
@@ -116,6 +120,7 @@ pub(crate) enum ListObject {
 
         /// Use border separators when formatting output
         #[clap(
+            name = "border",
             long,
             short = 'b',
             requires = "formatted",
@@ -128,7 +133,7 @@ pub(crate) enum ListObject {
         /// Display tags and files on separate lines
         #[clap(
             name = "garrulous",
-            long,
+            long = "garrulous",
             short = 'G',
             conflicts_with = "formatted",
             requires = "with_tags"
@@ -137,6 +142,7 @@ pub(crate) enum ListObject {
 
         /// Sort the file paths. See --help for all ways to sort
         #[clap(
+            name = "sort",
             long = "sort",
             short = 's',
             default_value = "none",
@@ -148,7 +154,7 @@ pub(crate) enum ListObject {
         /// Display paths relative to current directory (requires --global)
         #[clap(
             name = "relative",
-            long,
+            long = "relative",
             short = 'r',
             requires = "global",
             long_help = "Show paths relative to the current directory. This will only work if the \
@@ -160,7 +166,7 @@ pub(crate) enum ListObject {
         #[clap(
             name = "duplicates",
             alias = "dupes",
-            long,
+            long = "duplicates",
             short = 'd',
             conflicts_with = "sort",
             long_help = "Display duplicate files based on their blake3 hash"
@@ -192,8 +198,6 @@ impl App {
     pub(crate) fn list(&self, opts: &ListOpts) -> Result<()> {
         log::debug!("ListOpts: {:#?}", opts);
 
-        println!("OPTS: {:#?}", opts);
-
         let mut table = Vec::<Vec<CellStruct>>::new();
         let colorchoice: ColorChoice = self.color_when.into();
         let reg = self.registry.lock().expect("poisoned lock");
@@ -212,7 +216,8 @@ impl App {
                     |_| String::from(""),
                     |values| {
                         format!(
-                            "={}",
+                            "{}{}",
+                            tern::t!(values.is_empty() ? "" : "="),
                             values
                                 .iter()
                                 .map(|value| {

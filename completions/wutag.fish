@@ -31,6 +31,7 @@ complete -c wutag -n "__fish_use_subcommand" -f -a "view" -d 'View the results i
 complete -c wutag -n "__fish_use_subcommand" -f -a "edit" -d 'Edits a tag\'s color'
 complete -c wutag -n "__fish_use_subcommand" -f -a "info" -d 'Display information about the wutag environment'
 complete -c wutag -n "__fish_use_subcommand" -f -a "repair" -d 'Repair broken/missing/modified files in the registry'
+complete -c wutag -n "__fish_use_subcommand" -f -a "merge" -d 'Merge tags or values onto resulting query'
 complete -c wutag -n "__fish_use_subcommand" -f -a "print-completions" -d 'Prints completions for the specified shell to dir or stdout'
 complete -c wutag -n "__fish_use_subcommand" -f -a "clean-cache" -d 'Clean the cached tag registry'
 complete -c wutag -n "__fish_use_subcommand" -f -a "ui" -d 'Open a TUI to manage tags'
@@ -103,8 +104,9 @@ complete -c wutag -n "__fish_seen_subcommand_from view" -s a -l all -d 'View all
 complete -c wutag -n "__fish_seen_subcommand_from view" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from view" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from view" -s g -l global -d 'Apply operation to all tags and files instead of locally'
-complete -c wutag -n "__fish_seen_subcommand_from edit" -s c -l color -d 'Set the color of the tag to the specified color. Accepted values are hex colors like \'0x000000\' or \'#1F1F1F\' or just plain \'ff000a\'. The colors are case insensitive meaning \'1f1f1f\' is equivalent to \'1F1F1F\'' -r
+complete -c wutag -n "__fish_seen_subcommand_from edit" -s C -l color -d 'Set the color of the tag. See --help for format' -r
 complete -c wutag -n "__fish_seen_subcommand_from edit" -s r -l rename -d 'New name to replace tag with' -r
+complete -c wutag -n "__fish_seen_subcommand_from edit" -s V -l value -d 'Indicate that the item given is a value'
 complete -c wutag -n "__fish_seen_subcommand_from edit" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from edit" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from edit" -s g -l global -d 'Apply operation to all tags and files instead of locally'
@@ -123,7 +125,11 @@ complete -c wutag -n "__fish_seen_subcommand_from repair" -s r -l restrict -d 'R
 complete -c wutag -n "__fish_seen_subcommand_from repair" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from repair" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from repair" -s g -l global -d 'Apply operation to all tags and files instead of locally'
-complete -c wutag -n "__fish_seen_subcommand_from print-completions" -l shell -d 'Shell to print completions. Available shells are: bash, elvish, fish, powershell, zsh' -r -f -a "{bash	,zsh	,powershell	,elvish	,fish	}"
+complete -c wutag -n "__fish_seen_subcommand_from merge" -s V -l values -d 'Merge values from files instead of tags'
+complete -c wutag -n "__fish_seen_subcommand_from merge" -s h -l help -d 'Print help information'
+complete -c wutag -n "__fish_seen_subcommand_from merge" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
+complete -c wutag -n "__fish_seen_subcommand_from merge" -s g -l global -d 'Apply operation to all tags and files instead of locally'
+complete -c wutag -n "__fish_seen_subcommand_from print-completions" -s s -l shell -d 'Shell to print completions. Available shells are: bash, elvish, fish, powershell, zsh' -r -f -a "{bash	,zsh	,powershell	,elvish	,fish	}"
 complete -c wutag -n "__fish_seen_subcommand_from print-completions" -s d -l dir -d 'Directory to output completions to' -r -f -a "(__fish_complete_directories)"
 complete -c wutag -n "__fish_seen_subcommand_from print-completions" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from print-completions" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'

@@ -21,7 +21,7 @@ pub(crate) struct RmOpts {
     /// Specify any number of tag=value pairs to delete
     #[clap(
         name = "pairs",
-        long,
+        long = "pairs",
         short = 'p',
         takes_value = true,
         conflicts_with_all = &["values", "tags"],
@@ -37,7 +37,7 @@ pub(crate) struct RmOpts {
     /// Indicate the item(s) in the given list are values instead of tags
     #[clap(
         name = "values",
-        long,
+        long = "values",
         short = 'V',
         takes_value = false,
         long_help = "By default the item(s) after the pattern are tag(s). To instead act on \

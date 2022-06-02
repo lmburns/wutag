@@ -125,7 +125,7 @@ pub(crate) fn prompt<S: AsRef<str>, P: AsRef<Path>>(prompt: S, path: P) -> bool 
     macro_rules! prompt {
         ($dis:ident) => {
             $dis!(
-                "{}\n\t- {} [{}/{}] ",
+                "{}\n  - {} [{}/{}] ",
                 prompt.as_ref(),
                 path.as_ref().display().to_string().yellow().bold(),
                 "y".green().bold(),

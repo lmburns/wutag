@@ -6,6 +6,7 @@ pub(crate) mod cp;
 pub(crate) mod edit;
 pub(crate) mod info;
 pub(crate) mod list;
+pub(crate) mod merge;
 pub(crate) mod print_completions;
 pub(crate) mod repair;
 pub(crate) mod rm;
@@ -258,12 +259,13 @@ impl App {
         debug_registry_path(&self.registry);
 
         match opts.cmd {
-            Command::CleanCache => self.clean_cache(),
+            Command::CleanCache => self.clean_cache()?,
             Command::Clear(ref opts) => self.clear(opts)?,
             Command::Cp(ref opts) => self.cp(opts)?,
-            Command::Edit(ref opts) => self.edit(opts),
+            Command::Edit(ref opts) => self.edit(opts)?,
             Command::Info(ref opts) => self.info(opts)?,
             Command::List(ref opts) => self.list(opts)?,
+            Command::Merge(ref opts) => self.merge(opts)?,
             Command::PrintCompletions(ref opts) => self.print_completions(opts),
             Command::Repair(ref opts) => self.repair(opts)?,
             Command::Rm(ref opts) => self.rm(opts)?,

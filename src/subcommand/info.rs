@@ -22,8 +22,9 @@ use std::{collections::HashMap, fs, os::unix::fs::MetadataExt};
 pub(crate) struct InfoOpts {
     /// Show the number of deleted items (see --help for calculation)
     #[clap(
-        long,
-        short,
+        name = "deleted",
+        long = "deleted",
+        short = 'd',
         long_help = "\
             Note that this is calculated by taking the current number of items in the database and \
                      subtracting the maximum of the auto-incrementing index"
@@ -31,15 +32,15 @@ pub(crate) struct InfoOpts {
     deleted: bool,
 
     /// Show the averages for each item
-    #[clap(long, short)]
+    #[clap(name = "mean", long = "mean", short = 'm')]
     mean: bool,
 
     /// Show everything about the registry (all --flags)
-    #[clap(long, short)]
+    #[clap(name = "full", long = "full", short = 'f')]
     full: bool,
 
     /// Do not use color in output
-    #[clap(long, short)]
+    #[clap(name = "raw", long = "raw", short = 'r')]
     raw: bool,
 }
 

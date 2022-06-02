@@ -16,6 +16,7 @@ use crate::{
         edit::EditOpts,
         info::InfoOpts,
         list::{ListObject, ListOpts},
+        merge::MergeOpts,
         print_completions::CompletionsOpts,
         repair::RepairOpts,
         rm::RmOpts,
@@ -462,6 +463,13 @@ pub(crate) enum Command {
         Alias: fix"
     )]
     Repair(RepairOpts),
+
+    /// Merge tags or values onto resulting query
+    #[clap(
+        aliases = &["combine"],
+        override_usage = "wutag [FLAG/OPTIONS] merge [FLAG/OPTIONS] <tag> <pattern>"
+    )]
+    Merge(MergeOpts),
 
     /// Prints completions for the specified shell to dir or stdout
     #[clap(

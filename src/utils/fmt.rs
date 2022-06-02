@@ -1,7 +1,7 @@
 //! Format functions
 
 use crate::{registry::types::Tag, subcommand::App, xattr::tag_old::Tag as WTag};
-use colored::{ColoredString, Colorize};
+use colored::{Color, ColoredString, Colorize};
 use lscolors::{LsColors, Style};
 use std::path::Path;
 
@@ -83,6 +83,30 @@ pub(crate) fn tag_old(tag: &WTag) -> ColoredString {
 /// Format the tag by coloring it the specified color
 pub(crate) fn tag<S: AsRef<str>>(tag: &Tag, effects: &[S]) -> ColoredString {
     let mut s = tag.name().color(tag.color());
+    for effect in effects {
+        match effect.as_ref().to_ascii_lowercase().trim() {
+            "underline" | "u" | "ul" => s = s.underline(),
+            "italic" | "i" | "it" => s = s.italic(),
+            "reverse" | "r" | "rev" => s = s.reversed(),
+            "dimmed" | "d" | "dim" => s = s.dimmed(),
+            "blink" | "bl" => s = s.blink(),
+            "strikethrough" | "s" | "st" => s = s.strikethrough(),
+            "none" | "n" => s = s.clear(),
+            // Bold is the default
+            _ => s = s.bold(),
+        }
+    }
+
+    s
+}
+
+/// Format a string (something that is not a [`Tag`] in the registry)
+pub(crate) fn string<S: AsRef<str>, A: AsRef<str>>(
+    val: S,
+    effects: &[A],
+    color: Color,
+) -> ColoredString {
+    let mut s = val.as_ref().color(color);
     for effect in effects {
         match effect.as_ref().to_ascii_lowercase().trim() {
             "underline" | "u" | "ul" => s = s.underline(),

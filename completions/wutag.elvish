@@ -71,6 +71,7 @@ set edit:completion:arg-completer[wutag] = {|@words|
             cand edit 'Edits a tag''s color'
             cand info 'Display information about the wutag environment'
             cand repair 'Repair broken/missing/modified files in the registry'
+            cand merge 'Merge tags or values onto resulting query'
             cand print-completions 'Prints completions for the specified shell to dir or stdout'
             cand clean-cache 'Clean the cached tag registry'
             cand ui 'Open a TUI to manage tags'
@@ -230,10 +231,12 @@ set edit:completion:arg-completer[wutag] = {|@words|
             cand --global 'Apply operation to all tags and files instead of locally'
         }
         &'wutag;edit'= {
-            cand -c 'Set the color of the tag to the specified color. Accepted values are hex colors like ''0x000000'' or ''#1F1F1F'' or just plain ''ff000a''. The colors are case insensitive meaning ''1f1f1f'' is equivalent to ''1F1F1F'''
-            cand --color 'Set the color of the tag to the specified color. Accepted values are hex colors like ''0x000000'' or ''#1F1F1F'' or just plain ''ff000a''. The colors are case insensitive meaning ''1f1f1f'' is equivalent to ''1F1F1F'''
+            cand -C 'Set the color of the tag. See --help for format'
+            cand --color 'Set the color of the tag. See --help for format'
             cand -r 'New name to replace tag with'
             cand --rename 'New name to replace tag with'
+            cand -V 'Indicate that the item given is a value'
+            cand --value 'Indicate that the item given is a value'
             cand -h 'Print help information'
             cand --help 'Print help information'
             cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
@@ -275,7 +278,18 @@ set edit:completion:arg-completer[wutag] = {|@words|
             cand -g 'Apply operation to all tags and files instead of locally'
             cand --global 'Apply operation to all tags and files instead of locally'
         }
+        &'wutag;merge'= {
+            cand -V 'Merge values from files instead of tags'
+            cand --values 'Merge values from files instead of tags'
+            cand -h 'Print help information'
+            cand --help 'Print help information'
+            cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand -g 'Apply operation to all tags and files instead of locally'
+            cand --global 'Apply operation to all tags and files instead of locally'
+        }
         &'wutag;print-completions'= {
+            cand -s 'Shell to print completions. Available shells are: bash, elvish, fish, powershell, zsh'
             cand --shell 'Shell to print completions. Available shells are: bash, elvish, fish, powershell, zsh'
             cand -d 'Directory to output completions to'
             cand --dir 'Directory to output completions to'

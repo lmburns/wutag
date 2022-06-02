@@ -159,7 +159,8 @@ impl Tag {
     }
 
     /// Change or set the [`Tag`] color
-    pub(crate) fn set_color(&mut self, color: Color) {
+    pub(crate) fn set_color<S: AsRef<str>>(&mut self, color: S) {
+        let color = parse_color(&color).unwrap_or(Color::BrightWhite);
         self.color = color;
     }
 

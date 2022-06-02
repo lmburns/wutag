@@ -86,6 +86,12 @@ impl Registry {
         self.wrap_commit(|txn| txn.insert_filetag(ft))
     }
 
+    /// Delete all [`FileTag`]s from the database
+    #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
+    pub(crate) fn clear_filetags(&self) -> Result<()> {
+        self.wrap_commit(|txn| txn.clear_filetags())
+    }
+
     /// Remove a [`FileTag`] in the database
     pub(crate) fn delete_filetag(&self, fid: FileId, tid: TagId, vid: ValueId) -> Result<()> {
         self.wrap_commit(|txn| {

@@ -34,6 +34,7 @@ use super::{
     sqlbuilder::SqlBuilder,
     types::{
         file::{File, FileId, FileIds, Files, MimeType},
+        tag::TagId,
         Sort, ID,
     },
     Error, Txn,
@@ -211,7 +212,6 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    // MAKE A TEST
     /// List all [`File`] [`ID`]s
     pub(crate) fn select_ids(&self) -> Result<Vec<ID>> {
         log::debug!("querying for File IDs");
@@ -1152,6 +1152,17 @@ impl Txn<'_> {
         f.set_id_mut(id);
 
         Ok(f)
+    }
+
+    /// Delete all [`File`]s from the database
+    pub(super) fn clear_files(&self) -> Result<()> {
+        let debug = "deleting all Files";
+        log::debug!("{}", debug);
+
+        self.exec_no_params("DELETE FROM file")
+            .context(fail!("{}", debug))?;
+
+        Ok(())
     }
 
     /// Remove a [`File`] from the database

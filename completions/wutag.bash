@@ -34,6 +34,9 @@ _wutag() {
             list)
                 cmd+="__list"
                 ;;
+            merge)
+                cmd+="__merge"
+                ;;
             print-completions)
                 cmd+="__print__completions"
                 ;;
@@ -65,7 +68,7 @@ _wutag() {
 
     case "${cmd}" in
         wutag)
-            opts="-h -V -v -d -m -M -p -R -i -s -r -G -F -g -L -l -c -t -e -E -q --help --version --verbose --dir --max-depth --min-depth --prune --registry --case-insensitive --case-sensitive --regex --glob --fixed-string --global --follow --no-follow --ls-colors --color --type --ext --exclude --quiet list set rm clear search cp view edit info repair print-completions clean-cache ui"
+            opts="-h -V -v -d -m -M -p -R -i -s -r -G -F -g -L -l -c -t -e -E -q --help --version --verbose --dir --max-depth --min-depth --prune --registry --case-insensitive --case-sensitive --regex --glob --fixed-string --global --follow --no-follow --ls-colors --color --type --ext --exclude --quiet list set rm clear search cp view edit info repair merge print-completions clean-cache ui"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -171,7 +174,7 @@ _wutag() {
             return 0
             ;;
         wutag__cp)
-            opts="-t -p -G -h -v -g --tag --pairs --glob --help --verbose --global <INPUT_PATH> <pattern>"
+            opts="-t -p -G -h -v -g --tag --pairs --glob --help --verbose --global <input_path> <pattern>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -201,7 +204,7 @@ _wutag() {
             return 0
             ;;
         wutag__edit)
-            opts="-c -r -h -v -g --color --rename --help --verbose --global <tag>"
+            opts="-C -r -V -h -v -g --color --rename --value --help --verbose --global <tag> <pattern>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -211,7 +214,7 @@ _wutag() {
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
-                -c)
+                -C)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
@@ -294,14 +297,32 @@ _wutag() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        wutag__merge)
+            opts="-V -h -v -g --values --help --verbose --global <pattern>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         wutag__print__completions)
-            opts="-d -h -v -g --shell --dir --help --verbose --global"
+            opts="-s -d -h -v -g --shell --dir --help --verbose --global"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
                 --shell)
+                    COMPREPLY=($(compgen -W "bash zsh powershell elvish fish" -- "${cur}"))
+                    return 0
+                    ;;
+                -s)
                     COMPREPLY=($(compgen -W "bash zsh powershell elvish fish" -- "${cur}"))
                     return 0
                     ;;

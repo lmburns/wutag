@@ -22,7 +22,7 @@ pub(crate) struct SetOpts {
     /// Clear the tags on the match(es) before the new one(s) are set
     #[clap(
         name = "clear",
-        long,
+        long = "clear",
         short = 'c',
         long_help = "This is like a 'reset' for the file(s) matching the pattern. They are \
                      cleared of all tags before the new ones are applied"
@@ -31,7 +31,8 @@ pub(crate) struct SetOpts {
 
     /// Explicitly select color for tag
     #[clap(
-        long,
+        name = "color",
+        long = "color",
         short = 'C',
         takes_value = true,
         validator = |t| parse_color(t)
@@ -51,7 +52,7 @@ pub(crate) struct SetOpts {
     /// Arguments are expected to be passed through stdin
     #[clap(
         name = "stdin",
-        long,
+        long = "stdin",
         short = 's',
         long_help = "Arguments are expected to be passed through stdin; however, this argument is \
                      not explicitly required to have arguments be accepted through stdin. A \
@@ -76,7 +77,7 @@ pub(crate) struct SetOpts {
     /// Specify any number of tag=value pairs
     #[clap(
         name = "pairs",
-        long,
+        long = "pairs",
         short = 'p',
         takes_value = true,
         conflicts_with = "value",
@@ -91,7 +92,7 @@ pub(crate) struct SetOpts {
     /// Specify a value to set all the tag(s) to
     #[clap(
         name = "value",
-        long,
+        long = "value",
         short = 'V',
         takes_value = true,
         long_help = "Set a value to each of the matching tags. To set different values for \

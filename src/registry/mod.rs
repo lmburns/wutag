@@ -448,11 +448,23 @@ impl Registry {
     // ╰──────────────────────────────────────────────────────────╯
 
     /// Remove the database file
-    pub(crate) fn clean_db(&self) -> Result<()> {
+    pub(crate) fn delete_registry(&self) -> Result<()> {
         log::debug!("deleting Registry({})", self.path.display());
         fs::remove_file(&self.path).context(fail!("removing database: {}", self.path.display()))?;
 
         Ok(())
+    }
+
+    /// Clear the [`Registry`] without deleting the file
+    pub(crate) fn clear_registry(&self) -> Result<()> {
+        self.wrap_commit(|txn| {
+            txn.clear_tags()?;
+            txn.clear_values()?;
+            txn.clear_files()?;
+            txn.clear_filetags()?;
+
+            Ok(())
+        })
     }
 
     /// Recreate the `version` table

@@ -20,7 +20,7 @@ pub(crate) struct ClearOpts {
     /// Clear values from files instead of tags
     #[clap(
         name = "values",
-        long,
+        long = "values",
         short = 'V',
         takes_value = false,
         long_help = "By default this command will clear all tags and values from the results. \

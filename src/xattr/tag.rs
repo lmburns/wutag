@@ -13,37 +13,44 @@ use std::{
 
 /// Extend a file-path's ability to interact with `xattrs`
 pub(crate) trait DirEntryExt {
-    /// Add a [`Tag`] to a directory entry
+    /// Add a [`Tag`] to a given path
     ///
     /// # Errors
     /// If the `xattr` cannot be added
     fn tag(&self, tag: &Tag) -> XResult<()>;
-    /// Remove a [`Tag`] to a directory entry
+    /// Remove a [`Tag`] from a given path and add a new one
+    ///
+    /// # Errors
+    /// If the tag doesn't exist
+    /// If the `xattr` cannot be removed
+    /// If the new `xattr` cannot be set
+    fn untag(&self, tag: &Tag) -> XResult<()>;
+    /// Remove a [`Tag`] to a given path
     ///
     /// # Errors
     /// If the tag doesn't exist or the `xattr` cannot be removed
-    fn untag(&self, tag: &Tag) -> XResult<()>;
-    /// Retrieve a [`Tag`] to a directory entry
+    fn update_tag(&self, tag: &Tag) -> XResult<()>;
+    /// Retrieve a [`Tag`] from a given path
     ///
     /// # Errors
     /// If there are no tags on the directory entry
     fn get_tag<T: AsRef<str>>(&self, tag: T) -> XResult<Tag>;
-    /// List the [`Tag`](s) on a directory entry as a [`Vec`]
+    /// List the [`Tag`](s) on a given path as a [`Vec`]
     ///
     /// # Errors
     /// If there are no tags or if the collection into a [`Vec`] fails
     fn list_tags(&self) -> XResult<Vec<Tag>>;
-    /// List the [`Tag`](s) on a directory entry as a [`BTreeSet`]
+    /// List the [`Tag`](s) on a given path as a [`BTreeSet`]
     ///
     /// # Errors
     /// If there are no tags or if the collection into a [`BTreeSet`] fails
     fn list_tags_btree(&self) -> XResult<BTreeSet<Tag>>;
-    /// Remove all [`Tag`](s) on a directory entry
+    /// Remove all [`Tag`](s) on a given path
     ///
     /// # Errors
     /// If the action of clearing the tags failed
     fn clear_tags(&self) -> XResult<()>;
-    /// Check whether a directory entry has any [`Tag`](s)
+    /// Check whether a given path has any [`Tag`](s)
     ///
     /// # Errors
     /// If the directory entry does not have any tags
@@ -66,6 +73,12 @@ impl DirEntryExt for &PathBuf {
     #[inline]
     fn untag(&self, tag: &Tag) -> XResult<()> {
         tag.remove_from(self)
+    }
+
+    #[inline]
+    fn update_tag(&self, tag: &Tag) -> XResult<()> {
+        tag.remove_from(self)?;
+        tag.save_to(self)
     }
 
     #[inline]
@@ -115,6 +128,12 @@ impl DirEntryExt for ignore::DirEntry {
     #[inline]
     fn untag(&self, tag: &Tag) -> XResult<()> {
         tag.remove_from(self.path())
+    }
+
+    #[inline]
+    fn update_tag(&self, tag: &Tag) -> XResult<()> {
+        tag.remove_from(self.path())?;
+        tag.save_to(self.path())
     }
 
     #[inline]

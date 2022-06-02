@@ -161,15 +161,14 @@ impl Registry {
     }
 
     /// Update the [`Tag`] by changing its `name`
-    pub(crate) fn update_tag_name<S: AsRef<str>>(&self, id: TagId, name: S) -> Result<Tag> {
+    pub(crate) fn update_tag_name<S: AsRef<str>>(&self, tag: &Tag, name: S) -> Result<Tag> {
         Tag::validate_name(&name)?;
-        self.wrap_commit(|txn| txn.update_tag_name(id, name).map_err(Into::into))
+        self.wrap_commit(|txn| txn.update_tag_name(tag.id(), name).map_err(Into::into))
     }
 
     /// Update the [`Tag`] by changing its `color`
     pub(crate) fn update_tag_color<S: AsRef<str>>(&self, id: TagId, color: S) -> Result<Tag> {
         self.wrap_commit(|txn| {
-            // TODO: Decide whether this should express an error
             let color = parse_color(&color).unwrap_or(Color::BrightWhite);
             txn.update_tag_color(id, color).map_err(Into::into)
         })
@@ -200,6 +199,12 @@ impl Registry {
     #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
     pub(crate) fn delete_dangling_tags(&self) -> Result<()> {
         self.wrap_commit(|txn| txn.delete_dangling_tags())
+    }
+
+    /// Delete all [`Tag`]s from the database
+    #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
+    pub(crate) fn clear_tags(&self) -> Result<()> {
+        self.wrap_commit(|txn| txn.clear_tags())
     }
 
     // ╭──────────────────────────────────────────────────────────╮

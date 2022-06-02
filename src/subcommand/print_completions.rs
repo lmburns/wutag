@@ -19,14 +19,19 @@ pub(crate) struct CompletionsOpts {
     /// Shell to print completions. Available shells are: bash, elvish, fish,
     /// powershell, zsh
     #[clap(
-        long,
+        name = "shell",
+        long = "shell",
+        short = 's',
         possible_values = &["bash", "zsh", "powershell", "elvish", "fish"]
     )]
     pub(crate) shell: Shell,
 
     /// Directory to output completions to
     #[clap(
-        long, short = 'd',
+        name = "dir",
+        alias = "output",
+        long = "dir",
+        short = 'd',
         number_of_values = 1,
         value_hint = ValueHint::DirPath,
         validator = |t| fs::metadata(t)

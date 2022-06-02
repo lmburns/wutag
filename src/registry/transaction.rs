@@ -39,7 +39,7 @@ pub(crate) struct Txn<'t> {
 impl<'t> Txn<'t> {
     /// Create a new [`Txn`]
     pub(crate) fn new(conn: &'t Connection, follow_symlinks: bool) -> Result<Self> {
-        log::debug!("creating new Transaction");
+        log::trace!("creating new Transaction");
 
         let mut txn = conn.unchecked_transaction()?;
         txn.set_drop_behavior(DropBehavior::Commit);
@@ -89,7 +89,7 @@ impl<'t> Txn<'t> {
     ///
     /// [`execute`]: /rusqlite/struct.Connection.html#method.execute
     pub(crate) fn execute<P: Params>(&self, sql: &str, params: P) -> Result<usize> {
-        log::debug!("{}({}): {}", "execute".green().bold(), "Txn".purple(), sql);
+        log::trace!("{}({}): {}", "execute".green().bold(), "Txn".purple(), sql);
 
         self.txn
             .execute(sql, params)
@@ -129,7 +129,7 @@ impl<'t> Txn<'t> {
     /// [`insert`]: /rusqlite/statement/struct.Statement.html#method.insert
     /// [`last_insert_rowid`]: /rusqlite/struct.Connection.html#method.last_insert_rowid
     pub(crate) fn insert<P: Params>(&self, sql: &str, params: P) -> Result<i64> {
-        log::debug!("{}({}): {}", "insert".green().bold(), "Txn".purple(), sql);
+        log::trace!("{}({}): {}", "insert".green().bold(), "Txn".purple(), sql);
 
         // Check whether the tag table exists
         self.exists("tag")?;
@@ -168,7 +168,7 @@ impl<'t> Txn<'t> {
         P: Params,
         F: FnOnce(&Row<'_>) -> Result<T, rsq::Error>,
     {
-        log::debug!("{}({}): {}", "select".green().bold(), "Txn".purple(), sql);
+        log::trace!("{}({}): {}", "select".green().bold(), "Txn".purple(), sql);
 
         self.exists("tag")?;
 
@@ -201,7 +201,7 @@ impl<'t> Txn<'t> {
         // Used for ergonomics
         let sql = sql.as_ref();
 
-        log::debug!(
+        log::trace!(
             "{}({}): {}",
             "query_vec".green().bold(),
             "Txn".purple(),
@@ -238,7 +238,7 @@ impl<'t> Txn<'t> {
     {
         let sql = sql.as_ref();
 
-        log::debug!(
+        log::trace!(
             "{}({}): {}",
             "query_iter".green().bold(),
             "Txn".purple(),
@@ -291,7 +291,7 @@ impl<'t> Txn<'t> {
     /// Insert the latest version into the database
     pub(crate) fn insert_version(&self) -> Result<()> {
         let v = Version::build().context(fail!("getting current version"))?;
-        log::debug!("inserting Version({})", v);
+        log::trace!("inserting Version({})", v);
 
         // TODO: Should context wrap this?
         self.insert(
@@ -318,7 +318,7 @@ impl<'t> Txn<'t> {
     /// Update the current version of the database
     pub(crate) fn update_current_version(&self) -> Result<()> {
         let v = Version::build().context(fail!("getting current version"))?;
-        log::debug!("updating Version({})", v);
+        log::trace!("updating Version({})", v);
 
         self.execute(
             "UPDATE version SET major = ?1, minor = ?2, patch = ?3",
@@ -342,7 +342,7 @@ impl<'t> Txn<'t> {
         id: ID,
         previous: S,
     ) -> Result<usize> {
-        log::debug!("recording modification");
+        log::trace!("recording modification");
         self.execute(
             "INSERT INTO tracker (table, operation, operation_id, previous)
             VALUES (?1, ?2, ?3, ?4)",

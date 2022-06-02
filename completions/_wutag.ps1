@@ -74,6 +74,7 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('edit', 'edit', [CompletionResultType]::ParameterValue, 'Edits a tag''s color')
             [CompletionResult]::new('info', 'info', [CompletionResultType]::ParameterValue, 'Display information about the wutag environment')
             [CompletionResult]::new('repair', 'repair', [CompletionResultType]::ParameterValue, 'Repair broken/missing/modified files in the registry')
+            [CompletionResult]::new('merge', 'merge', [CompletionResultType]::ParameterValue, 'Merge tags or values onto resulting query')
             [CompletionResult]::new('print-completions', 'print-completions', [CompletionResultType]::ParameterValue, 'Prints completions for the specified shell to dir or stdout')
             [CompletionResult]::new('clean-cache', 'clean-cache', [CompletionResultType]::ParameterValue, 'Clean the cached tag registry')
             [CompletionResult]::new('ui', 'ui', [CompletionResultType]::ParameterValue, 'Open a TUI to manage tags')
@@ -243,10 +244,12 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             break
         }
         'wutag;edit' {
-            [CompletionResult]::new('-c', 'c', [CompletionResultType]::ParameterName, 'Set the color of the tag to the specified color. Accepted values are hex colors like ''0x000000'' or ''#1F1F1F'' or just plain ''ff000a''. The colors are case insensitive meaning ''1f1f1f'' is equivalent to ''1F1F1F''')
-            [CompletionResult]::new('--color', 'color', [CompletionResultType]::ParameterName, 'Set the color of the tag to the specified color. Accepted values are hex colors like ''0x000000'' or ''#1F1F1F'' or just plain ''ff000a''. The colors are case insensitive meaning ''1f1f1f'' is equivalent to ''1F1F1F''')
+            [CompletionResult]::new('-C', 'C', [CompletionResultType]::ParameterName, 'Set the color of the tag. See --help for format')
+            [CompletionResult]::new('--color', 'color', [CompletionResultType]::ParameterName, 'Set the color of the tag. See --help for format')
             [CompletionResult]::new('-r', 'r', [CompletionResultType]::ParameterName, 'New name to replace tag with')
             [CompletionResult]::new('--rename', 'rename', [CompletionResultType]::ParameterName, 'New name to replace tag with')
+            [CompletionResult]::new('-V', 'V', [CompletionResultType]::ParameterName, 'Indicate that the item given is a value')
+            [CompletionResult]::new('--value', 'value', [CompletionResultType]::ParameterName, 'Indicate that the item given is a value')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
@@ -291,7 +294,19 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--global', 'global', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
             break
         }
+        'wutag;merge' {
+            [CompletionResult]::new('-V', 'V', [CompletionResultType]::ParameterName, 'Merge values from files instead of tags')
+            [CompletionResult]::new('--values', 'values', [CompletionResultType]::ParameterName, 'Merge values from files instead of tags')
+            [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
+            [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
+            [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('-g', 'g', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
+            [CompletionResult]::new('--global', 'global', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
+            break
+        }
         'wutag;print-completions' {
+            [CompletionResult]::new('-s', 's', [CompletionResultType]::ParameterName, 'Shell to print completions. Available shells are: bash, elvish, fish, powershell, zsh')
             [CompletionResult]::new('--shell', 'shell', [CompletionResultType]::ParameterName, 'Shell to print completions. Available shells are: bash, elvish, fish, powershell, zsh')
             [CompletionResult]::new('-d', 'd', [CompletionResultType]::ParameterName, 'Directory to output completions to')
             [CompletionResult]::new('--dir', 'dir', [CompletionResultType]::ParameterName, 'Directory to output completions to')

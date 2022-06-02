@@ -25,7 +25,9 @@ use std::{
 pub(crate) struct ViewOpts {
     /// Open tags in selected edtor (use only with vi, vim, neovim)
     #[clap(
-        long, short,
+        name = "editor",
+        long = "editor",
+        short = 'e',
         env = "EDITOR",
         default_value = DEFAULT_EDITOR.as_ref(),
         value_name = "editor",
@@ -35,13 +37,14 @@ pub(crate) struct ViewOpts {
     pub(crate) editor: String,
 
     /// View all tags
-    #[clap(long, short = 'a')]
+    #[clap(name = "all", long = "all", short = 'a')]
     pub(crate) all: bool,
 
     /// Format of file to view results (toml, yaml, json)
     #[clap(
         name = "format",
-        long, short = 'f',
+        long = "format",
+        short = 'f',
         possible_values = &["toml", "yaml", "yml", "json"],
         hide_possible_values = true,
         long_help = "\
@@ -53,17 +56,18 @@ pub(crate) struct ViewOpts {
     /// Search with a tag as a filter
     #[clap(
         name = "tags",
-        long,
-        short,
+        long = "tags",
+        short = 't',
         long_help = "\
             Limit search results even further by using a tag as a filter. Can search just for tags \
                      by not using '--pattern'"
     )]
-    pub(crate) tags:    Vec<String>,
+    pub(crate) tags: Vec<String>,
+
     /// Pattern to search for and open result in editor
     #[clap(
         name = "pattern",
-        long,
+        long = "pattern",
         short = 'p',
         long_help = "\
         This pattern is optional. If no pattern is given, all files that have a tag will be shown \

@@ -20,6 +20,7 @@ use std::sync::Arc;
 pub(crate) struct SearchOpts {
     /// No colored output. Should be detected automatically on pipe
     #[clap(
+        name = "raw",
         long = "raw",
         short = 'r',
         long_help = "No colored output. Should be detected automatically on a pipe following this \
@@ -29,7 +30,7 @@ pub(crate) struct SearchOpts {
     pub(crate) raw: bool,
 
     /// Display only files in the search results
-    #[clap(name = "only-files", long, short = 'f')]
+    #[clap(name = "only-files", long = "only-files", short = 'f')]
     pub(crate) only_files: bool,
 
     /// Execute a command on each individual file
@@ -66,13 +67,18 @@ pub(crate) struct SearchOpts {
     pub(crate) execute_batch: Option<Vec<String>>,
 
     /// Display tags and files on separate lines
-    #[clap(name = "garrulous", long, short = 'G', conflicts_with = "only-files")]
+    #[clap(
+        name = "garrulous",
+        long = "garrulous",
+        short = 'G',
+        conflicts_with = "only-files"
+    )]
     pub(crate) garrulous: bool,
 
     /// Files matching all tags (instead of any)
     #[clap(
         name = "all",
-        long,
+        long = "all",
         short = 'a',
         requires = "tags",
         long_help = "The files that result must contain all matching tags. The default behavior \
@@ -104,8 +110,8 @@ pub(crate) struct SearchOpts {
     /// Search just by tags or along with a tag(s)
     #[clap(
         name = "tags",
-        long,
-        short,
+        long = "tags",
+        short = 't',
         long_help = "\
         Limit search results even further by using a tag. To search just by tags use 'search '*' \
                      --tag <tag>'"

@@ -148,4 +148,10 @@ impl Registry {
             txn.delete_value(id).map_err(Into::into)
         })
     }
+
+    /// Delete all [`Value`]s from the database
+    #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
+    pub(crate) fn clear_values(&self) -> Result<()> {
+        self.wrap_commit(|txn| txn.clear_values())
+    }
 }

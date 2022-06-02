@@ -28,22 +28,23 @@ use lexiclean::Lexiclean;
 #[derive(Args, Debug, Clone, PartialEq)]
 pub(crate) struct RepairOpts {
     /// Do not actually update the registry
-    #[clap(short = 'd', long = "dry-run")]
+    #[clap(name = "dry_run", long = "dry-run", short = 'd')]
     pub(crate) dry_run: bool,
 
     /// Remove files from the registry that no longer exist on the system
-    #[clap(short = 'R', long = "remove")]
+    #[clap(name = "remove", long = "remove", short = 'R')]
     pub(crate) remove: bool,
 
     /// Restrict the repairing to the current directory, or the path given with
     /// -d
-    #[clap(short = 'r', long = "restrict")]
+    #[clap(name = "border", long = "restrict", short = 'r')]
     pub(crate) restrict: bool,
 
     /// Manually set the file's new location
     #[clap(
-        short = 'm',
+        name = "manual",
         long = "manual",
+        short = 'm',
         takes_value = true,
         number_of_values = 2,
         value_terminator = ";",
@@ -53,7 +54,12 @@ pub(crate) struct RepairOpts {
     pub(crate) manual: Option<Vec<String>>,
 
     /// Update the hash sum of all files, including unmodified files
-    #[clap(short = 'u', long = "unmodified", takes_value = true)]
+    #[clap(
+        name = "unmodified",
+        long = "unmodified",
+        short = 'u',
+        takes_value = true
+    )]
     pub(crate) unmodified: bool,
 }
 

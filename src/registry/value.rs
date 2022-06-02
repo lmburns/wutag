@@ -416,6 +416,17 @@ impl Txn<'_> {
         Ok(Value::new(id, name.to_owned()))
     }
 
+    /// Delete all [`Value`]s from the database
+    pub(super) fn clear_values(&self) -> Result<()> {
+        let debug = "deleting all Values";
+        log::debug!("{}", debug);
+
+        self.exec_no_params("DELETE FROM value")
+            .context(fail!("{}", debug))?;
+
+        Ok(())
+    }
+
     /// Remove a [`Value`] from the database
     pub(super) fn delete_value(&self, id: ValueId) -> Result<(), Error> {
         let debug = format!("deleting Value({})", id);

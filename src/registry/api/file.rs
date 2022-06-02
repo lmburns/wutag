@@ -296,4 +296,10 @@ impl Registry {
     pub(crate) fn delete_untagged_files(&self, tx: &Txn, ids: &FileIds) -> Result<()> {
         self.wrap_commit_by(tx, |txn| txn.delete_files_untagged(ids))
     }
+
+    /// Delete all [`File`]s from the database
+    #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
+    pub(crate) fn clear_files(&self) -> Result<()> {
+        self.wrap_commit(|txn| txn.clear_files())
+    }
 }

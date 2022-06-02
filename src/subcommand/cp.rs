@@ -29,7 +29,7 @@ pub(crate) struct CpOpts {
     /// Specify an individual tag to copy to the matching file(s)
     #[clap(
         name = "tag",
-        long,
+        long = "tag",
         short = 't',
         takes_value = true,
         long_help = "By default, `cp` will copy all tags and values of those tags to the results \
@@ -40,7 +40,7 @@ pub(crate) struct CpOpts {
     /// Specify any number of tag=value pairs
     #[clap(
         name = "pairs",
-        long,
+        long = "pairs",
         short = 'p',
         takes_value = true,
         conflicts_with_all = &["tag"],
@@ -53,6 +53,7 @@ pub(crate) struct CpOpts {
     // XXX: Implement or remove
     /// Use a glob to match files (must be global)
     #[clap(
+        name = "glob",
         short = 'G',
         long = "glob",
         takes_value = false,
@@ -65,6 +66,7 @@ pub(crate) struct CpOpts {
 
     /// Path to the file from which to copy tags from
     #[clap(
+        name = "input_path",
         value_hint = ValueHint::FilePath,
         takes_value = false,
         required = true,

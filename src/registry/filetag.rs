@@ -246,6 +246,17 @@ impl Txn<'_> {
         Ok(*ft)
     }
 
+    /// Delete all [`FileTag`]s from the database
+    pub(super) fn clear_filetags(&self) -> Result<()> {
+        let debug = "deleting all FileTag";
+        log::debug!("{}", debug);
+
+        self.exec_no_params("DELETE FROM file_tag")
+            .context(fail!("{}", debug))?;
+
+        Ok(())
+    }
+
     /// Remove a specified [`FileTag`] from the database
     pub(super) fn delete_filetag(&self, ft: &FileTag) -> Result<(), Error> {
         let debug = format!("deleting FileTag({})", ft);

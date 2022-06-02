@@ -551,6 +551,18 @@ impl Txn<'_> {
         Ok(())
     }
 
+    /// Delete all [`Tag`]s from the database
+    pub(super) fn clear_tags(&self) -> Result<()> {
+        let debug = "deleting all Tags";
+        log::debug!("{}", debug);
+
+        println!("DELETING TAGS");
+        self.exec_no_params("DELETE FROM tag")
+            .context(fail!("{}", debug))?;
+
+        Ok(())
+    }
+
     // BETTER TEST:
     /// Retrieve information about each [`Tag`]. Returns a vector of
     /// [`TagFileCnt`], which contains information about the number of files the

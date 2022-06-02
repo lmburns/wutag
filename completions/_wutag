@@ -187,7 +187,7 @@ _arguments "${_arguments_options[@]}" \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '-g[Apply operation to all tags and files instead of locally]' \
 '--global[Apply operation to all tags and files instead of locally]' \
-':pattern -- A glob, regular expression, or fixed-string pattern A glob, regular expression, or fixed-string:_files' \
+':pattern -- A glob, regular expression, or fixed-string pattern:_files' \
 && ret=0
 ;;
 (search)

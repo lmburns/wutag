@@ -83,6 +83,7 @@ pub(crate) struct Opts {
     )]
     pub(crate) max_depth: Option<usize>,
 
+    // XXX: Implement
     /// Only show the results starting at a given depth
     #[clap(
         name = "min-depth",
@@ -101,6 +102,7 @@ pub(crate) struct Opts {
     )]
     pub(crate) min_depth: Option<usize>,
 
+    // XXX: Implement
     /// Do not traverse into directories that match the query
     #[clap(
         name = "prune",

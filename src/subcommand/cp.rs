@@ -8,8 +8,7 @@
 
 use super::{parse_tag_val, App};
 use crate::{
-    bold_entry, err,
-    filesystem::osstr_to_bytes,
+    bold_entry, err, filesystem as wfs,
     registry::{
         types::{FileTag, Tag, TagValueCombo, Value, ID},
         Error,
@@ -131,7 +130,7 @@ impl App {
 
             for entry in reg.files(None)?.iter() {
                 let search_str: Cow<OsStr> = Cow::Owned(entry.path().as_os_str().to_os_string());
-                let search_bytes = osstr_to_bytes(search_str.as_ref());
+                let search_bytes = wfs::osstr_to_bytes(search_str.as_ref());
                 if !self.exclude.is_empty() && exclude_pattern.is_match(&search_bytes) {
                     continue;
                 }

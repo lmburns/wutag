@@ -259,7 +259,7 @@ impl App {
 
         match opts.cmd {
             Command::CleanCache => self.clean_cache(),
-            Command::Clear(ref opts) => self.clear(opts),
+            Command::Clear(ref opts) => self.clear(opts)?,
             Command::Cp(ref opts) => self.cp(opts)?,
             Command::Edit(ref opts) => self.edit(opts),
             Command::Info(ref opts) => self.info(opts)?,

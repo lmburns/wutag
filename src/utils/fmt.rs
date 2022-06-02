@@ -36,11 +36,7 @@ pub(crate) fn path<P: AsRef<Path>>(path: P, app: &App) -> String {
     } else {
         format!(
             "{}",
-            path.as_ref()
-                .display()
-                .to_string()
-                .color(app.base_color)
-                .bold()
+            path.as_ref().to_string_lossy().color(app.base_color).bold()
         )
     }
 }
@@ -48,14 +44,14 @@ pub(crate) fn path<P: AsRef<Path>>(path: P, app: &App) -> String {
 /// Return a path in a format that only shows components from the CWD and
 /// any level of depth beneath that
 pub(crate) fn local_path<P: AsRef<Path>>(path: P, app: &App) -> String {
-    let mut replaced = app.base_dir.display().to_string();
+    let mut replaced = app.base_dir.to_string_lossy().to_string();
     if !replaced.ends_with('/') {
         replaced.push('/');
     }
 
     let path = path
         .as_ref()
-        .display()
+        .to_string_lossy()
         .to_string()
         .replace(replaced.as_str(), "");
 
@@ -109,12 +105,12 @@ pub(crate) fn tag<S: AsRef<str>>(tag: &Tag, effects: &[S]) -> ColoredString {
 /// does not go above the folder in which this command is read and only searches
 /// recursively
 pub(crate) fn raw_local_path<P: AsRef<Path>, A: AsRef<Path>>(path: P, local: A) -> String {
-    let mut replaced = local.as_ref().display().to_string();
+    let mut replaced = local.as_ref().to_string_lossy().to_string();
     if !replaced.ends_with('/') {
         replaced.push('/');
     }
     path.as_ref()
-        .display()
+        .to_string_lossy()
         .to_string()
         .replace(replaced.as_str(), "")
 }

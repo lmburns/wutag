@@ -421,6 +421,12 @@ macro_rules! impl_vec {
             self.inner.iter()
         }
 
+        /// Return a parallel iterator over the inner vector
+        pub(crate) fn into_par_iter(self) -> rayon::vec::IntoIter<$t> {
+            use rayon::prelude::IntoParallelIterator;
+            self.inner.into_par_iter()
+        }
+
         /// Shorthand to the [`itertools`] function [`find_position`]
         ///
         /// [`find_position`]: itertools::Itertools::find_position

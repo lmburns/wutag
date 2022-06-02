@@ -6,6 +6,7 @@
 //      For example, a query of /regex/ && value(4)
 //      Collect all files matching regex (call to SQL), and collect all files
 //      matching value. Then compare the two
+use rayon::prelude::*;
 
 use super::{
     super::{

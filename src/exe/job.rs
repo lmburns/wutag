@@ -2,8 +2,6 @@
 //! Execute a search for tags asynchronously. Optionally execute a
 //! command on each result. Outline came from [fd](https://github.com/sharkdp/fd)
 
-// XXX: Fix asynchronously writing sqlite db
-
 use std::{
     borrow::Cow,
     ffi::OsStr,
@@ -35,19 +33,19 @@ use itertools::Itertools;
 use regex::bytes::Regex;
 
 /// Result from a multi-threaded command
+#[derive(Debug)]
 #[allow(variant_size_differences)]
-pub(crate) enum WorkerResult {
+pub(crate) enum ChannelResult {
     /// Entry and its' id
     Entry((PathBuf, ID)),
 
     /// An error
-    #[allow(dead_code)] // Never constructed
     Error(std::io::Error),
 }
 
 /// Generate and execute a command that is not in batch mode
 pub(crate) fn process_single(
-    rx: &Arc<Mutex<Receiver<WorkerResult>>>,
+    rx: &Arc<Mutex<Receiver<ChannelResult>>>,
     command: &Arc<CommandTemplate>,
     out_perm: &Arc<Mutex<()>>,
 ) -> ExitCode {
@@ -59,8 +57,8 @@ pub(crate) fn process_single(
 
         // Get the next item from the receiver
         let value: PathBuf = match lock.recv() {
-            Ok(WorkerResult::Entry((entry, _id))) => entry,
-            Ok(WorkerResult::Error(err)) => {
+            Ok(ChannelResult::Entry((entry, _id))) => entry,
+            Ok(ChannelResult::Error(err)) => {
                 wutag_error!("{}", err.to_string());
                 continue;
             },
@@ -78,13 +76,13 @@ pub(crate) fn process_single(
 
 /// Generate and execute a command that is in batch mode
 pub(crate) fn process_batch(
-    rx: &Receiver<WorkerResult>,
+    rx: &Receiver<ChannelResult>,
     command: &CommandTemplate,
     limit: usize,
 ) -> ExitCode {
     let paths = rx.iter().filter_map(|value| match value {
-        WorkerResult::Entry((entry, _id)) => Some(entry),
-        WorkerResult::Error(err) => {
+        ChannelResult::Entry((entry, _id)) => Some(entry),
+        ChannelResult::Error(err) => {
             wutag_error!("{}", err.to_string());
             None
         },
@@ -101,7 +99,7 @@ pub(crate) fn receiver(
     app: &Arc<App>,
     opts: &Arc<SearchOpts>,
     cmd: Option<Arc<CommandTemplate>>,
-    rx: Receiver<WorkerResult>,
+    rx: Receiver<ChannelResult>,
 ) -> std::thread::JoinHandle<ExitCode> {
     let app = Arc::clone(app);
     let opts = Arc::clone(opts);
@@ -176,7 +174,7 @@ pub(crate) fn receiver(
 
             for result in rx {
                 match result {
-                    WorkerResult::Entry((entry, id)) => {
+                    ChannelResult::Entry((entry, id)) => {
                         if opts.raw {
                             global_opts!(
                                 app.fmt_raw_local_path(entry.display().to_string()),
@@ -211,7 +209,7 @@ pub(crate) fn receiver(
                             }
                         }
                     },
-                    WorkerResult::Error(err) => {
+                    ChannelResult::Error(err) => {
                         wutag_error!("{}", err.to_string());
                     },
                 }
@@ -227,7 +225,7 @@ pub(crate) fn sender(
     app: &Arc<App>,
     opts: &Arc<SearchOpts>,
     re: &Arc<Regex>,
-    tx: Sender<WorkerResult>,
+    tx: Sender<ChannelResult>,
 ) {
     let app = Arc::clone(app);
     let opts = Arc::clone(opts);
@@ -295,7 +293,7 @@ pub(crate) fn sender(
                     }
 
                     if tx_thread
-                        .send(WorkerResult::Entry((entry.path().clone(), entry.id())))
+                        .send(ChannelResult::Entry((entry.path().clone(), entry.id())))
                         .is_err()
                     {
                         wutag_error!(

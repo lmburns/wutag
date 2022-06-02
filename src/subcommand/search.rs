@@ -4,7 +4,7 @@ use super::App;
 use crate::{
     consts::{EXEC_BATCH_EXPL, EXEC_EXPL},
     exe::{
-        job::{self, WorkerResult},
+        job::{self, ChannelResult},
         CommandTemplate,
     },
     utils::{glob_builder, regex_builder},
@@ -165,7 +165,7 @@ impl App {
         let re = Arc::new(re);
         let command = command.map(Arc::new);
 
-        let (tx, rx) = channel::unbounded::<WorkerResult>();
+        let (tx, rx) = channel::unbounded::<ChannelResult>();
 
         let rec = job::receiver(&app, &opts, command, rx);
         job::sender(&app, &opts, &re, tx);

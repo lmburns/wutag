@@ -11,10 +11,10 @@ use crate::{
         types::{file::FileIds, File, Tag},
     },
     utils::{parse_path, systemtime_to_datetime},
-    wutag_error,
+    wutag_error, wutag_fatal,
     xattr::tag::DirEntryExt,
 };
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::{Args, ValueHint};
 use cli_table::{
     format::{Border, Justify, Separator},
@@ -54,9 +54,9 @@ pub(crate) struct RepairOpts {
         short = 'm',
         takes_value = true,
         number_of_values = 2,
-        // value_terminator = ";",
+        value_names = &["from", "to"],
         value_hint = ValueHint::FilePath,
-        validator = |t| parse_path(t.split_whitespace().collect::<Vec<_>>()[1])
+        validator = |t| parse_path(t)
     )]
     pub(crate) manual: Option<Vec<String>>,
 
@@ -92,8 +92,6 @@ impl App {
             }
 
             let path = &entry.path();
-            println!("PATH: {:?}", path);
-
             all.push(entry.clone());
 
             match entry.get_fs_metadata() {
@@ -116,7 +114,9 @@ impl App {
                                     bold_entry!(path)
                                 );
                             },
-                            _ => {},
+                            e => {
+                                log::debug!("{}: metadata error: {}", path.display(), e);
+                            },
                         },
                         Err(err) => {
                             log::debug!("{}: failed to downcast error", bold_entry!(path));
@@ -125,6 +125,112 @@ impl App {
                     continue;
                 },
             }
+        }
+
+        let manual_repair = |from: &File, to: &PathBuf| -> Result<()> {
+            let from_path = &from.path();
+            match fs::metadata(to) {
+                Ok(cm) =>
+                    if let Err(e) = reg.update_file(from.id(), &to) {
+                        wutag_error!(
+                            "{}: failed to update file {} => {}",
+                            e,
+                            bold_entry!(from_path),
+                            bold_entry!(to)
+                        );
+                    },
+                Err(e) => {
+                    match e.kind() {
+                        io::ErrorKind::NotFound => {
+                            log::debug!("{}: not found on filesystem", to.display());
+                        },
+                        io::ErrorKind::PermissionDenied => {
+                            wutag_error!(
+                                "{}: user does not have correct permissions",
+                                bold_entry!(to)
+                            );
+                        },
+                        e => {
+                            log::debug!("{}: metadata error: {}", to.display(), e);
+                        },
+                    }
+                    return Err(anyhow!(""));
+                },
+            }
+            Ok(())
+        };
+
+        if let Some(manual) = &opts.manual {
+            // There is only two items in this vector
+            let from = manual
+                .get(0)
+                .and_then(|f| fs::canonicalize(f).ok())
+                .context("failed to canonicalize 'from' path")?;
+            let to = manual
+                .get(1)
+                .and_then(|f| fs::canonicalize(f).ok())
+                .context("failed to canonicalize 'to' path")?;
+
+            // let db_to = reg.file_by_path(&to).unwrap_or_else(|_| {
+            //     wutag_fatal!("{}: not found in registry (to path)", self.fmt_path(to))
+            // });
+
+            let mut manual_tbl = vec![];
+            log::debug!("manual repair in {}", from.display());
+            match reg.file_by_path(&from) {
+                Ok(db_from) => {
+                    if !opts.dry_run {
+                        manual_repair(&db_from, &to)?;
+                    }
+
+                    match reg.files_by_directory(&from) {
+                        Ok(dir_files) =>
+                            for file in dir_files.iter() {
+                                let file_path = &file.path();
+                                let new = file.clone().set_directory(
+                                    to.parent().context("failed to get parent of 'to' path")?,
+                                )?;
+                                let new_path = &new.path();
+
+                                manual_tbl.push(vec![
+                                    self.fmt_path(file_path).cell(),
+                                    "=>".green().bold().cell().justify(Justify::Center),
+                                    self.fmt_path(new_path).cell(),
+                                ]);
+
+                                match fs::metadata(new_path) {
+                                    Ok(m) =>
+                                        if !opts.dry_run {
+                                            manual_repair(file, new_path)?;
+                                        },
+                                    Err(e) => wutag_fatal!(
+                                        "{}: failed to get metadata: {}",
+                                        new_path.display(),
+                                        e
+                                    ),
+                                }
+                            },
+                        Err(e) =>
+                            wutag_fatal!("failed to retrieve files under {}", db_from.directory()),
+                    }
+                },
+                Err(e) => wutag_fatal!("{}: not found in registry (from path)", bold_entry!(from)),
+            }
+
+            if !self.quiet && !manual_tbl.is_empty() {
+                println!("{}:", "Updated".purple().bold().underline());
+
+                print_stdout(
+                    manual_tbl
+                        .table()
+                        .border(Border::builder().build())
+                        .separator(Separator::builder().build()),
+                )
+                .context("failed to print table")?;
+            }
+
+            // println!("From: {:#?}", db_from);
+            // println!("To: {:#?}", db_to);
         }
 
         // Remove extended attributes from a given [`PathBuf`]
@@ -144,47 +250,48 @@ impl App {
         let clean_single_items = |entry: &File| -> Result<()> {
             let path = &entry.path();
 
-            for tag in reg.unique_tags_by_file(entry.id())?.iter() {
-                for value in reg.unique_values_by_tag(tag.id())?.iter() {
-                    log::debug!("{}: deleting value {}", path.display(), value.name());
-                    if let Err(e) = reg.delete_value(value.id()) {
+            if !opts.dry_run {
+                for tag in reg.unique_tags_by_file(entry.id())?.iter() {
+                    for value in reg.unique_values_by_tag(tag.id())?.iter() {
+                        log::debug!("{}: deleting value {}", path.display(), value.name());
+                        if let Err(e) = reg.delete_value(value.id()) {
+                            wutag_error!(
+                                "{}: failed to delete value {}: {}",
+                                bold_entry!(path),
+                                value.name().color(self.base_color).bold(),
+                                e
+                            );
+                        }
+                    }
+
+                    log::debug!("{}: deleting tag {}", path.display(), tag.name());
+                    if let Err(e) = reg.delete_tag(tag.id()) {
                         wutag_error!(
-                            "{}: failed to delete value {}: {}",
+                            "{}: failed to delete tag {}: {}",
                             bold_entry!(path),
-                            value.name().color(self.base_color).bold(),
+                            self.fmt_tag(tag),
                             e
                         );
                     }
+
+                    if path.get_tag(tag).is_err() {
+                        wutag_error!(
+                            "{}: found ({}) in database, though file has no xattrs",
+                            bold_entry!(path),
+                            self.fmt_tag(tag)
+                        );
+                    } else if let Err(e) = path.untag(tag) {
+                        wutag_error!("{}: {}", path.display(), e);
+                    }
                 }
 
-                log::debug!("{}: deleting tag {}", path.display(), tag.name());
-                if let Err(e) = reg.delete_tag(tag.id()) {
-                    wutag_error!(
-                        "{}: failed to delete tag {}: {}",
-                        bold_entry!(path),
-                        self.fmt_tag(tag),
-                        e
-                    );
-                }
-
-                if path.get_tag(tag).is_err() {
-                    wutag_error!(
-                        "{}: found ({}) in database, though file has no xattrs",
-                        bold_entry!(path),
-                        self.fmt_tag(tag)
-                    );
-                } else if let Err(e) = path.untag(tag) {
-                    wutag_error!("{}: {}", path.display(), e);
+                if let Err(e) = reg.delete_filetag_by_fileid(entry.id()) {
+                    wutag_error!("{}: failed to delete FileTag: {}", bold_entry!(path), e);
+                    return Ok(());
                 }
             }
 
-            match reg.delete_filetag_by_fileid(entry.id()) {
-                Ok(_) =>
-                    if !self.quiet {
-                        println!("{}: removed", self.fmt_path(path));
-                    },
-                Err(e) => wutag_error!("{}: failed to delete FileTag: {}", bold_entry!(path), e),
-            }
+            println!("{}: removed", self.fmt_path(path));
 
             Ok(())
         };
@@ -228,11 +335,13 @@ impl App {
         }
 
         // Delete invalid Files from the Registry
-        if opts.remove {
-            log::debug!("deleting invalid Files");
-            for entry in &invalid {
-                let path = &entry.path();
+        log::debug!("deleting invalid Files");
+        for entry in &invalid {
+            let path = &entry.path();
+            if opts.remove {
                 clean_single_items(entry)?;
+            } else {
+                println!("{}: missing", self.fmt_path(path));
             }
         }
 
@@ -250,58 +359,6 @@ impl App {
         // println!("MODIFIEDx: {:#?}", modified);
         // println!("UNMODIFIED: {:#?}", unmodified);
         // println!("INVALID: {:#?}", invalid);
-
-        // {
-        //
-        //     if exists && (entry.changed_since()? || opts.unmodified) {
-        //         table.push(vec![
-        //             if self.global || !opts.restrict {
-        //                 self.fmt_path(entry.path())
-        //             } else {
-        //                 self.fmt_local_path(entry.path())
-        //             }
-        //             .cell(),
-        //             systemtime_to_datetime(*entry.modtime()).red().cell(),
-        //             "=>".yellow().cell().justify(Justify::Center),
-        //             systemtime_to_datetime(entry.get_current_modtime()?)
-        //                 .green()
-        //                 .bold()
-        //                 .cell(),
-        //         ]);
-        //
-        //         if !opts.dry_run {
-        //             self.oregistry.repair_registry(id)?;
-        //         }
-        //     }
-        //
-        //     if !exists && opts.remove {
-        //         if !opts.dry_run {
-        //             self.oregistry.clear_entry(id);
-        //         }
-        //
-        //         if !self.quiet {
-        //             println!(
-        //                 "{}: {}",
-        //                 "Removed".red().bold(),
-        //                 self.fmt_path(entry.path()),
-        //             );
-        //         }
-        //         removed = true;
-        //     }
-        // }
-        //
-        // if !self.quiet {
-        //     if removed && !table.is_empty() {
-        //         println!("\n{}:", "Updated".purple().bold());
-        //     }
-        //     print_stdout(
-        //         table
-        //             .table()
-        //             .border(Border::builder().build())
-        //             .separator(Separator::builder().build()),
-        //     )
-        //     .context("failed to print table")?;
-        // }
 
         Ok(())
     }

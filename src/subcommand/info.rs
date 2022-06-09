@@ -180,16 +180,6 @@ impl App {
                 if !no_xattr.is_empty() {
                     println!("{}: \n  - {}", c("Files without xattrs"), to_print);
                 }
-
-                // println!(
-                //     "{}: {}",
-                //     c("Files without xattrs"),
-                //     tern::t!(
-                //         to_print.is_empty()
-                //             ? "None".to_owned()
-                //             : format!("\n  - {}", to_print)
-                //     )
-                // );
             }
         }
 

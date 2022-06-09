@@ -3,7 +3,7 @@ use anyhow::{anyhow, Result};
 use atty::Stream;
 use clap::{crate_version, AppSettings, Parser, Subcommand, ValueHint};
 use cli_table::ColorChoice;
-use std::{env, fs, path::PathBuf, str::FromStr};
+use std::{env, path::PathBuf, str::FromStr};
 
 use crate::{
     consts::{
@@ -24,6 +24,7 @@ use crate::{
         set::SetOpts,
         view::ViewOpts,
     },
+    utils::parse_path,
 };
 
 // INFO: Fully qualified path is needed after adding 'notify-rust'
@@ -56,10 +57,7 @@ pub(crate) struct Opts {
         number_of_values = 1,
         value_name = "dir",
         value_hint = ValueHint::DirPath,
-        validator = |t| fs::metadata(t)
-                            .map_err(|_| "must be a valid path")
-                            .map(|_| ())
-                            .map_err(|e| e.to_string()),
+        validator = |t| parse_path(t),
         long_help = "\
         When specified, the program will look for files starting from the provided \
         path, otherwise default to current working directory. Only applies to subcommands that \

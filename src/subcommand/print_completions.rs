@@ -1,7 +1,7 @@
 use super::App;
 use crate::{
     bold_entry,
-    utils::{comp_helper, gen_completions, replace},
+    utils::{comp_helper, gen_completions, parse_path, replace},
     wutag_info, Opts,
 };
 use clap::{Args, CommandFactory, ValueHint};
@@ -34,10 +34,7 @@ pub(crate) struct CompletionsOpts {
         short = 'd',
         number_of_values = 1,
         value_hint = ValueHint::DirPath,
-        validator = |t| fs::metadata(t)
-                            .map_err(|_| "must be a valid path")
-                            .map(|_| ())
-                            .map_err(|e| e.to_string()),
+        validator = |t| parse_path(t)
     )]
     pub(crate) dir: Option<PathBuf>,
 }

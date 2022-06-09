@@ -297,8 +297,8 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (repair)
 _arguments "${_arguments_options[@]}" \
-'*-m+[Manually set a file'\''s new location]:manual:_files:manual:_files' \
-'*--manual=[Manually set a file'\''s new location]:manual:_files:manual:_files' \
+'*-m+[Manually set a file'\''s new location]:from:_files:from:_files' \
+'*--manual=[Manually set a file'\''s new location]:from:_files:from:_files' \
 '-u+[Update the hash sum of all files, including unmodified files]: : ' \
 '--unmodified=[Update the hash sum of all files, including unmodified files]: : ' \
 '-d[Do not actually update the registry]' \

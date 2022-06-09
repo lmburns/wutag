@@ -269,7 +269,7 @@ impl App {
                     // Skips paths that are not contained within current directory to respect the
                     // `-d` flag. Global is just another way to specify -d=~ (list files locally by
                     // default, i.e., no subcommand is given)
-                    if !self.global && !contained_path(&file.path(), &self.base_dir) {
+                    if !self.global && !self.contained_path(&file.path()) {
                         continue;
                     }
 
@@ -367,7 +367,7 @@ impl App {
                 let files = reg.files(None)?;
 
                 for file in files.iter() {
-                    if !self.global && !contained_path(&file.path(), &self.base_dir) {
+                    if !self.global && !self.contained_path(&file.path()) {
                         continue;
                     }
 

@@ -3,8 +3,7 @@
 /// Remove tags/values from other files/tags respectively
 use super::{parse_tag_val, App};
 use crate::{
-    bold_entry,
-    filesystem::osstr_to_bytes,
+    bold_entry, filesystem as wfs,
     registry::types::{Tag, Value},
     utils::{crawler, glob_builder, regex_builder},
     wutag_error, wutag_info,
@@ -192,7 +191,7 @@ impl App {
                 let path = &file.path();
 
                 let search_str: Cow<OsStr> = Cow::Owned(path.as_os_str().to_os_string());
-                let search_bytes = osstr_to_bytes(search_str.as_ref());
+                let search_bytes = wfs::osstr_to_bytes(search_str.as_ref());
                 if !self.exclude.is_empty() && exclude_pattern.is_match(&search_bytes) {
                     continue;
                 }
@@ -224,20 +223,7 @@ impl App {
                                     value.name()
                                 );
 
-                                let mut values_ = vec![];
-                                if let Ok(values) = reg.values_by_tagid(tag.id()) {
-                                    for value in values.iter().cloned() {
-                                        if reg.value_count_by_id(value.id())? == 1 {
-                                            values_.push(value);
-                                        } else if !self.quiet {
-                                            wutag_info!(
-                                                "the value {} is found on other files, therefore \
-                                                 won't be deleted",
-                                                value.name()
-                                            );
-                                        }
-                                    }
-                                }
+                                let values = reg.unique_values_by_tag(tag.id())?;
 
                                 if reg.tag_count_by_id(tag.id())? == 1 {
                                     if delete_tag(tag, path).is_err() {
@@ -257,7 +243,7 @@ impl App {
                                 // Deal with xattr after database
                                 handle_xattr(tag, path);
 
-                                for value in &values_ {
+                                for value in values.iter() {
                                     if delete_value(value, path).is_err() {
                                         continue;
                                     }
@@ -294,14 +280,7 @@ impl App {
                                     );
                                 }
 
-                                let mut values_ = vec![];
-                                if let Ok(values) = reg.values_by_tagid(tag.id()) {
-                                    for value in values.iter().cloned() {
-                                        if reg.value_count_by_id(value.id())? == 1 {
-                                            values_.push(value);
-                                        }
-                                    }
-                                }
+                                let values = reg.unique_values_by_tag(tag.id())?;
 
                                 if reg.tag_count_by_id(tag.id())? == 1 {
                                     if delete_tag(tag, path).is_err() {
@@ -322,7 +301,7 @@ impl App {
                                 // so that way 'X <tag> \t X (V) <value>' is printed
                                 handle_xattr(tag, path);
 
-                                for value in &values_ {
+                                for value in values.iter() {
                                     if delete_value(value, path).is_err() {
                                         continue;
                                     }

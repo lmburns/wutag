@@ -754,7 +754,56 @@ impl Txn<'_> {
             .matches(|f| f.e2pflags().has_flags(given)))
     }
 
-    // TODO: MAKE A TEST
+    /// Retrieve all [`Files`] in the given ids that are not tagged
+    #[allow(clippy::unnecessary_wraps)]
+    pub(super) fn select_files_untagged_by_fileids(&self, ids: &FileIds) -> Result<Files> {
+        let debug = format!("selecting untagged Files [{}]", ids.iter().join(","));
+        log::debug!("{}", debug);
+
+        let mut files = vec![];
+
+        for id in ids.iter() {
+            if let Ok(file) = self.select(
+                &format!(
+                    "SELECT
+                        id,
+                        directory,
+                        name,
+                        hash,
+                        mime,
+                        mtime,
+                        ctime,
+                        mode,
+                        inode,
+                        links,
+                        uid,
+                        gid,
+                        size,
+                        is_dir,
+                        is_symlink
+                        {}
+                    FROM file
+                    WHERE id = ?1
+                    AND (
+                        SELECT count(1)
+                         FROM file_tag
+                         WHERE file_id = ?1
+                    ) == 0",
+                    e2p_feature_comma()
+                ),
+                params![id],
+                |row| {
+                    let r: File = row.try_into().expect("failed to convert to `File`");
+                    Ok(r)
+                },
+            ) {
+                files.push(file);
+            }
+        }
+
+        Ok(files.into())
+    }
+
     /// Retrieve the set of [`Files`] that are untagged
     pub(super) fn select_files_untagged(&self) -> Result<Files> {
         let debug = "querying for untagged Files";

@@ -33,7 +33,7 @@ impl Registry {
     }
 
     /// Retrieve all [`Value`]s in the database
-    #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
+    #[allow(clippy::redundant_closure_for_method_calls)]
     pub(crate) fn values(&self) -> Result<Values> {
         self.txn_wrap(|txn| txn.select_values())
     }
@@ -41,6 +41,17 @@ impl Registry {
     /// Retrieve the [`Value`] matching the [`ValueId`] in the database
     pub(crate) fn value(&self, id: ValueId) -> Result<Value> {
         self.txn_wrap(|txn| txn.select_value(id))
+    }
+
+    /// Select [`Values`] that are only connected to the given [`TagId`]
+    pub(crate) fn unique_values_by_tag(&self, tid: TagId) -> Result<Values> {
+        self.wrap_commit(|txn| txn.select_unique_values_by_tag(tid))
+    }
+
+    /// Select [`Values`] that are only connected to one [`TagId`]
+    #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
+    pub(crate) fn unique_values(&self) -> Result<Values> {
+        self.wrap_commit(|txn| txn.select_unique_values())
     }
 
     /// Retrieve all [`Values`] matching the vector of [`ValueId`]s

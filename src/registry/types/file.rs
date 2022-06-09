@@ -292,19 +292,18 @@ impl File {
     /// Get the metadata of the file as it is right now on the system
     pub(crate) fn get_fs_metadata(&self) -> Result<Metadata> {
         let path = self.path();
-        fs::metadata(&path).map_err(|e| anyhow!("failed to get metadata for {}", path.display()))
+        fs::metadata(&path).map_err(Into::into)
     }
 
     /// Has the [`File`] changed since it has been added to the registry?
-    pub(crate) fn changed_since(&self) -> Result<bool> {
-        let curr = self.get_fs_metadata()?;
+    pub(crate) fn changed_since(&self, curr: &Metadata) -> Result<bool> {
         let mtime = convert_to_datetime(
             curr.modified()
                 .context(fail!("get modification time for {}", self.path().display()))?,
         );
 
         if self.mtime() == &mtime && self.size() == curr.len() {
-            log::debug!("{}: has not modified", self.path().display());
+            log::debug!("{}: has not been modified", self.path().display());
             return Ok(true);
         }
 

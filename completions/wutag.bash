@@ -204,7 +204,7 @@ _wutag() {
             return 0
             ;;
         wutag__edit)
-            opts="-C -r -V -h -v -g --color --rename --value --help --verbose --global <tag> <pattern>"
+            opts="-C -r -a -V -h -v -g --color --rename --all --value --help --verbose --global <tag> <pattern>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

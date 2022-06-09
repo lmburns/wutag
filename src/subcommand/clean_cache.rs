@@ -1,7 +1,7 @@
 //! `clean-cache` - Remove all paths that are found within the `Registry`
 
 use super::App;
-use crate::{utils, wutag_error, wutag_info, xattr::tag::DirEntryExt};
+use crate::{bold_entry, utils, wutag_error, wutag_info, xattr::tag::DirEntryExt};
 use anyhow::Result;
 use colored::Colorize;
 
@@ -16,14 +16,11 @@ impl App {
             // Clear xattrs before database is cleared
             for ftag in reg.filetags()?.iter() {
                 if let Ok(file) = reg.file(ftag.file_id()) {
-                    if let Err(e) = (&file.path()).clear_tags() {
-                        wutag_error!(
-                            "{}: failed to clear xattrs: {}",
-                            self.fmt_path(file.path()),
-                            e
-                        );
+                    let path = file.path();
+                    if let Err(e) = (&path).clear_tags() {
+                        wutag_error!("{}: failed to clear xattrs: {}", bold_entry!(path), e);
                     } else {
-                        println!("CLEARING XATTR: {:?}", ftag);
+                        // println!("CLEARING XATTR: {:?}", ftag);
                         log::debug!("{}: cleared xattrs", self.fmt_path(file.path()));
                     }
                 }

@@ -246,7 +246,7 @@ pub(crate) fn sender(
 
             // Repeated code from calling function to run on multiple threads
             for entry in reg.files(None).expect("failed to get Files").iter() {
-                if !app.global && !wfs::contained_path(entry.path(), app.base_dir.clone()) {
+                if !app.global && !app.contained_path(entry.path()) {
                     continue;
                 }
 
@@ -287,7 +287,7 @@ pub(crate) fn sender(
                     // }
 
                     // TODO: How to prune here?
-                    if app.prune && wfs::contained_path(entry.path(), app.base_dir.clone()) {
+                    if app.prune && app.contained_path(entry.path()) {
                         println!("PRUNING");
                         continue;
                     }

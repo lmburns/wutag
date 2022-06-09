@@ -263,6 +263,8 @@ _arguments "${_arguments_options[@]}" \
 '--color=[Set the color of the tag. See --help for format]:color: ' \
 '-r+[New name to replace tag with]:rename: ' \
 '--rename=[New name to replace tag with]:rename: ' \
+'-a[Modify all tags that have the given value]' \
+'--all[Modify all tags that have the given value]' \
 '-V[Indicate that the item given is a value]' \
 '--value[Indicate that the item given is a value]' \
 '-h[Print help information]' \
@@ -272,7 +274,7 @@ _arguments "${_arguments_options[@]}" \
 '-g[Apply operation to all tags and files instead of locally]' \
 '--global[Apply operation to all tags and files instead of locally]' \
 ':tag -- Tag to modify:_wutag_tags' \
-'::pattern -- A glob, regular expression, or fixed-string:_files' \
+':pattern -- A glob, regular expression, or fixed-string:_files' \
 && ret=0
 ;;
 (info)
@@ -295,16 +297,16 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (repair)
 _arguments "${_arguments_options[@]}" \
-'*-m+[Manually set the file'\''s new location]:manual:_files:manual:_files' \
-'*--manual=[Manually set the file'\''s new location]:manual:_files:manual:_files' \
+'*-m+[Manually set a file'\''s new location]:manual:_files:manual:_files' \
+'*--manual=[Manually set a file'\''s new location]:manual:_files:manual:_files' \
 '-u+[Update the hash sum of all files, including unmodified files]: : ' \
 '--unmodified=[Update the hash sum of all files, including unmodified files]: : ' \
 '-d[Do not actually update the registry]' \
 '--dry-run[Do not actually update the registry]' \
 '-R[Remove files from the registry that no longer exist on the system]' \
 '--remove[Remove files from the registry that no longer exist on the system]' \
-'-r[Restrict the repairing to the current directory, or the path given with -d]' \
-'--restrict[Restrict the repairing to the current directory, or the path given with -d]' \
+'-r[Restrict the repairing to the CWD, or the path given with -d]' \
+'--restrict[Restrict the repairing to the CWD, or the path given with -d]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \

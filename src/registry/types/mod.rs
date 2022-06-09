@@ -344,6 +344,12 @@ macro_rules! from_vec {
                 Self::new(t)
             }
         }
+
+        impl FromIterator<$from> for $to {
+            fn from_iter<T: IntoIterator<Item = $from>>(iter: T) -> Self {
+                Self::new(iter.into_iter().collect())
+            }
+        }
     };
 }
 

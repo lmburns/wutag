@@ -35,7 +35,7 @@ impl Registry {
     }
 
     /// Retrieve all [`Tag`]s within the database
-    #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
+    #[allow(clippy::redundant_closure_for_method_calls)]
     pub(crate) fn tags(&self) -> Result<Tags> {
         self.txn_wrap(|txn| txn.select_tags())
     }
@@ -43,6 +43,17 @@ impl Registry {
     /// Retrieve the [`Tag`] matching the given [`TagId`]
     pub(crate) fn tag(&self, id: TagId) -> Result<Tag> {
         self.txn_wrap(|txn| txn.select_tag(id))
+    }
+
+    /// Select [`Tags`] that are only connected to the given [`FileId`]
+    pub(crate) fn unique_tags_by_file(&self, fid: FileId) -> Result<Tags> {
+        self.wrap_commit(|txn| txn.select_unique_tags_by_file(fid))
+    }
+
+    /// Select [`Tags`] that are only connected to one [`File`]
+    #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
+    pub(crate) fn unique_tags(&self) -> Result<Tags> {
+        self.wrap_commit(|txn| txn.select_unique_tags())
     }
 
     /// Select all [`Tag`]s that are not associated with a [`Value`] or [`File`]

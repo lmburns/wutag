@@ -130,6 +130,52 @@ impl Txn<'_> {
         Ok(value)
     }
 
+    /// Select [`Values`] that are only connected to the given [`TagId`]
+    pub(super) fn select_unique_values_by_tag(&self, tid: TagId) -> Result<Values> {
+        let debug = format!("selecting unique Values for Tag({})", tid);
+        log::debug!("{}", debug);
+
+        let tags: Vec<Value> = self
+            .query_vec(
+                "SELECT value.* FROM value
+                  INNER JOIN (
+                    SELECT * FROM
+                      (
+                        SELECT * FROM file_tag
+                        GROUP BY tag_id
+                        HAVING count(*) = 1
+                      )
+                    WHERE tag_id = ?1
+                  ) AS dt ON value.id = dt.value_id",
+                params![tid],
+                |row| row.try_into().expect("failed to convert to `Value`"),
+            )
+            .context(fail!("{}", debug))?;
+
+        Ok(tags.into())
+    }
+
+    /// Select [`Values`] that are only connected to one [`TagId`]
+    pub(super) fn select_unique_values(&self) -> Result<Values> {
+        let debug = "selecting all unique Values";
+        log::debug!("{}", debug);
+
+        let tags: Vec<Value> = self
+            .query_vec(
+                "SELECT value.* FROM value
+                  INNER JOIN (
+                    SELECT * FROM file_tag
+                    GROUP BY tag_id
+                    HAVING count(*) = 1
+                  ) AS dt ON value.id = dt.value_id",
+                params![],
+                |row| row.try_into().expect("failed to convert to `Value`"),
+            )
+            .context(fail!("{}", debug))?;
+
+        Ok(tags.into())
+    }
+
     /// Retrieve all [`Value`]s matching the vector of [`ValueId`]s
     pub(super) fn select_values_by_valueids(&self, ids: Vec<ValueId>) -> Result<Values, Error> {
         let debug = format!("querying for Value by ID [{}]", ids.iter().join(","));

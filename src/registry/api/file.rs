@@ -153,6 +153,11 @@ impl Registry {
         self.txn_wrap(|txn| txn.select_files_by_flag(given))
     }
 
+    /// Retrieve all [`Files`] in the given ids that are not tagged
+    pub(crate) fn files_untagged_by_fileids(&self, ids: &FileIds) -> Result<Files> {
+        self.txn_wrap(|txn| txn.select_files_untagged_by_fileids(ids))
+    }
+
     /// Retrieve all [`Files`] that are untagged
     #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
     pub(crate) fn files_untagged(&self) -> Result<Files> {

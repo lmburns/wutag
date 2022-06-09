@@ -4,7 +4,7 @@ use super::App;
 use crate::{
     bold_entry,
     consts::DEFAULT_EDITOR,
-    filesystem::{contained_path, create_temp_path, osstr_to_bytes},
+    filesystem::{create_temp_path, osstr_to_bytes},
     oregistry::EntryData,
     regex,
     utils::{crawler, fmt, glob_builder, regex_builder},
@@ -138,7 +138,7 @@ impl App {
             );
         } else {
             for (id, entry) in self.oregistry.list_entries_and_ids() {
-                if !self.global && !contained_path(entry.path(), &self.base_dir) {
+                if !self.global && !self.contained_path(entry.path()) {
                     continue;
                 }
 

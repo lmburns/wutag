@@ -65,7 +65,7 @@ impl Txn<'_> {
         let max = self
             .select1::<u32>(
                 "SELECT max(id)
-            FROM tag",
+                FROM tag",
             )
             .context(fail!("{}", debug));
 
@@ -131,6 +131,52 @@ impl Txn<'_> {
             .context(fail!("{}", debug))?;
 
         Ok(tag)
+    }
+
+    /// Select [`Tags`] that are only connected to one [`File`]
+    pub(super) fn select_unique_tags_by_file(&self, fid: FileId) -> Result<Tags> {
+        let debug = format!("selecting unique Tags for File({})", fid);
+        log::debug!("{}", debug);
+
+        let tags: Vec<Tag> = self
+            .query_vec(
+                "SELECT tag.* FROM tag
+                  INNER JOIN (
+                    SELECT * FROM
+                      (
+                        SELECT * FROM file_tag
+                        GROUP BY tag_id
+                        HAVING count(*) = 1
+                      )
+                    WHERE file_id = ?1
+                  ) AS dt ON tag.id = dt.tag_id",
+                params![fid],
+                |row| row.try_into().expect("failed to convert to `Tag`"),
+            )
+            .context(fail!("{}", debug))?;
+
+        Ok(tags.into())
+    }
+
+    /// Select [`Tags`] that are only connected to one [`File`]
+    pub(super) fn select_unique_tags(&self) -> Result<Tags> {
+        let debug = "selecting all unique Tags";
+        log::debug!("{}", debug);
+
+        let tags: Vec<Tag> = self
+            .query_vec(
+                "SELECT tag.* FROM tag
+                  INNER JOIN (
+                    SELECT * FROM file_tag
+                    GROUP BY tag_id
+                    HAVING count(*) = 1
+                  ) AS dt ON tag.id = dt.tag_id",
+                params![],
+                |row| row.try_into().expect("failed to convert to `Tag`"),
+            )
+            .context(fail!("{}", debug))?;
+
+        Ok(tags.into())
     }
 
     /// Select all [`Tag`]s that are not associated with a [`Value`] or [`File`]
@@ -556,7 +602,6 @@ impl Txn<'_> {
         let debug = "deleting all Tags";
         log::debug!("{}", debug);
 
-        println!("DELETING TAGS");
         self.exec_no_params("DELETE FROM tag")
             .context(fail!("{}", debug))?;
 

@@ -24,7 +24,7 @@ use crate::{
     config::{Config, EncryptConfig},
     consts::{DEFAULT_BASE_COLOR, DEFAULT_BORDER_COLOR, DEFAULT_COLORS},
     fail,
-    filesystem::FileTypes,
+    filesystem::{self, FileTypes},
     opt::{Colorization, Command, Opts},
     oregistry,
     oregistry::TagRegistry,
@@ -304,6 +304,10 @@ impl App {
         }
     }
 
+    // ╭──────────────────────────────────────────────────────────╮
+    // │                  Convenience Functions                   │
+    // ╰──────────────────────────────────────────────────────────╯
+
     /// Format a tag according to the [`Tag`]'s color and an optional effect
     pub(crate) fn fmt_tag(&self, tag: &Tag) -> ColoredString {
         fmt::tag(tag, &self.tag_effect)
@@ -326,6 +330,11 @@ impl App {
     /// read and only searches recursively
     pub(crate) fn fmt_raw_local_path<P: AsRef<Path>>(&self, path: P) -> String {
         fmt::raw_local_path(path, &self.base_dir)
+    }
+
+    /// Is the given path contained within `self.base_dir`
+    pub(crate) fn contained_path<P: AsRef<Path>>(&self, path: P) -> bool {
+        filesystem::contained_path(path.as_ref(), &self.base_dir)
     }
 
     /// Resolve the given entry if `follow_symlinks` is enabled

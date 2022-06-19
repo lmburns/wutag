@@ -119,10 +119,11 @@ complete -c wutag -n "__fish_seen_subcommand_from info" -s h -l help -d 'Print h
 complete -c wutag -n "__fish_seen_subcommand_from info" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from info" -s g -l global -d 'Apply operation to all tags and files instead of locally'
 complete -c wutag -n "__fish_seen_subcommand_from repair" -s m -l manual -d 'Manually set a file\'s new location' -r -F
-complete -c wutag -n "__fish_seen_subcommand_from repair" -s u -l unmodified -d 'Update the hash sum of all files, including unmodified files' -r
 complete -c wutag -n "__fish_seen_subcommand_from repair" -s d -l dry-run -d 'Do not actually update the registry'
 complete -c wutag -n "__fish_seen_subcommand_from repair" -s R -l remove -d 'Remove files from the registry that no longer exist on the system'
 complete -c wutag -n "__fish_seen_subcommand_from repair" -s r -l restrict -d 'Restrict the repairing to the CWD, or the path given with -d'
+complete -c wutag -n "__fish_seen_subcommand_from repair" -s D -l directory -d 'Manually update a directory\'s contents'
+complete -c wutag -n "__fish_seen_subcommand_from repair" -s u -l unmodified -d 'Update the hash sum of all files, including unmodified files'
 complete -c wutag -n "__fish_seen_subcommand_from repair" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from repair" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from repair" -s g -l global -d 'Apply operation to all tags and files instead of locally'

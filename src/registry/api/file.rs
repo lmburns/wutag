@@ -52,20 +52,24 @@ impl Registry {
     }
 
     /// Retrieve all [`File`]s that reside in the given directory
-    pub(crate) fn files_by_directory<P: AsRef<Path>>(&self, path: P) -> Result<Files> {
+    pub(crate) fn files_by_directory<P: AsRef<Path>>(
+        &self,
+        path: P,
+        recursive: bool,
+    ) -> Result<Files> {
         self.txn_wrap(|txn| {
             let path = path.as_ref();
 
-            // TODO: Add relative check
-
-            if !path.is_dir() {
-                return Err(anyhow!(
-                    "{} is not a directory",
-                    path.display().to_string().red()
-                ));
+            if path.is_dir() {
+                txn.select_files_by_directory(path.to_string_lossy(), recursive)
+            } else {
+                txn.select_files_by_directory(
+                    path.parent()
+                        .context("failed to get parent of path")?
+                        .to_string_lossy(),
+                    recursive,
+                )
             }
-
-            txn.select_files_by_directory(path.to_string_lossy(), false)
         })
     }
 

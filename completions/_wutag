@@ -297,16 +297,18 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (repair)
 _arguments "${_arguments_options[@]}" \
-'*-m+[Manually set a file'\''s new location]:from:_files:from:_files' \
-'*--manual=[Manually set a file'\''s new location]:from:_files:from:_files' \
-'-u+[Update the hash sum of all files, including unmodified files]: : ' \
-'--unmodified=[Update the hash sum of all files, including unmodified files]: : ' \
+'(-R --remove -u --unmodified -r --restrict)*-m+[Manually set a file'\''s new location]:from:_files:from:_files' \
+'(-R --remove -u --unmodified -r --restrict)*--manual=[Manually set a file'\''s new location]:from:_files:from:_files' \
 '-d[Do not actually update the registry]' \
 '--dry-run[Do not actually update the registry]' \
 '-R[Remove files from the registry that no longer exist on the system]' \
 '--remove[Remove files from the registry that no longer exist on the system]' \
 '-r[Restrict the repairing to the CWD, or the path given with -d]' \
 '--restrict[Restrict the repairing to the CWD, or the path given with -d]' \
+'-D[Manually update a directory'\''s contents]' \
+'--directory[Manually update a directory'\''s contents]' \
+'-u[Update the hash sum of all files, including unmodified files]' \
+'--unmodified[Update the hash sum of all files, including unmodified files]' \
 '-h[Print help information]' \
 '--help[Print help information]' \
 '*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \

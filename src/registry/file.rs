@@ -309,7 +309,7 @@ impl Txn<'_> {
     pub(super) fn select_files_by_directory<S: AsRef<str>>(
         &self,
         dir: S,
-        cwd: bool,
+        recursive: bool,
     ) -> Result<Files> {
         let dir = dir.as_ref();
         let debug = format!("querying for Files by directory {}", dir);
@@ -334,20 +334,22 @@ impl Txn<'_> {
                 is_symlink
                 {}
             FROM file
-            WHERE directory = ?1 OR directory LIKE ?2",
-            e2p_feature_comma()
+            WHERE directory = ?1 {}",
+            e2p_feature_comma(),
+            tern::t!(recursive ? "OR directory LIKE ?2" : "")
         );
-
-        if cwd {
-            s = format!("{} {}", s, "OR directory = '.' OR directory LIKE './%");
-        }
 
         s = format!("{} {}", s, "ORDER BY fullpath(directory, name)");
 
+        let recursive_params = params![dir, format!("{}/%", dir)];
+        let params = params![dir];
+
         let files: Vec<File> = self
-            .query_vec(&s, params![dir, format!("{}/%", dir)], |row| {
-                row.try_into().expect("failed to convert to `File`")
-            })
+            .query_vec(
+                &s,
+                if recursive { recursive_params } else { params },
+                |row| row.try_into().expect("failed to convert to `File`"),
+            )
             .context(fail!("{}", debug))?;
 
         Ok(files.into())

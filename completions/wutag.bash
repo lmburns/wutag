@@ -342,7 +342,7 @@ _wutag() {
             return 0
             ;;
         wutag__repair)
-            opts="-d -R -r -m -u -h -v -g --dry-run --remove --restrict --manual --unmodified --help --verbose --global"
+            opts="-d -R -r -m -D -u -h -v -g --dry-run --remove --restrict --manual --directory --unmodified --help --verbose --global"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -353,14 +353,6 @@ _wutag() {
                     return 0
                     ;;
                 -m)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                --unmodified)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                -u)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;

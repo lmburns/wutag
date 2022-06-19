@@ -43,10 +43,9 @@ pub(crate) struct RepairOpts {
     pub(crate) remove: bool,
 
     /// Restrict the repairing to the CWD, or the path given with -d
-    #[clap(name = "border", long = "restrict", short = 'r')]
+    #[clap(name = "restrict", long = "restrict", short = 'r')]
     pub(crate) restrict: bool,
 
-    // XXX: Implement
     /// Manually set a file's new location
     #[clap(
         name = "manual",
@@ -54,19 +53,27 @@ pub(crate) struct RepairOpts {
         short = 'm',
         takes_value = true,
         number_of_values = 2,
+        conflicts_with_all = &["remove", "unmodified", "restrict"],
         value_names = &["from", "to"],
         value_hint = ValueHint::FilePath,
-        validator = |t| parse_path(t)
+        // Would be nice to have a validator for one argument
+        // validator = |t| parse_path(t)
     )]
     pub(crate) manual: Option<Vec<String>>,
 
-    /// Update the hash sum of all files, including unmodified files
+    /// Manually update a directory's contents
     #[clap(
-        name = "unmodified",
-        long = "unmodified",
-        short = 'u',
-        takes_value = true
+        name = "directory",
+        long = "directory",
+        short = 'D',
+        requires = "manual",
+        long_help = "Instead of updating a single file, all the files in a directory can be \
+                     updated at once. Requires --manual"
     )]
+    pub(crate) directory: bool,
+
+    /// Update the hash sum of all files, including unmodified files
+    #[clap(name = "unmodified", long = "unmodified", short = 'u')]
     pub(crate) unmodified: bool,
 }
 
@@ -85,6 +92,151 @@ impl App {
         let mut invalid = vec![];
 
         let reg = self.registry.lock().expect("poisoned lock");
+
+        let manual_repair = |from: &File, to: &PathBuf| -> Result<()> {
+            let from_path = &from.path();
+            match fs::metadata(to) {
+                Ok(cm) =>
+                    if let Err(e) = reg.update_file(from.id(), &to) {
+                        wutag_error!(
+                            "{}: failed to update file {} => {}",
+                            e,
+                            bold_entry!(from_path),
+                            bold_entry!(to)
+                        );
+                    },
+                Err(e) => {
+                    match e.kind() {
+                        io::ErrorKind::NotFound => {
+                            log::debug!("{}: not found on filesystem", to.display());
+                        },
+                        io::ErrorKind::PermissionDenied => {
+                            wutag_error!(
+                                "{}: user does not have correct permissions",
+                                bold_entry!(to)
+                            );
+                        },
+                        e => {
+                            log::debug!("{}: metadata error: {}", to.display(), e);
+                        },
+                    }
+                    return Err(anyhow!(""));
+                },
+            }
+            Ok(())
+        };
+
+        // Remove extended attributes from a given [`PathBuf`]
+        let handle_xattr = |path: &PathBuf, tag: &Tag| {
+            if path.get_tag(tag).is_err() {
+                wutag_error!(
+                    "{}: found ({}) in database, though file has no xattrs",
+                    bold_entry!(path),
+                    self.fmt_tag(tag)
+                );
+            } else if let Err(e) = path.untag(tag) {
+                wutag_error!("{}: {}", path.display(), e);
+            }
+        };
+
+        if let Some(manual) = &opts.manual {
+            // There is only two items in this vector guaranteed
+            let from = manual
+                .get(0)
+                .and_then(|f| {
+                    // Why did I do this part again?
+                    let path = PathBuf::from(f);
+                    let parent = path
+                        .parent()
+                        .unwrap_or_else(|| wutag_fatal!("failed to get parent of 'from' path"));
+                    let fname = path
+                        .file_name()
+                        .unwrap_or_else(|| wutag_fatal!("failed to get file name of 'from' path"));
+                    fs::canonicalize(parent).ok().map(|f| f.join(fname))
+                })
+                .context("failed to canonicalize 'from' path")?;
+            let to = manual
+                .get(1)
+                .and_then(|f| fs::canonicalize(f).ok())
+                .context("failed to canonicalize 'to' path")?;
+
+            let mut manual_tbl = vec![];
+            log::debug!("manual repair in {}", from.display());
+
+            if opts.directory {
+                if !from.is_dir() {
+                    wutag_fatal!(
+                        "{}: is not a directory. Don't use the {} option",
+                        bold_entry!(from),
+                        "--directory".green()
+                    );
+                }
+                if !to.is_dir() {
+                    wutag_fatal!(
+                        "{}: is not a directory. Don't use the {} option",
+                        bold_entry!(to),
+                        "--directory".green()
+                    );
+                }
+
+                match reg.files_by_directory(&from, false) {
+                    Ok(dir_files) => {
+                        if dir_files.is_empty() {
+                            wutag_error!("No files are tagged within {}", from.display());
+                            return Ok(());
+                        }
+
+                        for file in dir_files.iter() {
+                            let file_path = &file.path();
+                            let new = file.clone().set_directory(&to)?;
+                            let new_path = &new.path();
+
+                            if fs::metadata(new_path).is_ok() {
+                                manual_tbl.push(vec![
+                                    self.fmt_path(file_path).cell(),
+                                    "=>".green().bold().cell().justify(Justify::Center),
+                                    self.fmt_path(new_path).cell(),
+                                ]);
+
+                                if !opts.dry_run {
+                                    manual_repair(file, new_path)?;
+                                }
+                            }
+                        }
+                    },
+                    Err(e) => wutag_fatal!("failed to retrieve files under {}", from.display()),
+                }
+            } else {
+                match reg.file_by_path(&from) {
+                    Ok(db_from) => {
+                        if !opts.dry_run {
+                            manual_repair(&db_from, &to)?;
+                        }
+                        manual_tbl.push(vec![
+                            self.fmt_path(db_from.path()).cell(),
+                            "=>".green().bold().cell().justify(Justify::Center),
+                            self.fmt_path(to).cell(),
+                        ]);
+                    },
+                    Err(e) =>
+                        wutag_fatal!("{}: not found in registry (from path)", bold_entry!(from)),
+                }
+            }
+
+            if !self.quiet && !manual_tbl.is_empty() {
+                println!("{}:", "Updated".purple().bold().underline());
+
+                print_stdout(
+                    manual_tbl
+                        .table()
+                        .border(Border::builder().build())
+                        .separator(Separator::builder().build()),
+                )
+                .context("failed to print table")?;
+            }
+
+            return Ok(());
+        }
 
         for entry in reg.files(None)?.iter().cloned() {
             if (!self.global || opts.restrict) && !self.contained_path(entry.path()) {
@@ -126,125 +278,6 @@ impl App {
                 },
             }
         }
-
-        let manual_repair = |from: &File, to: &PathBuf| -> Result<()> {
-            let from_path = &from.path();
-            match fs::metadata(to) {
-                Ok(cm) =>
-                    if let Err(e) = reg.update_file(from.id(), &to) {
-                        wutag_error!(
-                            "{}: failed to update file {} => {}",
-                            e,
-                            bold_entry!(from_path),
-                            bold_entry!(to)
-                        );
-                    },
-                Err(e) => {
-                    match e.kind() {
-                        io::ErrorKind::NotFound => {
-                            log::debug!("{}: not found on filesystem", to.display());
-                        },
-                        io::ErrorKind::PermissionDenied => {
-                            wutag_error!(
-                                "{}: user does not have correct permissions",
-                                bold_entry!(to)
-                            );
-                        },
-                        e => {
-                            log::debug!("{}: metadata error: {}", to.display(), e);
-                        },
-                    }
-                    return Err(anyhow!(""));
-                },
-            }
-            Ok(())
-        };
-
-        if let Some(manual) = &opts.manual {
-            // There is only two items in this vector
-            let from = manual
-                .get(0)
-                .and_then(|f| fs::canonicalize(f).ok())
-                .context("failed to canonicalize 'from' path")?;
-            let to = manual
-                .get(1)
-                .and_then(|f| fs::canonicalize(f).ok())
-                .context("failed to canonicalize 'to' path")?;
-
-            // let db_to = reg.file_by_path(&to).unwrap_or_else(|_| {
-            //     wutag_fatal!("{}: not found in registry (to path)", self.fmt_path(to))
-            // });
-
-            let mut manual_tbl = vec![];
-            log::debug!("manual repair in {}", from.display());
-            match reg.file_by_path(&from) {
-                Ok(db_from) => {
-                    if !opts.dry_run {
-                        manual_repair(&db_from, &to)?;
-                    }
-
-                    match reg.files_by_directory(&from) {
-                        Ok(dir_files) =>
-                            for file in dir_files.iter() {
-                                let file_path = &file.path();
-                                let new = file.clone().set_directory(
-                                    to.parent().context("failed to get parent of 'to' path")?,
-                                )?;
-                                let new_path = &new.path();
-
-                                manual_tbl.push(vec![
-                                    self.fmt_path(file_path).cell(),
-                                    "=>".green().bold().cell().justify(Justify::Center),
-                                    self.fmt_path(new_path).cell(),
-                                ]);
-
-                                match fs::metadata(new_path) {
-                                    Ok(m) =>
-                                        if !opts.dry_run {
-                                            manual_repair(file, new_path)?;
-                                        },
-                                    Err(e) => wutag_fatal!(
-                                        "{}: failed to get metadata: {}",
-                                        new_path.display(),
-                                        e
-                                    ),
-                                }
-                            },
-                        Err(e) =>
-                            wutag_fatal!("failed to retrieve files under {}", db_from.directory()),
-                    }
-                },
-                Err(e) => wutag_fatal!("{}: not found in registry (from path)", bold_entry!(from)),
-            }
-
-            if !self.quiet && !manual_tbl.is_empty() {
-                println!("{}:", "Updated".purple().bold().underline());
-
-                print_stdout(
-                    manual_tbl
-                        .table()
-                        .border(Border::builder().build())
-                        .separator(Separator::builder().build()),
-                )
-                .context("failed to print table")?;
-            }
-
-            // println!("From: {:#?}", db_from);
-            // println!("To: {:#?}", db_to);
-        }
-
-        // Remove extended attributes from a given [`PathBuf`]
-        let handle_xattr = |path: &PathBuf, tag: &Tag| {
-            if path.get_tag(tag).is_err() {
-                wutag_error!(
-                    "{}: found ({}) in database, though file has no xattrs",
-                    bold_entry!(path),
-                    self.fmt_tag(tag)
-                );
-            } else if let Err(e) = path.untag(tag) {
-                wutag_error!("{}: {}", path.display(), e);
-            }
-        };
 
         // Remove tags or values that aren't connected to any File
         let clean_single_items = |entry: &File| -> Result<()> {
@@ -355,10 +388,6 @@ impl App {
                 clean_single_items(entry)?;
             }
         }
-
-        // println!("MODIFIEDx: {:#?}", modified);
-        // println!("UNMODIFIED: {:#?}", unmodified);
-        // println!("INVALID: {:#?}", invalid);
 
         Ok(())
     }

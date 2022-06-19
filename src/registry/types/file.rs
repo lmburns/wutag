@@ -18,7 +18,7 @@ use super::{
     },
     from_vec, impl_vec, ID,
 };
-use crate::{fail, filesystem::ext4::FileFlag, inner_immute};
+use crate::{fail, failt, filesystem::ext4::FileFlag, inner_immute};
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local};
 use lexiclean::Lexiclean;
@@ -159,7 +159,7 @@ impl File {
         let mut p = path.as_ref().lexiclean();
 
         if follow_links {
-            p = p.canonicalize().context(fail!("canonicalize path"))?;
+            p = p.canonicalize().context(failt!("canonicalize path"))?;
         }
 
         Ok(p)
@@ -177,10 +177,13 @@ impl File {
     }
 
     /// Modify the [`File`]s directory, due to moving a file
+    /// Note: This calls the `.parent()` function for you
     pub(crate) fn set_directory(mut self, path: &Path) -> Result<Self> {
         self.directory = path
-            .parent()
-            .context(fail!("get parent"))?
+            .is_dir()
+            .then(|| Some(path))
+            .unwrap_or_else(|| path.parent())
+            .context(fail!("setting directory"))?
             .to_string_lossy()
             .to_string();
 
@@ -191,7 +194,7 @@ impl File {
     pub(crate) fn set_filename(mut self, path: &Path) -> Result<Self> {
         self.name = path
             .file_name()
-            .context(fail!("get file name"))?
+            .context(fail!("getting file name"))?
             .to_string_lossy()
             .to_string();
 

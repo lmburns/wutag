@@ -5,6 +5,37 @@ set export
 CI := if env_var_or_default("CI", "1") == "0" { "--color=never" } else { "--color=always" }
 version := `rg --color=never --pcre2 -oIN '^version = "\K(\d+\.?)+' Cargo.toml`
 
+# Merge
+
+@smerge_t:
+  just rr set cliff.toml val xx
+  just rr set README.md val
+  just rr set fr.py val
+  just rr list files -tV
+
+@smerge_tv:
+  just rr set cliff.toml val
+  just rr set -p 'xx=z' cliff.toml
+  just rr set README.md val
+  just rr set fr.py val
+  just rr list files -tV
+
+@smerge_v:
+  just rr set -p 'xx=val' cliff.toml
+  just rr set -p 'xx=val' README.md
+  just rr set -p 'xx=ok' fr.py
+  just rr set -p 'xx=val' fr.py
+  just rr list files -tV
+  just smerge_v
+
+@reset:
+  just r clear '*' -a
+  rip my.db
+
+@rr *ARGS:
+  noglob cargo run -q {{CI}} -- {{ARGS}}
+
+
 # rf := if env_var_or_default("rfd", "0") == "1" { join(env_var_or_default("RUSTFLAGS", ""), " -A dead_code") } else { env_var_or_default("RUSTFLAGS", "") }
 # export RUSTFLAGS := rf
 

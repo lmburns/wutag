@@ -56,6 +56,15 @@ impl FileTag {
         self.value_id
     }
 
+    pub(crate) fn set_tag_id_mut(&mut self, tid: TagId) {
+        self.tag_id = tid;
+    }
+
+    pub(crate) const fn set_tag_id(mut self, tid: TagId) -> Self {
+        self.tag_id = tid;
+        self
+    }
+
     /// Convert a [`FileTag`] to a [`TagValueCombo`]
     pub(crate) const fn to_tag_value_combo(self) -> TagValueCombo {
         TagValueCombo::new(self.tag_id, self.value_id)

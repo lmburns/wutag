@@ -179,6 +179,8 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (clear)
 _arguments "${_arguments_options[@]}" \
+'(-g --global)-a[Clear tag extended attributes from files, even if not in registry]' \
+'(-g --global)--all[Clear tag extended attributes from files, even if not in registry]' \
 '-V[Clear values from files instead of tags]' \
 '--values[Clear values from files instead of tags]' \
 '-h[Print help information]' \
@@ -301,6 +303,8 @@ _arguments "${_arguments_options[@]}" \
 '(-R --remove -u --unmodified -r --restrict)*--manual=[Manually set a file'\''s new location]:from:_files:from:_files' \
 '-d[Do not actually update the registry]' \
 '--dry-run[Do not actually update the registry]' \
+'-c[Crawl directory for files that have tags but aren'\''t in the registry]' \
+'--crawl[Crawl directory for files that have tags but aren'\''t in the registry]' \
 '-R[Remove files from the registry that no longer exist on the system]' \
 '--remove[Remove files from the registry that no longer exist on the system]' \
 '-r[Restrict the repairing to the CWD, or the path given with -d]' \
@@ -319,6 +323,8 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (merge)
 _arguments "${_arguments_options[@]}" \
+'-p+[A glob, regular expression, or fixed-string pattern]:pattern:_files' \
+'--pattern=[A glob, regular expression, or fixed-string pattern]:pattern:_files' \
 '-V[Merge values from files instead of tags]' \
 '--values[Merge values from files instead of tags]' \
 '-h[Print help information]' \
@@ -327,7 +333,8 @@ _arguments "${_arguments_options[@]}" \
 '*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
 '-g[Apply operation to all tags and files instead of locally]' \
 '--global[Apply operation to all tags and files instead of locally]' \
-':pattern -- A glob, regular expression, or fixed-string pattern:_files' \
+':dest -- The tag or value that is being merged into:' \
+'*::source -- The tag(s)/value(s) that are going to be merged:' \
 && ret=0
 ;;
 (print-completions)
@@ -364,6 +371,18 @@ _arguments "${_arguments_options[@]}" \
 '--global[Apply operation to all tags and files instead of locally]' \
 && ret=0
 ;;
+(xattr)
+_arguments "${_arguments_options[@]}" \
+'-h[Print help information]' \
+'--help[Print help information]' \
+'*-v[Display debugging messages on 4 levels (i.e., -vv..)]' \
+'*--verbose[Display debugging messages on 4 levels (i.e., -vv..)]' \
+'-g[Apply operation to all tags and files instead of locally]' \
+'--global[Apply operation to all tags and files instead of locally]' \
+':pattern -- A glob, regular expression, or fixed-string:' \
+'*::tags -- Tag or tags to set on the result of the pattern:' \
+&& ret=0
+;;
         esac
     ;;
 esac
@@ -387,6 +406,7 @@ _wutag_commands() {
 'print-completions:Prints completions for the specified shell to dir or stdout' \
 'clean-cache:Clean the cached tag registry' \
 'ui:Open a TUI to manage tags' \
+'xattr:Testing' \
     )
     _describe -t commands 'wutag commands' commands "$@"
 }
@@ -408,5 +428,10 @@ _wutag_tags() {
 
     _describe -t wtags 'tags' wtags && ret=0
     return ret
+}(( $+functions[_wutag__xattr_commands] )) ||
+_wutag__xattr_commands() {
+    local commands; commands=()
+    _describe -t commands 'wutag xattr commands' commands "$@"
 }
+
 _wutag "$@"

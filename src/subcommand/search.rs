@@ -24,8 +24,8 @@ pub(crate) struct SearchOpts {
         long = "raw",
         short = 'r',
         long_help = "No colored output. Should be detected automatically on a pipe following this \
-                     command. This can also be controlled by the 'NO_COLOR' environment variable, \
-                     or the flag '--color={never,auto}'"
+                     command. This can also be controlled by the 'NO_COLOR' environment variable, or the \
+                     flag '--color={never,auto}'"
     )]
     pub(crate) raw: bool,
 
@@ -75,17 +75,19 @@ pub(crate) struct SearchOpts {
     )]
     pub(crate) garrulous: bool,
 
+    // XXX: Implement
     /// Files matching all tags (instead of any)
     #[clap(
         name = "all",
         long = "all",
         short = 'a',
         requires = "tags",
-        long_help = "The files that result must contain all matching tags. The default behavior \
-                     is if the file contains any tag"
+        long_help = "The files that result must contain all matching tags. The default behavior is if the \
+                     file contains any tag"
     )]
     pub(crate) all: bool,
 
+    // XXX: Implement
     /// Files matching all and only all tags
     #[clap(
         name = "only-all",
@@ -93,8 +95,7 @@ pub(crate) struct SearchOpts {
         short = 'A',
         conflicts_with = "all",
         requires = "tags",
-        long_help = "The files that result must contain all matching tags and only those matching \
-                     tags"
+        long_help = "The files that result must contain all matching tags and only those matching tags"
     )]
     pub(crate) only_all: bool,
 
@@ -113,8 +114,8 @@ pub(crate) struct SearchOpts {
         long = "tags",
         short = 't',
         long_help = "\
-        Limit search results even further by using a tag. To search just by tags use 'search '*' \
-                     --tag <tag>'"
+        Limit search results even further by using a tag. To search just by tags use 'search '*' --tag \
+                     <tag>'"
     )]
     pub(crate) tags: Vec<String>,
 

@@ -46,8 +46,7 @@ pub(crate) struct EditOpts {
         long = "rename",
         short = 'r',
         required_unless_present = "color",
-        long_help = "Rename a tag. If both color and rename are present, the rename is carried \
-                     out first"
+        long_help = "Rename a tag. If both color and rename are present, the rename is carried out first"
     )]
     pub(crate) rename: Option<String>,
 
@@ -103,7 +102,7 @@ impl App {
 
         let value = opts
             .value
-            .then(|| reg.value_by_name(&opts.tag, false))
+            .then(|| reg.value_by_name(&opts.tag))
             .transpose()
             .unwrap_or(None);
 
@@ -125,12 +124,10 @@ impl App {
             if let Some(mut old_tag) = tag {
                 let old_tag_color = old_tag.color();
                 if let Some(rename) = &opts.rename {
+                    // TODO: Check whether tag exists before doing all this stuff
                     match reg.update_tag_name(&old_tag, rename) {
                         Ok(new_tag) => {
-                            table.push(formatted_vec(
-                                self.fmt_tag(&old_tag),
-                                self.fmt_tag(&new_tag),
-                            ));
+                            table.push(formatted_vec(self.fmt_tag(&old_tag), self.fmt_tag(&new_tag)));
                         },
                         Err(e) => {
                             wutag_error!(
@@ -142,8 +139,8 @@ impl App {
                         },
                     }
 
-                    // This needs to be called in two places because once if both the tag name is
-                    // set and the color, the new tag name needs to have its color
+                    // This needs to be called in two places because if both the tag name
+                    // and the color are set, the new tag name needs to have its color
                     // changed
                     if let Some(color) = opts.color.as_ref() {
                         let rename = reg.tag_by_name(rename)?;
@@ -160,9 +157,9 @@ impl App {
                                 wutag_error!(
                                     "{} ==> {}: failed to update tag color: {}",
                                     self.fmt_tag(&old_tag),
-                                    old_tag.name().color(
-                                        color::parse_color(&color).unwrap_or(Color::BrightWhite)
-                                    ),
+                                    old_tag
+                                        .name()
+                                        .color(color::parse_color(&color).unwrap_or(Color::BrightWhite)),
                                     e
                                 );
                             },
@@ -179,19 +176,16 @@ impl App {
                                     .cell()
                                     .justify(Justify::Right),
                                 "==>".cell().justify(Justify::Center),
-                                self.fmt_tag(&new_tag)
-                                    .to_string()
-                                    .cell()
-                                    .justify(Justify::Left),
+                                self.fmt_tag(&new_tag).to_string().cell().justify(Justify::Left),
                             ]);
                         },
                         Err(e) => {
                             wutag_error!(
                                 "{} ==> {}: failed to update tag color: {}",
                                 self.fmt_tag(&old_tag),
-                                old_tag.name().color(
-                                    color::parse_color(&color).unwrap_or(Color::BrightWhite)
-                                ),
+                                old_tag
+                                    .name()
+                                    .color(color::parse_color(&color).unwrap_or(Color::BrightWhite)),
                                 e
                             );
                         },
@@ -214,9 +208,7 @@ impl App {
                 //     }
                 //
                 //     if re.is_match(&search_bytes) {
-                //         if !self.quiet {
-                //             println!("{}:", self.fmt_path(path));
-                //         }
+                //         qprint!(self, "{}:", self.fmt_path(path));
                 //     }
                 // }
 

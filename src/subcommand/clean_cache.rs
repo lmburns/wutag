@@ -1,7 +1,7 @@
 //! `clean-cache` - Remove all paths that are found within the `Registry`
 
 use super::App;
-use crate::{bold_entry, utils, wutag_error, wutag_info, xattr::tag::DirEntryExt};
+use crate::{bold_entry, g, r, utils, wutag_error, wutag_info, xattr::tag::DirEntryExt};
 use anyhow::Result;
 use colored::Colorize;
 
@@ -31,16 +31,13 @@ impl App {
             } else {
                 println!(
                     "{} {}: {}",
-                    "\u{2714}".green().bold(),
-                    "CACHE CLEARED".red().bold(),
-                    reg.path().clone().to_string_lossy().green().bold()
+                    g!("\u{2714}"),
+                    r!("CACHE CLEARED"),
+                    g!((reg.path().clone().to_string_lossy()))
                 );
             }
         } else {
-            wutag_info!(
-                "{} was not cleared",
-                reg.path().to_string_lossy().yellow().bold()
-            );
+            wutag_info!("{} was not cleared", reg.path().to_string_lossy().yellow().bold());
         }
 
         Ok(())

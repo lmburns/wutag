@@ -230,11 +230,7 @@ impl Txn<'_> {
 
     /// Retrieve a [`Value`] by its string name
     ///   - **Exact match** searching
-    pub(super) fn select_value_by_name<S: AsRef<str>>(
-        &self,
-        name: S,
-        ignore_case: bool,
-    ) -> Result<Value> {
+    pub(super) fn select_value_by_name<S: AsRef<str>>(&self, name: S, ignore_case: bool) -> Result<Value> {
         let name = name.as_ref();
         let debug = format!("querying for Value({})", name);
         log::debug!("{}", debug);
@@ -264,10 +260,7 @@ impl Txn<'_> {
         names: &[S],
         ignore_case: bool,
     ) -> Result<Values, Error> {
-        let names = names
-            .iter()
-            .map(|n| n.as_ref().to_owned())
-            .collect::<Vec<_>>();
+        let names = names.iter().map(|n| n.as_ref().to_owned()).collect::<Vec<_>>();
 
         let debug = format!("querying for Value by names [{}]", names.iter().join(","));
         log::debug!("{}", debug);

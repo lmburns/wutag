@@ -52,11 +52,7 @@ impl Registry {
     }
 
     /// Retrieve all [`File`]s that reside in the given directory
-    pub(crate) fn files_by_directory<P: AsRef<Path>>(
-        &self,
-        path: P,
-        recursive: bool,
-    ) -> Result<Files> {
+    pub(crate) fn files_by_directory<P: AsRef<Path>>(&self, path: P, recursive: bool) -> Result<Files> {
         self.txn_wrap(|txn| {
             let path = path.as_ref();
 
@@ -147,11 +143,7 @@ impl Registry {
         self.txn_wrap(|txn| txn.select_files_by_size(size))
     }
 
-    #[cfg(all(
-        feature = "file-flags",
-        target_family = "unix",
-        not(target_os = "macos")
-    ))]
+    #[cfg(all(feature = "file-flags", target_family = "unix", not(target_os = "macos")))]
     /// Retrieve all [`Files`] that have given flags
     pub(crate) fn files_by_flags<S: AsRef<str>>(&self, given: S) -> Result<Files> {
         self.txn_wrap(|txn| txn.select_files_by_flag(given))

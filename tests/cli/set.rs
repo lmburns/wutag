@@ -133,14 +133,7 @@ fn multiple_files_multiple_glob_exclude() {
 fn multiple_files_multiple_regex_exclude() {
     wutag_clear();
     wutag()
-        .args(&[
-            "--regex",
-            "-E",
-            "sampd/",
-            "set",
-            ".*\\.(zsh|bash)$",
-            "tag_mfmre",
-        ])
+        .args(&["--regex", "-E", "sampd/", "set", ".*\\.(zsh|bash)$", "tag_mfmre"])
         .assert()
         .success()
         .stdout(predicate::function(|f: &str| {
@@ -171,9 +164,7 @@ fn file_depth_deep_enough() {
         .args(&["-m", "4", "set", "*4deep.zsh", "tag_4deep_success"])
         .assert()
         .success()
-        .stdout(predicate::str::contains(expand_file!(
-            "sampd/d1/d2/4deep.zsh"
-        )));
+        .stdout(predicate::str::contains(expand_file!("sampd/d1/d2/4deep.zsh")));
 }
 
 // ============================== TYPES ================================
@@ -352,9 +343,7 @@ fn second_dir_glob() {
         ])
         .assert()
         .success()
-        .stdout(predicate::str::contains(expand_file_dir_two!(
-            "another_dir.rs"
-        )));
+        .stdout(predicate::str::contains(expand_file_dir_two!("another_dir.rs")));
 }
 
 #[test]
@@ -371,8 +360,6 @@ fn second_dir_regex() {
         ])
         .assert()
         .success()
-        .stdout(predicate::str::contains(expand_file_dir_two!(
-            "another_dir.rs"
-        )))
+        .stdout(predicate::str::contains(expand_file_dir_two!("another_dir.rs")))
         .stdout(predicate::str::contains(expand_file_dir_two!("d1/a.zsh")));
 }

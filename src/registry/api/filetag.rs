@@ -57,14 +57,19 @@ impl Registry {
         self.txn_wrap(|txn| txn.select_filetag_count_by_tagid(id))
     }
 
-    /// Retrieve all tracked [`FileTags`] matching a [`TagId`]
-    pub(crate) fn filetags_by_tagid(&self, id: TagId) -> Result<FileTags> {
-        self.txn_wrap(|txn| txn.select_filetags_by_tagid(id))
-    }
-
     /// Retrieve the number of [`FileTag`]s matching a [`ValueId`]
     pub(crate) fn filetag_count_by_valueid(&self, id: ValueId) -> Result<u32> {
         self.txn_wrap(|txn| txn.select_filetag_count_by_valueid(id))
+    }
+
+    /// Retrieve the [`FileTags`] matching a [`FileId`]
+    pub(crate) fn filetags_by_fileid(&self, id: FileId) -> Result<FileTags> {
+        self.txn_wrap(|txn| txn.select_filetags_by_fileid(id))
+    }
+
+    /// Retrieve all tracked [`FileTags`] matching a [`TagId`]
+    pub(crate) fn filetags_by_tagid(&self, id: TagId) -> Result<FileTags> {
+        self.txn_wrap(|txn| txn.select_filetags_by_tagid(id))
     }
 
     /// Retrieve the [`FileTags`] matching a [`ValueId`]
@@ -72,9 +77,9 @@ impl Registry {
         self.txn_wrap(|txn| txn.select_filetags_by_valueid(id))
     }
 
-    /// Retrieve the [`FileTags`] matching a [`FileId`]
-    pub(crate) fn filetags_by_fileid(&self, id: FileId) -> Result<FileTags> {
-        self.txn_wrap(|txn| txn.select_filetags_by_fileid(id))
+    /// Retrieve the `File`s that match the [`TagId`] and [`FileId`]
+    pub(crate) fn filetags_by_tagid_fileid(&self, tid: TagId, fid: FileId) -> Result<FileTags> {
+        self.txn_wrap(|txn| txn.select_filetags_by_tagid_fileid(tid, fid))
     }
 
     // ╭──────────────────────────────────────────────────────────╮
@@ -147,9 +152,19 @@ impl Registry {
         })
     }
 
+    /// Modify an existing [`FileTag`], changing its `value_id` to `0`
+    pub(crate) fn reset_filetag_valueid(&self, vid: ValueId, fid: FileId) -> Result<()> {
+        self.wrap_commit(|txn| txn.reset_filetag_valueid(vid, fid))
+    }
+
+    /// Modify an existing [`FileTag`], changing its `tag_id`
+    pub(crate) fn update_filetag_tagid(&self, src: TagId, dest: TagId, fid: FileId) -> Result<()> {
+        self.wrap_commit(|txn| txn.update_filetag_tagid(src, dest, fid))
+    }
+
     /// Modify an existing [`FileTag`], changing its `value_id`
-    pub(crate) fn update_filetag_valueid(&self, vid: ValueId, fid: FileId) -> Result<()> {
-        self.wrap_commit(|txn| txn.update_filetag_valueid(vid, fid))
+    pub(crate) fn update_filetag_valueid(&self, src: ValueId, dest: ValueId, fid: FileId) -> Result<()> {
+        self.wrap_commit(|txn| txn.update_filetag_valueid(src, dest, fid))
     }
 
     /// Copy one [`FileTag`] to another by [`TagId`]s

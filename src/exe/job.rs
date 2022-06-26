@@ -123,8 +123,7 @@ pub(crate) fn receiver(
                         let out_perm = Arc::clone(&out_perm);
                         let rx = Arc::clone(&shared_rx);
 
-                        results
-                            .push(s.spawn(move |_| self::process_single(&rx, &command, &out_perm)));
+                        results.push(s.spawn(move |_| self::process_single(&rx, &command, &out_perm)));
                     }
 
                     results
@@ -202,10 +201,12 @@ pub(crate) fn receiver(
                                 .collect::<Vec<_>>()
                                 .join(" ");
 
-                            if opts.garrulous && !app.quiet {
-                                println!("\t{}", tags);
-                            } else if !app.quiet {
-                                println!(": {}", tags);
+                            if !app.quiet {
+                                if opts.garrulous {
+                                    println!("\t{}", tags);
+                                } else {
+                                    println!(": {}", tags);
+                                }
                             }
                         }
                     },
@@ -221,12 +222,7 @@ pub(crate) fn receiver(
 
 /// Spawn a sender channel that filters results and `sends` them to
 /// [`receiver`]
-pub(crate) fn sender(
-    app: &Arc<App>,
-    opts: &Arc<SearchOpts>,
-    re: &Arc<Regex>,
-    tx: Sender<ChannelResult>,
-) {
+pub(crate) fn sender(app: &Arc<App>, opts: &Arc<SearchOpts>, re: &Arc<Regex>, tx: Sender<ChannelResult>) {
     let app = Arc::clone(app);
     let opts = Arc::clone(opts);
     let re = Arc::clone(re);
@@ -296,10 +292,7 @@ pub(crate) fn sender(
                         .send(ChannelResult::Entry((entry.path().clone(), entry.id())))
                         .is_err()
                     {
-                        wutag_error!(
-                            "failed to send result across threads: {}",
-                            entry.path().display()
-                        );
+                        wutag_error!("failed to send result across threads: {}", entry.path().display());
                         return;
                     }
                 }

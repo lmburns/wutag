@@ -42,11 +42,7 @@ use rusqlite::{
     Row,
 };
 
-#[cfg(all(
-    feature = "file-flags",
-    target_family = "unix",
-    not(target_os = "macos")
-))]
+#[cfg(all(feature = "file-flags", target_family = "unix", not(target_os = "macos")))]
 use e2p_fileflags::{FileFlags, Flags};
 
 // ╭──────────────────────────────────────────────────────────╮
@@ -108,11 +104,7 @@ pub(crate) struct File {
     /// Is the file or directory a symbolic link?
     is_symlink:    bool,
 
-    #[cfg(all(
-        feature = "file-flags",
-        target_family = "unix",
-        not(target_os = "macos")
-    ))]
+    #[cfg(all(feature = "file-flags", target_family = "unix", not(target_os = "macos")))]
     /// `e2fsprogs` file attributes
     e2pflags: FileFlag,
 }
@@ -148,11 +140,7 @@ impl File {
 
     inner_immute!(is_symlink, bool, false);
 
-    #[cfg(all(
-        feature = "file-flags",
-        target_family = "unix",
-        not(target_os = "macos")
-    ))]
+    #[cfg(all(feature = "file-flags", target_family = "unix", not(target_os = "macos")))]
     inner_immute!(e2pflags, FileFlag);
 
     fn clean_path<P: AsRef<Path>>(path: P, follow_links: bool) -> Result<PathBuf> {
@@ -229,10 +217,7 @@ impl File {
 
     /// Modify the [`File`]s modification time, due to file changes
     pub(crate) fn set_mtime(mut self, meta: &Metadata) -> Result<Self> {
-        self.mtime = convert_to_datetime(
-            meta.modified()
-                .context(fail!("getting modification time"))?,
-        );
+        self.mtime = convert_to_datetime(meta.modified().context(fail!("getting modification time"))?);
         Ok(self)
     }
 
@@ -316,10 +301,7 @@ impl File {
 
     /// Modify the [`File`]s [`Metadata`] attributes
     pub(crate) fn set_metadata(mut self, meta: &Metadata) -> Result<Self> {
-        self.mtime = convert_to_datetime(
-            meta.modified()
-                .context(fail!("getting modification time"))?,
-        );
+        self.mtime = convert_to_datetime(meta.modified().context(fail!("getting modification time"))?);
         self.ctime = convert_to_datetime(meta.created().context(fail!("getting created time"))?);
         self.mode = format!("{:o}", meta.permissions().mode())
             .parse::<u32>()
@@ -336,11 +318,7 @@ impl File {
     /// Modify the [`File`]s `ext4` flags, due to flag changes
     ///
     /// Note that symlinks are empty
-    #[cfg(all(
-        feature = "file-flags",
-        target_family = "unix",
-        not(target_os = "macos")
-    ))]
+    #[cfg(all(feature = "file-flags", target_family = "unix", not(target_os = "macos")))]
     pub(crate) fn set_e2pflags(mut self, flags: Flags) -> Self {
         self.e2pflags = FileFlag::from(flags);
         self
@@ -362,11 +340,7 @@ impl File {
             .set_is_dir(&path)
             .set_is_symlink(&path);
 
-        #[cfg(all(
-            feature = "file-flags",
-            target_family = "unix",
-            not(target_os = "macos")
-        ))]
+        #[cfg(all(feature = "file-flags", target_family = "unix", not(target_os = "macos")))]
         let f = f.set_e2pflags(file.flags().context(fail!("getting the file's flags"))?);
 
         // .set_mtime(&meta)?
@@ -591,8 +565,7 @@ macro_rules! mime_try {
                 let guess = builder
                     .path(path)
                     .metadata(
-                        fs::metadata(path)
-                            .context(fail!("getting metadata for: {}", path.display()))?,
+                        fs::metadata(path).context(fail!("getting metadata for: {}", path.display()))?,
                     )
                     .data(&fs::read(path).context(fail!("reading file: {}", path.display()))?)
                     .guess();
@@ -643,9 +616,7 @@ impl Default for MimeType {
 }
 
 mod test {
-    use super::{
-        super::super::common::utils::convert_to_datetime, File, FileId, FileIds, Mime, MimeType,
-    };
+    use super::{super::super::common::utils::convert_to_datetime, File, FileId, FileIds, Mime, MimeType};
     use std::{convert::TryFrom, os::unix::fs::MetadataExt, path::PathBuf, str::FromStr};
 
     #[test]

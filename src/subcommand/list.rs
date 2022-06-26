@@ -12,7 +12,7 @@ use crate::{
     global_opts,
     registry::{
         querier::Query,
-        types::{Sort, Tag},
+        types::{FileId, Sort, Tag},
     },
     utils::fmt,
     wutag_error,
@@ -49,9 +49,9 @@ pub(crate) enum ListObject {
             name = "unique",
             long = "unique",
             short = 'u',
-            long_help = "When using -cu, unique combinations of tags on files will be displayed. \
-                         When using -1u, unique individual tags will be displayed and counted. \
-                         When using -1cu, unique individual tags will be displayed one per line"
+            long_help = "When using -cu, unique combinations of tags on files will be displayed. When \
+                         using -1u, unique individual tags will be displayed and counted. When using \
+                         -1cu, unique individual tags will be displayed one per line"
         )]
         unique: bool,
 
@@ -69,10 +69,9 @@ pub(crate) enum ListObject {
             name = "one_per_line",
             long = "one-per-line",
             short = '1',
-            long_help = "Display one tag per line. Usually tags are displayed as unique \
-                         combinations to individual files. That is, if a file is is unique by \
-                         having two tags, those two tags will be displayed together and be \
-                         counted as one"
+            long_help = "Display one tag per line. Usually tags are displayed as unique combinations to \
+                         individual files. That is, if a file is is unique by having two tags, those two \
+                         tags will be displayed together and be counted as one"
         )]
         one_per_line: bool,
 
@@ -83,8 +82,7 @@ pub(crate) enum ListObject {
             short = 'b',
             conflicts_with = "no-count",
             long_help = "\
-            Use a border around the perimeter of the formatted tags, as well as in-between the \
-                         lines."
+            Use a border around the perimeter of the formatted tags, as well as in-between the lines."
         )]
         border: bool,
     },
@@ -125,8 +123,7 @@ pub(crate) enum ListObject {
             short = 'b',
             requires = "formatted",
             long_help = "\
-            Use a border around the perimeter of the formatted output, as well as in-between the \
-                         lines."
+            Use a border around the perimeter of the formatted output, as well as in-between the lines."
         )]
         border: bool,
 
@@ -186,8 +183,8 @@ pub(crate) struct ListOpts {
     #[clap(
         long = "raw",
         short = 'r',
-        long_help = "Output of command will not be colorized. This is equivalent to `NO_COLOR=1 \
-                     wutag <cmd>`"
+        long_help = "Output of command will not be colorized. This is equivalent to `NO_COLOR=1 wutag \
+                     <cmd>`"
     )]
     pub(crate) raw: bool,
 }
@@ -203,7 +200,7 @@ impl App {
         let reg = self.registry.lock().expect("poisoned lock");
 
         /// If the `raw` option is given, do not colorize
-        let raw = |t: &Tag, with_values: bool| {
+        let raw = |fid: &FileId, t: &Tag, with_values: bool| {
             let tag = if opts.raw {
                 t.name().clone()
             } else {
@@ -211,8 +208,7 @@ impl App {
             };
 
             if with_values {
-                // FIX: As of now, only one value per tag because of xattr ???
-                let values = reg.values_by_tagid(t.id()).map_or_else(
+                let values = reg.values_by_fileid_tagid(*fid, t.id()).map_or_else(
                     |_| String::from(""),
                     |values| {
                         format!(
@@ -275,8 +271,7 @@ impl App {
 
                     // Relative cannot be true without self.global
                     let path = if relative {
-                        pathdiff::diff_paths(file.path(), &self.base_dir)
-                            .unwrap_or_else(|| file.path())
+                        pathdiff::diff_paths(file.path(), &self.base_dir).unwrap_or_else(|| file.path())
                     } else {
                         file.path()
                     };
@@ -313,9 +308,9 @@ impl App {
 
                     if with_tags {
                         let tags = reg
-                            .tags_for_file(file)?
+                            .tags_by_fileid(file.id())?
                             .iter()
-                            .map(|t| raw(t, with_values))
+                            .map(|t| raw(&file.id(), t, with_values))
                             .collect::<Vec<_>>()
                             .join(" ");
 
@@ -372,15 +367,15 @@ impl App {
                     }
 
                     if one_per_line {
-                        reg.tags_for_file(file)?.iter().for_each(|tag| {
-                            utags.push(raw(tag, with_values));
+                        reg.tags_by_fileid(file.id())?.iter().for_each(|tag| {
+                            utags.push(raw(&file.id(), tag, with_values));
                         });
                     } else {
                         let tags = reg
-                            .tags_for_file(file)
+                            .tags_by_fileid(file.id())
                             .map(|tags| {
                                 tags.iter().fold(String::new(), |mut acc, t| {
-                                    acc.push_str(&format!("{} ", raw(t, with_values)));
+                                    acc.push_str(&format!("{} ", raw(&file.id(), t, with_values)));
                                     acc
                                 })
                             })
@@ -433,8 +428,7 @@ impl App {
                                 macro_rules! strip_ansi {
                                     ($cmp:ident) => {
                                         &String::from_utf8(
-                                            strip_ansi_escapes::strip($cmp.as_bytes())
-                                                .unwrap_or_default(),
+                                            strip_ansi_escapes::strip($cmp.as_bytes()).unwrap_or_default(),
                                         )
                                         .expect("invalid UTF-8")
                                         .to_ascii_lowercase()

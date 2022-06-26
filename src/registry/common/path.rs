@@ -35,17 +35,13 @@ impl FsPath {
 
     /// Dereference a symbolic link
     pub(crate) fn dereference(&self) -> Result<PathBuf> {
-        self.path
-            .canonicalize()
-            .context(failt!("canonicalize path"))
+        self.path.canonicalize().context(failt!("canonicalize path"))
     }
 
     /// Return the difference in the `CWD` and the [`FsPath`]
     pub(crate) fn complete_relative(&self) -> Result<PathBuf> {
         let path = self.dereference()?;
-        let cwd = env::current_dir()
-            .context(fail!("getting CWD"))?
-            .canonicalize()?;
+        let cwd = env::current_dir().context(fail!("getting CWD"))?.canonicalize()?;
 
         if path == cwd {
             return Ok(PathBuf::from("."));
@@ -58,9 +54,7 @@ impl FsPath {
     /// Return the relative path of the file to the `CWD`
     pub(crate) fn relative(&self) -> Result<PathBuf> {
         let path = self.dereference()?;
-        let cwd = env::current_dir()
-            .context(fail!("getting CWD"))?
-            .canonicalize()?;
+        let cwd = env::current_dir().context(fail!("getting CWD"))?.canonicalize()?;
 
         if path == cwd {
             return Ok(PathBuf::from("."));

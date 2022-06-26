@@ -67,8 +67,7 @@ impl App {
         match opts.shell {
             Shell::Zsh =>
                 for (needle, replacement) in comp_helper::ZSH_COMPLETION_REP {
-                    replace(&mut script, needle, replacement)
-                        .expect("Failed to replace completion script");
+                    replace(&mut script, needle, replacement).expect("Failed to replace completion script");
                 },
             _ => println!(),
         }
@@ -92,8 +91,7 @@ impl App {
                 bold_entry!(outdir)
             );
         } else {
-            write!(Box::new(io::stdout()), "{}", out)
-                .expect("unable to write completions to stdout");
+            write!(Box::new(io::stdout()), "{}", out).expect("unable to write completions to stdout");
         }
     }
 }

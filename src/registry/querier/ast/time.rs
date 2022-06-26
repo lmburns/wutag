@@ -29,8 +29,7 @@ impl TimeFilter {
 
         let time = exact
             .then(|| {
-                let time: Option<SystemTime> =
-                    humantime::Timestamp::from_str(str).ok().map(Into::into);
+                let time: Option<SystemTime> = humantime::Timestamp::from_str(str).ok().map(Into::into);
                 time
             })
             .unwrap_or_else(|| humantime::parse_duration(str).map(|dur| *tref - dur).ok())

@@ -445,8 +445,7 @@ where
             ccs.push(variables[i] | GE(WEAK) | 0.);
             ccs.push(match *constraint {
                 Constraint::Length(v) => variables[i] | EQ(MEDIUM) | f64::from(v),
-                Constraint::Percentage(v) =>
-                    variables[i] | EQ(WEAK) | (f64::from(v * area.width) / 100.0),
+                Constraint::Percentage(v) => variables[i] | EQ(WEAK) | (f64::from(v * area.width) / 100.0),
                 Constraint::Ratio(n, d) =>
                     variables[i] | EQ(WEAK) | (f64::from(area.width) * f64::from(n) / f64::from(d)),
                 Constraint::Min(v) => variables[i] | GE(WEAK) | f64::from(v),
@@ -459,9 +458,7 @@ where
                     .iter()
                     .fold(Expression::from_constant(0.), |acc, v| acc + *v)
                     | LE(REQUIRED)
-                    | f64::from(
-                        area.width - 2 - (self.column_spacing * (variables.len() as u16 - 1)),
-                    ),
+                    | f64::from(area.width - 2 - (self.column_spacing * (variables.len() as u16 - 1))),
             )
             .unwrap();
         solver.add_constraints(&ccs).unwrap();
@@ -469,11 +466,7 @@ where
         let mut solved_widths = vec![0; variables.len()];
         for &(var, value) in solver.fetch_changes() {
             let index = var_indices[&var];
-            let value = if value.is_sign_negative() {
-                0
-            } else {
-                value as u16
-            };
+            let value = if value.is_sign_negative() { 0 } else { value as u16 };
             solved_widths[index] = value;
         }
 
@@ -489,12 +482,9 @@ where
                     x,
                     y,
                     match self.header_alignment {
-                        Alignment::Left =>
-                            format!("{symbol:>width$}", symbol = " ", width = *w as usize),
-                        Alignment::Center =>
-                            format!("{symbol:^width$}", symbol = " ", width = *w as usize),
-                        Alignment::Right =>
-                            format!("{symbol:<width$}", symbol = " ", width = *w as usize),
+                        Alignment::Left => format!("{symbol:>width$}", symbol = " ", width = *w as usize),
+                        Alignment::Center => format!("{symbol:^width$}", symbol = " ", width = *w as usize),
+                        Alignment::Right => format!("{symbol:<width$}", symbol = " ", width = *w as usize),
                     },
                     *w as usize,
                     self.header_style,
@@ -503,12 +493,9 @@ where
                     x,
                     y,
                     match self.header_alignment {
-                        Alignment::Left =>
-                            format!("{symbol:>width$}", symbol = t, width = *w as usize),
-                        Alignment::Center =>
-                            format!("{symbol:^width$}", symbol = t, width = *w as usize),
-                        Alignment::Right =>
-                            format!("{symbol:<width$}", symbol = t, width = *w as usize),
+                        Alignment::Left => format!("{symbol:>width$}", symbol = t, width = *w as usize),
+                        Alignment::Center => format!("{symbol:^width$}", symbol = t, width = *w as usize),
+                        Alignment::Right => format!("{symbol:<width$}", symbol = t, width = *w as usize),
                     },
                     *w as usize,
                     self.header_style,
@@ -567,10 +554,7 @@ where
 
         // ⦾
         let unmark_highlight_symbol = {
-            let s = self
-                .unmark_highlight_symbol
-                .unwrap_or("\u{29be}")
-                .trim_end();
+            let s = self.unmark_highlight_symbol.unwrap_or("\u{29be}").trim_end();
             format!("{} ", s)
         };
 
@@ -614,13 +598,12 @@ where
                 let symbol = {
                     if Some(i) == state.current_selection().map(|s| s - state.offset) {
                         match state.mode {
-                            TableSelection::Multiple => {
+                            TableSelection::Multiple =>
                                 if state.marked.contains(&(i + state.offset)) {
                                     mark_highlight_symbol.to_string()
                                 } else {
                                     unmark_highlight_symbol.to_string()
-                                }
-                            },
+                                },
                             TableSelection::Single => highlight_symbol.to_string(),
                         }
                     } else if state.marked.contains(&(i + state.offset)) {
@@ -673,11 +656,7 @@ where
                                 buf.set_stringn(
                                     x,
                                     y + i as u16,
-                                    format!(
-                                        "{symbol:^width$}",
-                                        symbol = "",
-                                        width = area.width as usize
-                                    ),
+                                    format!("{symbol:^width$}", symbol = "", width = area.width as usize),
                                     remaining_width as usize,
                                     select_style(span.style),
                                 );
@@ -717,8 +696,7 @@ where
                                     x,
                                     y + i as u16,
                                     format!("{} ", span.content.as_ref()),
-                                    (remaining_width as usize)
-                                        .saturating_sub(" ".to_string().width()),
+                                    (remaining_width as usize).saturating_sub(" ".to_string().width()),
                                     should_highlight_tags(span.style),
                                 )
                             } else {

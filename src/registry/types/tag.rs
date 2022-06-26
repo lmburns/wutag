@@ -158,15 +158,26 @@ impl Tag {
         self.id = id;
     }
 
-    /// Change or set the [`Tag`] color
+    /// Change or set the [`Tag`] color with an `str`
     pub(crate) fn set_color<S: AsRef<str>>(&mut self, color: S) {
         let color = parse_color(&color).unwrap_or(Color::BrightWhite);
+        self.color = color;
+    }
+
+    /// Change or set the [`Tag`] color with an alread parsed [`Color`]
+    pub(crate) fn set_color_parsed(&mut self, color: Color) {
         self.color = color;
     }
 
     /// Change or set the [`Tag`] name
     pub(crate) fn set_name<T: AsRef<str>>(&mut self, name: T) {
         self.name = name.as_ref().to_string();
+    }
+
+    /// Create a new [`Tag`] from an existing one
+    pub(crate) fn copy_into(&mut self, tag: &Self) {
+        self.set_color_parsed(tag.color());
+        self.set_name(tag.name());
     }
 }
 

@@ -31,11 +31,7 @@ impl Version {
     /// Create a `Version` from specified values. Used for creating a `Version`
     /// from a database query
     pub(crate) const fn new(major: usize, minor: usize, patch: usize) -> Self {
-        Self {
-            major,
-            minor,
-            patch,
-        }
+        Self { major, minor, patch }
     }
 
     /// Create the `Version` struct from a string

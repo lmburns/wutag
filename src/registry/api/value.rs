@@ -56,10 +56,7 @@ impl Registry {
 
     /// Retrieve all [`Values`] matching the vector of [`ValueId`]s
     pub(crate) fn values_by_valueids(&self, ids: &[ValueId]) -> Result<Values> {
-        self.txn_wrap(|txn| {
-            txn.select_values_by_valueids(ids.to_vec())
-                .map_err(Into::into)
-        })
+        self.txn_wrap(|txn| txn.select_values_by_valueids(ids.to_vec()).map_err(Into::into))
     }
 
     /// Retrieve all unused [`Value`]s within the database
@@ -70,21 +67,14 @@ impl Registry {
 
     /// Retrieve a [`Value`] by its string name
     ///   - **Exact match** searching
-    pub(crate) fn value_by_name<S: AsRef<str>>(&self, name: S, ignore_case: bool) -> Result<Value> {
-        self.txn_wrap(|txn| txn.select_value_by_name(name, ignore_case))
+    pub(crate) fn value_by_name<S: AsRef<str>>(&self, name: S) -> Result<Value> {
+        self.txn_wrap(|txn| txn.select_value_by_name(name, false))
     }
 
     /// Retrieve all [`Value`]s matching a vector of names
     ///   - **Exact match** searching
-    pub(crate) fn values_by_names<S: AsRef<str>>(
-        &self,
-        names: &[S],
-        ignore_case: bool,
-    ) -> Result<Values> {
-        self.txn_wrap(|txn| {
-            txn.select_values_by_names(names, ignore_case)
-                .map_err(Into::into)
-        })
+    pub(crate) fn values_by_names<S: AsRef<str>>(&self, names: &[S], ignore_case: bool) -> Result<Values> {
+        self.txn_wrap(|txn| txn.select_values_by_names(names, ignore_case).map_err(Into::into))
     }
 
     /// Retrieve all [`Value`]s matching a [`TagId`]
@@ -148,6 +138,8 @@ impl Registry {
     }
 
     /// Remove a **only** a [`Value`] from the database
+    ///
+    /// The function `delete_value` will also removed untagged [`Files`]
     pub(crate) fn delete_value_only(&self, id: ValueId) -> Result<()> {
         self.wrap_commit(|txn| txn.delete_value(id).map_err(Into::into))
     }

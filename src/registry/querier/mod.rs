@@ -72,10 +72,7 @@ mod tests {
 
     #[test]
     fn match_func_names() {
-        let names = FUNC_NAMES
-            .iter()
-            .map(|f| format!("{}()", f))
-            .collect::<Vec<_>>();
+        let names = FUNC_NAMES.iter().map(|f| format!("{}()", f)).collect::<Vec<_>>();
 
         let mut names_w_args = FUNC_NAMES
             .iter()

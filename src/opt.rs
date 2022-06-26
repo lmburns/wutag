@@ -6,9 +6,7 @@ use cli_table::ColorChoice;
 use std::{env, path::PathBuf, str::FromStr};
 
 use crate::{
-    consts::{
-        AFTER_HELP, APP_ABOUT, APP_AUTHORS, DEFAULT_EDITOR, FILE_TYPE, OVERRIDE_HELP, RM_LONG_HELP,
-    },
+    consts::{AFTER_HELP, APP_ABOUT, APP_AUTHORS, DEFAULT_EDITOR, FILE_TYPE, OVERRIDE_HELP, RM_LONG_HELP},
     registry::types::Sort,
     subcommand::{
         clear::ClearOpts,
@@ -23,6 +21,7 @@ use crate::{
         search::SearchOpts,
         set::SetOpts,
         view::ViewOpts,
+        xattr::XattrOpts,
     },
     utils::parse_path,
 };
@@ -109,8 +108,8 @@ pub(crate) struct Opts {
         short = 'p',
         overrides_with = "full-path",
         requires = "fixed_string",
-        long_help = "Don't traverse into matching directories. If a directory needs to be \
-                     excluded, use --exclude=<dir>"
+        long_help = "Don't traverse into matching directories. If a directory needs to be excluded, use \
+                     --exclude=<dir>"
     )]
     pub(crate) prune: bool,
 
@@ -160,8 +159,8 @@ pub(crate) struct Opts {
         short = 'r',
         overrides_with = "regex",
         long_help = "\
-        Search for files using a regular expression instead of a glob. Only applies to subcommands \
-                     that take a pattern as a positional argument."
+        Search for files using a regular expression instead of a glob. Only applies to subcommands that \
+                     take a pattern as a positional argument."
     )]
     pub(crate) regex: bool,
 
@@ -188,8 +187,7 @@ pub(crate) struct Opts {
         overrides_with = "fixed-string",
         hide_short_help = true,
         long_help = "\
-        Search using a fixed-string. It is probably better to use the default pattern searching of \
-                     glob"
+        Search using a fixed-string. It is probably better to use the default pattern searching of glob"
     )]
     pub(crate) fixed_string: bool,
 
@@ -200,9 +198,9 @@ pub(crate) struct Opts {
         short = 'g',
         global = true,
         long_help = "\
-        Apply operation to files that are already tagged instead of traversing into local \
-                     directories or directories specified with '-d|--dir'. Only applies to \
-                     'search', 'list', 'rm', and 'clear'."
+        Apply operation to files that are already tagged instead of traversing into local directories or \
+                     directories specified with '-d|--dir'. Only applies to 'search', 'list', 'rm', and \
+                     'clear'."
     )]
     pub(crate) global: bool,
 
@@ -214,9 +212,9 @@ pub(crate) struct Opts {
         alias = "dereference",
         overrides_with = "follow",
         long_help = "\
-        Peform the action (set, remove, modify) on the dereferenced file. This option can also be \
-                     set in the configuration file. Overrides configuration and this option can \
-                     be overridden with '--no-follow'"
+        Peform the action (set, remove, modify) on the dereferenced file. This option can also be set in \
+                     the configuration file. Overrides configuration and this option can be overridden \
+                     with '--no-follow'"
     )]
     pub(crate) follow_links: bool,
 
@@ -279,9 +277,9 @@ pub(crate) struct Opts {
         takes_value = true,
         value_name = "extension",
         long_help = "\
-        Specify file extensions to match against (can be used multiple times) instead of using the \
-                     glob '*.{rs,go}' or the regex '.*.(rs|go)'. Used like: 'wutag -e rs set '*' \
-                     <tag>'. Can be used multiple times: e.g., -e rs -e go.
+        Specify file extensions to match against (can be used multiple times) instead of using the glob \
+                     '*.{rs,go}' or the regex '.*.(rs|go)'. Used like: 'wutag -e rs set '*' <tag>'. Can \
+                     be used multiple times: e.g., -e rs -e go.
         "
     )]
     /// Filter results by file extension
@@ -310,8 +308,8 @@ pub(crate) struct Opts {
         name = "quiet",
         long = "quiet",
         short = 'q',
-        long_help = "Do not display any output for any command. Used within the TUI but made \
-                     available to users"
+        long_help = "Do not display any output for any command. Used within the TUI but made available to \
+                     users"
     )]
     pub(crate) quiet: bool,
 
@@ -393,7 +391,7 @@ pub(crate) enum Command {
     /// Lists all available tags or files
     #[clap(
         aliases = &["ls", "l", "li", "lis"],
-        // override_usage = "wutag [OPTIONS] list [OPTIONS] <SUBCOMMAND> [OPTIONS]",
+        override_usage = "wutag [OPTIONS] list [OPTIONS] <SUBCOMMAND> [OPTIONS]",
         long_about = "\
             List all tagged files or tags under current directory if the global option \
             is not present, else list all tagged files or tags in the registry. Alias: ls"
@@ -403,7 +401,7 @@ pub(crate) enum Command {
     /// Set tag(s) and/or value(s) on results from a patterned query
     #[clap(
         aliases = &["set", "tag"],
-        override_usage = "wutag [OPTIONS] set [OPTIONS] <pattern> <tags>...",
+        override_usage = "wutag [OPTIONS] set [OPTIONS] <pattern> [tags]...",
         long_about = "Set tag(s) on files or value(s) on tag(s) that match a given pattern. \
             Alias: tag"
     )]
@@ -412,50 +410,54 @@ pub(crate) enum Command {
     /// Remove tag(s) from the files that match the provided pattern
     #[clap(
         aliases = &["remove", "del", "delete"],
-        override_usage = "wutag [OPTIONS] rm [OPTIONS] <pattern> <tags>...",
+        override_usage = "wutag [OPTIONS] rm [OPTIONS] <pattern> [tags]...",
         long_about = <String as AsRef<str>>::as_ref(&RM_LONG_HELP)
     )]
     Rm(RmOpts),
 
     /// Clears all tags of the files that match the provided pattern
-    #[clap(override_usage = "wutag [FLAG/OPTIONS] clear [FLAG/OPTIONS] <pattern>")]
+    #[clap(override_usage = "wutag [OPTIONS] clear [OPTIONS] <pattern>")]
     Clear(ClearOpts),
 
     /// Searches for files that have all of the provided 'tags'
     #[clap(
         aliases = &["query"],
-        override_usage = "wutag [FLAG/OPTIONS] search [FLAG/OPTIONS] <pattern>"
+        override_usage = "wutag [OPTIONS] search [OPTIONS] <pattern>"
     )]
     Search(SearchOpts),
 
     /// Copies tags from the specified file to files that match a pattern
     #[clap(
         aliases = &["copy"],
-        override_usage = "wutag [FLAG/OPTIONS] cp [FLAG/OPTIONS] <input_path> <pattern>"
+        override_usage = "wutag [OPTIONS] cp [OPTIONS] <input_path> <pattern>"
     )]
     Cp(CpOpts),
 
     /// View the results in an editor (optional pattern)
     #[clap(
         aliases = &["see", "view", "v"],
-        override_usage = "wutag [FLAG/OPTIONS] view [FLAG/OPTIONS] -p [<pattern>]"
+        override_usage = "wutag [OPTIONS] view [OPTIONS] -p [<pattern>]"
     )]
     View(ViewOpts),
 
     /// Edits a tag's color
     #[clap(
         aliases = &["edit", "e"],
-        override_usage = "wutag edit [FLAG/OPTIONS] <tag>"
+        override_usage = "wutag [OPTIONS] edit [OPTIONS] <tag>"
     )]
     Edit(EditOpts),
 
     /// Display information about the wutag environment
+    #[clap(
+        aliases = &["i", "in"],
+        override_usage = "wutag [OPTIONS] info [OPTIONS]"
+    )]
     Info(InfoOpts),
 
     /// Repair broken/missing/modified files in the registry
     #[clap(
         aliases = &["fix", "rep", "repa", "repai"],
-        override_usage = "wutag [FLAG/OPTIONS] repair [FLAG/OPTIONS]",
+        override_usage = "wutag [OPTIONS] repair [OPTIONS]",
         long_about = "\
         Repair broken file paths or update the file's hash in the registry. \
         Alias: fix"
@@ -465,7 +467,7 @@ pub(crate) enum Command {
     /// Merge tags or values onto resulting query
     #[clap(
         aliases = &["combine"],
-        override_usage = "wutag [FLAG/OPTIONS] merge [FLAG/OPTIONS] <tag> <pattern>"
+        override_usage = "wutag [OPTIONS] merge [OPTIONS] <dest> [source]..."
     )]
     Merge(MergeOpts),
 
@@ -473,14 +475,14 @@ pub(crate) enum Command {
     #[clap(
         display_order = 1000,
         aliases = &["comp", "completions", "print-completions"],
-        override_usage = "wutag print-completions --shell <shell> [FLAG/OPTIONS]"
+        override_usage = "wutag print-completions [OPTIONS] --shell <shell>"
     )]
     PrintCompletions(CompletionsOpts),
 
     /// Clean the cached tag registry
     #[clap(
         aliases = &["clean", "cache", "rm-cache"],
-        override_usage = "wutag [FLAG/OPTIONS] clean-cache",
+        override_usage = "wutag [OPTIONS] clean-cache [OPTIONS]",
         long_about = "Clean out the entire registry. Aliases: 'clean', 'cache', 'rm-cache'"
     )]
     CleanCache,
@@ -488,10 +490,13 @@ pub(crate) enum Command {
     /// Open a TUI to manage tags
     #[clap(
         aliases = &["tui"],
-        override_usage = "wutag [FLAG/OPTIONS] ui",
+        override_usage = "wutag [OPTIONS] ui [OPTIONS]",
         long_about = "Start the TUI to manage the registry interactively. Alias: tui"
     )]
     Ui,
+
+    /// Testing
+    Xattr(XattrOpts),
 }
 
 // ╭──────────────────────────────────────────────────────────╮
@@ -545,42 +550,3 @@ Valid values are:
         }
     }
 }
-
-// TODO: USE OR DELETE
-// "f", "file",
-// "d", "dir",
-// "l", "symlink",
-// "b", "block",
-// "c", "char",
-// "s", "socket",
-// "p", "fifo",
-// "x", "executable",
-// "e", "empty",
-
-// #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-// pub(crate) enum FileType {
-//     File,
-//     Directory,
-//     Symlink,
-//     BlockDevice,
-//     CharacterDevice,
-//     Socket,
-//     Fifo,
-//     Executable,
-//     Empty,
-// }
-
-// impl FromStr for FileType {
-//     type Err = anyhow::Error;
-//
-//     fn from_str(s: &str) -> Result<Self, anyhow::Error> {
-//         match s.to_ascii_lowercase().trim() {
-//             "file" | "f" => Ok(Self::Always),
-//             _ => Err(anyhow!(
-//                 "\
-// Valid values are:
-//     - auto
-//     - always
-//     - never", )), }
-//     }
-// }

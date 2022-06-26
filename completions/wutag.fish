@@ -35,6 +35,7 @@ complete -c wutag -n "__fish_use_subcommand" -f -a "merge" -d 'Merge tags or val
 complete -c wutag -n "__fish_use_subcommand" -f -a "print-completions" -d 'Prints completions for the specified shell to dir or stdout'
 complete -c wutag -n "__fish_use_subcommand" -f -a "clean-cache" -d 'Clean the cached tag registry'
 complete -c wutag -n "__fish_use_subcommand" -f -a "ui" -d 'Open a TUI to manage tags'
+complete -c wutag -n "__fish_use_subcommand" -f -a "xattr" -d 'Testing'
 complete -c wutag -n "__fish_seen_subcommand_from list; and not __fish_seen_subcommand_from tags; and not __fish_seen_subcommand_from files" -s r -l raw -d 'Output will not be colorized'
 complete -c wutag -n "__fish_seen_subcommand_from list; and not __fish_seen_subcommand_from tags; and not __fish_seen_subcommand_from files" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from list; and not __fish_seen_subcommand_from tags; and not __fish_seen_subcommand_from files" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
@@ -74,6 +75,7 @@ complete -c wutag -n "__fish_seen_subcommand_from rm" -s V -l values -d 'Indicat
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from rm" -s g -l global -d 'Apply operation to all tags and files instead of locally'
+complete -c wutag -n "__fish_seen_subcommand_from clear" -s a -l all -d 'Clear tag extended attributes from files, even if not in registry'
 complete -c wutag -n "__fish_seen_subcommand_from clear" -s V -l values -d 'Clear values from files instead of tags'
 complete -c wutag -n "__fish_seen_subcommand_from clear" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from clear" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
@@ -120,6 +122,7 @@ complete -c wutag -n "__fish_seen_subcommand_from info" -s v -l verbose -d 'Disp
 complete -c wutag -n "__fish_seen_subcommand_from info" -s g -l global -d 'Apply operation to all tags and files instead of locally'
 complete -c wutag -n "__fish_seen_subcommand_from repair" -s m -l manual -d 'Manually set a file\'s new location' -r -F
 complete -c wutag -n "__fish_seen_subcommand_from repair" -s d -l dry-run -d 'Do not actually update the registry'
+complete -c wutag -n "__fish_seen_subcommand_from repair" -s c -l crawl -d 'Crawl directory for files that have tags but aren\'t in the registry'
 complete -c wutag -n "__fish_seen_subcommand_from repair" -s R -l remove -d 'Remove files from the registry that no longer exist on the system'
 complete -c wutag -n "__fish_seen_subcommand_from repair" -s r -l restrict -d 'Restrict the repairing to the CWD, or the path given with -d'
 complete -c wutag -n "__fish_seen_subcommand_from repair" -s D -l directory -d 'Manually update a directory\'s contents'
@@ -127,6 +130,7 @@ complete -c wutag -n "__fish_seen_subcommand_from repair" -s u -l unmodified -d 
 complete -c wutag -n "__fish_seen_subcommand_from repair" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from repair" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from repair" -s g -l global -d 'Apply operation to all tags and files instead of locally'
+complete -c wutag -n "__fish_seen_subcommand_from merge" -s p -l pattern -d 'A glob, regular expression, or fixed-string pattern' -r -F
 complete -c wutag -n "__fish_seen_subcommand_from merge" -s V -l values -d 'Merge values from files instead of tags'
 complete -c wutag -n "__fish_seen_subcommand_from merge" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from merge" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
@@ -142,3 +146,6 @@ complete -c wutag -n "__fish_seen_subcommand_from clean-cache" -s g -l global -d
 complete -c wutag -n "__fish_seen_subcommand_from ui" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from ui" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from ui" -s g -l global -d 'Apply operation to all tags and files instead of locally'
+complete -c wutag -n "__fish_seen_subcommand_from xattr" -s h -l help -d 'Print help information'
+complete -c wutag -n "__fish_seen_subcommand_from xattr" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
+complete -c wutag -n "__fish_seen_subcommand_from xattr" -s g -l global -d 'Apply operation to all tags and files instead of locally'

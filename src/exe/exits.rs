@@ -50,10 +50,7 @@ mod test {
 
     #[test]
     fn success() {
-        assert_eq!(
-            generalize_exitcodes(vec![ExitCode::Success]),
-            ExitCode::Success
-        );
+        assert_eq!(generalize_exitcodes(vec![ExitCode::Success]), ExitCode::Success);
         assert_eq!(
             generalize_exitcodes(vec![ExitCode::Success, ExitCode::Success]),
             ExitCode::Success

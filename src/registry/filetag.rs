@@ -52,7 +52,7 @@ impl Txn<'_> {
     ///
     /// [`File`]: ../types/file/struct.File.html
     /// [`Tag`]: ../types/tag/struct.Tag.html
-    pub(super) fn filetag_exists(&self, ft: &FileTag) -> Result<bool, Error> {
+    pub(super) fn filetag_exists(&self, ft: &FileTag) -> Result<bool> {
         let debug = format!("checking if FileTag({}) exists", ft);
         log::debug!("{}", debug);
 
@@ -71,12 +71,6 @@ impl Txn<'_> {
         }
 
         Ok(false)
-
-        // Err(Error::NonexistentFileTag(
-        //     ft.file_id(),
-        //     ft.tag_id(),
-        //     ft.value_id(),
-        // ))
     }
 
     /// Retrieve the number of `File`-`Tag` pairs in the database
@@ -230,6 +224,24 @@ impl Txn<'_> {
         Ok(filetags.into())
     }
 
+    /// Retrieve the [`File`]s that match the [`TagId`] and [`FileId`]
+    pub(super) fn select_filetags_by_tagid_fileid(&self, tid: TagId, fid: FileId) -> Result<FileTags> {
+        let debug = format!("retrieving FileTags by TagId({}), FileId({})", tid, fid);
+        log::debug!("{}", debug);
+
+        let filetags: Vec<FileTag> = self
+            .query_vec(
+                "SELECT file_id, tag_id, value_id
+                FROM file_tag
+                WHERE tag_id = ?1 and file_id = ?2",
+                params![tid, fid],
+                |row| row.try_into().expect("failed to convert to `FileTag`"),
+            )
+            .context(fail!("{}", debug))?;
+
+        Ok(filetags.into())
+    }
+
     // ╭──────────────────────────────────────────────────────────╮
     // │                        Modifying                         │
     // ╰──────────────────────────────────────────────────────────╯
@@ -341,8 +353,8 @@ impl Txn<'_> {
         Ok(())
     }
 
-    /// Modify an existing [`FileTag`], changing its `value_id`
-    pub(super) fn update_filetag_valueid(&self, vid: ValueId, fid: FileId) -> Result<()> {
+    /// Modify an existing [`FileTag`], changing its `value_id` to `0`
+    pub(super) fn reset_filetag_valueid(&self, vid: ValueId, fid: FileId) -> Result<()> {
         let debug = format!("updating FileTag by ValueId({}) FileId({})", vid, fid);
         log::debug!("{}", debug);
 
@@ -357,12 +369,50 @@ impl Txn<'_> {
         Ok(())
     }
 
-    /// Copy [`FileTag`]s on one `Tag` to another
-    pub(super) fn copy_filetags(&self, source_tid: TagId, dest_tid: TagId) -> Result<()> {
+    /// Modify an existing [`FileTag`], changing its `tag_id`
+    pub(super) fn update_filetag_tagid(&self, src: TagId, dest: TagId, fid: FileId) -> Result<()> {
+        let debug = format!("updating FileTag FileId({}) Tag({}) => Tag({})", fid, src, dest);
+        log::debug!("{}", debug);
+
+        self.execute(
+            &format!(
+                "UPDATE file_tag
+                SET tag_id = {}, value_id = 0
+                WHERE tag_id = ?1 and file_id = ?2",
+                dest.id()
+            ),
+            params![src, fid],
+        )
+        .context(fail!("{}", debug))?;
+
+        Ok(())
+    }
+
+    /// Modify an existing [`FileTag`], changing its `value_id`
+    pub(super) fn update_filetag_valueid(&self, src: ValueId, dest: ValueId, fid: FileId) -> Result<()> {
         let debug = format!(
-            "copying FileTag by TagId({}) => TagId({})",
-            source_tid, dest_tid
+            "updating FileTag FileId({}) Value({}) => Value({})",
+            fid, src, dest
         );
+        log::debug!("{}", debug);
+
+        self.execute(
+            &format!(
+                "UPDATE file_tag
+                SET value_id = {}
+                WHERE value_id = ?1 and file_id = ?2",
+                dest.id()
+            ),
+            params![src, fid],
+        )
+        .context(fail!("{}", debug))?;
+
+        Ok(())
+    }
+
+    /// Copy [`FileTag`]s on one `Tag` to another
+    pub(super) fn copy_filetags(&self, src: TagId, dest: TagId) -> Result<()> {
+        let debug = format!("copying FileTag by TagId({}) => TagId({})", src, dest);
         log::debug!("{}", debug);
 
         self.execute(
@@ -370,7 +420,7 @@ impl Txn<'_> {
             SELECT file_id, ?2, value_id
             FROM file_tag
             WHERE tag_id = ?1",
-            params![source_tid, dest_tid],
+            params![src, dest],
         )
         .context(fail!("{}", debug))?;
 

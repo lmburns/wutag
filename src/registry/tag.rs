@@ -21,7 +21,7 @@ use super::{
     },
     Error, Txn,
 };
-use crate::{fail, wutag_error};
+use crate::{fail, g, gs, r, wutag_error};
 use anyhow::{anyhow, Context, Result};
 use colored::{Color, Colorize};
 use itertools::Itertools;
@@ -78,7 +78,7 @@ impl Txn<'_> {
 
     /// Retrieve the number of files a given [`Tag`] is associated with
     pub(super) fn select_tag_count_by_id(&self, id: TagId) -> Result<u32> {
-        let debug = format!("retrieving Tag count by TagId({})", id);
+        let debug = format!("retrieving Tag count by TagId({})", gs!(id));
         log::debug!("{}", debug);
 
         let count: u32 = self
@@ -114,7 +114,7 @@ impl Txn<'_> {
 
     /// Retrieve the [`Tag`] that matches the given [`TagId`]
     pub(super) fn select_tag(&self, id: TagId) -> Result<Tag> {
-        let debug = format!("querying for Tag by TagId({})", id);
+        let debug = format!("querying for Tag by TagId({})", gs!(id));
         log::debug!("{}", debug);
 
         let tag: Tag = self
@@ -135,7 +135,7 @@ impl Txn<'_> {
 
     /// Select [`Tags`] that are only connected to one [`File`]
     pub(super) fn select_unique_tags_by_file(&self, fid: FileId) -> Result<Tags> {
-        let debug = format!("selecting unique Tags for File({})", fid);
+        let debug = format!("selecting unique Tags for File({})", gs!(fid));
         log::debug!("{}", debug);
 
         let tags: Vec<Tag> = self
@@ -205,7 +205,7 @@ impl Txn<'_> {
 
     /// Retrieve all [`Tag`]s matching a [`ValueId`]
     pub(super) fn select_tags_by_valueid(&self, vid: ValueId) -> Result<Tags> {
-        let debug = format!("querying for Tags b ValueId({})", vid);
+        let debug = format!("querying for Tags by ValueId({})", gs!(vid));
         log::debug!("{}", debug);
 
         let tags: Vec<Tag> = self
@@ -228,7 +228,7 @@ impl Txn<'_> {
 
     /// Retrieve all [`Tag`]s matching a [`FileId`]
     pub(super) fn select_tags_by_fileid(&self, fid: FileId) -> Result<Tags> {
-        let debug = format!("querying for Tags by FileId({})", fid);
+        let debug = format!("querying for Tags by FileId({})", gs!(fid));
         log::debug!("{}", debug);
 
         let tags: Vec<Tag> = self
@@ -251,7 +251,7 @@ impl Txn<'_> {
 
     /// Retrieve all [`Tag`]s matching a [`FileId`] and [`ValueId`]
     pub(super) fn select_tags_by_fileid_valueid(&self, fid: FileId, vid: ValueId) -> Result<Tags> {
-        let debug = format!("querying for Tags by FileId({}), ValueId({})", fid, vid);
+        let debug = format!("querying for Tags by FileId({}), ValueId({})", gs!(fid), gs!(vid));
         log::debug!("{}", debug);
         let tags: Vec<Tag> = self
             .query_vec(
@@ -273,7 +273,10 @@ impl Txn<'_> {
 
     /// Retrieve all [`Tag`]s that match the vector of [`TagId`]s
     pub(super) fn select_tags_by_ids(&self, ids: &[TagId]) -> Result<Tags, Error> {
-        let debug = format!("querying for Tags by TagIds [{}]", ids.iter().join(","));
+        let debug = format!(
+            "querying for Tags by TagIds [{}]",
+            ids.iter().map(|id| gs!(id)).join(",")
+        );
         log::debug!("{}", debug);
 
         if ids.is_empty() {
@@ -303,13 +306,9 @@ impl Txn<'_> {
 
     /// Retrieve the [`Tag`] matching the [`Tag`] name
     ///   - **Exact match** searching
-    pub(super) fn select_tag_by_name<S: AsRef<str>>(
-        &self,
-        name: S,
-        ignore_case: bool,
-    ) -> Result<Tag> {
+    pub(super) fn select_tag_by_name<S: AsRef<str>>(&self, name: S, ignore_case: bool) -> Result<Tag> {
         let name = name.as_ref();
-        let debug = format!("querying for Tags by name {}", name);
+        let debug = format!("querying for Tags by name {}", r!(name));
         log::debug!("{}", debug);
 
         let mut builder = SqlBuilder::new_initial(
@@ -338,11 +337,11 @@ impl Txn<'_> {
         names: &[S],
         ignore_case: bool,
     ) -> Result<Tags, Error> {
-        let names = names
-            .iter()
-            .map(|n| n.as_ref().to_owned())
-            .collect::<Vec<_>>();
-        let debug = format!("querying for Tags by names [{}]", names.iter().join(","));
+        let names = names.iter().map(|n| n.as_ref().to_owned()).collect::<Vec<_>>();
+        let debug = format!(
+            "querying for Tags by names [{}]",
+            names.iter().map(|name| r!(name)).join(",")
+        );
         log::debug!("{}", debug);
 
         if names.is_empty() {
@@ -374,38 +373,122 @@ impl Txn<'_> {
         Ok(tags.into())
     }
 
+    // TODO: Remove this if not needed
     /// Select a [`File`]'s' [`Tag`]s
     pub(super) fn select_files_tags(&self, file: &File) -> Result<Tags> {
-        let debug = format!("querying for Tags by File({})", file.name());
+        let fname = file.name();
+        let debug = format!("querying for Tags by File({})", r!(fname));
         log::debug!("{}", debug);
 
         let tags: Vec<Tag> = self
             .query_vec(
-                "SELECT *
+                "SELECT id, name, color
                      FROM   tag
                      WHERE
                       id IN (
-                        SELECT
-                          tag_id
-                        FROM
-                          file_tag
-                        WHERE
-                          file_id = (
-                            SELECT
-                              id
-                            FROM
-                              file
-                            WHERE
-                              name = ?1
-                              AND directory = ?2
+                        SELECT tag_id FROM file_tag
+                        WHERE file_id = (
+                            SELECT id FROM file
+                            WHERE name = ?1
+                            AND directory = ?2
                           )
                       )",
-                params![file.name(), file.directory()],
+                params![fname, file.directory()],
                 |row| row.try_into().expect("failed to convert to `Tag`"),
             )
             .context(fail!("{}", debug))?;
 
         Ok(tags.into())
+    }
+
+    /// Check whether the given [`FileId`] has a [`Tag`]
+    ///
+    /// * `fid`: the [`File`] to check
+    /// * `tid`: the [`Tag`] to check on the [`File`]
+    pub(super) fn file_has_tag(&self, fid: FileId, tid: TagId) -> Result<bool> {
+        let debug = format!("checking whether FileId({}) has TagId({})", gs!(fid), gs!(tid));
+        log::debug!("{}", debug);
+
+        let count: u32 = self
+            .select(
+                "SELECT count(*)
+                    FROM tag
+                    WHERE
+                      id IN (
+                        SELECT tag_id FROM file_tag
+                        WHERE
+                          file_id = ?1
+                          AND tag_id = ?2
+                      )",
+                params![fid, tid],
+                |row| row.get(0),
+            )
+            .context(fail!("{}", debug))?;
+
+        if count > 0 {
+            return Ok(true);
+        }
+
+        Ok(false)
+    }
+
+    /// Check whether the given [`FileId`] has a [`Value`]
+    ///
+    /// * `fid`: the [`File`] to check
+    /// * `vid`: the [`Value`] to check on the [`File`]
+    pub(super) fn file_has_value(&self, fid: FileId, vid: ValueId) -> Result<bool> {
+        let debug = format!("checking whether FileId({}) has ValueId({})", gs!(fid), gs!(vid));
+        log::debug!("{}", debug);
+
+        let count: u32 = self
+            .select(
+                "SELECT count(*)
+                    FROM value
+                    WHERE
+                      id IN (
+                        SELECT value_id FROM file_tag
+                        WHERE
+                          file_id = ?1
+                          AND value_id = ?2
+                      )",
+                params![fid, vid],
+                |row| row.get(0),
+            )
+            .context(fail!("{}", debug))?;
+
+        if count > 0 {
+            return Ok(true);
+        }
+
+        Ok(false)
+    }
+
+    /// Check whether the given [`Tag`] has a [`Value`]
+    pub(super) fn tag_has_value(&self, tid: TagId, vid: ValueId) -> Result<bool> {
+        let debug = format!("checking whether TagId({}) has ValueId({})", gs!(tid), gs!(vid));
+        log::debug!("{}", debug);
+
+        let count: u32 = self
+            .select(
+                "SELECT count(*)
+                    FROM tag
+                    WHERE
+                      id IN (
+                        SELECT tag_id FROM file_tag
+                        WHERE
+                          value_id = ?1
+                          AND tag_id = ?2
+                      )",
+                params![vid, tid],
+                |row| row.get(0),
+            )
+            .context(fail!("{}", debug))?;
+
+        if count > 0 {
+            return Ok(true);
+        }
+
+        Ok(false)
     }
 
     /// Retrieve all [`Tag`]s matching a pattern
@@ -465,7 +548,7 @@ impl Txn<'_> {
     /// Insert a [`Tag`] into the database
     pub(super) fn insert_tag<S: AsRef<str>>(&self, name: S, color: Color) -> Result<Tag> {
         let name = name.as_ref();
-        log::debug!("inserting Tag({}, {})", name, color.to_fg_str());
+        log::debug!("inserting Tag({}, {})", r!(name), color.to_fg_str());
 
         let res = self.insert(
             "INSERT INTO tag (name, color)
@@ -479,7 +562,7 @@ impl Txn<'_> {
     /// Update the [`Tag`] by changing its' name
     pub(super) fn update_tag_name<S: AsRef<str>>(&self, id: TagId, new: S) -> Result<Tag, Error> {
         let name = new.as_ref();
-        let debug = format!("updating name Tag({}) => Tag({})", id, name);
+        let debug = format!("updating name Tag({}) => Tag({})", gs!(id), r!(name));
         log::debug!("{}", debug);
 
         let affected = self
@@ -502,7 +585,7 @@ impl Txn<'_> {
 
     /// Update the [`Tag`] by changing its' color
     pub(super) fn update_tag_color(&self, id: TagId, color: Color) -> Result<Tag, Error> {
-        let debug = format!("updating color Tag({}) => Tag({})", id, color.to_fg_str());
+        let debug = format!("updating color Tag({}) => Tag({})", gs!(id), color.to_fg_str());
         log::debug!("{}", debug);
 
         let affected = self
@@ -525,7 +608,7 @@ impl Txn<'_> {
 
     /// Remove a [`Tag`] from the database
     pub(super) fn delete_tag(&self, id: TagId) -> Result<(), Error> {
-        let debug = format!("deleting Tag by TagId({})", id);
+        let debug = format!("deleting Tag by TagId({})", gs!(id));
         log::debug!("{}", debug);
 
         let affected = self
@@ -547,7 +630,8 @@ impl Txn<'_> {
 
     /// Delete a [`File`]'s' [`Tag`]s
     pub(super) fn delete_files_tags(&self, file: &File) -> Result<()> {
-        let debug = format!("deleting Tags by File({})", file.name());
+        let fname = file.name();
+        let debug = format!("deleting Tags by File({})", r!(fname));
         log::debug!("{}", debug);
 
         self.execute(
@@ -569,7 +653,7 @@ impl Txn<'_> {
                       AND directory = ?2
                   )
               )",
-            params![file.name(), file.directory()],
+            params![fname, file.directory()],
         )
         .context(fail!("{}", debug))?;
 

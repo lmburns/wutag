@@ -8,12 +8,7 @@ macro_rules! err {
     };
     ($prefix:expr, $err:ident, $entry:ident) => {{
         let err = fmt_err($err);
-        eprintln!(
-            "{}{} - {}",
-            $prefix,
-            err,
-            $entry.path().to_string_lossy().bold()
-        );
+        eprintln!("{}{} - {}", $prefix, err, $entry.path().to_string_lossy().bold());
     }};
 }
 
@@ -96,6 +91,16 @@ macro_rules! wutag_debug {
     })
 }
 
+/// Only print messages if the user has not enabled `quiet` mode
+#[macro_export]
+macro_rules! qprint {
+    ($quiet:tt, $($err:tt)*) => ({
+        if !$quiet.quiet {
+            println!("{}", format!($($err)*));
+        }
+    })
+}
+
 /// Custom `assert` message that allows for a more customized string with
 /// variables used in the formatted string. It does require the message to be a
 /// string literal like the standard library's `assert`
@@ -120,6 +125,38 @@ macro_rules! cassert_eq {
             }
         }
     });
+}
+
+// Color can be disabled the same way that [`colored`] can
+
+/// *Red literal*
+/// Make text red and bold
+/// Used to display errors and debugging messages
+#[macro_export]
+macro_rules! r {
+    ($t:tt) => {
+        $t.red().bold()
+    };
+}
+
+/// *Green literal*
+/// Make text green and bold. Used more so with ID's
+/// Used to display errors and debugging messages
+#[macro_export]
+macro_rules! g {
+    ($t:tt) => {
+        $t.green().bold()
+    };
+}
+
+/// *Green string allocation*
+/// Make text green and bold.
+/// Same as macro `g`, except this works with string literals
+#[macro_export]
+macro_rules! gs {
+    ($t:tt) => {
+        $t.to_string().green().bold()
+    };
 }
 
 /// Make a path display in bold letters

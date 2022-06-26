@@ -216,11 +216,7 @@ impl Txn<'_> {
     pub(crate) fn select_ids(&self) -> Result<Vec<ID>> {
         log::debug!("querying for File IDs");
 
-        Ok(self
-            .select_files(None)?
-            .iter()
-            .map(File::id)
-            .collect::<Vec<_>>())
+        Ok(self.select_files(None)?.iter().map(File::id).collect::<Vec<_>>())
     }
 
     /// Retrieve a specific [`File`] within the database
@@ -345,11 +341,9 @@ impl Txn<'_> {
         let params = params![dir];
 
         let files: Vec<File> = self
-            .query_vec(
-                &s,
-                if recursive { recursive_params } else { params },
-                |row| row.try_into().expect("failed to convert to `File`"),
-            )
+            .query_vec(&s, if recursive { recursive_params } else { params }, |row| {
+                row.try_into().expect("failed to convert to `File`")
+            })
             .context(fail!("{}", debug))?;
 
         Ok(files.into())
@@ -740,11 +734,7 @@ impl Txn<'_> {
         Ok(files.into())
     }
 
-    #[cfg(all(
-        feature = "file-flags",
-        target_family = "unix",
-        not(target_os = "macos")
-    ))]
+    #[cfg(all(feature = "file-flags", target_family = "unix", not(target_os = "macos")))]
     /// Retrieve all [`Files`] matching an `e2p_fileflag`
     pub(super) fn select_files_by_flag<S: AsRef<str>>(&self, given: S) -> Result<Files> {
         let given = given.as_ref();

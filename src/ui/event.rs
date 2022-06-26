@@ -154,9 +154,7 @@ impl EventHandler {
             thread::spawn(move || {
                 let mut last_tick = Instant::now();
                 loop {
-                    let timeout = tick_rate
-                        .checked_sub(last_tick.elapsed())
-                        .unwrap_or(tick_rate);
+                    let timeout = tick_rate.checked_sub(last_tick.elapsed()).unwrap_or(tick_rate);
 
                     // crossbeam_channel::select! {}
 
@@ -199,8 +197,7 @@ impl EventHandler {
                                     Code::Null => Key::Null,
                                     Code::Enter => Key::Char('\n'),
                                 };
-                                tx.send(Event::Input(key))
-                                    .expect("failed to send key event");
+                                tx.send(Event::Input(key)).expect("failed to send key event");
                                 thread::sleep(Duration::from_millis(1));
                             },
                             _ => {

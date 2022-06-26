@@ -13,6 +13,7 @@ pub(crate) mod rm;
 pub(crate) mod search;
 pub(crate) mod set;
 pub(crate) mod view;
+pub(crate) mod xattr;
 
 // TODO: Virtual filesystem
 // TODO: Repair command (crawl a given directory looking for xattrs)
@@ -208,8 +209,8 @@ impl App {
                             f
                         } else {
                             wutag_error!(
-                                "invalid format found in your configuration. Valid values: toml, \
-                                 yaml, yml, json. Using the default: toml"
+                                "invalid format found in your configuration. Valid values: toml, yaml, \
+                                 yml, json. Using the default: toml"
                             );
                             "toml"
                         }
@@ -272,6 +273,7 @@ impl App {
             Command::Search(ref opts) => self.search(opts),
             Command::Set(opts) => self.set(&opts)?,
             Command::View(ref opts) => self.view(opts)?,
+            Command::Xattr(ref opts) => self.xattr(opts)?,
 
             #[cfg(feature = "ui")]
             Command::Ui => {
@@ -350,8 +352,7 @@ impl App {
                 .map_or(false, |f| f.file_type().is_symlink())
         {
             log::debug!("{}: resolving symlink", entry.display());
-            return fs::canonicalize(entry)
-                .context(format!("{}: failed to canonicalize", entry.display()));
+            return fs::canonicalize(entry).context(format!("{}: failed to canonicalize", entry.display()));
         }
 
         Ok(entry.to_path_buf())
@@ -410,14 +411,9 @@ where
     use std::io::{Error as IoError, ErrorKind};
     let tagval = format!("expected {}", "tag=value".green());
 
-    let pos = s.find('=').ok_or_else(|| {
-        format!(
-            "{}: no `{}` found in `{}`",
-            tagval,
-            "=".yellow(),
-            s.magenta()
-        )
-    })?;
+    let pos = s
+        .find('=')
+        .ok_or_else(|| format!("{}: no `{}` found in `{}`", tagval, "=".yellow(), s.magenta()))?;
 
     let tag = &s[..pos];
     let value = &s[pos + 1..];
@@ -431,3 +427,13 @@ where
         (false, false) => Ok((tag.parse()?, value.parse()?)),
     }
 }
+
+/// Used to display errors for unknown tags.
+/// They cannot be formatted with `fmt_tag` because the do not exist
+macro_rules! red_entry {
+    ($t:ident) => {
+        $t.name().red().bold()
+    };
+}
+
+pub(crate) use red_entry;

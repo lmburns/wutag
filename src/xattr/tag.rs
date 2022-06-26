@@ -25,11 +25,16 @@ pub(crate) trait DirEntryExt {
     /// If the `xattr` cannot be removed
     /// If the new `xattr` cannot be set
     fn untag(&self, tag: &Tag) -> XResult<()>;
-    /// Remove a [`Tag`] to a given path
+    /// Update a [`Tag`] for a given path
     ///
     /// # Errors
     /// If the tag doesn't exist or the `xattr` cannot be removed
     fn update_tag(&self, tag: &Tag) -> XResult<()>;
+    /// Replace a [`Tag`] with another [`Tag`]
+    ///
+    /// # Errors
+    /// If the tag doesn't exist or the `xattr` cannot be removed
+    fn replace_tag(&self, replaced: &Tag, replacer: &Tag) -> XResult<()>;
     /// Retrieve a [`Tag`] from a given path
     ///
     /// # Errors
@@ -79,6 +84,12 @@ impl DirEntryExt for &PathBuf {
     fn update_tag(&self, tag: &Tag) -> XResult<()> {
         tag.remove_from(self)?;
         tag.save_to(self)
+    }
+
+    #[inline]
+    fn replace_tag(&self, replaced: &Tag, replacer: &Tag) -> XResult<()> {
+        replaced.remove_from(self)?;
+        replacer.save_to(self)
     }
 
     #[inline]
@@ -134,6 +145,12 @@ impl DirEntryExt for ignore::DirEntry {
     fn update_tag(&self, tag: &Tag) -> XResult<()> {
         tag.remove_from(self.path())?;
         tag.save_to(self.path())
+    }
+
+    #[inline]
+    fn replace_tag(&self, replaced: &Tag, replacer: &Tag) -> XResult<()> {
+        replaced.remove_from(self.path())?;
+        replacer.save_to(self.path())
     }
 
     #[inline]

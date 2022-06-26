@@ -80,11 +80,7 @@ fn txn_insert_file() -> Result<()> {
         assert_eq!(ret.directory(), &env::current_dir()?.display().to_string());
         assert_eq!(ret.mime(), &MimeType::from_str("text/markdown")?);
 
-        #[cfg(all(
-            feature = "file-flags",
-            target_family = "unix",
-            not(target_os = "macos")
-        ))]
+        #[cfg(all(feature = "file-flags", target_family = "unix", not(target_os = "macos")))]
         {
             use crate::filesystem::ext4::FileFlag;
             use e2p_fileflags::Flags;
@@ -164,9 +160,8 @@ fn txn_select_files_by() -> Result<()> {
         first_idx!(files);
 
         // === hash ===
-        let files = txn.select_files_by_hash(
-            hash::blake3_hash(mfile.display().to_string(), None)?.to_string(),
-        )?;
+        let files =
+            txn.select_files_by_hash(hash::blake3_hash(mfile.display().to_string(), None)?.to_string())?;
         first_idx!(files);
 
         // === Mime ===
@@ -214,11 +209,7 @@ fn txn_select_files_by() -> Result<()> {
         assert!(files.is_empty());
 
         // === e2pflags ===
-        #[cfg(all(
-            feature = "file-flags",
-            target_family = "unix",
-            not(target_os = "macos")
-        ))]
+        #[cfg(all(feature = "file-flags", target_family = "unix", not(target_os = "macos")))]
         {
             let files = txn.select_files_by_flag("e")?;
             first_idx!(files);
@@ -237,11 +228,7 @@ fn txn_select_files_by() -> Result<()> {
     })
 }
 
-#[cfg(all(
-    feature = "file-flags",
-    target_family = "unix",
-    not(target_os = "macos")
-))]
+#[cfg(all(feature = "file-flags", target_family = "unix", not(target_os = "macos")))]
 #[test]
 fn txn_file_flags() -> Result<()> {
     use e2p_fileflags::{FileFlags, Flags};
@@ -255,19 +242,13 @@ fn txn_file_flags() -> Result<()> {
 
         mfile.set_flags(Flags::COMPR | flags)?;
 
-        let new = txn.update_file(
-            og_files.get(0).context(fail!("getting first idx"))?.id,
-            &mfile,
-        )?;
+        let new = txn.update_file(og_files.get(0).context(fail!("getting first idx"))?.id, &mfile)?;
 
         let new_files = txn.select_files_by_flag("e")?;
         assert!(og_files != new_files);
 
         let selmore = txn.select_files_by_flag("ec")?;
-        let e2pf = selmore
-            .get(0)
-            .context(fail!("getting first idx"))?
-            .e2pflags();
+        let e2pf = selmore.get(0).context(fail!("getting first idx"))?.e2pflags();
         assert!(e2pf.has_extent(), "file does not have extent flag");
         assert!(e2pf.has_compressed(), "file does not have compressed flag");
 
@@ -544,10 +525,7 @@ fn txn_value_tests() -> Result<()> {
 
         let val2 = txn.insert_value("vvvv")?;
         assert_eq!(txn.select_values()?.len(), 2);
-        assert_eq!(
-            txn.select_value_count()? as usize,
-            txn.select_values()?.len()
-        );
+        assert_eq!(txn.select_value_count()? as usize, txn.select_values()?.len());
 
         let val3 = txn.insert_value("foo")?;
         let ret = txn.update_value(val3.id(), "bar")?;
@@ -555,10 +533,7 @@ fn txn_value_tests() -> Result<()> {
 
         let val4 = txn.insert_value("zaf")?;
         txn.delete_value(val4.id())?;
-        assert!(!txn
-            .select_values()
-            .iter()
-            .any(|v| v.contains_name("zaf", true)));
+        assert!(!txn.select_values().iter().any(|v| v.contains_name("zaf", true)));
 
         let vals = txn.select_values_by_names(&["value1", "vvvv"], true)?;
         assert_eq!(vals.len(), 2);

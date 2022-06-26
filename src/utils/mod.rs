@@ -91,8 +91,8 @@ pub(crate) fn replace(haystack: &mut String, needle: &str, repl: &str) -> Result
         Ok(())
     } else {
         Err(anyhow!(
-            "\n====================\nFailed to find text\n====================n{}\n\u{2026}in \
-             completion script:\n{}",
+            "\n====================\nFailed to find text\n====================n{}\n\u{2026}in completion \
+             script:\n{}",
             needle,
             haystack
         ))
@@ -105,9 +105,7 @@ pub(crate) fn collect_stdin_paths(base: &Path) -> Vec<PathBuf> {
     BufReader::new(io::stdin())
         .lines()
         .map(|p| PathBuf::from(p.expect("failed to get path from `stdin`").as_str()).lexiclean())
-        .filter(|path| {
-            fs::symlink_metadata(path).is_ok() || fs::symlink_metadata(base.join(path)).is_ok()
-        })
+        .filter(|path| fs::symlink_metadata(path).is_ok() || fs::symlink_metadata(base.join(path)).is_ok())
         .map(|p| base.join(p))
         .collect::<Vec<_>>()
 }
@@ -159,11 +157,7 @@ pub(crate) fn prompt<S: AsRef<str>, P: AsRef<Path>>(prompt: S, path: P) -> bool 
 }
 
 /// Print completions to `stdout` or to a file
-pub(crate) fn gen_completions<G: Generator>(
-    gen: G,
-    app: &mut clap::Command,
-    cursor: &mut Cursor<Vec<u8>>,
-) {
+pub(crate) fn gen_completions<G: Generator>(gen: G, app: &mut clap::Command, cursor: &mut Cursor<Vec<u8>>) {
     generate(gen, app, APP_NAME, cursor);
 }
 
@@ -235,8 +229,7 @@ pub(crate) fn regex_builder(
         .build()
         .map_err(|e| {
             anyhow!(
-                "{}\n\nInvalid pattern. You can use --regex to use a regular expression instead \
-                 of a glob.",
+                "{}\n\nInvalid pattern. You can use --regex to use a regular expression instead of a glob.",
                 e.to_string()
             )
         })
@@ -283,18 +276,13 @@ pub(crate) fn reg_walker(app: &Arc<App>) -> Result<ignore::WalkParallel> {
         .max_depth(app.max_depth);
 
     if let Some(ignore) = &app.ignores {
-        let tmp = wfs::create_temp_ignore(&move |file: &mut fs::File| {
-            wfs::write_temp_ignore(ignore, file)
-        });
+        let tmp = wfs::create_temp_ignore(&move |file: &mut fs::File| wfs::write_temp_ignore(ignore, file));
         let res = walker.add_ignore(&tmp);
         scopeguard::defer!(wfs::delete_file(tmp));
         match res {
             Some(ignore::Error::Partial(_)) | None => (),
             Some(err) => {
-                wutag_error!(
-                    "Problem with ignore pattern in wutag.yml: {}",
-                    err.to_string()
-                );
+                wutag_error!("Problem with ignore pattern in wutag.yml: {}", err.to_string());
             },
         }
     }
@@ -367,8 +355,7 @@ where
                     let fname: Cow<OsStr> = path.file_name().map_or_else(
                         || {
                             unreachable!(
-                                "Invalid file reached: {}. Please do not use '/' or '..' as \
-                                 filenames.",
+                                "Invalid file reached: {}. Please do not use '/' or '..' as filenames.",
                                 path.to_string_lossy()
                             )
                         },

@@ -281,12 +281,7 @@ impl Expr {
     }
 
     /// Create a `Conditional` expression
-    pub(crate) fn conditional(
-        kind: ConditionalKind,
-        cond: Self,
-        if_true: Self,
-        if_false: Self,
-    ) -> Self {
+    pub(crate) fn conditional(kind: ConditionalKind, cond: Self, if_true: Self, if_false: Self) -> Self {
         Self::Conditional(ConditionalExpr {
             kind,
             cond: Box::new(cond),
@@ -297,58 +292,42 @@ impl Expr {
 
     /// Create a `value` `FunctionCall` expression
     pub(crate) fn value_func(arg: Self) -> Self {
-        Self::FunctionCall(Function::Value {
-            term: Box::new(arg),
-        })
+        Self::FunctionCall(Function::Value { term: Box::new(arg) })
     }
 
     /// Create a `tag` `FunctionCall` expression
     pub(crate) fn tag_func(arg: Self) -> Self {
-        Self::FunctionCall(Function::Tag {
-            term: Box::new(arg),
-        })
+        Self::FunctionCall(Function::Tag { term: Box::new(arg) })
     }
 
     /// Create a `hash` `FunctionCall` expression
     pub(crate) fn hash_func(arg: Self) -> Self {
-        Self::FunctionCall(Function::Hash {
-            term: Box::new(arg),
-        })
+        Self::FunctionCall(Function::Hash { term: Box::new(arg) })
     }
 
     /// Create an `mtime` `FunctionCall` expression
     pub(crate) fn mtime_func(arg: Self) -> Self {
-        Self::FunctionCall(Function::Mtime {
-            term: Box::new(arg),
-        })
+        Self::FunctionCall(Function::Mtime { term: Box::new(arg) })
     }
 
     /// Create an `ctime` `FunctionCall` expression
     pub(crate) fn ctime_func(arg: Self) -> Self {
-        Self::FunctionCall(Function::Mtime {
-            term: Box::new(arg),
-        })
+        Self::FunctionCall(Function::Mtime { term: Box::new(arg) })
     }
 
     /// Create a `uid` [`FunctionCall`] expression
     pub(crate) fn uid_func(arg: Self) -> Self {
-        Self::FunctionCall(Function::Uid {
-            term: Box::new(arg),
-        })
+        Self::FunctionCall(Function::Uid { term: Box::new(arg) })
     }
 
     /// Create a `gid` [`FunctionCall`] expression
     pub(crate) fn gid_func(arg: Self) -> Self {
-        Self::FunctionCall(Function::Gid {
-            term: Box::new(arg),
-        })
+        Self::FunctionCall(Function::Gid { term: Box::new(arg) })
     }
 
     /// Create a `print` `FunctionCall` expression
     pub(crate) fn print_func(arg: Self) -> Self {
-        Self::FunctionCall(Function::Print {
-            term: Box::new(arg),
-        })
+        Self::FunctionCall(Function::Print { term: Box::new(arg) })
     }
 
     /// Create a [`Search`] object to search for exact keyword(s)

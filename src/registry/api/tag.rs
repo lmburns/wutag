@@ -107,6 +107,21 @@ impl Registry {
         self.txn_wrap(|txn| txn.select_files_tags(file))
     }
 
+    /// Check whether the given [`FileId`] has a [`Tag`]
+    pub(crate) fn file_has_tag(&self, fid: FileId, tid: TagId) -> Result<bool> {
+        self.txn_wrap(|txn| txn.file_has_tag(fid, tid))
+    }
+
+    /// Check whether the given [`FileId`] has a [`Value`]
+    pub(crate) fn file_has_value(&self, fid: FileId, vid: ValueId) -> Result<bool> {
+        self.txn_wrap(|txn| txn.file_has_value(fid, vid))
+    }
+
+    /// Check whether the given [`Tag`] has a [`Value`]
+    pub(crate) fn tag_has_value(&self, tid: TagId, vid: ValueId) -> Result<bool> {
+        self.txn_wrap(|txn| txn.tag_has_value(tid, vid))
+    }
+
     // ╭──────────────────────────────────────────────────────────╮
     // │                     Pattern Matching                     │
     // ╰──────────────────────────────────────────────────────────╯
@@ -196,6 +211,13 @@ impl Registry {
 
             Ok(new_tag)
         })
+    }
+
+    /// Remove a **only** a [`Tag`] from the database.
+    ///
+    /// The function `delete_tag` will also removed untagged [`Files`]
+    pub(crate) fn delete_tag_only(&self, id: TagId) -> Result<()> {
+        self.wrap_commit(|txn| txn.delete_tag(id).map_err(Into::into))
     }
 
     /// Delete a [`Tag`] matching the given [`TagId`]

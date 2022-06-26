@@ -539,9 +539,7 @@ macro_rules! validate_name {
         pub(crate) fn validate_name<S: AsRef<str>>(name: S) -> anyhow::Result<()> {
             use anyhow::anyhow;
             use regex::Regex;
-            use $crate::registry::querier::{
-                COMPARISON_OPS, CONDITIONAL_RES, FUNC_NAMES, OTHER_RES,
-            };
+            use $crate::registry::querier::{COMPARISON_OPS, CONDITIONAL_RES, FUNC_NAMES, OTHER_RES};
 
             /// Color the items in an array
             macro_rules! color_arr {
@@ -566,8 +564,8 @@ macro_rules! validate_name {
 
             if CONDITIONAL_RES.iter().copied().any(|r| r == name) {
                 return Err(anyhow!(
-                    "invalid {} was given: {}\n\nValid {} must not contain any conditional \
-             keywords:\n\t- {}",
+                    "invalid {} was given: {}\n\nValid {} must not contain any conditional keywords:\n\t- \
+             {}",
                     $type,
                     name,
                     $type_plural,
@@ -578,8 +576,8 @@ macro_rules! validate_name {
             let reg = $crate::regex!(&format!("({})\\(.*\\)", FUNC_NAMES.join("|")));
             if reg.is_match(&name) {
                 return Err(anyhow!(
-                    "invalid {} was given: {}\n\nValid {} must not contain any of the following \
-             function names, proceeded by an opening and closing parenethesis:\n\t- {}",
+                    "invalid {} was given: {}\n\nValid {} must not contain any of the following function \
+             names, proceeded by an opening and closing parenethesis:\n\t- {}",
                     $type,
                     name,
                     $type_plural,

@@ -393,11 +393,7 @@ fn parse_xattrs(input: &[u8]) -> Vec<String> {
 
     for (i, ch) in input.iter().enumerate() {
         if *ch == b'\0' {
-            keys.push(
-                OsStr::from_bytes(&input[start..i])
-                    .to_string_lossy()
-                    .to_string(),
-            );
+            keys.push(OsStr::from_bytes(&input[start..i]).to_string_lossy().to_string());
             start += i - start + 1;
         }
     }
@@ -408,10 +404,9 @@ fn parse_xattrs(input: &[u8]) -> Vec<String> {
 #[test]
 fn parses_xattrs_from_raw() {
     let raw = &[
-        117, 115, 101, 114, 46, 107, 101, 121, 49, 0, 117, 115, 101, 114, 46, 107, 101, 121, 50, 0,
-        117, 115, 101, 114, 46, 107, 101, 121, 51, 0, 115, 101, 99, 117, 114, 105, 116, 121, 46,
-        116, 101, 115, 116, 105, 110, 103, 0, 119, 117, 116, 97, 103, 46, 118, 97, 108, 117, 101,
-        0,
+        117, 115, 101, 114, 46, 107, 101, 121, 49, 0, 117, 115, 101, 114, 46, 107, 101, 121, 50, 0, 117,
+        115, 101, 114, 46, 107, 101, 121, 51, 0, 115, 101, 99, 117, 114, 105, 116, 121, 46, 116, 101, 115,
+        116, 105, 110, 103, 0, 119, 117, 116, 97, 103, 46, 118, 97, 108, 117, 101, 0,
     ];
 
     let attrs = parse_xattrs(raw);

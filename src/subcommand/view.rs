@@ -6,7 +6,7 @@ use crate::{
     consts::DEFAULT_EDITOR,
     filesystem::{create_temp_path, osstr_to_bytes},
     oregistry::EntryData,
-    regex,
+    qprint, regex,
     utils::{crawler, fmt, glob_builder, regex_builder},
     wutag_error, wutag_fatal, wutag_info,
     xattr::tag_old::{clear_tags, DirEntryExt, Tag},
@@ -17,8 +17,7 @@ use colored::Colorize;
 use lexiclean::Lexiclean;
 use regex::Captures;
 use std::{
-    borrow::Cow, collections::BTreeMap, ffi::OsStr, fs, io::Write, path::PathBuf, process,
-    sync::Arc,
+    borrow::Cow, collections::BTreeMap, ffi::OsStr, fs, io::Write, path::PathBuf, process, sync::Arc,
 };
 
 #[derive(Args, Debug, Clone, PartialEq, Default)]
@@ -59,8 +58,8 @@ pub(crate) struct ViewOpts {
         long = "tags",
         short = 't',
         long_help = "\
-            Limit search results even further by using a tag as a filter. Can search just for tags \
-                     by not using '--pattern'"
+            Limit search results even further by using a tag as a filter. Can search just for tags by not \
+                     using '--pattern'"
     )]
     pub(crate) tags: Vec<String>,
 
@@ -70,8 +69,8 @@ pub(crate) struct ViewOpts {
         long = "pattern",
         short = 'p',
         long_help = "\
-        This pattern is optional. If no pattern is given, all files that have a tag will be shown \
-                     in the editor. Otherwise, the results that match the pattern will be shown."
+        This pattern is optional. If no pattern is given, all files that have a tag will be shown in the \
+                     editor. Otherwise, the results that match the pattern will be shown."
     )]
     pub(crate) pattern: Option<String>,
 }
@@ -163,8 +162,7 @@ impl App {
                 }
 
                 if re.is_match(&search_bytes) {
-                    if !opts.tags.is_empty() && !self.oregistry.entry_has_any_tags(*id, &opts.tags)
-                    {
+                    if !opts.tags.is_empty() && !self.oregistry.entry_has_any_tags(*id, &opts.tags) {
                         continue;
                     }
 
@@ -233,9 +231,7 @@ impl App {
             .write(true)
             .create(true)
             .open(&tmp_path)
-            .unwrap_or_else(|_| {
-                wutag_fatal!("could not create tmp file: '{}'", tmp_path.display())
-            });
+            .unwrap_or_else(|_| wutag_fatal!("could not create tmp file: '{}'", tmp_path.display()));
 
         tmp_file
             .write_all(tag_file.as_bytes())
@@ -259,13 +255,9 @@ impl App {
                 re.replace(&cloned, |caps: &Captures| {
                     format!(
                         "{}: {}",
-                        caps.get(1).map_or(String::from(""), |m| m
-                            .as_str()
-                            .red()
-                            .bold()
-                            .to_string()),
-                        caps.get(2)
-                            .map_or(String::from(""), |m| m.as_str().to_string())
+                        caps.get(1)
+                            .map_or(String::from(""), |m| m.as_str().red().bold().to_string()),
+                        caps.get(2).map_or(String::from(""), |m| m.as_str().to_string())
                     )
                 })
             } else {
@@ -277,36 +269,32 @@ impl App {
         let serialized_format = |format: &String| -> BTreeMap<String, Vec<String>> {
             match format.as_str() {
                 #[cfg(feature = "toml-backend")]
-                "toml" =>
-                    toml::from_slice(&fs::read(&tmp_path).expect("failed to read tagged file"))
+                "toml" => toml::from_slice(&fs::read(&tmp_path).expect("failed to read tagged file"))
+                    .unwrap_or_else(|e| {
+                        wutag_fatal!(
+                            "toml deserialization failed:\n\t{} {}",
+                            "+".red().bold(),
+                            color_file(e.to_string())
+                        )
+                    }),
+                "json" => serde_json::from_slice(&fs::read(&tmp_path).expect("failed to read tagged file"))
+                    .unwrap_or_else(|e| {
+                        wutag_fatal!(
+                            "json deserialization failed:\n\t{} {}",
+                            "+".red().bold(),
+                            color_file(e.to_string())
+                        )
+                    }),
+                #[cfg(feature = "yaml-backend")]
+                "yaml" | "yml" =>
+                    serde_yaml::from_slice(&fs::read(&tmp_path).expect("failed to read tagged file"))
                         .unwrap_or_else(|e| {
                             wutag_fatal!(
-                                "toml deserialization failed:\n\t{} {}",
+                                "yaml deserialization failed:\n\t{} {}",
                                 "+".red().bold(),
                                 color_file(e.to_string())
                             )
                         }),
-                "json" => serde_json::from_slice(
-                    &fs::read(&tmp_path).expect("failed to read tagged file"),
-                )
-                .unwrap_or_else(|e| {
-                    wutag_fatal!(
-                        "json deserialization failed:\n\t{} {}",
-                        "+".red().bold(),
-                        color_file(e.to_string())
-                    )
-                }),
-                #[cfg(feature = "yaml-backend")]
-                "yaml" | "yml" => serde_yaml::from_slice(
-                    &fs::read(&tmp_path).expect("failed to read tagged file"),
-                )
-                .unwrap_or_else(|e| {
-                    wutag_fatal!(
-                        "yaml deserialization failed:\n\t{} {}",
-                        "+".red().bold(),
-                        color_file(e.to_string())
-                    )
-                }),
                 _ => unreachable!(),
             }
         };
@@ -354,12 +342,7 @@ impl App {
                     wutag_error!(
                         "{} {} does not exist",
                         "X".red().bold(),
-                        self.base_dir
-                            .join(local)
-                            .display()
-                            .to_string()
-                            .magenta()
-                            .bold()
+                        self.base_dir.join(local).display().to_string().magenta().bold()
                     );
                     continue;
                 };
@@ -372,9 +355,7 @@ impl App {
                     self.oregistry.clear_entry(id);
                 }
 
-                if !self.quiet {
-                    println!("{}:", self.fmt_path(entry));
-                }
+                qprint!(self, "{}:", self.fmt_path(entry));
 
                 match entry.has_tags() {
                     Ok(has_tags) =>
@@ -409,9 +390,7 @@ impl App {
                         let entry = EntryData::new(entry)?;
                         let id = self.oregistry.add_or_update_entry(entry);
                         self.oregistry.tag_entry(&tag, id);
-                        if !self.quiet {
-                            println!("\t{} {}", "+".bold().green(), fmt::tag_old(&tag));
-                        }
+                        qprint!(self, "\t{} {}", "+".bold().green(), fmt::tag_old(&tag));
                     }
                 }
             }

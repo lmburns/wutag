@@ -17,8 +17,7 @@ use nom::{
     branch::alt,
     bytes::complete::{escaped, is_a, is_not, take, take_while},
     character::complete::{
-        char, digit1, hex_digit1, line_ending, multispace0, multispace1, none_of, one_of, satisfy,
-        space0,
+        char, digit1, hex_digit1, line_ending, multispace0, multispace1, none_of, one_of, satisfy, space0,
     },
     combinator::{eof, map, map_res, not, opt, peek, recognize, value, verify},
     multi::{fold_many0, many0, many1, many_till, separated_list0, separated_list1},
@@ -101,8 +100,7 @@ fn ws_no_lt(i: Span) -> IResult<Span, Span> {
 #[inline]
 fn word(i: Span) -> IResult<Span, Span> {
     recognize(many0(
-        is_not(" \t\r\n\'\\\"(){}=<>!&|?:,")
-            .or(is_a(" \"\'/(){}=<>!&|?:,*").preceded_by(tag("\\"))),
+        is_not(" \t\r\n\'\\\"(){}=<>!&|?:,").or(is_a(" \"\'/(){}=<>!&|?:,*").preceded_by(tag("\\"))),
     ))(i)
 }
 
@@ -420,14 +418,10 @@ fn opt_arg_single(i: Span) -> IResult<Span, Expr> {
 /// Allows for an empty call where no arguments are passed
 #[allow(dead_code)]
 fn opt_arg_arr(i: Span) -> IResult<Span, Vec<Expr>> {
-    collect_separated_terminated(
-        opt_expr.terminated(space0),
-        tag(",").terminated(space0),
-        tag(")"),
-    )
-    .or(tag(")").value(vec![]))
-    .preceded_by(tag("(").terminated(space0))
-    .parse(i)
+    collect_separated_terminated(opt_expr.terminated(space0), tag(",").terminated(space0), tag(")"))
+        .or(tag(")").value(vec![]))
+        .preceded_by(tag("(").terminated(space0))
+        .parse(i)
 }
 
 /// Parses an argument array to be used for a function
@@ -672,11 +666,7 @@ fn parse_regex(i: Span) -> IResult<Span, Search> {
             ),
         ),
         pair(
-            delimited(
-                tag("/").and(multispace0),
-                ident_slash.delimited_by(ws0),
-                tag("/"),
-            ),
+            delimited(tag("/").and(multispace0), ident_slash.delimited_by(ws0), tag("/")),
             many1(
                 recognize(preceded(tag("-"), one_of("iu")).or(one_of("riImuUxl")))
                     .map(|s: Span| (*s.fragment()).to_string()),
@@ -842,38 +832,35 @@ fn tern_expr(i: Span) -> IResult<Span, Expr> {
     let query = rest.extra;
 
     let res = fold_many0(
-        pair(
-            ws0.precedes(with_position(tag("?"))),
-            opt(ws0.precedes(cmp_expr)),
-        )
-        .map(|(p_tern, opt)| {
-            opt.unwrap_or_else(|| {
-                query
-                    .log_error("expected an operand for the `?` operator (true clause)")
-                    .add_range(p_tern.range, "- leftover '?'")
-                    .add_solution("Remove the `?` operator")
-                    .add_solution("Add a second operand")
-                    .print_err();
+        pair(ws0.precedes(with_position(tag("?"))), opt(ws0.precedes(cmp_expr)))
+            .map(|(p_tern, opt)| {
+                opt.unwrap_or_else(|| {
+                    query
+                        .log_error("expected an operand for the `?` operator (true clause)")
+                        .add_range(p_tern.range, "- leftover '?'")
+                        .add_solution("Remove the `?` operator")
+                        .add_solution("Add a second operand")
+                        .print_err();
 
-                Expr::Error
+                    Expr::Error
+                })
             })
-        })
-        .and(opt(pair(
-            ws0.precedes(with_position(tag(":"))),
-            opt(ws0.precedes(cmp_expr)),
-        )
-        .map(|(p_tern, opt)| {
-            opt.unwrap_or_else(|| {
-                query
-                    .log_error("expected an operand for the `:` operator (false clause)")
-                    .add_range(p_tern.range, "- leftover ':'")
-                    .add_solution("Remove the `:` operator")
-                    .add_solution("Add a second operand")
-                    .print_err();
+            .and(opt(pair(
+                ws0.precedes(with_position(tag(":"))),
+                opt(ws0.precedes(cmp_expr)),
+            )
+            .map(|(p_tern, opt)| {
+                opt.unwrap_or_else(|| {
+                    query
+                        .log_error("expected an operand for the `:` operator (false clause)")
+                        .add_range(p_tern.range, "- leftover ':'")
+                        .add_solution("Remove the `:` operator")
+                        .add_solution("Add a second operand")
+                        .print_err();
 
-                Expr::Error
-            })
-        }))),
+                    Expr::Error
+                })
+            }))),
         || parsed.clone(),
         |cond, (tr, fa)| {
             if let Some(fals) = fa {

@@ -252,10 +252,11 @@ impl Registry {
         let v = Version::build().context(fail!("querying for Version"))?;
         log::debug!("updating Version: {}", v);
 
-        self.execute(
-            "UPDATE version SET major = ?1, minor = ?2, patch = ?3",
-            params![v.major(), v.minor(), v.patch()],
-        )
+        self.execute("UPDATE version SET major = ?1, minor = ?2, patch = ?3", params![
+            v.major(),
+            v.minor(),
+            v.patch()
+        ])
         .context(fail!("updating Version"))?;
 
         Ok(())

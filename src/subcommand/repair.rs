@@ -1,11 +1,12 @@
-// TODO: Manual
-// TODO: confirm all options work
+// TODO: Confirm all options work
+// TODO: Crawl directory, find items with tags not in directory
 #![allow(unused)]
 
 use super::App;
 use crate::{
     bold_entry, fail,
     filesystem::contained_path,
+    g, r,
     registry::{
         common::{hash, utils::convert_to_datetime},
         types::{file::FileIds, File, Tag},
@@ -38,6 +39,14 @@ pub(crate) struct RepairOpts {
     #[clap(name = "dry_run", long = "dry-run", short = 'd')]
     pub(crate) dry_run: bool,
 
+    // XXX: Implement
+    /// Crawl directory for files that have tags but aren't in the registry
+    #[clap(name = "crawl", long = "crawl", short = 'c')]
+    pub(crate) crawl: bool,
+
+    // /// Repair files that have tags but are not in the registry
+    // #[clap(name = "dangling", long = "dangling", short = 'd')]
+    // pub(crate) dangling: bool,
     /// Remove files from the registry that no longer exist on the system
     #[clap(name = "remove", long = "remove", short = 'R')]
     pub(crate) remove: bool,
@@ -67,8 +76,8 @@ pub(crate) struct RepairOpts {
         long = "directory",
         short = 'D',
         requires = "manual",
-        long_help = "Instead of updating a single file, all the files in a directory can be \
-                     updated at once. Requires --manual"
+        long_help = "Instead of updating a single file, all the files in a directory can be updated at \
+                     once. Requires --manual"
     )]
     pub(crate) directory: bool,
 
@@ -111,10 +120,7 @@ impl App {
                             log::debug!("{}: not found on filesystem", to.display());
                         },
                         io::ErrorKind::PermissionDenied => {
-                            wutag_error!(
-                                "{}: user does not have correct permissions",
-                                bold_entry!(to)
-                            );
+                            wutag_error!("{}: user does not have correct permissions", bold_entry!(to));
                         },
                         e => {
                             log::debug!("{}: metadata error: {}", to.display(), e);
@@ -194,7 +200,7 @@ impl App {
                             if fs::metadata(new_path).is_ok() {
                                 manual_tbl.push(vec![
                                     self.fmt_path(file_path).cell(),
-                                    "=>".green().bold().cell().justify(Justify::Center),
+                                    g!("=>").cell().justify(Justify::Center),
                                     self.fmt_path(new_path).cell(),
                                 ]);
 
@@ -214,12 +220,11 @@ impl App {
                         }
                         manual_tbl.push(vec![
                             self.fmt_path(db_from.path()).cell(),
-                            "=>".green().bold().cell().justify(Justify::Center),
+                            g!("=>").cell().justify(Justify::Center),
                             self.fmt_path(to).cell(),
                         ]);
                     },
-                    Err(e) =>
-                        wutag_fatal!("{}: not found in registry (from path)", bold_entry!(from)),
+                    Err(e) => wutag_fatal!("{}: not found in registry (from path)", bold_entry!(from)),
                 }
             }
 
@@ -340,11 +345,7 @@ impl App {
                 }
             }
 
-            println!(
-                "{}: updated fingerprint ({})",
-                self.fmt_path(path),
-                "M".red().bold()
-            );
+            println!("{}: updated fingerprint ({})", self.fmt_path(path), r!("M"));
         }
 
         if opts.unmodified {
@@ -359,11 +360,7 @@ impl App {
                     }
                 }
 
-                println!(
-                    "{}: updated fingerprint ({})",
-                    self.fmt_path(path),
-                    "U".green().bold()
-                );
+                println!("{}: updated fingerprint ({})", self.fmt_path(path), g!("U"));
             }
         }
 

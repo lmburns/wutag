@@ -328,12 +328,7 @@ impl Registry {
     where
         P: Params,
     {
-        log::debug!(
-            "{}({}): {}",
-            "execute".green().bold(),
-            "Registry".purple(),
-            sql
-        );
+        log::debug!("{}({}): {}", "execute".green().bold(), "Registry".purple(), sql);
 
         self.conn
             .execute(sql, params)
@@ -363,20 +358,14 @@ impl Registry {
     where
         P: Params,
     {
-        log::debug!(
-            "{}({}): {}",
-            "insert".green().bold(),
-            "Registry".purple(),
-            sql
-        );
+        log::debug!("{}({}): {}", "insert".green().bold(), "Registry".purple(), sql);
 
         let mut stmt = self
             .conn
             .prepare_cached(sql)
             .context(failt!("prepare sql: {}", sql))?;
 
-        stmt.insert(params)
-            .context(fail!("inserting item: {}", sql))?;
+        stmt.insert(params).context(fail!("inserting item: {}", sql))?;
 
         Ok(())
     }
@@ -393,20 +382,14 @@ impl Registry {
         P: Params,
         F: FnOnce(&Row<'_>) -> Result<T, rsq::Error>,
     {
-        log::debug!(
-            "{}({}): {}",
-            "select".green().bold(),
-            "Registry".purple(),
-            sql
-        );
+        log::debug!("{}({}): {}", "select".green().bold(), "Registry".purple(), sql);
 
         let mut stmt = self
             .conn
             .prepare_cached(sql)
             .context(failt!("prepare sql: {}", sql))?;
 
-        stmt.query_row(params, f)
-            .context(failt!("select row: {}", sql))
+        stmt.query_row(params, f).context(failt!("select row: {}", sql))
     }
 
     /// Select all matching rows. Implements a function on each of these
@@ -420,20 +403,13 @@ impl Registry {
         P: Params,
         F: FnOnce(&Row<'_>) -> T + Copy,
     {
-        log::debug!(
-            "{}({}): {}",
-            "query_vec".green().bold(),
-            "Registry".purple(),
-            sql
-        );
+        log::debug!("{}({}): {}", "query_vec".green().bold(), "Registry".purple(), sql);
 
         let mut stmt = self
             .conn
             .prepare_cached(sql)
             .context(failt!("prepare sql: {}", sql))?;
-        let mut rows = stmt
-            .query(params)
-            .context(fail!("querying row(s): {}", sql))?;
+        let mut rows = stmt.query(params).context(fail!("querying row(s): {}", sql))?;
 
         let mut v = Vec::<T>::new();
         while let Some(row) = rows.next().context(fail!("getting next item"))? {
@@ -579,11 +555,7 @@ impl Registry {
     // }
 
     /// Return a `String` from a user-defined-function
-    fn get_string<'a>(
-        ctx: &'a Context,
-        fname: &'static str,
-        idx: usize,
-    ) -> Result<&'a str, rsq::Error> {
+    fn get_string<'a>(ctx: &'a Context, fname: &'static str, idx: usize) -> Result<&'a str, rsq::Error> {
         ctx.get_raw(idx).as_str().map_err(|e| {
             rsq::Error::UserFunctionError(
                 format!("Bad argument at {} to function '{}': {}", idx, fname, e).into(),
@@ -592,11 +564,7 @@ impl Registry {
     }
 
     /// Return an optional `String` from a user-defined-function
-    fn get_opt_string<'a>(
-        ctx: &'a Context,
-        fname: &'static str,
-        idx: usize,
-    ) -> Result<Option<&'a str>> {
+    fn get_opt_string<'a>(ctx: &'a Context, fname: &'static str, idx: usize) -> Result<Option<&'a str>> {
         let raw = ctx.get_raw(idx);
         if raw == ValueRef::Null {
             return Ok(None);
@@ -634,12 +602,7 @@ impl Registry {
     /// Create a regular expression function in the database.
     /// Allow for case-sensitive and case-insensitive functions, as well as
     /// `glob`s
-    fn add_pattern_func(
-        &self,
-        fname: &'static str,
-        case_insensitive: bool,
-        glob: bool,
-    ) -> Result<()> {
+    fn add_pattern_func(&self, fname: &'static str, case_insensitive: bool, glob: bool) -> Result<()> {
         use crate::{wutag_error, wutag_fatal};
         use wax::{DiagnosticResultExt, Glob, GlobError};
 
@@ -732,11 +695,7 @@ impl Registry {
                 2,
                 FunctionFlags::SQLITE_UTF8 | FunctionFlags::SQLITE_DETERMINISTIC,
                 move |ctx| {
-                    assert_eq!(
-                        ctx.len(),
-                        2,
-                        "called pcre with unexpected number of arguments"
-                    );
+                    assert_eq!(ctx.len(), 2, "called pcre with unexpected number of arguments");
                     let regexp: Arc<FancyRegex> =
                         ctx.get_or_create_aux(0, |vr| -> rsq::Result<FancyRegex, BoxError> {
                             let s = vr.as_str()?;
@@ -801,15 +760,13 @@ impl Registry {
                         .map_err(|e| rsq::Error::UserFunctionError(e.into()))?;
                     let path = PathBuf::from(text);
 
-                    let hash = if let Ok(perm) =
-                        path.metadata().map_err(|_e| rsq::Error::InvalidPath(path))
+                    let hash = if let Ok(perm) = path.metadata().map_err(|_e| rsq::Error::InvalidPath(path))
                     {
                         let mode = perm.permissions().mode();
                         blake3_hash(text, Some(mode))
                             .map_err(|e| rsq::Error::UserFunctionError(e.into()))?
                     } else {
-                        blake3_hash(text, None)
-                            .map_err(|e| rsq::Error::UserFunctionError(e.into()))?
+                        blake3_hash(text, None).map_err(|e| rsq::Error::UserFunctionError(e.into()))?
                     };
 
                     Ok(hash.to_string())
@@ -836,8 +793,7 @@ impl fmt::Display for Registry {
 impl From<&Arc<App>> for Registry {
     fn from(app: &Arc<App>) -> Self {
         Self {
-            conn:            Connection::open(&app.registry_path)
-                .expect("failed to create new connection"),
+            conn:            Connection::open(&app.registry_path).expect("failed to create new connection"),
             follow_symlinks: app.follow_symlinks,
             path:            app.registry_path.clone(),
         }
@@ -847,8 +803,7 @@ impl From<&Arc<App>> for Registry {
 impl From<&App> for Registry {
     fn from(app: &App) -> Self {
         Self {
-            conn:            Connection::open(&app.registry_path)
-                .expect("failed to create new connection"),
+            conn:            Connection::open(&app.registry_path).expect("failed to create new connection"),
             follow_symlinks: app.follow_symlinks,
             path:            app.registry_path.clone(),
         }
@@ -865,10 +820,7 @@ pub(crate) fn db_path() -> Result<PathBuf> {
 
     if !data_dir.exists() {
         fs::create_dir_all(&data_dir).unwrap_or_else(|_| {
-            wutag_fatal!(
-                "unable to create tag registry directory: {}",
-                data_dir.display()
-            )
+            wutag_fatal!("unable to create tag registry directory: {}", data_dir.display())
         });
     }
 

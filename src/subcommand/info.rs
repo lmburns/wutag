@@ -1,7 +1,5 @@
 //! `info` - Show information about the database and the `Tag`s in it
 
-// TODO: Entire subcommand
-
 #![allow(unused)]
 #![allow(clippy::cast_precision_loss)]
 
@@ -27,7 +25,8 @@ pub(crate) struct InfoOpts {
         short = 'd',
         long_help = "\
             Note that this is calculated by taking the current number of items in the database and \
-                     subtracting the maximum of the auto-incrementing index"
+                     subtracting the maximum of the auto-incrementing index. This number isn't always \
+                     right"
     )]
     deleted: bool,
 
@@ -145,11 +144,7 @@ impl App {
 
             if value_count > 0 {
                 // Deleted values
-                println!(
-                    "{}: {}",
-                    c("Deleted values"),
-                    reg.value_max()? - value_count
-                );
+                println!("{}: {}", c("Deleted values"), reg.value_max()? - value_count);
             }
 
             if file_count > 0 {

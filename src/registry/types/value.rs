@@ -88,8 +88,8 @@ impl Value {
 
 impl ToSql for Value {
     fn to_sql(&self) -> rsq::Result<ToSqlOutput> {
-        let string = serde_json::to_string(self)
-            .map_err(|e| rsq::Error::ToSqlConversionFailure(Box::new(e)))?;
+        let string =
+            serde_json::to_string(self).map_err(|e| rsq::Error::ToSqlConversionFailure(Box::new(e)))?;
         Ok(ToSqlOutput::from(string))
     }
 }

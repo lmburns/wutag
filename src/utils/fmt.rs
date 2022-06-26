@@ -34,10 +34,7 @@ pub(crate) fn path<P: AsRef<Path>>(path: P, app: &App) -> String {
             })
             .join("")
     } else {
-        format!(
-            "{}",
-            path.as_ref().to_string_lossy().color(app.base_color).bold()
-        )
+        format!("{}", path.as_ref().to_string_lossy().color(app.base_color).bold())
     }
 }
 
@@ -101,11 +98,7 @@ pub(crate) fn tag<S: AsRef<str>>(tag: &Tag, effects: &[S]) -> ColoredString {
 }
 
 /// Format a string (something that is not a [`Tag`] in the registry)
-pub(crate) fn string<S: AsRef<str>, A: AsRef<str>>(
-    val: S,
-    effects: &[A],
-    color: Color,
-) -> ColoredString {
+pub(crate) fn string<S: AsRef<str>, A: AsRef<str>>(val: S, effects: &[A], color: Color) -> ColoredString {
     let mut s = val.as_ref().color(color);
     for effect in effects {
         match effect.as_ref().to_ascii_lowercase().trim() {

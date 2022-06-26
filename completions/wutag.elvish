@@ -75,6 +75,7 @@ set edit:completion:arg-completer[wutag] = {|@words|
             cand print-completions 'Prints completions for the specified shell to dir or stdout'
             cand clean-cache 'Clean the cached tag registry'
             cand ui 'Open a TUI to manage tags'
+            cand xattr 'Testing'
         }
         &'wutag;list'= {
             cand -r 'Output will not be colorized'
@@ -163,6 +164,8 @@ set edit:completion:arg-completer[wutag] = {|@words|
             cand --global 'Apply operation to all tags and files instead of locally'
         }
         &'wutag;clear'= {
+            cand -a 'Clear tag extended attributes from files, even if not in registry'
+            cand --all 'Clear tag extended attributes from files, even if not in registry'
             cand -V 'Clear values from files instead of tags'
             cand --values 'Clear values from files instead of tags'
             cand -h 'Print help information'
@@ -267,6 +270,8 @@ set edit:completion:arg-completer[wutag] = {|@words|
             cand --manual 'Manually set a file''s new location'
             cand -d 'Do not actually update the registry'
             cand --dry-run 'Do not actually update the registry'
+            cand -c 'Crawl directory for files that have tags but aren''t in the registry'
+            cand --crawl 'Crawl directory for files that have tags but aren''t in the registry'
             cand -R 'Remove files from the registry that no longer exist on the system'
             cand --remove 'Remove files from the registry that no longer exist on the system'
             cand -r 'Restrict the repairing to the CWD, or the path given with -d'
@@ -283,6 +288,8 @@ set edit:completion:arg-completer[wutag] = {|@words|
             cand --global 'Apply operation to all tags and files instead of locally'
         }
         &'wutag;merge'= {
+            cand -p 'A glob, regular expression, or fixed-string pattern'
+            cand --pattern 'A glob, regular expression, or fixed-string pattern'
             cand -V 'Merge values from files instead of tags'
             cand --values 'Merge values from files instead of tags'
             cand -h 'Print help information'
@@ -313,6 +320,14 @@ set edit:completion:arg-completer[wutag] = {|@words|
             cand --global 'Apply operation to all tags and files instead of locally'
         }
         &'wutag;ui'= {
+            cand -h 'Print help information'
+            cand --help 'Print help information'
+            cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand --verbose 'Display debugging messages on 4 levels (i.e., -vv..)'
+            cand -g 'Apply operation to all tags and files instead of locally'
+            cand --global 'Apply operation to all tags and files instead of locally'
+        }
+        &'wutag;xattr'= {
             cand -h 'Print help information'
             cand --help 'Print help information'
             cand -v 'Display debugging messages on 4 levels (i.e., -vv..)'

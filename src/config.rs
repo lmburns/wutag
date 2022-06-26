@@ -422,8 +422,7 @@ impl Config {
         //     ));
         // }
 
-        let attempt: Self =
-            serde_yaml::from_slice(&file).context(fail!("deserializing config file"))?;
+        let attempt: Self = serde_yaml::from_slice(&file).context(fail!("deserializing config file"))?;
 
         if attempt.ui.preview_height > 100 {
             wutag_fatal!(

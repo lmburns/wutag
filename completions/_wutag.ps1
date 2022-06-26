@@ -78,6 +78,7 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('print-completions', 'print-completions', [CompletionResultType]::ParameterValue, 'Prints completions for the specified shell to dir or stdout')
             [CompletionResult]::new('clean-cache', 'clean-cache', [CompletionResultType]::ParameterValue, 'Clean the cached tag registry')
             [CompletionResult]::new('ui', 'ui', [CompletionResultType]::ParameterValue, 'Open a TUI to manage tags')
+            [CompletionResult]::new('xattr', 'xattr', [CompletionResultType]::ParameterValue, 'Testing')
             break
         }
         'wutag;list' {
@@ -172,6 +173,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             break
         }
         'wutag;clear' {
+            [CompletionResult]::new('-a', 'a', [CompletionResultType]::ParameterName, 'Clear tag extended attributes from files, even if not in registry')
+            [CompletionResult]::new('--all', 'all', [CompletionResultType]::ParameterName, 'Clear tag extended attributes from files, even if not in registry')
             [CompletionResult]::new('-V', 'V', [CompletionResultType]::ParameterName, 'Clear values from files instead of tags')
             [CompletionResult]::new('--values', 'values', [CompletionResultType]::ParameterName, 'Clear values from files instead of tags')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
@@ -282,6 +285,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             [CompletionResult]::new('--manual', 'manual', [CompletionResultType]::ParameterName, 'Manually set a file''s new location')
             [CompletionResult]::new('-d', 'd', [CompletionResultType]::ParameterName, 'Do not actually update the registry')
             [CompletionResult]::new('--dry-run', 'dry-run', [CompletionResultType]::ParameterName, 'Do not actually update the registry')
+            [CompletionResult]::new('-c', 'c', [CompletionResultType]::ParameterName, 'Crawl directory for files that have tags but aren''t in the registry')
+            [CompletionResult]::new('--crawl', 'crawl', [CompletionResultType]::ParameterName, 'Crawl directory for files that have tags but aren''t in the registry')
             [CompletionResult]::new('-R', 'R', [CompletionResultType]::ParameterName, 'Remove files from the registry that no longer exist on the system')
             [CompletionResult]::new('--remove', 'remove', [CompletionResultType]::ParameterName, 'Remove files from the registry that no longer exist on the system')
             [CompletionResult]::new('-r', 'r', [CompletionResultType]::ParameterName, 'Restrict the repairing to the CWD, or the path given with -d')
@@ -299,6 +304,8 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             break
         }
         'wutag;merge' {
+            [CompletionResult]::new('-p', 'p', [CompletionResultType]::ParameterName, 'A glob, regular expression, or fixed-string pattern')
+            [CompletionResult]::new('--pattern', 'pattern', [CompletionResultType]::ParameterName, 'A glob, regular expression, or fixed-string pattern')
             [CompletionResult]::new('-V', 'V', [CompletionResultType]::ParameterName, 'Merge values from files instead of tags')
             [CompletionResult]::new('--values', 'values', [CompletionResultType]::ParameterName, 'Merge values from files instead of tags')
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
@@ -332,6 +339,15 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             break
         }
         'wutag;ui' {
+            [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
+            [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
+            [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('--verbose', 'verbose', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')
+            [CompletionResult]::new('-g', 'g', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
+            [CompletionResult]::new('--global', 'global', [CompletionResultType]::ParameterName, 'Apply operation to all tags and files instead of locally')
+            break
+        }
+        'wutag;xattr' {
             [CompletionResult]::new('-h', 'h', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('--help', 'help', [CompletionResultType]::ParameterName, 'Print help information')
             [CompletionResult]::new('-v', 'v', [CompletionResultType]::ParameterName, 'Display debugging messages on 4 levels (i.e., -vv..)')

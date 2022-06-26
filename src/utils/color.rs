@@ -134,11 +134,7 @@ pub(crate) fn parse_color<S: AsRef<str>>(color: S) -> Result<Color> {
     }
 
     let result = color.strip_prefix("0x").map_or_else(
-        || {
-            color
-                .strip_prefix('#')
-                .map_or_else(|| if_6!(color), |c| if_6!(c))
-        },
+        || color.strip_prefix('#').map_or_else(|| if_6!(color), |c| if_6!(c)),
         |c| if_6!(c),
     );
 
@@ -176,11 +172,7 @@ pub(crate) fn parse_color_cli_table<S: AsRef<str>>(color: S) -> Result<cli_table
     }
 
     let result = color.strip_prefix("0x").map_or_else(
-        || {
-            color
-                .strip_prefix('#')
-                .map_or_else(|| if_6!(color), |c| if_6!(c))
-        },
+        || color.strip_prefix('#').map_or_else(|| if_6!(color), |c| if_6!(c)),
         |c| if_6!(c),
     );
 
@@ -214,11 +206,7 @@ pub(crate) fn parse_color_tui<S: AsRef<str>>(color: S) -> Result<tui::Color> {
     }
 
     let result = color.strip_prefix("0x").map_or_else(
-        || {
-            color
-                .strip_prefix('#')
-                .map_or_else(|| if_6!(color), |c| if_6!(c))
-        },
+        || color.strip_prefix('#').map_or_else(|| if_6!(color), |c| if_6!(c)),
         |c| if_6!(c),
     );
 
@@ -309,11 +297,7 @@ mod tests {
             g: 255,
             b: 255,
         });
-        assert_eq!(parse_color("0ff00f").unwrap(), TrueColor {
-            r: 15,
-            g: 240,
-            b: 15,
-        });
+        assert_eq!(parse_color("0ff00f").unwrap(), TrueColor { r: 15, g: 240, b: 15 });
 
         assert_eq!(parse_color("black").unwrap(), Color::Black);
         assert_eq!(parse_color("red").unwrap(), Color::Red);
@@ -350,35 +334,17 @@ mod tests {
             cli_table::Color::Rgb(15, 240, 15)
         );
 
-        assert_eq!(
-            parse_color_cli_table("black").unwrap(),
-            cli_table::Color::Black
-        );
-        assert_eq!(
-            parse_color_cli_table("bLue").unwrap(),
-            cli_table::Color::Blue
-        );
-        assert_eq!(
-            parse_color_cli_table("green").unwrap(),
-            cli_table::Color::Green
-        );
+        assert_eq!(parse_color_cli_table("black").unwrap(), cli_table::Color::Black);
+        assert_eq!(parse_color_cli_table("bLue").unwrap(), cli_table::Color::Blue);
+        assert_eq!(parse_color_cli_table("green").unwrap(), cli_table::Color::Green);
         assert_eq!(parse_color_cli_table("red").unwrap(), cli_table::Color::Red);
-        assert_eq!(
-            parse_color_cli_table("cyan").unwrap(),
-            cli_table::Color::Cyan
-        );
+        assert_eq!(parse_color_cli_table("cyan").unwrap(), cli_table::Color::Cyan);
         assert_eq!(
             parse_color_cli_table("magenTA").unwrap(),
             cli_table::Color::Magenta
         );
-        assert_eq!(
-            parse_color_cli_table("yellow").unwrap(),
-            cli_table::Color::Yellow
-        );
-        assert_eq!(
-            parse_color_cli_table("white").unwrap(),
-            cli_table::Color::White
-        );
+        assert_eq!(parse_color_cli_table("yellow").unwrap(), cli_table::Color::Yellow);
+        assert_eq!(parse_color_cli_table("white").unwrap(), cli_table::Color::White);
     }
 
     #[cfg(feature = "ui")]
@@ -392,10 +358,7 @@ mod tests {
             parse_color_tui("#ffffff").unwrap(),
             tui::Color::Rgb(255, 255, 255)
         );
-        assert_eq!(
-            parse_color_tui("0ff00f").unwrap(),
-            tui::Color::Rgb(15, 240, 15)
-        );
+        assert_eq!(parse_color_tui("0ff00f").unwrap(), tui::Color::Rgb(15, 240, 15));
     }
 
     #[test]

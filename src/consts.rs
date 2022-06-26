@@ -3,8 +3,8 @@
 
 use clap::crate_description;
 use colored::Color::{
-    self, Blue, BrightBlue, BrightCyan, BrightGreen, BrightMagenta, BrightRed, BrightYellow, Cyan,
-    Green, Magenta, Red, White, Yellow,
+    self, Blue, BrightBlue, BrightCyan, BrightGreen, BrightMagenta, BrightRed, BrightYellow, Cyan, Green,
+    Magenta, Red, White, Yellow,
 };
 use once_cell::sync::Lazy;
 use std::env;
@@ -56,15 +56,8 @@ pub(crate) const DEFAULT_COLORS: &[Color] = &[
 ];
 
 /// Colored options used in the output of `--help`
-pub(crate) static APP_ABOUT: Lazy<String> = Lazy::new(|| {
-    format!(
-        "{}DESCRIPTION: {}{}{}",
-        YELLOW,
-        GREEN,
-        crate_description!(),
-        RES
-    )
-});
+pub(crate) static APP_ABOUT: Lazy<String> =
+    Lazy::new(|| format!("{}DESCRIPTION: {}{}{}", YELLOW, GREEN, crate_description!(), RES));
 
 /// Specify the file-type(s) to filter by. Can be repeated
 #[rustfmt::skip]
@@ -142,8 +135,7 @@ pub(crate) static SORT_FILES_EXPL: Lazy<String> = Lazy::new(|| {
 /// Colorized message to explain the -x flag to execute commands on tagged files
 pub(crate) static EXEC_EXPL: Lazy<String> = Lazy::new(|| {
     format!(
-        "{}\n  An example of using this is:\n  \t {}wutag -g search <tag> -x {{..}} set {{/}} \
-         <tag2>{}",
+        "{}\n  An example of using this is:\n  \t {}wutag -g search <tag> -x {{..}} set {{/}} <tag2>{}",
         *EXEC_BATCH_EXPL, BRCYAN, RES
     )
 });
@@ -151,8 +143,8 @@ pub(crate) static EXEC_EXPL: Lazy<String> = Lazy::new(|| {
 /// Colorized message to override the generated help message
 pub(crate) static OVERRIDE_HELP: Lazy<String> = Lazy::new(|| {
     format!(
-        "{}wutag{} [{}FLAGS{}/{}OPTIONS{}] <{}SUBCOMMAND{}> [{}TAGS{}/{}FLAGS{}]",
-        BRED, RES, GREEN, RES, GREEN, RES, YELLOW, RES, GREEN, RES, GREEN, RES
+        "{}wutag{} [{}OPTIONS{}] <{}SUBCOMMAND{}> [{}OPTIONS{}]",
+        BRED, RES, GREEN, RES, YELLOW, RES, GREEN, RES
     )
 });
 

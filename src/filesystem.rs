@@ -161,11 +161,7 @@ impl FileTypes {
 /// A module to only have to write the feature once, instead of several times
 ///
 /// Used for Linux file flags
-#[cfg(all(
-    feature = "file-flags",
-    target_family = "unix",
-    not(target_os = "macos")
-))]
+#[cfg(all(feature = "file-flags", target_family = "unix", not(target_os = "macos")))]
 pub(crate) mod ext4 {
     use e2p_fileflags::Flags;
     use rusqlite::{

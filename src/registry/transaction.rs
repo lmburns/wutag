@@ -44,10 +44,7 @@ impl<'t> Txn<'t> {
         let mut txn = conn.unchecked_transaction()?;
         txn.set_drop_behavior(DropBehavior::Commit);
 
-        Ok(Self {
-            follow_symlinks,
-            txn,
-        })
+        Ok(Self { follow_symlinks, txn })
     }
 
     /// Return the [`Transaction`] by taking ownership of `self`
@@ -134,14 +131,9 @@ impl<'t> Txn<'t> {
         // Check whether the tag table exists
         self.exists("tag")?;
 
-        let mut stmt = self
-            .txn
-            .prepare(sql)
-            .context(fail!("preparing sql: {}", sql))?;
+        let mut stmt = self.txn.prepare(sql).context(fail!("preparing sql: {}", sql))?;
 
-        let res = stmt
-            .insert(params)
-            .context(fail!("inserting item: {}", sql));
+        let res = stmt.insert(params).context(fail!("inserting item: {}", sql));
 
         if let Err(err) = res {
             // Check if it is a unique constraint violation
@@ -177,8 +169,7 @@ impl<'t> Txn<'t> {
             .prepare_cached(sql)
             .context(failt!("prepare sql: {}", sql))?;
 
-        stmt.query_row(params, f)
-            .context(failt!("select row: {}", sql))
+        stmt.query_row(params, f).context(failt!("select row: {}", sql))
     }
 
     /// Select a single row, no [`params`], and no closure
@@ -201,12 +192,7 @@ impl<'t> Txn<'t> {
         // Used for ergonomics
         let sql = sql.as_ref();
 
-        log::trace!(
-            "{}({}): {}",
-            "query_vec".green().bold(),
-            "Txn".purple(),
-            sql
-        );
+        log::trace!("{}({}): {}", "query_vec".green().bold(), "Txn".purple(), sql);
 
         self.exists("tag")?;
 
@@ -214,9 +200,7 @@ impl<'t> Txn<'t> {
             .txn
             .prepare_cached(sql)
             .context(failt!("prepare sql: {}", sql))?;
-        let mut rows = stmt
-            .query(params)
-            .context(fail!("querying row(s): {}", sql))?;
+        let mut rows = stmt.query(params).context(fail!("querying row(s): {}", sql))?;
 
         let mut v = Vec::<T>::new();
         while let Some(row) = rows.next().context(fail!("getting next item"))? {
@@ -238,12 +222,7 @@ impl<'t> Txn<'t> {
     {
         let sql = sql.as_ref();
 
-        log::trace!(
-            "{}({}): {}",
-            "query_iter".green().bold(),
-            "Txn".purple(),
-            sql
-        );
+        log::trace!("{}({}): {}", "query_iter".green().bold(), "Txn".purple(), sql);
 
         self.exists("tag")?;
 
@@ -320,10 +299,11 @@ impl<'t> Txn<'t> {
         let v = Version::build().context(fail!("getting current version"))?;
         log::trace!("updating Version({})", v);
 
-        self.execute(
-            "UPDATE version SET major = ?1, minor = ?2, patch = ?3",
-            params![v.major(), v.minor(), v.patch()],
-        )
+        self.execute("UPDATE version SET major = ?1, minor = ?2, patch = ?3", params![
+            v.major(),
+            v.minor(),
+            v.patch()
+        ])
         .context(fail!("updating current Version"))?;
 
         Ok(())

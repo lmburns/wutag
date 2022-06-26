@@ -118,11 +118,7 @@ impl HistoryContext {
     }
 
     /// Search through history using custom keybindings
-    pub(crate) fn history_search(
-        &mut self,
-        buffer: &str,
-        direction: SearchDirection,
-    ) -> Option<String> {
+    pub(crate) fn history_search(&mut self, buffer: &str, direction: SearchDirection) -> Option<String> {
         if self.history.is_empty() {
             return None;
         }

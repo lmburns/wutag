@@ -147,9 +147,7 @@ where
                         .add_range(Range { start, end }, "Possibly used an invalid character")
                         .add_solution("The following chars need to be escaped: ")
                         .add_solution("\'\"\\(){}=<>!&|?:,")
-                        .add_solution(
-                            "The forward slash (/) needs to be escaped if query starts with it",
-                        )
+                        .add_solution("The forward slash (/) needs to be escaped if query starts with it")
                         .print_err();
                     return Ok((remaining, o2));
                 }

@@ -24,10 +24,7 @@ fn check(actual: &(ParsedQuery, &Vec<String>), expect: &Expect) {
 fn query_ok(query_in: &str, expect: &Expect) {
     let errors = Rc::new(RefCell::new(vec![]));
     let parsed = {
-        let q = Query::new(
-            query_in,
-            Some(Box::new(TestErrorReporter::new(errors.clone()))),
-        );
+        let q = Query::new(query_in, Some(Box::new(TestErrorReporter::new(errors.clone()))));
         let pq = parse_query(&q);
         pq.unwrap_or_else(|_| ParsedQuery::new(Expr::Vec(vec![]), ""))
     };
@@ -365,8 +362,7 @@ fn escaped_chars() {
 
 #[test]
 fn esc_test_non_escape() {
-    query_ok("a\\{\\}\\(\\)\\=\\<\\>\\!\\&\\|\\?\\:\\,\\ \\'", &expect![
-        [r#"
+    query_ok("a\\{\\}\\(\\)\\=\\<\\>\\!\\&\\|\\?\\:\\,\\ \\'", &expect![[r#"
         ParsedQuery {
             parsed: Pattern(
                 Search {
@@ -376,8 +372,7 @@ fn esc_test_non_escape() {
             ),
             raw: "a\\{\\}\\(\\)\\=\\<\\>\\!\\&\\|\\?\\:\\,\\ \\'",
         }
-        "#]
-    ]);
+        "#]]);
 
     query_ok("aa\\ bb", &expect![[r#"
         ParsedQuery {

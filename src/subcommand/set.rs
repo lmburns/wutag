@@ -1,7 +1,7 @@
 /// Set a tag or tag and value on the result of a regular expression or glob
 use super::{parse_tag_val, App};
 use crate::{
-    bold_entry,
+    bold_entry, qprint,
     registry::{
         common::hash,
         types::{FileTag, Tag, TagValueCombo, ID},
@@ -24,8 +24,8 @@ pub(crate) struct SetOpts {
         name = "clear",
         long = "clear",
         short = 'c',
-        long_help = "This is like a 'reset' for the file(s) matching the pattern. They are \
-                     cleared of all tags before the new ones are applied"
+        long_help = "This is like a 'reset' for the file(s) matching the pattern. They are cleared of all \
+                     tags before the new ones are applied"
     )]
     pub(crate) clear: bool,
 
@@ -54,9 +54,9 @@ pub(crate) struct SetOpts {
         name = "stdin",
         long = "stdin",
         short = 's',
-        long_help = "Arguments are expected to be passed through stdin; however, this argument is \
-                     not explicitly required to have arguments be accepted through stdin. A \
-                     simple `<cmd> | wutag <opts> set <tag>` can be used"
+        long_help = "Arguments are expected to be passed through stdin; however, this argument is not \
+                     explicitly required to have arguments be accepted through stdin. A simple `<cmd> | \
+                     wutag <opts> set <tag>` can be used"
     )]
     pub(crate) stdin: bool,
 
@@ -95,8 +95,8 @@ pub(crate) struct SetOpts {
         long = "value",
         short = 'V',
         takes_value = true,
-        long_help = "Set a value to each of the matching tags. To set different values for \
-                     different tags, use the tag=value syntax"
+        long_help = "Set a value to each of the matching tags. To set different values for different \
+                     tags, use the tag=value syntax"
     )]
     pub(crate) value: Option<String>,
 
@@ -113,9 +113,9 @@ pub(crate) struct SetOpts {
     #[clap(
         name = "tags",
         conflicts_with = "pairs",
-        long_help = "Specify a list of tags to set the results of the pattern matching or STDIN \
-                     to. This option is required unless `-p`/`--pairs` is used, which allows \
-                     specifying `tag`, `value` pairs"
+        long_help = "Specify a list of tags to set the results of the pattern matching or STDIN to. This \
+                     option is required unless `-p`/`--pairs` is used, which allows specifying `tag`, \
+                     `value` pairs"
     )]
     pub(crate) tags: Vec<String>,
 }
@@ -174,7 +174,7 @@ impl App {
                     reg.insert_tag(&tag)
                 })?;
 
-                let value = reg.value_by_name(v, false).or_else(|_| {
+                let value = reg.value_by_name(v).or_else(|_| {
                     log::debug!("creating new value: {}", v);
                     reg.insert_value(v)
                 })?;
@@ -215,9 +215,7 @@ impl App {
             for entry in &collect_stdin_paths(&self.base_dir) {
                 let path = &self.resolve_symlink(entry.path())?;
 
-                if !self.quiet {
-                    println!("{}:", self.fmt_path(path));
-                }
+                qprint!(self, "{}:", self.fmt_path(path));
 
                 let path_d = path.display();
 
@@ -229,9 +227,7 @@ impl App {
                     log::debug!("{}: creating fingerprint", path_d);
                     let hash = hash::blake3_hash(&path, None)?;
 
-                    if self.show_duplicates
-                        && !self.quiet
-                        && reg.file_count_by_hash(hash.to_string())? != 0
+                    if self.show_duplicates && !self.quiet && reg.file_count_by_hash(hash.to_string())? != 0
                     {
                         wutag_warning!(
                             "{} is a duplicate entry\n{}: {}",
@@ -252,7 +248,7 @@ impl App {
                 if opts.clear {
                     log::debug!("{}: clearing tags", path_d);
 
-                    let ftags = reg.tags_for_file(&file)?;
+                    let ftags = reg.tags_by_fileid(file.id())?;
 
                     for t in ftags.iter() {
                         // TODO: Move this to clear function and call here
@@ -305,9 +301,7 @@ impl App {
                     if let Err(e) =
                         reg.insert_filetag(&FileTag::new(file.id(), pair.tag_id(), pair.value_id()))
                     {
-                        if let Some(rsq::Error::StatementChangedRows(n)) =
-                            e.downcast_ref::<rsq::Error>()
-                        {
+                        if let Some(rsq::Error::StatementChangedRows(n)) = e.downcast_ref::<rsq::Error>() {
                             if let Err(e) = path.get_tag(tag.name()) {
                                 wutag_error!(
                                     "{}: found in database, though file has no xattrs: {}",
@@ -376,9 +370,7 @@ impl App {
                     // traversed
                     let path = &self.resolve_symlink(entry.path())?;
 
-                    if !self.quiet {
-                        println!("{}:", self.fmt_path(path));
-                    }
+                    qprint!(self, "{}:", self.fmt_path(path));
 
                     let path_d = path.display();
 
@@ -413,7 +405,7 @@ impl App {
                     if opts.clear {
                         log::debug!("{}: clearing tags", path_d);
 
-                        let ftags = reg.tags_for_file(&file)?;
+                        let ftags = reg.tags_by_fileid(file.id())?;
 
                         for t in ftags.iter() {
                             // TODO: Check whether implications need deleted when > 1
@@ -464,11 +456,9 @@ impl App {
                     for pair in &combos {
                         let tag = reg.tag(pair.tag_id())?;
 
-                        if let Err(e) = reg.insert_filetag(&FileTag::new(
-                            file.id(),
-                            pair.tag_id(),
-                            pair.value_id(),
-                        )) {
+                        if let Err(e) =
+                            reg.insert_filetag(&FileTag::new(file.id(), pair.tag_id(), pair.value_id()))
+                        {
                             if let Some(rsq::Error::StatementChangedRows(n)) =
                                 e.downcast_ref::<rsq::Error>()
                             {
@@ -496,11 +486,7 @@ impl App {
                                 continue;
                             }
 
-                            return Err(anyhow!(
-                                "{}: could not apply tags: {}",
-                                bold_entry!(path),
-                                e
-                            ));
+                            return Err(anyhow!("{}: could not apply tags: {}", bold_entry!(path), e));
                         }
 
                         // Deal with xattr after database

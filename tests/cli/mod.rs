@@ -32,11 +32,7 @@ const FILE_DIR: &str = "tests/example_files";
 const ANOTHER_FILE_DIR: &str = "tests/sample_dir";
 const NEW_REGISTRY: &str = "tests/sample.reg";
 
-static CWD: Lazy<PathBuf> = Lazy::new(|| {
-    env::current_dir()
-        .expect("unable to get CWD")
-        .join(FILE_DIR)
-});
+static CWD: Lazy<PathBuf> = Lazy::new(|| env::current_dir().expect("unable to get CWD").join(FILE_DIR));
 static CWD_TWO: Lazy<PathBuf> = Lazy::new(|| {
     env::current_dir()
         .expect("unable to get CWD")
@@ -118,11 +114,7 @@ pub fn wutag_rr() -> assert_cmd::Command {
 
 fn rm_registry() {
     INIT.call_once(|| {
-        match assert_cmd::Command::new("rm")
-            .arg("-rf")
-            .arg(NEW_REGISTRY)
-            .ok()
-        {
+        match assert_cmd::Command::new("rm").arg("-rf").arg(NEW_REGISTRY).ok() {
             Ok(_) => {},
             Err(err) => {
                 eprintln!("Error removing registry {:?}", err);

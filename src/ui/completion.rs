@@ -226,9 +226,6 @@ impl CompletionList {
 
     /// Return the max width of the completion menu
     pub(crate) fn max_width(&self) -> Option<usize> {
-        self.candidates()
-            .iter()
-            .map(|p| p.display.width() + 4)
-            .max()
+        self.candidates().iter().map(|p| p.display.width() + 4).max()
     }
 }

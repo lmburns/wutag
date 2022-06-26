@@ -185,12 +185,7 @@ pub(crate) trait InnerCtx {
     fn encrypt(&mut self, recipients: &Recipients, plaintext: Plaintext) -> Result<Ciphertext>;
 
     /// Encrypt plaintext and write it to the file.
-    fn encrypt_file(
-        &mut self,
-        recipients: &Recipients,
-        plaintext: Plaintext,
-        path: &Path,
-    ) -> Result<()> {
+    fn encrypt_file(&mut self, recipients: &Recipients, plaintext: Plaintext, path: &Path) -> Result<()> {
         let mut file = fs::OpenOptions::new()
             .mode(0o666 - (0o666 & *REGISTRY_UMASK))
             .write(true)

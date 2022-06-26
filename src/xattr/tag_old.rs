@@ -171,10 +171,7 @@ impl Tag {
         S: Into<String>,
     {
         let mut rng = thread_rng();
-        Self::new(
-            name,
-            colors.choose(&mut rng).copied().unwrap_or(DEFAULT_COLOR),
-        )
+        Self::new(name, colors.choose(&mut rng).copied().unwrap_or(DEFAULT_COLOR))
     }
 
     /// Get the tag's name

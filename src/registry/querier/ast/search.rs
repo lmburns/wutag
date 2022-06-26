@@ -1,6 +1,6 @@
 //! Pattern or exact searches into the database
 
-use crate::utils::contains_upperchar;
+use crate::{g, utils::contains_upperchar};
 use anyhow::{anyhow, Result};
 use colored::Colorize;
 use regex::bytes::Regex;
@@ -53,12 +53,6 @@ impl SearchFlags {
 
     /// Display a longer and colorized error message
     pub(crate) fn error_message() -> String {
-        macro_rules! g {
-            ($s:tt) => {
-                $s.green().bold()
-            };
-        };
-
         format!(
             r#"Add a flag(s):
 - {}: regex
@@ -203,11 +197,7 @@ impl Search {
     }
 
     /// Convert this keyword to a `regex::Regex` object.
-    pub(crate) fn to_regex_builder(
-        &self,
-        case_insensitive: bool,
-        case_sensitive: bool,
-    ) -> Result<Regex> {
+    pub(crate) fn to_regex_builder(&self, case_insensitive: bool, case_sensitive: bool) -> Result<Regex> {
         use regex::bytes::RegexBuilder;
 
         let sensitive = !case_insensitive && (case_sensitive || contains_upperchar(self.inner()));

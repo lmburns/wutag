@@ -183,10 +183,7 @@ impl Default for TagRegistry {
 
             if !data_dir.exists() {
                 fs::create_dir_all(&data_dir).unwrap_or_else(|_| {
-                    wutag_fatal!(
-                        "unable to create tag registry directory: {}",
-                        data_dir.display()
-                    )
+                    wutag_fatal!("unable to create tag registry directory: {}", data_dir.display())
                 });
             }
 
@@ -234,10 +231,7 @@ impl TagRegistry {
                 .map_err(|e| anyhow::anyhow!(e))?;
 
         // Detect -x/-X (execute) command and do not display info
-        } else if config.to_encrypt
-            && KEY_INFO.load(Ordering::Relaxed)
-            && atty::is(atty::Stream::Stdout)
-        {
+        } else if config.to_encrypt && KEY_INFO.load(Ordering::Relaxed) && atty::is(atty::Stream::Stdout) {
             log::debug!("registry is unencrypted");
             wutag_info!("switching to encrypted registry configuration");
         }
@@ -391,15 +385,12 @@ impl TagRegistry {
 
     /// Lists tags of the `entry` if such entry exists
     pub(crate) fn list_entry_tags(&self, entry: EntryId) -> Option<Vec<&Tag>> {
-        let tags = self
-            .tags
-            .iter()
-            .fold(Vec::new(), |mut acc, (tag, entries)| {
-                if entries.iter().any(|id| entry == *id) {
-                    acc.push(tag);
-                }
-                acc
-            });
+        let tags = self.tags.iter().fold(Vec::new(), |mut acc, (tag, entries)| {
+            if entries.iter().any(|id| entry == *id) {
+                acc.push(tag);
+            }
+            acc
+        });
 
         if tags.is_empty() {
             None
@@ -453,8 +444,7 @@ impl TagRegistry {
         let entry_tags = self.list_entry_tags(id).unwrap_or_default();
 
         // Reverse what is being checked
-        tags.iter()
-            .all(|t| entry_tags.iter().any(|inp| inp.name() == t))
+        tags.iter().all(|t| entry_tags.iter().any(|inp| inp.name() == t))
     }
 
     /// Check if the file entry has any specific tags
@@ -465,9 +455,7 @@ impl TagRegistry {
     pub(crate) fn entry_has_any_tags(&self, id: EntryId, tags: &[String]) -> bool {
         let entry_tags = self.list_entry_tags(id).unwrap_or_default();
 
-        entry_tags
-            .iter()
-            .any(|t| tags.iter().any(|inp| inp == t.name()))
+        entry_tags.iter().any(|t| tags.iter().any(|inp| inp == t.name()))
     }
 
     /// Returns entries that have all of the `Tag`s
@@ -496,12 +484,7 @@ impl TagRegistry {
 
     /// Return a vector of `PathBuf`'s that have a specific tag(s)
     #[allow(dead_code)]
-    pub(crate) fn list_entries_paths<T, S>(
-        &self,
-        tags: T,
-        global: bool,
-        base_dir: &Path,
-    ) -> Vec<PathBuf>
+    pub(crate) fn list_entries_paths<T, S>(&self, tags: T, global: bool, base_dir: &Path) -> Vec<PathBuf>
     where
         T: IntoIterator<Item = S>,
         S: AsRef<str>,
@@ -667,8 +650,7 @@ impl TagRegistry {
                 .unwrap_or_else(|| public.trim())
                 .to_uppercase();
 
-            let mut ctx =
-                util::context(config.tty).context("failure to get cryptography context")?;
+            let mut ctx = util::context(config.tty).context("failure to get cryptography context")?;
             let all_recipients =
                 Recipients::from(ctx.keys_private().context("no private keys were found")?);
 
@@ -678,13 +660,10 @@ impl TagRegistry {
 Available keys are:
 {}
 Use an (1) email, (2) short fingerprint, or (3) full fingerprint"#,
-                    all_recipients
-                        .keys()
-                        .iter()
-                        .fold(String::new(), |mut acc, key| {
-                            acc.push_str(&format!("\t{} {}\n", "+".red().bold(), key));
-                            acc
-                        })
+                    all_recipients.keys().iter().fold(String::new(), |mut acc, key| {
+                        acc.push_str(&format!("\t{} {}\n", "+".red().bold(), key));
+                        acc
+                    })
                 )
             };
 
@@ -694,11 +673,10 @@ Use an (1) email, (2) short fingerprint, or (3) full fingerprint"#,
             if let Some(found) = all_recipients.keys().iter().find(|key| {
                 public == key.fingerprint(false)
                     || public == key.fingerprint(true)
-                    || ctx.user_emails().iter().any(|emails| {
-                        emails
-                            .iter()
-                            .any(|email| email.trim().to_uppercase() == public)
-                    })
+                    || ctx
+                        .user_emails()
+                        .iter()
+                        .any(|emails| emails.iter().any(|email| email.trim().to_uppercase() == public))
             }) {
                 // Run this only once since it will be encrypting it back as well
                 if KEY_INFO.load(Ordering::Relaxed) {
@@ -712,27 +690,23 @@ Use an (1) email, (2) short fingerprint, or (3) full fingerprint"#,
                     log::debug!("decrypting registry");
 
                     // 1. Decrypt file
-                    let plaintext = ctx
-                        .decrypt_file(path)
-                        .context("failure to decrypt registry")?;
+                    let plaintext = ctx.decrypt_file(path).context("failure to decrypt registry")?;
 
                     // 2. Serialize the decrypted string to a registry
                     let yaml: Self = serde_yaml::from_slice(plaintext.unsecure_ref())
                         .context("failure to convert decrypted registry to TagRegistry")?;
 
                     // 3. Write the serialized structure to a file
-                    fs::write(path, &serde_yaml::to_vec(&yaml)?)
-                        .context("failed to save registry")?;
+                    fs::write(path, &serde_yaml::to_vec(&yaml)?).context("failed to save registry")?;
 
                     // self.encrypted = false;
                 } else if encrypt {
                     // ## If the content is not encrypted
 
                     // 1. Serialize the unencrypted string to a registry
-                    let yaml: Self = serde_yaml::from_slice(
-                        &fs::read(path).context("failed to read registry file")?,
-                    )
-                    .context("encrypted file is invalid UTF-8")?;
+                    let yaml: Self =
+                        serde_yaml::from_slice(&fs::read(path).context("failed to read registry file")?)
+                            .context("encrypted file is invalid UTF-8")?;
 
                     // 2. Convert it to a structure that can be encrypted
                     let plaintext = Plaintext::from(serde_yaml::to_string(&yaml)?);
@@ -824,12 +798,7 @@ pub(crate) fn load_registry(opts: &Opts, config: &EncryptConfig) -> Result<TagRe
                     .parent()
                     .context("Could not get parent of nonexisting path")?,
             )
-            .with_context(|| {
-                format!(
-                    "unable to create registry directory: {}",
-                    registry.display()
-                )
-            })?;
+            .with_context(|| format!("unable to create registry directory: {}", registry.display()))?;
 
             TagRegistry::load(&registry, config).unwrap_or_else(|_| {
                 log::debug!("creating a non-default registry");

@@ -1,10 +1,11 @@
+#![allow(unused)]
 /// Set a tag or tag and value on the result of a regular expression or glob
 use super::{parse_tag_val, App};
 use crate::{
     bold_entry, qprint,
     registry::{
         common::hash,
-        types::{FileTag, Tag, TagValueCombo, ID},
+        types::{FileTag, Tag, TagValueCombo, Value, ID},
     },
     utils::{collect_stdin_paths, color::parse_color, crawler, glob_builder, regex_builder},
     wutag_error, wutag_warning,
@@ -140,8 +141,6 @@ impl App {
             tags.push(opts.pattern.clone());
         }
 
-        // println!("SETOPTS: {:#?}", opts);
-
         let re = regex_builder(
             &{
                 if self.pat_regex {
@@ -159,56 +158,29 @@ impl App {
 
         let reg = self.registry.lock().expect("poisoned lock");
 
-        // A vector of <TagValueCombo>, containing each Tag id and Value id
         let mut combos = opts
             .pairs
             .iter()
-            .map(|(t, v)| -> Result<TagValueCombo> {
-                let tag = reg.tag_by_name(t).or_else(|_| {
-                    log::debug!("creating new tag: {}", t);
-                    let tag = opts.color.as_ref().map_or_else(
-                        || Tag::random_noid(t, &self.colors),
-                        |color| Tag::new_noid(t, color),
-                    );
-
-                    reg.insert_tag(&tag)
-                })?;
-
-                let value = reg.value_by_name(v).or_else(|_| {
-                    log::debug!("creating new value: {}", v);
-                    reg.insert_value(v)
-                })?;
-
-                let combo = TagValueCombo::new(tag.id(), value.id());
-
-                Ok(combo)
+            .map(|(t, v)| {
+                (
+                    reg.tag_by_name(t).unwrap_or_else(|_| Tag::null(t)),
+                    reg.value_by_name(v).unwrap_or_else(|_| Value::new_noid(v)),
+                )
             })
-            .collect::<Result<Vec<_>>>()?;
+            .collect::<Vec<_>>();
 
-        // TODO: Prevent tag from being added if the file doesn't exist
-        let tags = &opts
+        let mut tags = opts
             .tags
             .iter()
             .map(|t| {
-                reg.tag_by_name(t).or_else(|_| {
-                    log::debug!("creating new tag: {}", t);
-                    let tag = opts.color.as_ref().map_or_else(
-                        || Tag::random_noid(t, &self.colors),
-                        |color| Tag::new_noid(t, color),
-                    );
-
-                    reg.insert_tag(&tag)
-                })
+                (
+                    reg.tag_by_name(t).unwrap_or_else(|_| Tag::null(t)),
+                    Value::new_noid(""),
+                )
             })
-            .collect::<Result<Vec<_>>>()?;
-
-        // Extend the combos, setting value ID to 0
-        let mut remapped = tags
-            .iter()
-            .map(|t| TagValueCombo::new(t.id(), ID::null()))
             .collect::<Vec<_>>();
 
-        combos.append(&mut remapped);
+        combos.append(&mut tags);
 
         if (opts.stdin || atty::isnt(atty::Stream::Stdin)) && atty::is(atty::Stream::Stdout) {
             log::debug!("Using STDIN");
@@ -245,66 +217,36 @@ impl App {
                 let path = &file.path();
                 let path_d = path.display();
 
-                if opts.clear {
-                    log::debug!("{}: clearing tags", path_d);
-
-                    let ftags = reg.tags_by_fileid(file.id())?;
-
-                    for t in ftags.iter() {
-                        // TODO: Move this to clear function and call here
-                        // If the tag has values
-                        if let Ok(values) = reg.values_by_tagid(t.id()) {
-                            for value in values.iter() {
-                                if reg.value_count_by_id(value.id())? == 1 {
-                                    reg.delete_value(value.id())?;
-                                } else {
-                                    reg.delete_filetag(file.id(), t.id(), value.id())?;
-                                }
-                                if reg.tag_count_by_id(t.id())? == 1 {
-                                    reg.delete_tag(t.id())?;
-                                }
-                            }
-                        // If the tag is only connected to this file
-                        } else if reg.tag_count_by_id(t.id())? == 1 {
-                            for pair in &combos {
-                                if t.id() != pair.tag_id() {
-                                    reg.delete_tag(t.id())?;
-                                }
-                            }
-                        } else {
-                            reg.delete_filetag(file.id(), t.id(), ID::null())?;
-                        }
-
-                        match path.has_tags() {
-                            Ok(has_tags) =>
-                                if has_tags {
-                                    if let Err(e) = path.clear_tags() {
-                                        wutag_error!("\t{} {}", e, bold_entry!(path));
-                                    }
-                                },
-                            Err(e) => {
-                                wutag_error!("{} {}", e, bold_entry!(path));
-                            },
-                        }
-                    }
-                }
-
                 // Collecting these in a vector to print later makes it look better
                 let mut duplicate_errors = vec![];
                 // Try and do better about tracking whether newline should be added
                 // This assumes an error
                 let mut print_newline = false;
 
-                for pair in &combos {
-                    let tag = reg.tag(pair.tag_id())?;
+                for (mut tag, mut value) in combos.iter().cloned() {
+                    // Tag was not found within the registry
+                    if tag.is_null_id() {
+                        log::debug!("creating new tag: {}", tag.name());
+                        let t = opts.color.as_ref().map_or_else(
+                            || Tag::random_noid(tag.name(), &self.colors),
+                            |color| Tag::new_noid(tag.name(), color),
+                        );
 
-                    if let Err(e) =
-                        reg.insert_filetag(&FileTag::new(file.id(), pair.tag_id(), pair.value_id()))
-                    {
+                        tag = reg.insert_tag(&t)?;
+                    }
+
+                    // Value was not found in registry and is actually passed
+                    if value.is_null_id() && !value.is_null_name() {
+                        log::debug!("creating new value: {}", value.name());
+                        value = reg.insert_value(value)?;
+                    }
+
+                    let ft = FileTag::new(file.id(), tag.id(), value.id());
+                    if let Err(e) = reg.insert_filetag(&ft) {
                         if let Some(rsq::Error::StatementChangedRows(n)) = e.downcast_ref::<rsq::Error>() {
                             if let Err(e) = path.get_tag(tag.name()) {
                                 wutag_error!(
-                                    "{}: found in database, though file has no xattrs: {}",
+                                    "{}: found in registry, though file has no xattrs: {}",
                                     bold_entry!(path),
                                     e
                                 );
@@ -319,7 +261,7 @@ impl App {
                                 duplicate_errors.push(format!(
                                     "{}: duplicate entry with tag: {}",
                                     bold_entry!(path),
-                                    self.fmt_tag(&reg.tag(pair.tag_id())?),
+                                    self.fmt_tag(&reg.tag(tag.id())?),
                                 ));
                             }
 
@@ -329,16 +271,16 @@ impl App {
                         return Err(anyhow!("{}: could not apply tags: {}", path_d, e));
                     }
 
+                    // Deal with xattr after database
                     if let Err(e) = path.tag(&tag) {
                         wutag_error!("{} {}", e, bold_entry!(path));
                     } else {
                         log::debug!("{}: writing xattrs", path_d);
-
                         if !self.quiet {
                             print!("\t{} {}", "+".bold().green(), self.fmt_tag(&tag));
 
-                            if pair.value_id().id() != 0 {
-                                let value = reg.value(pair.value_id())?;
+                            if value.id().id() != 0 {
+                                let value = reg.value(value.id())?;
                                 print!("={}", value.name().color(self.base_color).bold());
                             }
 
@@ -369,10 +311,8 @@ impl App {
                     // resolved symlink if it is a single file. However, symbolic directories are
                     // traversed
                     let path = &self.resolve_symlink(entry.path())?;
-
-                    qprint!(self, "{}:", self.fmt_path(path));
-
                     let path_d = path.display();
+                    qprint!(self, "{}:", self.fmt_path(path));
 
                     // Check if file path exists in the database
                     let mut file = reg.file_by_path(path);
@@ -405,39 +345,33 @@ impl App {
                     if opts.clear {
                         log::debug!("{}: clearing tags", path_d);
 
-                        let ftags = reg.tags_by_fileid(file.id())?;
+                        let files_tags = reg.tags_for_file(&file)?;
 
-                        for t in ftags.iter() {
-                            // TODO: Check whether implications need deleted when > 1
+                        for tag in files_tags.iter() {
+                            // let values = reg.unique_values_by_tag(tag.id())?;
+                            let values = reg.values_by_fileid_tagid(file.id(), tag.id())?;
 
-                            // If the tag has values
-                            if let Ok(values) = reg.values_by_tagid(t.id()) {
+                            if reg.tag_count_by_id(tag.id())? == 1 {
+                                reg.delete_tag_only(tag.id())?;
+                            }
+
+                            if values.is_empty() {
+                                reg.delete_filetag_only(file.id(), tag.id(), ID::null())?;
+                            } else {
                                 for value in values.iter() {
                                     if reg.value_count_by_id(value.id())? == 1 {
-                                        reg.delete_value(value.id())?;
-                                    } else {
-                                        reg.delete_filetag(file.id(), t.id(), value.id())?;
+                                        reg.delete_value_only(value.id())?;
                                     }
+
+                                    reg.delete_filetag_only(file.id(), tag.id(), value.id())?;
                                 }
-                                if reg.tag_count_by_id(t.id())? == 1 {
-                                    reg.delete_tag(t.id())?;
-                                }
-                            // If the tag is only connected to this file
-                            } else if reg.tag_count_by_id(t.id())? == 1 {
-                                for pair in &combos {
-                                    if t.id() != pair.tag_id() {
-                                        reg.delete_tag(t.id())?;
-                                    }
-                                }
-                            } else {
-                                reg.delete_filetag(file.id(), t.id(), ID::null())?;
                             }
 
                             match path.has_tags() {
                                 Ok(has_tags) =>
                                     if has_tags {
                                         if let Err(e) = path.clear_tags() {
-                                            wutag_error!("\t{} {}", e, bold_entry!(path));
+                                            wutag_error!("{} {}", e, bold_entry!(path));
                                         }
                                     },
                                 Err(e) => {
@@ -453,12 +387,27 @@ impl App {
                     // This assumes an error
                     let mut print_newline = false;
 
-                    for pair in &combos {
-                        let tag = reg.tag(pair.tag_id())?;
+                    for (mut tag, mut value) in combos.iter().cloned() {
+                        // Tag was not found within the registry
+                        // Check again, because it could've been cleared
+                        if reg.tag(tag.id()).is_err() {
+                            log::debug!("creating new tag: {}", tag.name());
+                            let t = opts.color.as_ref().map_or_else(
+                                || Tag::random_noid(tag.name(), &self.colors),
+                                |color| Tag::new_noid(tag.name(), color),
+                            );
 
-                        if let Err(e) =
-                            reg.insert_filetag(&FileTag::new(file.id(), pair.tag_id(), pair.value_id()))
-                        {
+                            tag = reg.insert_tag(&t)?;
+                        }
+
+                        // Value was not found in registry and is actually passed
+                        if value.is_null_id() && !value.is_null_name() {
+                            log::debug!("creating new value: {}", value.name());
+                            value = reg.insert_value(value)?;
+                        }
+
+                        let ft = FileTag::new(file.id(), tag.id(), value.id());
+                        if let Err(e) = reg.insert_filetag(&ft) {
                             if let Some(rsq::Error::StatementChangedRows(n)) =
                                 e.downcast_ref::<rsq::Error>()
                             {
@@ -479,14 +428,14 @@ impl App {
                                     duplicate_errors.push(format!(
                                         "{}: duplicate entry with tag: {}",
                                         bold_entry!(path),
-                                        self.fmt_tag(&reg.tag(pair.tag_id())?),
+                                        self.fmt_tag(&reg.tag(tag.id())?),
                                     ));
                                 }
 
                                 continue;
                             }
 
-                            return Err(anyhow!("{}: could not apply tags: {}", bold_entry!(path), e));
+                            return Err(anyhow!("{}: could not apply tags: {}", path_d, e));
                         }
 
                         // Deal with xattr after database
@@ -494,13 +443,11 @@ impl App {
                             wutag_error!("{} {}", e, bold_entry!(path));
                         } else {
                             log::debug!("{}: writing xattrs", path_d);
-                            // TODO: Create entry here?
-
                             if !self.quiet {
                                 print!("\t{} {}", "+".bold().green(), self.fmt_tag(&tag));
 
-                                if pair.value_id().id() != 0 {
-                                    let value = reg.value(pair.value_id())?;
+                                if value.id().id() != 0 {
+                                    let value = reg.value(value.id())?;
                                     print!("={}", value.name().color(self.base_color).bold());
                                 }
 

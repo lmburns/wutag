@@ -18,18 +18,6 @@ use std::{collections::HashMap, fs, os::unix::fs::MetadataExt};
 /// Arguments used for the `info` subcommand
 #[derive(Args, Debug, Clone, PartialEq)]
 pub(crate) struct InfoOpts {
-    /// Show the number of deleted items (see --help for calculation)
-    #[clap(
-        name = "deleted",
-        long = "deleted",
-        short = 'd',
-        long_help = "\
-            Note that this is calculated by taking the current number of items in the database and \
-                     subtracting the maximum of the auto-incrementing index. This number isn't always \
-                     right"
-    )]
-    deleted: bool,
-
     /// Show the averages for each item
     #[clap(name = "mean", long = "mean", short = 'm')]
     mean: bool,
@@ -131,26 +119,15 @@ impl App {
             );
         }
 
-        if opts.deleted || opts.full {
+        if opts.full {
             println!();
 
             if tag_count > 0 {
                 // Dangling tags
                 println!("{}: {}", c("Dangling tags"), reg.dangling_tags()?.len());
-
-                // Deleted tags
-                println!("{}: {}", c("Deleted tags"), reg.tag_max()? - tag_count);
-            }
-
-            if value_count > 0 {
-                // Deleted values
-                println!("{}: {}", c("Deleted values"), reg.value_max()? - value_count);
             }
 
             if file_count > 0 {
-                // Deleted files
-                println!("{}: {}", c("Deleted files"), reg.file_max()? - file_count);
-
                 // Files without extended attributes
                 let mut no_xattr = vec![];
                 let files = reg.files(None)?;

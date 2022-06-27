@@ -1,14 +1,19 @@
+#![allow(unused)]
 //! Functions for manipulating tags on files.
 use super::{
     core::{list_xattrs, remove_xattr, set_xattr, Xattr},
     Error, Result as XResult,
 };
-use crate::{consts::WUTAG_NAMESPACE, registry::types::Tag};
+use crate::{
+    consts::{WUTAG_NAMESPACE, WUTAG_TAG_NAMESPACE, WUTAG_VALUE_NAMESPACE},
+    registry::types::{Tag, Value},
+};
 use colored::Colorize;
 use std::{
     collections::BTreeSet,
     convert::TryFrom,
     path::{Display, Path, PathBuf},
+    str,
 };
 
 /// Extend a file-path's ability to interact with `xattrs`
@@ -18,6 +23,7 @@ pub(crate) trait DirEntryExt {
     /// # Errors
     /// If the `xattr` cannot be added
     fn tag(&self, tag: &Tag) -> XResult<()>;
+    fn value(&self, tag: &Tag, value: &Value) -> XResult<()>;
     /// Remove a [`Tag`] from a given path and add a new one
     ///
     /// # Errors
@@ -73,6 +79,10 @@ impl DirEntryExt for &PathBuf {
     #[inline]
     fn tag(&self, tag: &Tag) -> XResult<()> {
         tag.save_to(self)
+    }
+
+    fn value(&self, tag: &Tag, value: &Value) -> XResult<()> {
+        value.save_to(self, tag)
     }
 
     #[inline]
@@ -134,6 +144,10 @@ impl DirEntryExt for ignore::DirEntry {
     #[inline]
     fn tag(&self, tag: &Tag) -> XResult<()> {
         tag.save_to(self.path())
+    }
+
+    fn value(&self, tag: &Tag, value: &Value) -> XResult<()> {
+        value.save_to(self.path(), tag)
     }
 
     #[inline]
@@ -198,7 +212,7 @@ impl Tag {
     #[allow(clippy::same_name_method)]
     fn hash(&self) -> XResult<String> {
         serde_cbor::to_vec(&self)
-            .map(|tag| format!("{}.{}", WUTAG_NAMESPACE, base64::encode(tag)))
+            .map(|tag| format!("{}.{}", WUTAG_TAG_NAMESPACE, base64::encode(tag)))
             .map_err(Error::from)
     }
 
@@ -212,7 +226,7 @@ impl Tag {
     {
         for tag in list_tags(path.as_ref())? {
             if &tag == self {
-                return Err(Error::TagExists(tag.name.green().bold()));
+                return Err(Error::TagExists(tag.name().green().bold()));
             }
         }
         set_xattr(path, self.hash()?.as_str(), "")
@@ -238,7 +252,33 @@ impl Tag {
             }
         }
 
-        Err(Error::TagNotFound(self.name.clone()))
+        Err(Error::TagNotFound(self.name().clone()))
+    }
+}
+
+impl Value {
+    /// Custom implementation of `Hash`
+    #[allow(clippy::same_name_method)]
+    fn hash(&self) -> XResult<String> {
+        serde_cbor::to_vec(&self)
+            .map(|tag| format!("{}.{}", WUTAG_NAMESPACE, base64::encode(tag)))
+            .map_err(Error::from)
+    }
+
+    /// Tags the file at the given `path` with a [`Value`].
+    ///
+    /// # Errors
+    /// If the tag exists with the same [`Value`] it returns an [`Error`]
+    pub(crate) fn save_to<P>(&self, path: P, tag: &Tag) -> XResult<()>
+    where
+        P: AsRef<Path>,
+    {
+        for value in list_values(path.as_ref(), tag)? {
+            if &value == self {
+                return Err(Error::ValueExists(value.name().green().bold()));
+            }
+        }
+        set_xattr(path, self.hash()?.as_str(), "")
     }
 }
 
@@ -267,10 +307,48 @@ impl TryFrom<Xattr> for Tag {
             )));
         }
 
-        let tag_bytes = next_or_else!(elems, "missing tag")?;
-        let tag = serde_cbor::from_slice(&base64::decode(tag_bytes.as_bytes())?)?;
+        let rest = next_or_else!(elems, "missing rest of xattr")?;
+        let mut new_split = rest.split(".value.");
+        let tag_bytes = next_or_else!(new_split, "missing tag")?;
 
-        Ok(tag)
+        if rest == tag_bytes {
+            return Ok(serde_cbor::from_slice(&base64::decode(tag_bytes.as_bytes())?)?);
+        }
+
+        Err(Error::InvalidTagKey(String::from("invalid parsing of the tag")))
+    }
+}
+
+impl TryFrom<Xattr> for Value {
+    type Error = Error;
+
+    #[inline]
+    fn try_from(xattr: Xattr) -> XResult<Self> {
+        let key = xattr.key();
+        let mut elems = key.split("wutag.");
+
+        let ns = next_or_else!(elems, "missing namespace `user`")?;
+        if ns != "user." {
+            return Err(Error::InvalidTagKey(format!(
+                "invalid namespace `{}`, valid namespace is `user`",
+                ns
+            )));
+        }
+
+        let rest = next_or_else!(elems, "missing rest of xattr")?;
+        let mut new_split = rest.split(".value.");
+        let tag_bytes = next_or_else!(new_split, "missing tag")?;
+
+        if rest != tag_bytes {
+            let value_bytes = next_or_else!(new_split, "missing value")?;
+            return Ok(serde_cbor::from_slice(&base64::decode(value_bytes.as_bytes())?)?);
+        }
+
+        Err(Error::NoValueFound(
+            str::from_utf8(&base64::decode(tag_bytes.as_bytes())?)
+                .map_err(Error::from)?
+                .to_owned(),
+        ))
     }
 }
 
@@ -289,7 +367,7 @@ where
     let path = path.as_ref();
     let tag = tag.as_ref();
     for tag_ in list_xattrs(path)?.into_iter().flat_map(Tag::try_from) {
-        if tag_.name == tag {
+        if tag_.name() == tag {
             return Ok(tag_);
         }
     }
@@ -317,6 +395,25 @@ where
             tags.push(tag);
         }
         tags
+    })
+}
+
+#[inline]
+pub(crate) fn list_values<P>(path: P, tag: &Tag) -> XResult<Vec<Value>>
+where
+    P: AsRef<Path>,
+{
+    list_xattrs(path).map(|attrs| {
+        let mut values = Vec::new();
+        let it = attrs
+            .into_iter()
+            .filter(|xattr| xattr.key().starts_with(WUTAG_NAMESPACE))
+            .map(Value::try_from);
+
+        for value in it.flatten() {
+            values.push(value);
+        }
+        values
     })
 }
 

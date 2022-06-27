@@ -281,8 +281,6 @@ _arguments "${_arguments_options[@]}" \
 ;;
 (info)
 _arguments "${_arguments_options[@]}" \
-'-d[Show the number of deleted items (see --help for calculation)]' \
-'--deleted[Show the number of deleted items (see --help for calculation)]' \
 '-m[Show the averages for each item]' \
 '--mean[Show the averages for each item]' \
 '-f[Show everything about the registry (all --flags)]' \

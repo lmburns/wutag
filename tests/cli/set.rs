@@ -1,6 +1,12 @@
 use super::*;
 use crate::{expand_file, expand_file_dir_two};
 
+// --clear
+// # file is only tag in db with 1 tag
+// # file is only tag in db with 2 tag
+// # file is only tag in db with 1 tag, value
+// # file is only tag in db with 2 tag, value
+
 #[test]
 fn multiple_files_same_ft_glob() {
     wutag_clear();

@@ -250,8 +250,6 @@ set edit:completion:arg-completer[wutag] = {|@words|
             cand --global 'Apply operation to all tags and files instead of locally'
         }
         &'wutag;info'= {
-            cand -d 'Show the number of deleted items (see --help for calculation)'
-            cand --deleted 'Show the number of deleted items (see --help for calculation)'
             cand -m 'Show the averages for each item'
             cand --mean 'Show the averages for each item'
             cand -f 'Show everything about the registry (all --flags)'

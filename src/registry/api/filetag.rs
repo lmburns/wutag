@@ -91,7 +91,7 @@ impl Registry {
         self.wrap_commit(|txn| txn.insert_filetag(ft))
     }
 
-    /// Delete all [`FileTag`]s from the database
+    /// Delete all [`FileTag`]s from the [`Registry`]
     #[allow(clippy::redundant_closure_for_method_calls)] // Doesn't work
     pub(crate) fn clear_filetags(&self) -> Result<()> {
         self.wrap_commit(|txn| txn.clear_filetags())
@@ -103,8 +103,32 @@ impl Registry {
             let ft = FileTag::new(fid, tid, vid);
             let exists = txn.filetag_exists(&ft)?;
 
+            if !exists {
+                return Err(anyhow!("FileTag({}, {}, {}) doesn't exist", fid, tid, vid));
+            }
+
             txn.delete_filetag(&ft)?;
             self.delete_file_if_untagged(txn, ft.file_id())?;
+
+            Ok(())
+        })
+    }
+
+    /// **Only** remove a [`FileTag`] from the [`Registry`].
+    ///
+    /// To also remove untagged files, use [`delete_filetag`]
+    /// This is meant for a sort of 'manual' intervention on dealing with the
+    /// database
+    pub(crate) fn delete_filetag_only(&self, fid: FileId, tid: TagId, vid: ValueId) -> Result<()> {
+        self.wrap_commit(|txn| {
+            let ft = FileTag::new(fid, tid, vid);
+            let exists = txn.filetag_exists(&ft)?;
+
+            if !exists {
+                return Err(anyhow!("FileTag({}, {}, {}) doesn't exist", fid, tid, vid));
+            }
+
+            txn.delete_filetag(&ft)?;
 
             Ok(())
         })

@@ -221,7 +221,7 @@ impl App {
                                     tern::t!(
                                         opts.raw
                                             ? v.clone()
-                                            : v.bold().to_string()
+                                            : v.color(self.base_color).bold().to_string()
                                     )
                                 })
                                 .join(",")

@@ -264,8 +264,6 @@ Register-ArgumentCompleter -Native -CommandName 'wutag' -ScriptBlock {
             break
         }
         'wutag;info' {
-            [CompletionResult]::new('-d', 'd', [CompletionResultType]::ParameterName, 'Show the number of deleted items (see --help for calculation)')
-            [CompletionResult]::new('--deleted', 'deleted', [CompletionResultType]::ParameterName, 'Show the number of deleted items (see --help for calculation)')
             [CompletionResult]::new('-m', 'm', [CompletionResultType]::ParameterName, 'Show the averages for each item')
             [CompletionResult]::new('--mean', 'mean', [CompletionResultType]::ParameterName, 'Show the averages for each item')
             [CompletionResult]::new('-f', 'f', [CompletionResultType]::ParameterName, 'Show everything about the registry (all --flags)')

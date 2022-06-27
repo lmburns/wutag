@@ -107,6 +107,18 @@ impl FromSql for Value {
     }
 }
 
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name)
+    }
+}
+
+impl AsRef<str> for Value {
+    fn as_ref(&self) -> &str {
+        self.name.as_ref()
+    }
+}
+
 impl TryFrom<&Row<'_>> for Value {
     type Error = rsq::Error;
 
@@ -148,12 +160,6 @@ impl Values {
                     .then(|| name.to_lowercase())
                     .unwrap_or_else(|| name.to_string())
         })
-    }
-}
-
-impl fmt::Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.name)
     }
 }
 

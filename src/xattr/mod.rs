@@ -12,17 +12,28 @@ use thiserror::Error;
 #[non_exhaustive]
 #[derive(Debug, Error)]
 pub(crate) enum Error {
-    /// Tag already exists within the database
-    #[error("tag {0} already exists")]
+    /// Tag already exists within the registry
+    #[error("Tag({0}) already exists")]
     TagExists(ColoredString),
 
-    /// Tag is not found within the database
-    #[error("tag `{0}` doesn't exist")]
+    /// Tag is not found within the registry
+    #[error("Tag({0}) doesn't exist")]
     TagNotFound(String),
 
     /// The key was invalid
     #[error("tag key was invalid - {0}")]
     InvalidTagKey(String),
+
+    /// Value already exists within the registry
+    #[error("Value({0}) already exists")]
+    ValueExists(ColoredString),
+
+    // /// Value is not found within the registry
+    // #[error("Value({0}) doesn't exist")]
+    // ValueNotFound(String),
+    /// Tag does not have a value
+    #[error("no value is found with Tag({0})")]
+    NoValueFound(String),
 
     /// General error
     #[error("error: {0}")]
@@ -56,6 +67,10 @@ sticky bit set. See xattr(7), attr(1), setfattr(1), lsetxattr(2)"#
     /// Unable to convert into valid UTF-8
     #[error("provided string was not valid UTF-8")]
     Utf8ConversionFailed(#[from] string::FromUtf8Error),
+
+    /// Unable to convert into valid UTF-8 (`str`)
+    #[error("provided string was not valid UTF-8")]
+    Utf8ConversionFailedStr(#[from] std::str::Utf8Error),
 
     /// Extended attributes were modified when retrieving them
     #[error("xattrs changed while getting their size")]

@@ -113,7 +113,6 @@ complete -c wutag -n "__fish_seen_subcommand_from edit" -s V -l value -d 'Indica
 complete -c wutag -n "__fish_seen_subcommand_from edit" -s h -l help -d 'Print help information'
 complete -c wutag -n "__fish_seen_subcommand_from edit" -s v -l verbose -d 'Display debugging messages on 4 levels (i.e., -vv..)'
 complete -c wutag -n "__fish_seen_subcommand_from edit" -s g -l global -d 'Apply operation to all tags and files instead of locally'
-complete -c wutag -n "__fish_seen_subcommand_from info" -s d -l deleted -d 'Show the number of deleted items (see --help for calculation)'
 complete -c wutag -n "__fish_seen_subcommand_from info" -s m -l mean -d 'Show the averages for each item'
 complete -c wutag -n "__fish_seen_subcommand_from info" -s f -l full -d 'Show everything about the registry (all --flags)'
 complete -c wutag -n "__fish_seen_subcommand_from info" -s r -l raw -d 'Do not use color in output'

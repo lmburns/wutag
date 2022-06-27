@@ -59,11 +59,11 @@ impl_vec!(TagIds, TagId);
 #[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 pub(crate) struct Tag {
     /// The unique identifier
-    id:              TagId,
+    id:    TagId,
     /// The string representation
-    pub(crate) name: String,
+    name:  String,
     /// The color (if any) the [`Tag`] is supposed to display
-    color:           Color,
+    color: Color,
 }
 
 impl Tag {
@@ -183,7 +183,7 @@ impl Tag {
 
 impl AsRef<str> for Tag {
     fn as_ref(&self) -> &str {
-        self.name().as_ref()
+        self.name.as_ref()
     }
 }
 

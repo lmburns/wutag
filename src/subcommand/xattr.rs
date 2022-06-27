@@ -70,8 +70,15 @@ impl App {
                 let path_d = path.display();
                 qprint!(self, "{}:", self.fmt_path(path));
 
-                let tags = path.list_tags()?;
+                let tags = path.list_tags();
                 println!("TAGS: {:#?}", tags);
+
+                if let Ok(t) = tags {
+                    for tag in &t {
+                        let values = path.list_values(tag);
+                        println!("VALUES: {:#?}", values);
+                    }
+                }
 
                 Ok(())
             },

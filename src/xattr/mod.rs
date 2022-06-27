@@ -3,6 +3,7 @@
 pub(crate) mod core;
 pub(crate) mod tag;
 pub(crate) mod tag_old;
+pub(crate) mod value;
 
 use colored::{ColoredString, Colorize};
 use std::{ffi, io, string};
@@ -28,13 +29,17 @@ pub(crate) enum Error {
     #[error("Value({0}) already exists")]
     ValueExists(ColoredString),
 
-    // /// Value is not found within the registry
-    // #[error("Value({0}) doesn't exist")]
-    // ValueNotFound(String),
-    /// Tag does not have a value
-    #[error("no value is found with Tag({0})")]
-    NoValueFound(String),
+    /// Value is not found within the registry
+    #[error("Value({0}) doesn't exist")]
+    ValueNotFound(String),
 
+    /// [`Value`] doesn't exist on a [`Tag`]
+    #[error("value doesn't exist on Tag({1})")]
+    ValueNotFoundOnTag(String, String),
+
+    // /// Tag does not have a value
+    // #[error("no value is found with Tag({0})")]
+    // NoValueFound(String),
     /// General error
     #[error("error: {0}")]
     Other(String),

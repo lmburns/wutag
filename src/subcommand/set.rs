@@ -421,6 +421,12 @@ impl App {
                                     if let Err(e) = path.tag(&tag) {
                                         wutag_error!("{}: {}", bold_entry!(path), e);
                                     }
+
+                                    if !value.is_null_id() {
+                                        if let Err(e) = path.value(&tag, &value) {
+                                            wutag_error!("{}: {}", bold_entry!(path), e);
+                                        }
+                                    }
                                 }
 
                                 // Don't return an error so the xattrs can be written
@@ -446,7 +452,11 @@ impl App {
                             if !self.quiet {
                                 print!("\t{} {}", "+".bold().green(), self.fmt_tag(&tag));
 
-                                if value.id().id() != 0 {
+                                if !value.is_null_id() {
+                                    if let Err(e) = path.value(&tag, &value) {
+                                        wutag_error!("{}: {}", bold_entry!(path), e);
+                                    }
+
                                     let value = reg.value(value.id())?;
                                     print!("={}", value.name().color(self.base_color).bold());
                                 }

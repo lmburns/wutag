@@ -56,7 +56,8 @@ pub(crate) fn process_single(
         let lock = rx.lock().expect("failed to lock receiver");
 
         // Get the next item from the receiver
-        let value: PathBuf = match lock.recv() {
+        let received = lock.recv();
+        let value: PathBuf = match received {
             Ok(ChannelResult::Entry((entry, _id))) => entry,
             Ok(ChannelResult::Error(err)) => {
                 wutag_error!("{}", err.to_string());

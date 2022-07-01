@@ -318,14 +318,14 @@ impl fmt::Debug for SqlBuilder<'_> {
             .field(
                 "params",
                 &self.params.iter().fold(String::new(), |mut acc, f| {
-                    acc.push_str(&format!(" {:?}", f.to_sql()));
+                    write!(acc, " {:?}", f.to_sql());
                     acc
                 }),
             )
             .field(
                 "named_params",
                 &self.named_params.iter().fold(String::new(), |mut acc, f| {
-                    acc.push_str(&format!(" {} {:?}", f.0, f.1.to_sql()));
+                    write!(acc, " {} {:?}", f.0, f.1.to_sql());
                     acc
                 }),
             )

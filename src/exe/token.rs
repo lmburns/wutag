@@ -24,18 +24,18 @@ pub(crate) enum Token {
 impl Display for Token {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{}", match *self {
-            Token::Placeholder => "{}",
-            Token::Basename => "{/}",
-            Token::Parent => "{//}",
-            Token::NoExt => "{.}",
-            Token::BasenameNoExt => "{/.}",
-            Token::Wutag => "{..}",
-            Token::WutagColored => "{@}",
-            Token::WutagSet => "{@s}",
-            Token::WutagRemove => "{@r}",
-            Token::WutagClear => "{@x}",
-            Token::WutagCp => "{@c}",
-            Token::Text(ref s) => s,
+            Self::Placeholder => "{}",
+            Self::Basename => "{/}",
+            Self::Parent => "{//}",
+            Self::NoExt => "{.}",
+            Self::BasenameNoExt => "{/.}",
+            Self::Wutag => "{..}",
+            Self::WutagColored => "{@}",
+            Self::WutagSet => "{@s}",
+            Self::WutagRemove => "{@r}",
+            Self::WutagClear => "{@x}",
+            Self::WutagCp => "{@c}",
+            Self::Text(ref s) => s,
         })
     }
 }

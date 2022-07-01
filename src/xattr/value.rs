@@ -1,20 +1,15 @@
-#![allow(unused)]
+//! Functions for manipulating values on files.
 
 use super::{
     core::{list_xattrs, remove_xattr, set_xattr, Xattr},
-    tag::DirEntryExt,
     Error, Result as XResult,
 };
 use crate::{
-    consts::{WUTAG_NAMESPACE, WUTAG_TAG_NAMESPACE, WUTAG_VALUE_NAMESPACE},
+    consts::WUTAG_VALUE_NAMESPACE,
     registry::types::{Tag, Value},
 };
 use colored::Colorize;
-use std::{
-    collections::BTreeSet,
-    convert::TryFrom,
-    path::{Display, Path, PathBuf},
-};
+use std::{convert::TryFrom, path::Path};
 
 /// Get the `next` item or return an `Error`
 macro_rules! next_or_else {
@@ -86,6 +81,7 @@ impl Value {
     /// If no values exist the error [`ValueNotFound`] is returned
     ///
     /// [`TagNotFound`]: crate::xattr::Error::TagNotFound
+    #[allow(dead_code)]
     pub(crate) fn remove_all_from<P>(&self, path: P) -> XResult<()>
     where
         P: AsRef<Path>,
@@ -172,10 +168,11 @@ impl TryFrom<Xattr> for Value {
 ///
 /// [`TagNotFound`]: crate::xattr::Error::TagNotFound
 #[inline]
-pub(crate) fn get_value<P, T>(path: P, tag: T, value: T) -> XResult<Value>
+pub(crate) fn get_value<P, T, V>(path: P, tag: T, value: V) -> XResult<Value>
 where
     P: AsRef<Path>,
     T: AsRef<str>,
+    V: AsRef<str>,
 {
     let path = path.as_ref();
     let tag = tag.as_ref();
@@ -244,7 +241,7 @@ where
 /// Clears all [`Values`] of the file at the given `path`.
 ///
 /// # Errors
-/// If the action of clearing the tags failed
+/// If clearing the extended attributes failed
 #[inline]
 pub(crate) fn clear_values<P>(path: P) -> XResult<()>
 where
@@ -263,7 +260,7 @@ where
 /// Checks whether the given `path` has [`Values`] for a [`Tag`]
 ///
 /// # Errors
-/// If the file entry does not have any tags
+/// If there is a failure in listing extended attributes
 #[inline]
 pub(crate) fn has_values<P>(path: P, tag: &Tag) -> XResult<bool>
 where
@@ -272,10 +269,10 @@ where
     list_values(path, tag).map(|values| !values.is_empty())
 }
 
-/// Checks whether the given `path` has any tags.
+/// Checks whether the given `path` has any values.
 ///
 /// # Errors
-/// If the file entry does not have any tags
+/// If there is a failure in listing extended attributes
 #[inline]
 pub(crate) fn has_any_values<P>(path: P) -> XResult<bool>
 where

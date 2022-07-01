@@ -251,11 +251,11 @@ pub(crate) enum AppMode {
 impl fmt::Display for AppMode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            AppMode::List => write!(f, "List"),
-            AppMode::Error => write!(f, "Error"),
-            AppMode::Help => write!(f, "Help"),
-            AppMode::HelpPopup => write!(f, "Help Popup"),
-            AppMode::Command => write!(f, "Command"),
+            Self::List => write!(f, "List"),
+            Self::Error => write!(f, "Error"),
+            Self::Help => write!(f, "Help"),
+            Self::HelpPopup => write!(f, "Help Popup"),
+            Self::Command => write!(f, "Command"),
         }
     }
 }

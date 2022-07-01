@@ -74,7 +74,7 @@ impl Key {
     pub(crate) const fn proto(&self) -> Proto {
         match self {
             // #[cfg(feature = "_encrypt-gpg")]
-            Key::Gpg(_) => Proto::Gpg,
+            Self::Gpg(_) => Proto::Gpg,
         }
     }
 
@@ -82,7 +82,7 @@ impl Key {
     pub(crate) fn fingerprint(&self, short: bool) -> String {
         match self {
             // #[cfg(feature = "_encrypt-gpg")]
-            Key::Gpg(key) => key.fingerprint(short),
+            Self::Gpg(key) => key.fingerprint(short),
         }
     }
 
@@ -90,7 +90,7 @@ impl Key {
     pub(crate) fn display(&self) -> String {
         match self {
             // #[cfg(feature = "_encrypt-gpg")]
-            Key::Gpg(key) => key.display_user(),
+            Self::Gpg(key) => key.display_user(),
         }
     }
 }

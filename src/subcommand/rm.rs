@@ -1,5 +1,7 @@
 #![allow(clippy::unnested_or_patterns)]
 
+// TODO: Reduce duplicate code
+
 /// Remove tags/values from other files/tags respectively
 use super::{parse_tag_val, red_entry, App};
 use crate::{
@@ -151,7 +153,7 @@ impl App {
         };
 
         // Remove an extended attribute from a [`PathBuf`]
-        let handle_xattr = |tag: &Tag, path: &PathBuf| {
+        let handle_tag_xattr = |path: &PathBuf, tag: &Tag| {
             log::debug!("removing xattr for Tag({})", tag.name());
             if path.get_tag(tag).is_err() {
                 wutag_error!(
@@ -160,9 +162,25 @@ impl App {
                     self.fmt_tag(tag)
                 );
             } else if let Err(e) = path.untag(tag) {
-                wutag_error!("{}: {}", path.display(), e);
+                wutag_error!("{}: {}", bold_entry!(path), e);
             } else {
                 print!("\t{} {}", r!("X"), self.fmt_tag(tag));
+            }
+        };
+
+        let handle_value_xattr = |path: &PathBuf, tag: &Tag, value: &Value| {
+            log::debug!("removing xattr for Tag({}), Value({})", tag.name(), value.name());
+            if path.get_value(tag, value).is_err() {
+                wutag_error!(
+                    "{}: found ({}) in database, though file has no xattr value({})",
+                    bold_entry!(path),
+                    self.fmt_tag(tag),
+                    value.name().color(self.base_color).bold(),
+                );
+            } else if let Err(e) = path.unvalue(tag, value) {
+                wutag_error!("{}: {}", bold_entry!(path), e);
+            } else {
+                print!("\t{} {} (v)", r!("X"), self.fmt_tag(tag));
             }
         };
 
@@ -173,7 +191,8 @@ impl App {
                 self.case_sensitive,
             );
 
-            for file in reg.files(None)?.iter() {
+            let files = reg.files(None)?;
+            for file in files.iter() {
                 let path = &file.path();
 
                 let search_str: Cow<OsStr> = Cow::Owned(path.as_os_str().to_os_string());
@@ -214,14 +233,15 @@ impl App {
                                     continue;
                                 }
 
-                                // Deal with xattr after database
-                                handle_xattr(tag, path);
-
                                 for value in values.iter() {
                                     if delete_value(value, path).is_err() {
                                         continue;
                                     }
+                                    handle_value_xattr(path, tag, value);
                                 }
+
+                                // Deal with xattr after database
+                                handle_tag_xattr(path, tag);
                             },
 
                             // Passed: Tag, Value => Found: false, false
@@ -267,15 +287,16 @@ impl App {
                                     continue;
                                 }
 
-                                // Deal with xattr after database tag, but before value
-                                // so that way 'X <tag> \t X (V) <value>' is printed
-                                handle_xattr(tag, path);
-
                                 for value in values.iter() {
                                     if delete_value(value, path).is_err() {
                                         continue;
                                     }
+
+                                    handle_value_xattr(path, tag, value);
                                 }
+
+                                // Deal with xattr after database tag
+                                handle_tag_xattr(path, tag);
                             },
 
                             // Passed: Tag => Found: false
@@ -331,6 +352,8 @@ impl App {
                                     continue;
                                 }
 
+                                handle_value_xattr(path, tag, value);
+
                                 for tag in tags.iter() {
                                     if reg.tag_count_by_id(tag.id())? == 1 {
                                         if delete_tag(tag, path).is_err() {
@@ -347,9 +370,8 @@ impl App {
                                         continue;
                                     }
 
-                                    // TODO: Make sure that if file is not deleted it still has
-                                    // xattr
-                                    handle_xattr(tag, path);
+                                    // TODO: Make sure that if file is not deleted it still has xattr
+                                    handle_tag_xattr(path, tag);
                                 }
 
                                 // What would be a better way to indicate that this is a value?
@@ -407,7 +429,6 @@ impl App {
                     if let Ok(file) = reg.file_by_path(path) {
                         qprint!(self, "{}:", self.fmt_path(path));
 
-                        // TODO: Reduce duplicate code
                         // These are duplicated from above, because the [`InnerConnection`] of the
                         // SQLite database in unable to be shared across threads. Whenever these
                         // closures are created here, they capture the [`Registry`] that has been
@@ -509,15 +530,15 @@ impl App {
                                         continue;
                                     }
 
-                                    // Deal with xattr after database
-                                    handle_xattr(tag, path);
-
                                     for value in &values_ {
                                         if delete_value(value).is_err() {
                                             has_error = true;
                                             continue;
                                         }
+                                        handle_value_xattr(path, tag, value);
                                     }
+                                    // Deal with xattr after database
+                                    handle_tag_xattr(path, tag);
                                 },
 
                                 // Passed: Tag, Value => Found: false, false
@@ -579,16 +600,17 @@ impl App {
                                         continue;
                                     }
 
-                                    // Deal with xattr after database tag, but before value
-                                    // so that way 'X <tag> \t X (V) <value>' is printed
-                                    handle_xattr(tag, path);
-
                                     for value in &values_ {
                                         if delete_value(value).is_err() {
                                             has_error = true;
                                             continue;
                                         }
+
+                                        handle_value_xattr(path, tag, value);
                                     }
+
+                                    // Deal with xattr after database tag
+                                    handle_tag_xattr(path, tag);
                                 },
 
                                 // Passed: Tag => Found: false
@@ -651,6 +673,8 @@ impl App {
                                         continue;
                                     }
 
+                                    handle_value_xattr(path, tag, value);
+
                                     for tag in tags.iter() {
                                         if reg.tag_count_by_id(tag.id())? == 1 {
                                             if delete_tag(tag).is_err() {
@@ -669,7 +693,7 @@ impl App {
                                             continue;
                                         }
 
-                                        handle_xattr(tag, path);
+                                        handle_tag_xattr(path, tag);
                                     }
 
                                     // What would be a better way to indicate that this is a value?

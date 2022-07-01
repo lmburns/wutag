@@ -60,17 +60,17 @@ pub(crate) enum Command {
 impl fmt::Display for Command {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", match self {
-            Command::None => String::from("close menu"),
-            Command::Quit => String::from("quit application"),
-            Command::Refresh => String::from("refresh application"),
-            Command::ShowHelp => String::from("show help"),
-            // Command::NextTab => String::from("go to next tab"),
-            // Command::PrevTab => String::from("go to previous tab"),
-            // Command::Edit(path) => format!("edit the file {}", path),
-            // Command::List(list) => format!("list {}", list),
-            // Command::PreviewFile(yes) =>
+            Self::None => String::from("close menu"),
+            Self::Quit => String::from("quit application"),
+            Self::Refresh => String::from("refresh application"),
+            Self::ShowHelp => String::from("show help"),
+            // Self::NextTab => String::from("go to next tab"),
+            // Self::PrevTab => String::from("go to previous tab"),
+            // Self::Edit(path) => format!("edit the file {}", path),
+            // Self::List(list) => format!("list {}", list),
+            // Self::PreviewFile(yes) =>
             //     format!("file preview ({})", if *yes { "on" } else { "off" }),
-            // Command::Confirm(command) => (*command).to_string(),
+            // Self::Confirm(command) => (*command).to_string(),
         })
     }
 }

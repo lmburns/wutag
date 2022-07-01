@@ -79,7 +79,8 @@ impl App {
                 self.case_sensitive,
             );
 
-            for entry in reg.files(None)?.iter() {
+            let files = reg.files(None)?;
+            for entry in files.iter() {
                 let path = &entry.path();
                 let search_str: Cow<OsStr> = Cow::Owned(path.as_os_str().to_os_string());
                 let search_bytes = &wfs::osstr_to_bytes(search_str.as_ref());
@@ -97,7 +98,8 @@ impl App {
                     qprint!(self, "{}:", self.fmt_path(path));
 
                     if opts.values {
-                        for value in reg.values_by_fileid(entry.id())?.iter() {
+                        let values = reg.values_by_fileid(entry.id())?;
+                        for value in values.iter() {
                             if reg.value_count_by_id(value.id())? == 1 {
                                 // Then go ahead and delete it
                                 if let Err(e) = reg.delete_value_only(value.id()) {
@@ -206,7 +208,8 @@ impl App {
                         qprint!(self, "{}:", self.fmt_path(path));
 
                         if opts.values {
-                            for value in reg.values_by_fileid(file.id())?.iter() {
+                            let values = reg.values_by_fileid(file.id())?;
+                            for value in values.iter() {
                                 if reg.value_count_by_id(value.id())? == 1 {
                                     // Then go ahead and delete it
                                     if let Err(e) = reg.delete_value_only(value.id()) {

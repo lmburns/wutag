@@ -185,7 +185,8 @@ impl App {
                     );
                 }
 
-                match reg.files_by_directory(&from, false) {
+                let files_by_dir = reg.files_by_directory(&from, false);
+                match files_by_dir {
                     Ok(dir_files) => {
                         if dir_files.is_empty() {
                             wutag_error!("No files are tagged within {}", from.display());
@@ -213,7 +214,8 @@ impl App {
                     Err(e) => wutag_fatal!("failed to retrieve files under {}", from.display()),
                 }
             } else {
-                match reg.file_by_path(&from) {
+                let from_by_path = reg.file_by_path(&from);
+                match from_by_path {
                     Ok(db_from) => {
                         if !opts.dry_run {
                             manual_repair(&db_from, &to)?;
@@ -243,7 +245,8 @@ impl App {
             return Ok(());
         }
 
-        for entry in reg.files(None)?.iter().cloned() {
+        let files = reg.files(None)?;
+        for entry in files.iter().cloned() {
             if (!self.global || opts.restrict) && !self.contained_path(entry.path()) {
                 continue;
             }
@@ -289,8 +292,10 @@ impl App {
             let path = &entry.path();
 
             if !opts.dry_run {
-                for tag in reg.unique_tags_by_file(entry.id())?.iter() {
-                    for value in reg.unique_values_by_tag(tag.id())?.iter() {
+                let unique_tags = reg.unique_tags_by_file(entry.id())?;
+                for tag in unique_tags.iter() {
+                    let unique_values = reg.unique_values_by_tag(tag.id())?;
+                    for value in unique_values.iter() {
                         log::debug!("{}: deleting value {}", path.display(), value.name());
                         if let Err(e) = reg.delete_value(value.id()) {
                             wutag_error!(

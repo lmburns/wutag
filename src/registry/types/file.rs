@@ -658,15 +658,17 @@ mod test {
     #[test]
     fn file_struct() {
         let path = PathBuf::from("./src/main.rs");
-        let file = File::new(&path, false).expect("failed to find main.rs");
+        let file = File::new(&path, true).expect("failed to find main.rs");
         let meta = path.metadata().expect("failed to get metadata");
 
         assert!(!file.is_dir());
         assert_eq!(
             file.directory(),
-            &PathBuf::from("./src")
+            &path
                 .canonicalize()
                 .expect("failed to canonicalize main.rs")
+                .parent()
+                .expect("failed to get parent")
                 .to_string_lossy()
                 .to_string()
         );

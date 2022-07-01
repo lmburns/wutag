@@ -1,12 +1,14 @@
-#![allow(unused)]
 //! Functions for manipulating tags on files.
+
+// TODO: Possibly refactor to have one xattr for a single tag and N values
+
 use super::{
     core::{list_xattrs, remove_xattr, set_xattr, Xattr},
     value::{clear_values, get_value, has_any_values, has_values, list_all_values, list_values},
     Error, Result as XResult,
 };
 use crate::{
-    consts::{WUTAG_NAMESPACE, WUTAG_TAG_NAMESPACE, WUTAG_VALUE_NAMESPACE},
+    consts::WUTAG_TAG_NAMESPACE,
     registry::types::{Tag, Value},
 };
 use colored::Colorize;
@@ -96,7 +98,7 @@ pub(crate) trait DirEntryExt {
     ///
     /// # Errors
     /// If there are no tags on the file entry
-    fn get_value<T: AsRef<str>>(&self, tag: T, value: T) -> XResult<Value>;
+    fn get_value<T: AsRef<str>, V: AsRef<str>>(&self, tag: T, value: V) -> XResult<Value>;
     /// List the [`Values`](s) that match a [`Tag`] on a given path
     ///
     /// # Errors
@@ -128,11 +130,17 @@ pub(crate) trait DirEntryExt {
     // ╭───────╮
     // │ Extra │
     // ╰───────╯
-    /// Nothing more than a helper function for this trait to assist in writing
-    /// generics
+    /// Check whether a given path has any [`Tag`](s)
+    ///
+    /// # Errors
+    /// If the file entry does not have any tags
+    fn has_tags_or_values(&self) -> XResult<bool>;
+
+    /// Nothing more than a helper function.
+    /// Assist in writing generics
     fn path(&self) -> &Path;
-    /// Nothing more than a helper function for this trait to assist in writing
-    /// generics
+    /// Nothing more than a helper function.
+    // Assist in writing generics
     fn display(&self) -> Display;
 }
 
@@ -213,7 +221,7 @@ impl DirEntryExt for &PathBuf {
     }
 
     #[inline]
-    fn get_value<T: AsRef<str>>(&self, tag: T, value: T) -> XResult<Value> {
+    fn get_value<T: AsRef<str>, V: AsRef<str>>(&self, tag: T, value: V) -> XResult<Value> {
         get_value(self, tag, value)
     }
 
@@ -245,6 +253,11 @@ impl DirEntryExt for &PathBuf {
     // ╭───────╮
     // │ Other │
     // ╰───────╯
+    #[inline]
+    fn has_tags_or_values(&self) -> XResult<bool> {
+        has_tags_or_values(self)
+    }
+
     #[inline]
     fn path(&self) -> &Path {
         self.as_path()
@@ -335,7 +348,11 @@ impl DirEntryExt for ignore::DirEntry {
     }
 
     #[inline]
-    fn get_value<T: AsRef<str>>(&self, tag: T, value: T) -> XResult<Value> {
+    fn get_value<T, V>(&self, tag: T, value: V) -> XResult<Value>
+    where
+        T: AsRef<str>,
+        V: AsRef<str>,
+    {
         get_value(self.path(), tag, value)
     }
 
@@ -367,6 +384,11 @@ impl DirEntryExt for ignore::DirEntry {
     // ╭───────╮
     // │ Other │
     // ╰───────╯
+    #[inline]
+    fn has_tags_or_values(&self) -> XResult<bool> {
+        has_tags_or_values(self.path())
+    }
+
     #[inline]
     fn path(&self) -> &Path {
         self.path()
@@ -531,7 +553,7 @@ where
 /// Clears all tags (and values) of the file at the given `path`.
 ///
 /// # Errors
-/// If the action of clearing the tags failed
+/// If clearing the extended attributes failed
 #[inline]
 pub(crate) fn clear_tags<P>(path: P) -> XResult<()>
 where
@@ -560,4 +582,16 @@ where
     P: AsRef<Path>,
 {
     list_tags(path).map(|tags| !tags.is_empty())
+}
+
+/// Checks whether the given `path` has any tags or values
+///
+/// # Errors
+/// If there is a failure in listing extended attributes
+#[inline]
+pub(crate) fn has_tags_or_values<P>(path: P) -> XResult<bool>
+where
+    P: AsRef<Path>,
+{
+    Ok(has_tags(&path)? || has_any_values(&path)?)
 }

@@ -97,7 +97,8 @@ impl App {
 
             let mut tags_to_delete = vec![];
 
-            for entry in reg.files(None)?.iter() {
+            let files = reg.files(None)?;
+            for entry in files.iter() {
                 let path = &entry.path();
                 let search_str: Cow<OsStr> = Cow::Owned(path.as_os_str().to_os_string());
                 let search_bytes = &wfs::osstr_to_bytes(search_str.as_ref());
@@ -112,7 +113,8 @@ impl App {
                 }
 
                 if re.is_match(search_bytes) {
-                    match reg.tag_by_name(&opts.dest) {
+                    let dest_by_name = reg.tag_by_name(&opts.dest);
+                    match dest_by_name {
                         Ok(dest) => {
                             let fmt_dest = self.fmt_tag(&dest);
 
@@ -121,7 +123,8 @@ impl App {
                                 //
                                 // This check isn't necessary, the file could just be checked
                                 // However, this will provide more useful errors
-                                match reg.tag_by_name(tag) {
+                                let inner_tag = reg.tag_by_name(tag);
+                                match inner_tag {
                                     Ok(source) => {
                                         let fmt_source = self.fmt_tag(&source);
 
@@ -258,7 +261,8 @@ impl App {
                             println!("REMOVING VALUES");
 
                             // Match destination value
-                            match reg.value_by_name(&opts.dest) {
+                            let dest_value = reg.value_by_name(&opts.dest);
+                            match dest_value {
                                 Ok(dest) => {
                                     println!("FOUND DEST: {}", dest.name());
 
@@ -266,7 +270,8 @@ impl App {
 
                                     // Match source value(s)
                                     for value in &opts.source {
-                                        match reg.value_by_name(&value) {
+                                        let value_name = reg.value_by_name(&value);
+                                        match value_name {
                                             Ok(source) => {
                                                 println!("FOUND SOURCE: {}", source.name());
 
@@ -340,7 +345,8 @@ impl App {
                             println!("REMOVING TAGS");
 
                             // Make sure the destination tag is found within the registry
-                            match reg.tag_by_name(&opts.dest) {
+                            let dest_by_name = reg.tag_by_name(&opts.dest);
+                            match dest_by_name {
                                 Ok(dest) => {
                                     println!("FOUND DEST: {:#?}", dest.name());
                                     let fmt_dest = self.fmt_tag(&dest);
@@ -351,7 +357,8 @@ impl App {
                                         //
                                         // This check isn't necessary, the file could just be checked
                                         // However, this will provide more useful errors
-                                        match reg.tag_by_name(tag) {
+                                        let inner_tag = reg.tag_by_name(tag);
+                                        match inner_tag {
                                             Ok(source) => {
                                                 println!("FOUND SOURCE: {:#?}", source.name());
                                                 let fmt_source = self.fmt_tag(&source);

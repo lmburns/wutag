@@ -125,7 +125,8 @@ impl App {
                 let old_tag_color = old_tag.color();
                 if let Some(rename) = &opts.rename {
                     // TODO: Check whether tag exists before doing all this stuff
-                    match reg.update_tag_name(&old_tag, rename) {
+                    let tag_name = reg.update_tag_name(&old_tag, rename);
+                    match tag_name {
                         Ok(new_tag) => {
                             table.push(formatted_vec(self.fmt_tag(&old_tag), self.fmt_tag(&new_tag)));
                         },
@@ -144,7 +145,8 @@ impl App {
                     // changed
                     if let Some(color) = opts.color.as_ref() {
                         let rename = reg.tag_by_name(rename)?;
-                        match reg.update_tag_color(rename.id(), color) {
+                        let tag_color = reg.update_tag_color(rename.id(), color);
+                        match tag_color {
                             Ok(new_tag) => {
                                 let new_tag = reg.tag(new_tag.id())?;
                                 old_tag.set_color(color);
@@ -166,7 +168,8 @@ impl App {
                         }
                     }
                 } else if let Some(color) = opts.color.as_ref() {
-                    match reg.update_tag_color(old_tag.id(), color) {
+                    let tag_color = reg.update_tag_color(old_tag.id(), color);
+                    match tag_color {
                         Ok(new_tag) => {
                             let new_tag = reg.tag(new_tag.id())?;
                             old_tag.set_color(color);

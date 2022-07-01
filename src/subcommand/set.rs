@@ -186,10 +186,8 @@ impl App {
             log::debug!("Using STDIN");
             for entry in &collect_stdin_paths(&self.base_dir) {
                 let path = &self.resolve_symlink(entry.path())?;
-
-                qprint!(self, "{}:", self.fmt_path(path));
-
                 let path_d = path.display();
+                qprint!(self, "{}:", self.fmt_path(path));
 
                 // Check if file path exists in the database
                 let mut file = reg.file_by_path(path);
@@ -217,6 +215,46 @@ impl App {
                 let path = &file.path();
                 let path_d = path.display();
 
+                if opts.clear {
+                    log::debug!("{}: clearing tags", path_d);
+
+                    let files_tags = reg.tags_for_file(&file)?;
+
+                    for tag in files_tags.iter() {
+                        // let values = reg.unique_values_by_tag(tag.id())?;
+                        let values = reg.values_by_fileid_tagid(file.id(), tag.id())?;
+
+                        if reg.tag_count_by_id(tag.id())? == 1 {
+                            reg.delete_tag_only(tag.id())?;
+                        }
+
+                        if values.is_empty() {
+                            reg.delete_filetag_only(file.id(), tag.id(), ID::null())?;
+                        } else {
+                            for value in values.iter() {
+                                if reg.value_count_by_id(value.id())? == 1 {
+                                    reg.delete_value_only(value.id())?;
+                                }
+
+                                reg.delete_filetag_only(file.id(), tag.id(), value.id())?;
+                            }
+                        }
+
+                        match path.has_tags_or_values() {
+                            Ok(has_tags) =>
+                                if has_tags {
+                                    // This also clears values
+                                    if let Err(e) = path.clear_tags() {
+                                        wutag_error!("{}: {}", bold_entry!(path), e);
+                                    }
+                                },
+                            Err(e) => {
+                                wutag_error!("{}: {}", bold_entry!(path), e);
+                            },
+                        }
+                    }
+                }
+
                 // Collecting these in a vector to print later makes it look better
                 let mut duplicate_errors = vec![];
                 // Try and do better about tracking whether newline should be added
@@ -225,7 +263,8 @@ impl App {
 
                 for (mut tag, mut value) in combos.iter().cloned() {
                     // Tag was not found within the registry
-                    if tag.is_null_id() {
+                    // Check again, because it could've been cleared
+                    if reg.tag(tag.id()).is_err() {
                         log::debug!("creating new tag: {}", tag.name());
                         let t = opts.color.as_ref().map_or_else(
                             || Tag::random_noid(tag.name(), &self.colors),
@@ -254,6 +293,12 @@ impl App {
                                 if let Err(e) = path.tag(&tag) {
                                     wutag_error!("{}: {}", bold_entry!(path), e);
                                 }
+
+                                if !value.is_null_id() {
+                                    if let Err(e) = path.value(&tag, &value) {
+                                        wutag_error!("{}: {}", bold_entry!(path), e);
+                                    }
+                                }
                             }
 
                             // Don't return an error so the xattrs can be written
@@ -279,7 +324,12 @@ impl App {
                         if !self.quiet {
                             print!("\t{} {}", "+".bold().green(), self.fmt_tag(&tag));
 
-                            if value.id().id() != 0 {
+                            if !value.is_null_id() {
+                                // Set the value
+                                if let Err(e) = path.value(&tag, &value) {
+                                    wutag_error!("{}: {}", bold_entry!(path), e);
+                                }
+
                                 let value = reg.value(value.id())?;
                                 print!("={}", value.name().color(self.base_color).bold());
                             }
@@ -367,15 +417,16 @@ impl App {
                                 }
                             }
 
-                            match path.has_tags() {
+                            match path.has_tags_or_values() {
                                 Ok(has_tags) =>
                                     if has_tags {
+                                        // This also clears values
                                         if let Err(e) = path.clear_tags() {
-                                            wutag_error!("{} {}", e, bold_entry!(path));
+                                            wutag_error!("{}: {}", bold_entry!(path), e);
                                         }
                                     },
                                 Err(e) => {
-                                    wutag_error!("{} {}", e, bold_entry!(path));
+                                    wutag_error!("{}: {}", bold_entry!(path), e);
                                 },
                             }
                         }
@@ -453,6 +504,7 @@ impl App {
                                 print!("\t{} {}", "+".bold().green(), self.fmt_tag(&tag));
 
                                 if !value.is_null_id() {
+                                    // Set the value
                                     if let Err(e) = path.value(&tag, &value) {
                                         wutag_error!("{}: {}", bold_entry!(path), e);
                                     }

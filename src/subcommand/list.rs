@@ -26,7 +26,7 @@ use cli_table::{
 };
 use colored::Colorize;
 use itertools::Itertools;
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Write};
 
 /// Subcommands used for the `list` subcommand
 #[derive(Subcommand, Debug, Clone, PartialEq)]
@@ -375,7 +375,7 @@ impl App {
                             .tags_by_fileid(file.id())
                             .map(|tags| {
                                 tags.iter().fold(String::new(), |mut acc, t| {
-                                    acc.push_str(&format!("{} ", raw(&file.id(), t, with_values)));
+                                    write!(acc, "{} ", raw(&file.id(), t, with_values));
                                     acc
                                 })
                             })

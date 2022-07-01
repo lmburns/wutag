@@ -1,5 +1,6 @@
 //! Configuration file options for the user
 
+#![allow(clippy::use_self)]
 #![allow(unused)]
 
 // TODO: Check for duplicate keys in configuration file

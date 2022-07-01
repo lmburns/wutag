@@ -255,12 +255,12 @@ enum ArgumentTemplate {
 impl ArgumentTemplate {
     /// Does the [`ArgumentTemplate`] contain any [`Token`]s
     pub(crate) const fn has_tokens(&self) -> bool {
-        matches!(self, ArgumentTemplate::Tokens(_))
+        matches!(self, Self::Tokens(_))
     }
 
     /// Does the [`ArgumentTemplate`] contain a `wutag` command
     pub(crate) fn contains_wutag(&self) -> bool {
-        if let ArgumentTemplate::Tokens(ref tokens) = *self {
+        if let Self::Tokens(ref tokens) = *self {
             if tokens.get(0).is_none() {
                 return false;
             }
@@ -291,7 +291,7 @@ impl ArgumentTemplate {
         let path = path.as_ref();
 
         match *self {
-            ArgumentTemplate::Tokens(ref tokens) => {
+            Self::Tokens(ref tokens) => {
                 let mut s = OsString::new();
                 for token in tokens {
                     match *token {
@@ -311,7 +311,7 @@ impl ArgumentTemplate {
                 }
                 s
             },
-            ArgumentTemplate::Text(ref text) => OsString::from(text),
+            Self::Text(ref text) => OsString::from(text),
         }
     }
 }

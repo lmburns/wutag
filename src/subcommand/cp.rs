@@ -127,7 +127,8 @@ impl App {
                 self.case_sensitive,
             );
 
-            for entry in reg.files(None)?.iter() {
+            let files = reg.files(None)?;
+            for entry in files.iter() {
                 let search_str: Cow<OsStr> = Cow::Owned(entry.path().as_os_str().to_os_string());
                 let search_bytes = wfs::osstr_to_bytes(search_str.as_ref());
                 if !self.exclude.is_empty() && exclude_pattern.is_match(&search_bytes) {
@@ -143,7 +144,8 @@ impl App {
                 if re.is_match(&search_bytes) {
                     let entry_path = &entry.path();
 
-                    match reg.filetags_by_fileid(entry.id()) {
+                    let filetags = reg.filetags_by_fileid(entry.id());
+                    match filetags {
                         Ok(filetags) => {
                             log::debug!(
                                 "copying all FileTags from {} to {} (globally)",
@@ -227,9 +229,11 @@ impl App {
                 wutag_error!("{}: {}", bold_entry!(path), e);
             }
 
-            match reg.file_by_path(path) {
+            let file_by_path = reg.file_by_path(path);
+            match file_by_path {
                 Ok(file) => {
-                    match reg.filetags_by_fileid(file.id()) {
+                    let filetags = reg.filetags_by_fileid(file.id());
+                    match filetags {
                         Ok(filetags) => {
                             if filetags.is_empty() {
                                 wutag_fatal!(

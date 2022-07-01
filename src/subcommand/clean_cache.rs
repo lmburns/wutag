@@ -14,7 +14,8 @@ impl App {
         let reg = self.registry.lock().expect("poisoned lock");
         if utils::prompt("Are you sure you want to clean the registry?", &reg.path()) {
             // Clear xattrs before database is cleared
-            for ftag in reg.filetags()?.iter() {
+            let filetags = reg.filetags()?;
+            for ftag in filetags.iter() {
                 if let Ok(file) = reg.file(ftag.file_id()) {
                     let path = file.path();
                     if let Err(e) = (&path).clear_tags() {

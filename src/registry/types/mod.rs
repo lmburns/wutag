@@ -318,12 +318,12 @@ Valid values are:
 impl fmt::Display for Sort {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Sort::Id => f.write_str(" ORDER BY id"),
-            Sort::Name => f.write_str(" ORDER BY fullpath(directory, name)"),
-            Sort::ModificationTime => f.write_str(" ORDER BY mtime, fullpath(directory, name)"),
-            Sort::CreationTime => f.write_str(" ORDER BY ctime, fullpath(directory, name)"),
-            Sort::FileSize => f.write_str(" ORDER BY size, fullpath(directory, name)"),
-            Sort::None => f.write_str(""),
+            Self::Id => f.write_str(" ORDER BY id"),
+            Self::Name => f.write_str(" ORDER BY fullpath(directory, name)"),
+            Self::ModificationTime => f.write_str(" ORDER BY mtime, fullpath(directory, name)"),
+            Self::CreationTime => f.write_str(" ORDER BY ctime, fullpath(directory, name)"),
+            Self::FileSize => f.write_str(" ORDER BY size, fullpath(directory, name)"),
+            Self::None => f.write_str(""),
         }
     }
 }
@@ -565,7 +565,7 @@ macro_rules! validate_name {
             if CONDITIONAL_RES.iter().copied().any(|r| r == name) {
                 return Err(anyhow!(
                     "invalid {} was given: {}\n\nValid {} must not contain any conditional keywords:\n\t- \
-             {}",
+                     {}",
                     $type,
                     name,
                     $type_plural,
@@ -577,7 +577,7 @@ macro_rules! validate_name {
             if reg.is_match(&name) {
                 return Err(anyhow!(
                     "invalid {} was given: {}\n\nValid {} must not contain any of the following function \
-             names, proceeded by an opening and closing parenethesis:\n\t- {}",
+                     names, proceeded by an opening and closing parenethesis:\n\t- {}",
                     $type,
                     name,
                     $type_plural,

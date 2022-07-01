@@ -1,3 +1,4 @@
+#![allow(clippy::use_self)]
 #![allow(unused)]
 
 //! Handles all input events. More keys are created to offer the user more
@@ -28,6 +29,8 @@ use crossbeam_channel::{Receiver, Sender};
 use serde::{Deserialize, Serialize};
 use tui::{backend::CrosstermBackend, Terminal};
 
+/// Representation of a combination of keypresses
+#[allow(clippy::missing_docs_in_private_items)]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd, Ord, Eq)]
 pub(crate) enum Key {
     Char(char),
@@ -67,31 +70,32 @@ pub(crate) enum Key {
 }
 
 impl Key {
+    /// Return the [`Key`] as a human-readable string
     pub(crate) fn name(self) -> String {
         match self {
-            Key::Char(key) => format!("{}", key),
-            Key::Alt(key) => format!("M-{}", key),
-            Key::Ctrl(key) => format!("C-{}", key),
-            Key::Backspace => String::from("Backspace"),
-            Key::CtrlBackspace => String::from("C-Backspace"),
-            Key::AltBackspace => String::from("M-Backspace"),
-            Key::Left => String::from("Left"),
-            Key::Right => String::from("Right"),
-            Key::Up => String::from("Up"),
-            Key::Down => String::from("Down"),
-            Key::Home => String::from("Home"),
-            Key::End => String::from("End"),
-            Key::PageUp => String::from("PageUp"),
-            Key::PageDown => String::from("PageDown"),
-            Key::Tab => String::from("Tab"),
-            Key::BackTab => String::from("BackTab"),
-            Key::Insert => String::from("Insert"),
-            Key::Delete => String::from("Delete"),
-            Key::CtrlDelete => String::from("C-Delete"),
-            Key::AltDelete => String::from("M-Delete"),
-            Key::Null => String::from("Null"),
-            Key::Esc => String::from("Escape"),
-            Key::F(u) => format!("F{}", u),
+            Self::Char(key) => format!("{}", key),
+            Self::Alt(key) => format!("M-{}", key),
+            Self::Ctrl(key) => format!("C-{}", key),
+            Self::Backspace => String::from("Backspace"),
+            Self::CtrlBackspace => String::from("C-Backspace"),
+            Self::AltBackspace => String::from("M-Backspace"),
+            Self::Left => String::from("Left"),
+            Self::Right => String::from("Right"),
+            Self::Up => String::from("Up"),
+            Self::Down => String::from("Down"),
+            Self::Home => String::from("Home"),
+            Self::End => String::from("End"),
+            Self::PageUp => String::from("PageUp"),
+            Self::PageDown => String::from("PageDown"),
+            Self::Tab => String::from("Tab"),
+            Self::BackTab => String::from("BackTab"),
+            Self::Insert => String::from("Insert"),
+            Self::Delete => String::from("Delete"),
+            Self::CtrlDelete => String::from("C-Delete"),
+            Self::AltDelete => String::from("M-Delete"),
+            Self::Null => String::from("Null"),
+            Self::Esc => String::from("Escape"),
+            Self::F(u) => format!("F{}", u),
         }
     }
 }

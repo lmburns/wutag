@@ -1013,7 +1013,8 @@ impl Txn<'_> {
         let path = path.as_ref();
         log::debug!("inserting File({})", cfile!(path));
 
-        let mut f = File::new(&path, self.follow_symlinks())?;
+        // FIX: Figure out how to 'absolutize' a relative path
+        let mut f = File::new(&path, true)?;
         log::trace!("File({}) info:\n{:#?}", cfile!(path), f);
 
         let id = if wants_feature_flags() {

@@ -300,6 +300,7 @@ where
     }
 
     /// Change/set block that is used to outline the table
+    #[allow(clippy::missing_const_for_fn)]
     pub(crate) fn block(mut self, block: Block<'a>) -> Self {
         self.block = Some(block);
         self
@@ -315,13 +316,13 @@ where
     }
 
     /// Change/set header display style
-    pub(crate) fn header_style(mut self, style: Style) -> Self {
+    pub(crate) const fn header_style(mut self, style: Style) -> Self {
         self.header_style = style;
         self
     }
 
     /// Change/set alignment of the header
-    pub(crate) fn header_alignment(mut self, alignment: Alignment) -> Self {
+    pub(crate) const fn header_alignment(mut self, alignment: Alignment) -> Self {
         self.header_alignment = alignment;
         self
     }
@@ -350,63 +351,63 @@ where
     }
 
     /// Change/set overall table style
-    pub(crate) fn style(mut self, style: Style) -> Self {
+    pub(crate) const fn style(mut self, style: Style) -> Self {
         self.style = style;
         self
     }
 
     /// Change/set symbol that indicates item is selected
-    pub(crate) fn mark_symbol(mut self, mark_symbol: &'a str) -> Self {
+    pub(crate) const fn mark_symbol(mut self, mark_symbol: &'a str) -> Self {
         self.mark_symbol = Some(mark_symbol);
         self
     }
 
     /// Change/set highlight symbol, used to indicate that item is selected in
     /// multi-selection mode
-    pub(crate) fn unmark_symbol(mut self, unmark_symbol: &'a str) -> Self {
+    pub(crate) const fn unmark_symbol(mut self, unmark_symbol: &'a str) -> Self {
         self.unmark_symbol = Some(unmark_symbol);
         self
     }
 
     /// Change/set highlight symbol, used to indicate that item is selected in
     /// multi-selection mode
-    pub(crate) fn mark_highlight_symbol(mut self, mark_highlight_symbol: &'a str) -> Self {
+    pub(crate) const fn mark_highlight_symbol(mut self, mark_highlight_symbol: &'a str) -> Self {
         self.mark_highlight_symbol = Some(mark_highlight_symbol);
         self
     }
 
     /// Change/set highlight symbol, used to indicate that item is not selected
-    pub(crate) fn unmark_highlight_symbol(mut self, unmark_highlight_symbol: &'a str) -> Self {
+    pub(crate) const fn unmark_highlight_symbol(mut self, unmark_highlight_symbol: &'a str) -> Self {
         self.unmark_highlight_symbol = Some(unmark_highlight_symbol);
         self
     }
 
     /// Change/set highlight of the tags
-    pub(crate) fn highlight_tags(mut self, highlight_tags: bool) -> Self {
+    pub(crate) const fn highlight_tags(mut self, highlight_tags: bool) -> Self {
         self.highlight_tags = highlight_tags;
         self
     }
 
     /// Change/set highlight symbol, used to indicate that item is selected
-    pub(crate) fn highlight_symbol(mut self, highlight_symbol: &'a str) -> Self {
+    pub(crate) const fn highlight_symbol(mut self, highlight_symbol: &'a str) -> Self {
         self.highlight_symbol = Some(highlight_symbol);
         self
     }
 
     /// Change/set highlight style when item is selected
-    pub(crate) fn highlight_style(mut self, highlight_style: Style) -> Self {
+    pub(crate) const fn highlight_style(mut self, highlight_style: Style) -> Self {
         self.highlight_style = highlight_style;
         self
     }
 
     /// Change/set space between columns of data (filename and tags)
-    pub(crate) fn column_spacing(mut self, spacing: u16) -> Self {
+    pub(crate) const fn column_spacing(mut self, spacing: u16) -> Self {
         self.column_spacing = spacing;
         self
     }
 
     /// Change/set size of vertical gap between the header and the data
-    pub(crate) fn header_gap(mut self, gap: u16) -> Self {
+    pub(crate) const fn header_gap(mut self, gap: u16) -> Self {
         self.header_gap = gap;
         self
     }

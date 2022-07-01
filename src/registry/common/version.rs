@@ -43,7 +43,7 @@ impl Version {
             .collect::<Vec<_>>();
 
         Ok(Self {
-            major: *(split.get(0).context(failt!("get major"))?),
+            major: *(split.first().context(failt!("get major"))?),
             minor: *(split.get(1).context(failt!("get minor"))?),
             patch: *(split.get(2).context(failt!("get patch"))?),
         })

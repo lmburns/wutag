@@ -28,10 +28,14 @@ version := `rg --color=never --pcre2 -oIN '^version = "\K(\d+\.?)+' Cargo.toml`
   just rr set -p 'xx=ok' justfile
   just rr set -p 'xx=val' justfile
 
+@sset_1:
+  just rr set -p 'xx=ok' cliff.toml
+
 @reset:
   just clear
-  just sset_2
-  just rr list files -tV
+  just sset_1
+
+# just rr list files -tV
 
 @clear:
   just r clear '*' -a

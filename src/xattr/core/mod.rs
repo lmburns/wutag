@@ -27,7 +27,6 @@ pub(crate) struct Xattr {
     key: String,
 
     /// Value of the [`Xattr`] (i.e., key.`value`)
-    #[allow(dead_code)]
     val: String,
 }
 
@@ -50,7 +49,6 @@ impl Xattr {
     }
 
     /// Return the `val` of the `Xattr`
-    #[allow(dead_code)]
     pub(crate) fn val(&self) -> &str {
         &self.val
     }

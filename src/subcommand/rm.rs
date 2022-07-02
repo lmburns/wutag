@@ -170,6 +170,11 @@ impl App {
 
         let handle_value_xattr = |path: &PathBuf, tag: &Tag, value: &Value| {
             log::debug!("removing xattr for Tag({}), Value({})", tag.name(), value.name());
+            println!("REMOVING TAG({:?}) VALUE({:?})", tag.name(), value.name());
+
+            let v = path.get_value(tag, value);
+            println!("RES: {:#?}", v);
+
             if path.get_value(tag, value).is_err() {
                 wutag_error!(
                     "{}: found ({}) in database, though file has no xattr value({})",
@@ -301,7 +306,7 @@ impl App {
 
                             // Passed: Tag => Found: false
                             (true, false, true, true) => {
-                                // wutag_info!("== tftt ==");
+                                wutag_info!("== tftt ==");
                                 log::debug!("tftt: (Tag => false), (Value => N/A)");
 
                                 wutag_error!("tag ({}) is not found in the registry", red_entry!(tag));
@@ -313,10 +318,10 @@ impl App {
                                 // Remove value
 
                                 if tag.is_null_name() {
-                                    // wutag_info!("== ttff == OK VALUE");
+                                    wutag_info!("== ttff == OK VALUE");
                                     log::debug!("ttff: (Tag => N/A), (Value => {})", value.name());
                                 } else {
-                                    // wutag_info!("== tfff == OK VAUE");
+                                    wutag_info!("== tfff == OK VAUE");
                                     log::debug!("tfff: (Tag => false), (Value => {})", value.name());
 
                                     wutag_error!("tag ({}) is not found in the registry", red_entry!(tag));
@@ -380,7 +385,7 @@ impl App {
 
                             // Passed: Value => Found: false
                             (true, true, true, false) => {
-                                // wutag_info!("== tttf ==");
+                                wutag_info!("== tttf ==");
                                 log::debug!("tttf: (Tag => N/A), (Value => false)",);
 
                                 wutag_error!(
@@ -491,7 +496,7 @@ impl App {
                             ) {
                                 // Passed: Tag, Value => Found: true, true
                                 (false, false, false, false) => {
-                                    // wutag_info!("== ffff == OK TAG OK VALUE");
+                                    wutag_info!("== ffff == OK TAG OK VALUE");
                                     log::debug!(
                                         "ffff: (Tag => {}), (Value => {})",
                                         tag.name(),
@@ -543,7 +548,7 @@ impl App {
 
                                 // Passed: Tag, Value => Found: false, false
                                 (true, false, true, false) => {
-                                    // wutag_info!("== tftf ==");
+                                    wutag_info!("== tftf ==");
                                     log::debug!("tftf: (Tag => false), (Value => false)",);
 
                                     wutag_error!(
@@ -561,10 +566,10 @@ impl App {
                                     // Remove tag
 
                                     if value.is_null_name() {
-                                        // wutag_info!("== fftt == OK TAG");
+                                        wutag_info!("== fftt == OK TAG");
                                         log::debug!("fftt: (Tag => {}), (Value => N/A)", tag.name());
                                     } else {
-                                        // wutag_info!("== fftf == OK TAG");
+                                        wutag_info!("== fftf == OK TAG");
                                         log::debug!("fftf: (Tag => {}) (Value => false)", tag.name());
                                         wutag_error!(
                                             "value ({}) is not found in the registry",
@@ -615,7 +620,7 @@ impl App {
 
                                 // Passed: Tag => Found: false
                                 (true, false, true, true) => {
-                                    // wutag_info!("== tftt ==");
+                                    wutag_info!("== tftt ==");
                                     log::debug!("tftt: (Tag => false), (Value => N/A)",);
 
                                     wutag_error!("tag ({}) is not found in the registry", red_entry!(tag));
@@ -628,10 +633,10 @@ impl App {
                                     // Remove value
 
                                     if tag.is_null_name() {
-                                        // wutag_info!("== ttff == OK VALUE");
+                                        wutag_info!("== ttff == OK VALUE");
                                         log::debug!("ttff: (Tag => N/A), (Value => {})", value.name());
                                     } else {
-                                        // wutag_info!("== tfff == OK VAUE");
+                                        wutag_info!("== tfff == OK VAUE");
                                         log::debug!("tfff: (Tag => false), (Value => {})", value.name());
 
                                         wutag_error!(
@@ -706,7 +711,7 @@ impl App {
 
                                 // Passed: Value => Found: false
                                 (true, true, true, false) => {
-                                    // wutag_info!("== tttf ==");
+                                    wutag_info!("== tttf ==");
                                     log::debug!("tttf: (Tag => N/A), (Value => false)",);
 
                                     wutag_error!(

@@ -8,12 +8,12 @@ use super::{
     Error, Result as XResult,
 };
 use crate::{
-    consts::WUTAG_TAG_NAMESPACE,
+    consts::WUTAG_NAMESPACE,
+    g,
     registry::types::{Tag, Value},
 };
 use colored::Colorize;
 use std::{
-    collections::BTreeSet,
     convert::TryFrom,
     path::{Display, Path, PathBuf},
 };
@@ -23,11 +23,11 @@ pub(crate) trait DirEntryExt {
     // ╭──────╮
     // │ Tags │
     // ╰──────╯
-    /// Add a [`Tag`] to a given path
+    /// Add a [`Tag`] and an optional [`Value`] to a given path
     ///
     /// # Errors
     /// If the `xattr` cannot be added
-    fn tag(&self, tag: &Tag) -> XResult<()>;
+    fn tag(&self, tag: &Tag, value: Option<&Value>) -> XResult<()>;
     /// Remove a [`Tag`] from a given path and add a new one
     ///
     /// # Errors
@@ -39,12 +39,12 @@ pub(crate) trait DirEntryExt {
     ///
     /// # Errors
     /// If the tag doesn't exist or the `xattr` cannot be removed
-    fn update_tag(&self, tag: &Tag) -> XResult<()>;
+    fn update_tag(&self, tag: &Tag, value: Option<&Value>) -> XResult<()>;
     /// Replace a [`Tag`] with another [`Tag`]
     ///
     /// # Errors
     /// If the tag doesn't exist or the `xattr` cannot be removed
-    fn replace_tag(&self, replaced: &Tag, replacer: &Tag) -> XResult<()>;
+    fn replace_tag(&self, replaced: &Tag, replacer: &Tag, value: Option<&Value>) -> XResult<()>;
     /// Retrieve a [`Tag`] from a given path
     ///
     /// # Errors
@@ -55,11 +55,6 @@ pub(crate) trait DirEntryExt {
     /// # Errors
     /// If there are no tags or if the collection into a [`Vec`] fails
     fn list_tags(&self) -> XResult<Vec<Tag>>;
-    /// List the [`Tag`](s) on a given path as a [`BTreeSet`]
-    ///
-    /// # Errors
-    /// If there are no tags or if the collection into a [`BTreeSet`] fails
-    fn list_tags_btree(&self) -> XResult<BTreeSet<Tag>>;
     /// Remove all [`Tag`](s) on a given path
     ///
     /// # Errors
@@ -74,11 +69,6 @@ pub(crate) trait DirEntryExt {
     // ╭────────╮
     // │ Values │
     // ╰────────╯
-    /// Add a [`Value`] to a given path
-    ///
-    /// # Errors
-    /// If the `xattr` cannot be added
-    fn value(&self, tag: &Tag, value: &Value) -> XResult<()>;
     /// Remove a [`Value`] from a given path
     ///
     /// # Errors
@@ -94,7 +84,8 @@ pub(crate) trait DirEntryExt {
     /// # Errors
     /// If the tag or value doesn't exist
     fn replace_value(&self, tag: &Tag, replaced: &Value, replacer: &Value) -> XResult<()>;
-    /// Retrieve a [`Value`] from a given path
+    /// Retrieve a given [`Value`] from a given path
+    /// This function is to be used as confirmation.
     ///
     /// # Errors
     /// If there are no tags on the file entry
@@ -149,8 +140,8 @@ impl DirEntryExt for &PathBuf {
     // │ Tag │
     // ╰─────╯
     #[inline]
-    fn tag(&self, tag: &Tag) -> XResult<()> {
-        tag.save_to(self)
+    fn tag(&self, tag: &Tag, value: Option<&Value>) -> XResult<()> {
+        tag.save_to(self, value)
     }
 
     #[inline]
@@ -159,15 +150,15 @@ impl DirEntryExt for &PathBuf {
     }
 
     #[inline]
-    fn update_tag(&self, tag: &Tag) -> XResult<()> {
+    fn update_tag(&self, tag: &Tag, value: Option<&Value>) -> XResult<()> {
         tag.remove_from(self)?;
-        tag.save_to(self)
+        tag.save_to(self, value)
     }
 
     #[inline]
-    fn replace_tag(&self, replaced: &Tag, replacer: &Tag) -> XResult<()> {
+    fn replace_tag(&self, replaced: &Tag, replacer: &Tag, value: Option<&Value>) -> XResult<()> {
         replaced.remove_from(self)?;
-        replacer.save_to(self)
+        replacer.save_to(self, value)
     }
 
     #[inline]
@@ -178,11 +169,6 @@ impl DirEntryExt for &PathBuf {
     #[inline]
     fn list_tags(&self) -> XResult<Vec<Tag>> {
         list_tags(self)
-    }
-
-    #[inline]
-    fn list_tags_btree(&self) -> XResult<BTreeSet<Tag>> {
-        list_tags_btree(self)
     }
 
     #[inline]
@@ -198,11 +184,6 @@ impl DirEntryExt for &PathBuf {
     // ╭───────╮
     // │ Value │
     // ╰───────╯
-    #[inline]
-    fn value(&self, tag: &Tag, value: &Value) -> XResult<()> {
-        value.save_to(self, tag)
-    }
-
     #[inline]
     fn unvalue(&self, tag: &Tag, value: &Value) -> XResult<()> {
         value.remove_from(self, tag)
@@ -221,7 +202,11 @@ impl DirEntryExt for &PathBuf {
     }
 
     #[inline]
-    fn get_value<T: AsRef<str>, V: AsRef<str>>(&self, tag: T, value: V) -> XResult<Value> {
+    fn get_value<T, V>(&self, tag: T, value: V) -> XResult<Value>
+    where
+        T: AsRef<str>,
+        V: AsRef<str>,
+    {
         get_value(self, tag, value)
     }
 
@@ -276,8 +261,8 @@ impl DirEntryExt for ignore::DirEntry {
     // │ Tag │
     // ╰─────╯
     #[inline]
-    fn tag(&self, tag: &Tag) -> XResult<()> {
-        tag.save_to(self.path())
+    fn tag(&self, tag: &Tag, value: Option<&Value>) -> XResult<()> {
+        tag.save_to(self.path(), value)
     }
 
     #[inline]
@@ -286,15 +271,15 @@ impl DirEntryExt for ignore::DirEntry {
     }
 
     #[inline]
-    fn update_tag(&self, tag: &Tag) -> XResult<()> {
+    fn update_tag(&self, tag: &Tag, value: Option<&Value>) -> XResult<()> {
         tag.remove_from(self.path())?;
-        tag.save_to(self.path())
+        tag.save_to(self.path(), value)
     }
 
     #[inline]
-    fn replace_tag(&self, replaced: &Tag, replacer: &Tag) -> XResult<()> {
+    fn replace_tag(&self, replaced: &Tag, replacer: &Tag, value: Option<&Value>) -> XResult<()> {
         replaced.remove_from(self.path())?;
-        replacer.save_to(self.path())
+        replacer.save_to(self.path(), value)
     }
 
     #[inline]
@@ -305,11 +290,6 @@ impl DirEntryExt for ignore::DirEntry {
     #[inline]
     fn list_tags(&self) -> XResult<Vec<Tag>> {
         list_tags(self.path())
-    }
-
-    #[inline]
-    fn list_tags_btree(&self) -> XResult<BTreeSet<Tag>> {
-        list_tags_btree(self.path())
     }
 
     #[inline]
@@ -325,11 +305,6 @@ impl DirEntryExt for ignore::DirEntry {
     // ╭───────╮
     // │ Value │
     // ╰───────╯
-    #[inline]
-    fn value(&self, tag: &Tag, value: &Value) -> XResult<()> {
-        value.save_to(self.path(), tag)
-    }
-
     #[inline]
     fn unvalue(&self, tag: &Tag, value: &Value) -> XResult<()> {
         value.remove_from(self.path(), tag)
@@ -403,9 +378,9 @@ impl DirEntryExt for ignore::DirEntry {
 impl Tag {
     /// Custom implementation of `Hash`
     #[allow(clippy::same_name_method)]
-    fn hash(&self) -> XResult<String> {
+    pub(super) fn hash(&self) -> XResult<String> {
         serde_cbor::to_vec(&self)
-            .map(|tag| format!("{}.{}", WUTAG_TAG_NAMESPACE, base64::encode(tag)))
+            .map(|tag| format!("{}.{}", WUTAG_NAMESPACE, base64::encode(tag)))
             .map_err(Error::from)
     }
 
@@ -413,16 +388,32 @@ impl Tag {
     ///
     /// # Errors
     /// If the tag exists it returns an [`Error`]
-    pub(crate) fn save_to<P>(&self, path: P) -> XResult<()>
+    pub(crate) fn save_to<P>(&self, path: P, value: Option<&Value>) -> XResult<()>
     where
         P: AsRef<Path>,
     {
-        for tag in list_tags(path.as_ref())? {
+        let path = path.as_ref();
+
+        for tag in list_tags(&path)? {
             if &tag == self {
-                return Err(Error::TagExists(tag.name().green().bold()));
+                return Err(Error::TagExists(g!((tag.name()))));
+            }
+
+            if let Some(v) = value {
+                for val in list_values(path, &tag)? {
+                    if v == &val {
+                        return Err(Error::ValueExists(g!((val.name())), g!((tag.name()))));
+                    }
+                }
             }
         }
-        set_xattr(path, self.hash()?.as_str(), "")
+
+        let val = value
+            .map(Value::hash)
+            .transpose()?
+            .unwrap_or_else(|| "".to_owned());
+
+        set_xattr(path, self.hash()?.as_str(), &val)
     }
 
     /// Removes this tag from the file at the given `path`.
@@ -432,6 +423,24 @@ impl Tag {
     ///
     /// [`TagNotFound`]: crate::xattr::Error::TagNotFound
     pub(crate) fn remove_from<P>(&self, path: P) -> XResult<()>
+    where
+        P: AsRef<Path>,
+    {
+        let hash = self.hash()?;
+
+        for xattr in list_xattrs(path.as_ref())? {
+            let key = xattr.key();
+            // make sure to only remove attributes corresponding to this namespace
+            if key == hash {
+                return remove_xattr(path, key);
+            }
+        }
+
+        Err(Error::TagNotFound(self.name().clone()))
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn remove_value_from<P>(&self, path: P) -> XResult<()>
     where
         P: AsRef<Path>,
     {
@@ -464,8 +473,9 @@ impl TryFrom<Xattr> for Tag {
     fn try_from(xattr: Xattr) -> XResult<Self> {
         let key = xattr.key();
 
-        let mut elems = key.split("wutag.tag.");
+        let mut elems = key.split("wutag.");
 
+        // TODO: This needs to be checked for symlink
         let ns = next_or_else!(elems, "missing namespace `user`")?;
         if ns != "user." {
             return Err(Error::InvalidTagKey(format!(
@@ -517,34 +527,14 @@ where
         let mut tags = Vec::new();
         let it = attrs
             .into_iter()
-            .filter(|xattr| xattr.key().starts_with(WUTAG_TAG_NAMESPACE))
+            .filter(|xattr| {
+                println!("Xattr: {:#?}", xattr);
+                xattr.key().starts_with(WUTAG_NAMESPACE)
+            })
             .map(Tag::try_from);
 
         for tag in it.flatten() {
             tags.push(tag);
-        }
-        tags
-    })
-}
-
-/// Lists tags of the file at the given `path` as a [`BTreeSet`].
-///
-/// # Errors
-/// If there are no tags or if the collection into a [`BTreeSet`] fails
-#[inline]
-pub(crate) fn list_tags_btree<P>(path: P) -> XResult<BTreeSet<Tag>>
-where
-    P: AsRef<Path>,
-{
-    list_xattrs(path).map(|attrs| {
-        let mut tags = BTreeSet::new();
-        let it = attrs
-            .into_iter()
-            .filter(|xattr| xattr.key().starts_with(WUTAG_TAG_NAMESPACE))
-            .map(Tag::try_from);
-
-        for tag in it.flatten() {
-            tags.insert(tag);
         }
         tags
     })
@@ -562,7 +552,7 @@ where
     let path = path.as_ref();
     for xattr in list_xattrs(path)?
         .iter()
-        .filter(|xattr| xattr.key().starts_with(WUTAG_TAG_NAMESPACE))
+        .filter(|xattr| xattr.key().starts_with(WUTAG_NAMESPACE))
     {
         remove_xattr(path, xattr.key())?;
     }

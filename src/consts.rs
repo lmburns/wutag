@@ -29,8 +29,8 @@ pub(crate) const APP_NAME: &str = "wutag";
 
 /// Prefix used to identify extra attributes on files that were added by `wutag`
 pub(crate) const WUTAG_NAMESPACE: &str = "user.wutag";
-pub(crate) const WUTAG_TAG_NAMESPACE: &str = "user.wutag.tag";
-pub(crate) const WUTAG_VALUE_NAMESPACE: &str = "user.wutag.value";
+// pub(crate) const WUTAG_TAG_NAMESPACE: &str = "user.wutag.tag";
+// pub(crate) const WUTAG_VALUE_NAMESPACE: &str = "user.wutag.value";
 
 /// Default base color for printing files
 pub(crate) const DEFAULT_BASE_COLOR: Color = Blue;

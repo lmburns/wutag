@@ -192,7 +192,8 @@ impl App {
                                                     continue;
                                                 }
 
-                                                if let Err(e) = path.replace_tag(&source, &dest) {
+                                                // TODO: Set correct value
+                                                if let Err(e) = path.replace_tag(&source, &dest, None) {
                                                     wutag_error!(
                                                         "{}: failed to swap xattr {} {} {}: {}",
                                                         bold_entry!(path),
@@ -432,7 +433,10 @@ impl App {
                                                             continue;
                                                         }
 
-                                                        if let Err(e) = path.replace_tag(&source, &dest) {
+                                                        // TODO: Set correct value
+                                                        if let Err(e) =
+                                                            path.replace_tag(&source, &dest, None)
+                                                        {
                                                             wutag_error!(
                                                                 "{}: failed to swap xattr {} {} {}: {}",
                                                                 bold_entry!(path),

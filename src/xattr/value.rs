@@ -1,11 +1,14 @@
+#![allow(unused)]
 //! Functions for manipulating values on files.
 
 use super::{
     core::{list_xattrs, remove_xattr, set_xattr, Xattr},
+    tag::DirEntryExt,
     Error, Result as XResult,
 };
 use crate::{
-    consts::WUTAG_VALUE_NAMESPACE,
+    consts::WUTAG_NAMESPACE,
+    g,
     registry::types::{Tag, Value},
 };
 use colored::Colorize;
@@ -22,20 +25,13 @@ macro_rules! next_or_else {
 impl Value {
     /// Custom implementation of `Hash`
     #[allow(clippy::same_name_method)]
-    fn hash(&self, tag: &Tag) -> XResult<String> {
-        let encoded_tag = serde_cbor::to_vec(tag).map(base64::encode).map_err(Error::from)?;
+    pub(super) fn hash(&self) -> XResult<String> {
         serde_cbor::to_vec(&self)
-            .map(|value| {
-                format!(
-                    "{}.{}.{}",
-                    WUTAG_VALUE_NAMESPACE,
-                    encoded_tag,
-                    base64::encode(value)
-                )
-            })
+            .map(|val| format!("{}.{}", WUTAG_NAMESPACE, base64::encode(val)))
             .map_err(Error::from)
     }
 
+    // XXX: Remove
     /// Tags the file at the given `path` with a [`Value`].
     ///
     /// # Errors
@@ -46,13 +42,14 @@ impl Value {
     {
         for value in list_values(path.as_ref(), tag)? {
             if &value == self {
-                return Err(Error::ValueExists(value.name().green().bold()));
+                return Err(Error::ValueExists(g!((value.name())), g!((tag.name()))));
             }
         }
-        set_xattr(path, self.hash(tag)?.as_str(), "")
+        set_xattr(path, self.hash()?.as_str(), "")
     }
 
-    /// Removes this [`Value`] from the file at the given `path`.
+    // XXX: Finish
+    /// Removes a [`Value`] from a tag on file at the given `path`.
     ///
     /// # Errors
     /// If the tag doesn't exist the error [`TagNotFound`] is returned
@@ -62,19 +59,33 @@ impl Value {
     where
         P: AsRef<Path>,
     {
-        let hash = self.hash(tag)?;
+        let val_hash = self.hash()?;
+        let tag_hash = tag.hash()?;
+        let path = &path.as_ref().to_owned();
+        let tag_name = tag.name();
 
-        for xattr in list_xattrs(path.as_ref())? {
+        for xattr in list_xattrs(path)? {
             let key = xattr.key();
+            let val = xattr.val();
+
             // Make sure to only remove attributes corresponding to this namespace
-            if key == hash {
-                return remove_xattr(path, key);
+            if key == tag_hash {
+                // First, remove the tag (which removes the value(s))
+                if path.untag(tag).is_err() {
+                    return Err(Error::Untagging(
+                        tag_name.to_string(),
+                        path.to_string_lossy().to_string(),
+                    ));
+                }
+
+                // return remove_xattr(path, key);
             }
         }
 
-        Err(Error::TagNotFound(tag.name().clone()))
+        Err(Error::TagValueNotFound(g!((self.name())), g!(tag_name)))
     }
 
+    // XXX: Finish
     /// Removes all [`Value`]s from the file at the given `path`.
     ///
     /// # Errors
@@ -89,12 +100,12 @@ impl Value {
         for xattr in list_xattrs(path.as_ref())? {
             let key = xattr.key();
             // Make sure to only remove attributes corresponding to this namespace
-            if key.starts_with(WUTAG_VALUE_NAMESPACE) {
+            if key.starts_with(WUTAG_NAMESPACE) {
                 return remove_xattr(path, key);
             }
         }
 
-        Err(Error::ValueNotFound(self.name().clone()))
+        Err(Error::ValueNotFound(g!((self.name()))))
     }
 
     /// Parse an extended attribute in a [`Value`].
@@ -104,23 +115,33 @@ impl Value {
         T: AsRef<str>,
     {
         let key = xattr.key();
-        let mut elems = key.split("wutag.value.");
+        let val = xattr.val();
 
-        let ns = next_or_else!(elems, "missing namespace `user`")?;
+        let mut key_elems = key.split("wutag.");
+        let ns = next_or_else!(key_elems, "missing namespace `user`")?;
         if ns != "user." {
             return Err(Error::InvalidTagKey(format!(
-                "invalid namespace `{}`, valid namespace is `user`",
+                "invalid namespace `{}` for key",
                 ns
             )));
         }
 
-        let rest = next_or_else!(elems, "missing value")?;
-        let mut new_elems = rest.split('.');
-        let tag_bytes = next_or_else!(new_elems, "missing tag")?;
-        let value_bytes = next_or_else!(new_elems, "missing tag")?;
+        let tag_bytes = next_or_else!(key_elems, "missing value")?;
+        let tag_decode: Tag = serde_cbor::from_slice(&base64::decode(tag_bytes.as_bytes())?)?;
+
+        let mut val_elems = val.split("wutag.");
+        let ns = next_or_else!(val_elems, "missing namespace `user`")?;
+        if ns != "user." {
+            return Err(Error::InvalidValueVal(format!(
+                "invalid namespace `{}` for value",
+                ns
+            )));
+        }
+
+        let value_bytes = next_or_else!(val_elems, "missing value")?;
         let value = serde_cbor::from_slice(&base64::decode(value_bytes.as_bytes())?)?;
 
-        if tag_bytes == tag.as_ref() {
+        if tag_decode.name() == tag.as_ref() {
             return Ok(value);
         }
 
@@ -136,22 +157,18 @@ impl TryFrom<Xattr> for Value {
 
     #[inline]
     fn try_from(xattr: Xattr) -> XResult<Self> {
-        let key = xattr.key();
-        let mut elems = key.split("wutag.value.");
+        let val = xattr.val();
+        let mut elems = val.split("wutag.");
 
         let ns = next_or_else!(elems, "missing namespace `user`")?;
         if ns != "user." {
-            return Err(Error::InvalidTagKey(format!(
-                "invalid namespace `{}`, valid namespace is `user`",
+            return Err(Error::InvalidValueVal(format!(
+                "invalid namespace `{}` for value",
                 ns
             )));
         }
 
-        let rest = next_or_else!(elems, "missing value")?;
-        let mut new_elems = rest.split('.');
-        let _tag_bytes = next_or_else!(new_elems, "missing tag")?;
-        let value_bytes = next_or_else!(new_elems, "missing tag")?;
-
+        let value_bytes = next_or_else!(elems, "missing value")?;
         let value = serde_cbor::from_slice(&base64::decode(value_bytes.as_bytes())?)?;
 
         Ok(value)
@@ -177,19 +194,17 @@ where
     let path = path.as_ref();
     let tag = tag.as_ref();
     let value = value.as_ref();
-    for tag_ in list_xattrs(path)?.into_iter().flat_map(Tag::try_from) {
-        if tag_.name() == tag {
-            for value_ in &list_values(path, &tag_)? {
-                if value_.name() == value {
-                    return Ok(value_.clone());
-                }
-            }
-            // TODO: Is this a good idea here?
-            return Err(Error::ValueNotFound(value.to_owned()));
+
+    for value_ in list_xattrs(path)?
+        .into_iter()
+        .flat_map(|xattr| Value::parse_xattr(&xattr, tag))
+    {
+        if value_.name() == value {
+            return Ok(value_);
         }
     }
 
-    Err(Error::TagNotFound(tag.to_owned()))
+    Err(Error::TagValueNotFound(g!(value), g!(tag)))
 }
 
 /// Lists values on a file at the given `path`.
@@ -205,7 +220,7 @@ where
         let mut values = Vec::new();
         let it = attrs
             .into_iter()
-            .filter(|xattr| xattr.key().starts_with(WUTAG_VALUE_NAMESPACE))
+            .filter(|xattr| xattr.key().starts_with(WUTAG_NAMESPACE))
             .map(Value::try_from);
 
         for value in it.flatten() {
@@ -228,7 +243,7 @@ where
         let mut values = Vec::new();
         let it = attrs
             .into_iter()
-            .filter(|xattr| xattr.key().starts_with(WUTAG_VALUE_NAMESPACE))
+            .filter(|xattr| xattr.key().starts_with(WUTAG_NAMESPACE))
             .map(|value| Value::parse_xattr(&value, tag));
 
         for value in it.flatten() {
@@ -238,6 +253,7 @@ where
     })
 }
 
+// XXX: Finish
 /// Clears all [`Values`] of the file at the given `path`.
 ///
 /// # Errors
@@ -249,7 +265,7 @@ where
 {
     for xattr in list_xattrs(path.as_ref())?
         .iter()
-        .filter(|xattr| xattr.key().starts_with(WUTAG_VALUE_NAMESPACE))
+        .filter(|xattr| xattr.key().starts_with(WUTAG_NAMESPACE))
     {
         remove_xattr(path.as_ref(), xattr.key())?;
     }

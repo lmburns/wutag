@@ -303,7 +303,7 @@ impl App {
                     } else if opts.all {
                         let path = &(*entry.path()).to_owned();
 
-                        if let Ok(has_tags) = path.has_tags() {
+                        if let Ok(has_tags) = path.has_tags_or_values() {
                             if has_tags {
                                 qprint!(
                                     self,

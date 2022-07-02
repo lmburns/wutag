@@ -290,15 +290,17 @@ impl App {
                                     e
                                 );
 
-                                if let Err(e) = path.tag(&tag) {
+                                if let Err(e) = path.tag(&tag, Some(&value)) {
                                     wutag_error!("{}: {}", bold_entry!(path), e);
                                 }
 
-                                if !value.is_null_id() {
-                                    if let Err(e) = path.value(&tag, &value) {
-                                        wutag_error!("{}: {}", bold_entry!(path), e);
-                                    }
-                                }
+                                // if !value.is_null_id() {
+                                //     if let Err(e) = path.value(&tag, &value)
+                                // {
+                                //         wutag_error!("{}: {}",
+                                // bold_entry!(path), e);
+                                //     }
+                                // }
                             }
 
                             // Don't return an error so the xattrs can be written
@@ -317,7 +319,7 @@ impl App {
                     }
 
                     // Deal with xattr after database
-                    if let Err(e) = path.tag(&tag) {
+                    if let Err(e) = path.tag(&tag, Some(&value)) {
                         wutag_error!("{} {}", e, bold_entry!(path));
                     } else {
                         log::debug!("{}: writing xattrs", path_d);
@@ -326,9 +328,9 @@ impl App {
 
                             if !value.is_null_id() {
                                 // Set the value
-                                if let Err(e) = path.value(&tag, &value) {
-                                    wutag_error!("{}: {}", bold_entry!(path), e);
-                                }
+                                // if let Err(e) = path.value(&tag, &value) {
+                                //     wutag_error!("{}: {}", bold_entry!(path), e);
+                                // }
 
                                 let value = reg.value(value.id())?;
                                 print!("={}", value.name().color(self.base_color).bold());
@@ -469,15 +471,17 @@ impl App {
                                         e
                                     );
 
-                                    if let Err(e) = path.tag(&tag) {
+                                    if let Err(e) = path.tag(&tag, Some(&value)) {
                                         wutag_error!("{}: {}", bold_entry!(path), e);
                                     }
 
-                                    if !value.is_null_id() {
-                                        if let Err(e) = path.value(&tag, &value) {
-                                            wutag_error!("{}: {}", bold_entry!(path), e);
-                                        }
-                                    }
+                                    // if !value.is_null_id() {
+                                    //     if let Err(e) = path.value(&tag,
+                                    // &value) {
+                                    //         wutag_error!("{}: {}",
+                                    // bold_entry!(path), e);
+                                    //     }
+                                    // }
                                 }
 
                                 // Don't return an error so the xattrs can be written
@@ -496,7 +500,7 @@ impl App {
                         }
 
                         // Deal with xattr after database
-                        if let Err(e) = path.tag(&tag) {
+                        if let Err(e) = path.tag(&tag, Some(&value)) {
                             wutag_error!("{} {}", e, bold_entry!(path));
                         } else {
                             log::debug!("{}: writing xattrs", path_d);
@@ -505,9 +509,9 @@ impl App {
 
                                 if !value.is_null_id() {
                                     // Set the value
-                                    if let Err(e) = path.value(&tag, &value) {
-                                        wutag_error!("{}: {}", bold_entry!(path), e);
-                                    }
+                                    // if let Err(e) = path.value(&tag, &value) {
+                                    //     wutag_error!("{}: {}", bold_entry!(path), e);
+                                    // }
 
                                     let value = reg.value(value.id())?;
                                     print!("={}", value.name().color(self.base_color).bold());

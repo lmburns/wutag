@@ -219,7 +219,7 @@ impl App {
                 for ftag in ftags.iter() {
                     if let Ok(file) = reg.file(ftag.file_id()) {
                         let rename = reg.tag(old_tag.id())?;
-                        if let Err(e) = (&file.path()).update_tag(&rename) {
+                        if let Err(e) = (&file.path()).update_tag(&rename, value.as_ref()) {
                             wutag_error!(
                                 "{}: failed to write new xattr: {}",
                                 self.fmt_path(file.path()),

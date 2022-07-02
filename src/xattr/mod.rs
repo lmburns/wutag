@@ -26,20 +26,29 @@ pub(crate) enum Error {
     InvalidTagKey(String),
 
     /// Value already exists within the registry
-    #[error("Value({0}) already exists")]
-    ValueExists(ColoredString),
+    #[error("Value({0}) already exists on Tag({1})")]
+    ValueExists(ColoredString, ColoredString),
 
-    /// Value is not found within the registry
-    #[error("Value({0}) doesn't exist")]
-    ValueNotFound(String),
+    /// Value is not found on a tag within the registry
+    #[error("Value({0}) doesn't exist on Tag({1})")]
+    TagValueNotFound(ColoredString, ColoredString),
 
     /// [`Value`] doesn't exist on a [`Tag`]
     #[error("value doesn't exist on Tag({1})")]
     ValueNotFoundOnTag(String, String),
 
-    // /// Tag does not have a value
-    // #[error("no value is found with Tag({0})")]
-    // NoValueFound(String),
+    /// The value was invalid
+    #[error("value was invalid - {0}")]
+    InvalidValueVal(String),
+
+    /// Value is not found within the registry
+    #[error("Value({0}) doesn't exist")]
+    ValueNotFound(ColoredString),
+
+    /// Failed untagging file on a path
+    #[error("failed to untag Tag({0}) on {1}")]
+    Untagging(String, String),
+
     /// General error
     #[error("error: {0}")]
     Other(String),

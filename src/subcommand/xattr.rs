@@ -75,9 +75,19 @@ impl App {
 
                 if let Ok(t) = tags {
                     for tag in &t {
-                        let values = path.list_values(tag);
-                        println!("VALUES: {:#?}", values);
+                        // let values = path.list_values(tag);
+                        let value = path.get_value(tag, "value");
+                        println!("GOT VALUES: {:#?}", value);
+
+                        let list_vals = path.list_values(tag);
+                        println!("LIST VALUES: {:#?}", value);
+
+                        let has_vals = path.has_values(tag);
+                        println!("HAS VALUES: {:#?}", has_vals);
                     }
+
+                    let all_values = path.list_all_values();
+                    println!("ALL VALUES: {:#?}", all_values);
                 }
 
                 Ok(())

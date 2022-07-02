@@ -196,7 +196,12 @@ impl App {
                                     continue;
                                 }
 
-                                if let Err(e) = entry_path.tag(&tag) {
+                                let value = (ft.value_id().id() != 0)
+                                    .then(|| reg.value(ft.value_id()))
+                                    .transpose()?
+                                    .unwrap_or_else(|| Value::new_noid(""));
+
+                                if let Err(e) = entry_path.tag(&tag, Some(&value)) {
                                     wutag_error!("{} {}", e, bold_entry!(entry_path));
                                 } else {
                                     log::debug!("{}: writing xattrs", entry_path.display());
@@ -204,8 +209,7 @@ impl App {
                                     if !self.quiet {
                                         print!("\t{} {}", g!("+"), self.fmt_tag(&tag));
 
-                                        if ft.value_id().id() != 0 {
-                                            let value = reg.value(ft.value_id())?;
+                                        if !value.is_null_id() {
                                             print!("={}", value.name().color(self.base_color).bold());
                                         }
 
@@ -369,7 +373,12 @@ impl App {
                                                 continue;
                                             }
 
-                                            if let Err(e) = dest_path.tag(&tag) {
+                                            let value = (ft.value_id().id() != 0)
+                                                .then(|| reg.value(ft.value_id()))
+                                                .transpose()?
+                                                .unwrap_or_else(|| Value::new_noid(""));
+
+                                            if let Err(e) = dest_path.tag(&tag, Some(&value)) {
                                                 wutag_error!("{} {}", e, bold_entry!(dest_path));
                                             } else {
                                                 log::debug!("{}: writing xattrs", dest_path.display());
@@ -377,8 +386,7 @@ impl App {
                                                 if !self.quiet {
                                                     print!("\t{} {}", g!("+"), self.fmt_tag(&tag));
 
-                                                    if ft.value_id().id() != 0 {
-                                                        let value = reg.value(ft.value_id())?;
+                                                    if !value.is_null_id() {
                                                         print!(
                                                             "={}",
                                                             value.name().color(self.base_color).bold()
@@ -440,7 +448,12 @@ impl App {
                                                 continue;
                                             }
 
-                                            if let Err(e) = dest_path.tag(&tag) {
+                                            let value = (combo.value_id().id() != 0)
+                                                .then(|| reg.value(combo.value_id()))
+                                                .transpose()?
+                                                .unwrap_or_else(|| Value::new_noid(""));
+
+                                            if let Err(e) = dest_path.tag(&tag, Some(&value)) {
                                                 wutag_error!("{} {}", e, bold_entry!(dest_path));
                                             } else {
                                                 log::debug!("{}: writing xattrs", dest_path.display());
@@ -448,8 +461,7 @@ impl App {
                                                 if !self.quiet {
                                                     print!("\t{} {}", g!("+"), self.fmt_tag(&tag),);
 
-                                                    if combo.value_id().id() != 0 {
-                                                        let value = reg.value(combo.value_id())?;
+                                                    if !value.is_null_id() {
                                                         print!(
                                                             "={}",
                                                             value.name().color(self.base_color).bold()

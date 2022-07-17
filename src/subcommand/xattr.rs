@@ -8,7 +8,7 @@ use crate::{
     bold_entry, qprint,
     registry::{
         common::hash,
-        types::{FileTag, Tag, TagValueCombo, ID},
+        types::{FileTag, Tag, TagValueCombo, Value, ID},
     },
     utils::{collect_stdin_paths, color::parse_color, crawler, glob_builder, regex_builder},
     wutag_error, wutag_warning,
@@ -73,19 +73,42 @@ impl App {
                 let tags = path.list_tags();
                 println!("TAGS: {:#?}", tags);
 
+                println!("=======================================================");
+                let all_values = path.list_all_values();
+                println!("ALL VALUES: {:#?}", all_values);
+
                 if let Ok(t) = tags {
                     for tag in &t {
-                        // let values = path.list_values(tag);
-                        let value = path.get_value(tag, "value");
+                        println!("=====================│ Tag │===========================");
+                        println!("{:#?}", tag);
+
+                        let value = path.get_value(tag, "value")?;
                         println!("GOT VALUES: {:#?}", value);
 
-                        let list_vals = path.list_values(tag);
-                        println!("LIST VALUES: {:#?}", value);
+                        path.update_value(tag, &value, &Value::new_noid("new"))?;
 
-                        let has_vals = path.has_values(tag);
-                        println!("HAS VALUES: {:#?}", has_vals);
+                        // let list_vals = path.list_values(tag);
+                        // println!("LIST VALUES: {:#?}", list_vals);
+
+                        // if let Err(e) = path.unvalue(tag, &value) {
+                        //     wutag_error!("{e}");
+                        // }
+
+                        // if let Ok(value) = path.get_value(tag, "value") {
+                        //     println!("GOT VALUE: {:#?}", value);
+                        //     if let Err(e) = path.unvalue_all(&value) {
+                        //         wutag_error!("{e}");
+                        //     }
+                        // }
+
+                        // let list_vals = path.list_values(tag);
+                        // println!("LIST VALUES: {:#?}", list_vals);
+
+                        // let has_vals = path.has_values(tag);
+                        // println!("HAS VALUES: {:?}", has_vals);
                     }
 
+                    println!("=======================================================");
                     let all_values = path.list_all_values();
                     println!("ALL VALUES: {:#?}", all_values);
                 }

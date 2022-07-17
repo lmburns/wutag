@@ -501,6 +501,7 @@ impl App {
 
                         // Deal with xattr after database
                         if let Err(e) = path.tag(&tag, Some(&value)) {
+                            println!("ERROR: tag: {:#?}", tag);
                             wutag_error!("{} {}", e, bold_entry!(path));
                         } else {
                             log::debug!("{}: writing xattrs", path_d);

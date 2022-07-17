@@ -1,7 +1,5 @@
 //! Functions for manipulating tags on files.
 
-// TODO: Possibly refactor to have one xattr for a single tag and N values
-
 use super::{
     core::{list_xattrs, remove_xattr, set_xattr, Xattr},
     value::{clear_values, get_value, has_any_values, has_values, list_all_values, list_values},
@@ -49,7 +47,9 @@ pub(crate) trait DirEntryExt {
     ///
     /// # Errors
     /// If there are no tags on the file entry
-    fn get_tag<T: AsRef<str>>(&self, tag: T) -> XResult<Tag>;
+    fn get_tag<T>(&self, tag: T) -> XResult<Tag>
+    where
+        T: AsRef<str>;
     /// List the [`Tag`](s) on a given path as a [`Vec`]
     ///
     /// # Errors
@@ -72,37 +72,40 @@ pub(crate) trait DirEntryExt {
     /// Remove a [`Value`] from a given path
     ///
     /// # Errors
-    /// If the `xattr` cannot be added
+    /// If the `value` cannot be found on the file
     fn unvalue(&self, tag: &Tag, value: &Value) -> XResult<()>;
-    /// Update a [`Value`] for a given path
+    /// Remove all instances of [`Value`] from a given path
     ///
     /// # Errors
-    /// If the tag or value doesn't exist
-    fn update_value(&self, tag: &Tag, value: &Value) -> XResult<()>;
+    /// If the `value` cannot be found on the file
+    fn unvalue_all(&self, value: &Value) -> XResult<()>;
     /// Replace a [`Value`] with another [`Value`] for a given [`Tag`]
     ///
     /// # Errors
     /// If the tag or value doesn't exist
-    fn replace_value(&self, tag: &Tag, replaced: &Value, replacer: &Value) -> XResult<()>;
-    /// Retrieve a given [`Value`] from a given path
+    fn update_value(&self, tag: &Tag, replaced: &Value, replacer: &Value) -> XResult<()>;
+    /// Retrieve a [`Value`] from a given path
     /// This function is to be used as confirmation.
     ///
     /// # Errors
     /// If there are no tags on the file entry
-    fn get_value<T: AsRef<str>, V: AsRef<str>>(&self, tag: T, value: V) -> XResult<Value>;
+    fn get_value<T, V>(&self, tag: T, value: V) -> XResult<Value>
+    where
+        T: AsRef<str>,
+        V: AsRef<str>;
     /// List the [`Values`](s) that match a [`Tag`] on a given path
     ///
     /// # Errors
     /// * If there are no tags or values
     /// * If the collection into a [`Vec`] fails
     fn list_values(&self, tag: &Tag) -> XResult<Vec<Value>>;
-    /// List all the [`Values`](s) on a given path as a [`Vec`]
+    /// List all the [`Values`](s) on a given path
     ///
     /// # Errors
     /// * If there are no tags or values
     /// * If the collection into a [`Vec`] fails
     fn list_all_values(&self) -> XResult<Vec<Value>>;
-    /// Remove all [`Value`](s) on a given path
+    /// Remove all [`Value`](s) from a given path
     ///
     /// # Errors
     /// If clearing the extended attributes failed
@@ -190,15 +193,13 @@ impl DirEntryExt for &PathBuf {
     }
 
     #[inline]
-    fn update_value(&self, tag: &Tag, value: &Value) -> XResult<()> {
-        value.remove_from(self, tag)?;
-        value.save_to(self, tag)
+    fn unvalue_all(&self, value: &Value) -> XResult<()> {
+        value.remove_all_from(self)
     }
 
     #[inline]
-    fn replace_value(&self, tag: &Tag, replaced: &Value, replacer: &Value) -> XResult<()> {
-        replaced.remove_from(self, tag)?;
-        replacer.save_to(self, tag)
+    fn update_value(&self, tag: &Tag, replaced: &Value, replacer: &Value) -> XResult<()> {
+        replaced.update(self, tag, replacer)
     }
 
     #[inline]
@@ -250,8 +251,6 @@ impl DirEntryExt for &PathBuf {
 
     #[inline]
     fn display(&self) -> Display {
-        // How to use fully qualified syntax here to prevent recursion?
-        // <&PathBuf>::display(self)
         self.path().display()
     }
 }
@@ -311,15 +310,13 @@ impl DirEntryExt for ignore::DirEntry {
     }
 
     #[inline]
-    fn update_value(&self, tag: &Tag, value: &Value) -> XResult<()> {
-        value.remove_from(self.path(), tag)?;
-        value.save_to(self.path(), tag)
+    fn unvalue_all(&self, value: &Value) -> XResult<()> {
+        value.remove_all_from(self.path())
     }
 
     #[inline]
-    fn replace_value(&self, tag: &Tag, replaced: &Value, replacer: &Value) -> XResult<()> {
-        replaced.remove_from(self.path(), tag)?;
-        replacer.save_to(self.path(), tag)
+    fn update_value(&self, tag: &Tag, replaced: &Value, replacer: &Value) -> XResult<()> {
+        replaced.update(self.path(), tag, replacer)
     }
 
     #[inline]
@@ -393,25 +390,42 @@ impl Tag {
         P: AsRef<Path>,
     {
         let path = path.as_ref();
+        log::debug!(
+            "XATTR: {}: saving Tag({}), Value({:?})",
+            path.display(),
+            self.name(),
+            value
+        );
+
+        println!(
+            "XATTR: {}: saving Tag({}), Value({:?})",
+            path.display(),
+            self.name(),
+            value
+        );
 
         for tag in list_tags(&path)? {
             if &tag == self {
                 return Err(Error::TagExists(g!((tag.name()))));
             }
+        }
 
-            if let Some(v) = value {
-                for val in list_values(path, &tag)? {
-                    if v == &val {
-                        return Err(Error::ValueExists(g!((val.name())), g!((tag.name()))));
-                    }
+        if let Some(v) = value {
+            for val in list_values(path, self)? {
+                println!("++++ ITER VALUE: {:#?}", val);
+                if v == &val {
+                    return Err(Error::ValueExists(g!((val.name())), g!((self.name()))));
                 }
             }
         }
 
+        println!("passed value: {:#?}", value);
         let val = value
             .map(Value::hash)
             .transpose()?
             .unwrap_or_else(|| "".to_owned());
+
+        println!("+++++ BUILT VALUE +++++: {:#?}", val);
 
         set_xattr(path, self.hash()?.as_str(), &val)
     }
@@ -426,9 +440,11 @@ impl Tag {
     where
         P: AsRef<Path>,
     {
+        let path = path.as_ref();
+        log::debug!("XATTR: {}: removing Tag({})", path.display(), self.name());
         let hash = self.hash()?;
 
-        for xattr in list_xattrs(path.as_ref())? {
+        for xattr in list_xattrs(path)? {
             let key = xattr.key();
             // make sure to only remove attributes corresponding to this namespace
             if key == hash {
@@ -505,6 +521,8 @@ where
 {
     let path = path.as_ref();
     let tag = tag.as_ref();
+    log::debug!("XATTR: {}: getting Tag({})", path.display(), tag);
+
     for tag_ in list_xattrs(path)?.into_iter().flat_map(Tag::try_from) {
         if tag_.name() == tag {
             return Ok(tag_);
@@ -528,7 +546,9 @@ where
         let it = attrs
             .into_iter()
             .filter(|xattr| {
-                println!("Xattr: {:#?}", xattr);
+                log::trace!("XATTR: {:#?}", xattr);
+
+                // println!("Xattr: {:#?}", xattr);
                 xattr.key().starts_with(WUTAG_NAMESPACE)
             })
             .map(Tag::try_from);
@@ -550,6 +570,8 @@ where
     P: AsRef<Path>,
 {
     let path = path.as_ref();
+    log::debug!("XATTR: {}: clearing Tags", path.display());
+
     for xattr in list_xattrs(path)?
         .iter()
         .filter(|xattr| xattr.key().starts_with(WUTAG_NAMESPACE))
@@ -571,7 +593,16 @@ pub(crate) fn has_tags<P>(path: P) -> XResult<bool>
 where
     P: AsRef<Path>,
 {
-    list_tags(path).map(|tags| !tags.is_empty())
+    let path = path.as_ref();
+    list_tags(path).map(|tags| {
+        let has = !tags.is_empty();
+        log::debug!(
+            "XATTR: {}: {} have Tags",
+            path.display(),
+            tern::t!(has ? "does" : "doesn't")
+        );
+        has
+    })
 }
 
 /// Checks whether the given `path` has any tags or values
@@ -583,5 +614,11 @@ pub(crate) fn has_tags_or_values<P>(path: P) -> XResult<bool>
 where
     P: AsRef<Path>,
 {
-    Ok(has_tags(&path)? || has_any_values(&path)?)
+    let has = has_tags(&path)? || has_any_values(&path)?;
+    log::debug!(
+        "XATTR: {}: {} have Tags or Values",
+        path.as_ref().display(),
+        tern::t!(has ? "does" : "doesn't")
+    );
+    Ok(has)
 }

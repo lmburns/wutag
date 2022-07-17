@@ -21,11 +21,10 @@ pub(self) use super::{Error, Result};
 use std::path::Path;
 
 /// Extended attribute representation
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Xattr {
     /// Key of the [`Xattr`] (i.e., `key`.value)
     key: String,
-
     /// Value of the [`Xattr`] (i.e., key.`value`)
     val: String,
 }

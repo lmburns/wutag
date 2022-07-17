@@ -14,6 +14,9 @@ use crate::{
 use colored::Colorize;
 use std::{convert::TryFrom, path::Path};
 
+// TODO: If tag has multiple values
+// TODO: Removing value but keeping same tag
+
 /// Get the `next` item or return an `Error`
 macro_rules! next_or_else {
     ($it:ident, $msg:expr) => {
@@ -31,30 +34,12 @@ impl Value {
             .map_err(Error::from)
     }
 
-    // XXX: Remove
-    /// Tags the file at the given `path` with a [`Value`].
-    ///
-    /// # Errors
-    /// If the tag that exists already has the same [`Value`]
-    pub(crate) fn save_to<P>(&self, path: P, tag: &Tag) -> XResult<()>
-    where
-        P: AsRef<Path>,
-    {
-        for value in list_values(path.as_ref(), tag)? {
-            if &value == self {
-                return Err(Error::ValueExists(g!((value.name())), g!((tag.name()))));
-            }
-        }
-        set_xattr(path, self.hash()?.as_str(), "")
-    }
-
-    // XXX: Finish
     /// Removes a [`Value`] from a tag on file at the given `path`.
     ///
     /// # Errors
-    /// If the tag doesn't exist the error [`TagNotFound`] is returned
+    /// If the tag doesn't exist the error [`TagValueNotFound`] is returned
     ///
-    /// [`TagNotFound`]: crate::xattr::Error::TagNotFound
+    /// [`TagValueNotFound`]: crate::xattr::Error:TagValueNotFound:
     pub(crate) fn remove_from<P>(&self, path: P, tag: &Tag) -> XResult<()>
     where
         P: AsRef<Path>,
@@ -68,48 +53,95 @@ impl Value {
             let key = xattr.key();
             let val = xattr.val();
 
-            // Make sure to only remove attributes corresponding to this namespace
-            if key == tag_hash {
-                // First, remove the tag (which removes the value(s))
-                if path.untag(tag).is_err() {
-                    return Err(Error::Untagging(
-                        tag_name.to_string(),
-                        path.to_string_lossy().to_string(),
-                    ));
-                }
+            println!("iter xattr: {:#?}", xattr);
 
-                // return remove_xattr(path, key);
+            // Make sure to only remove attributes corresponding to this tag
+            if key == tag_hash && val == val_hash {
+                println!("===== IS A MATCH =====");
+                // First, remove the tag (which removes the value(s))
+                remove_xattr(path, key)?;
+                return path.tag(tag, None);
             }
         }
 
         Err(Error::TagValueNotFound(g!((self.name())), g!(tag_name)))
     }
 
-    // XXX: Finish
     /// Removes all [`Value`]s from the file at the given `path`.
     ///
     /// # Errors
     /// If no values exist the error [`ValueNotFound`] is returned
     ///
-    /// [`TagNotFound`]: crate::xattr::Error::TagNotFound
-    #[allow(dead_code)]
+    /// [`ValueNotFound`]: crate::xattr::Error::ValueNotFound
     pub(crate) fn remove_all_from<P>(&self, path: P) -> XResult<()>
     where
         P: AsRef<Path>,
     {
-        for xattr in list_xattrs(path.as_ref())? {
+        let val_hash = self.hash()?;
+        let path = &path.as_ref().to_owned();
+
+        for xattr in list_xattrs(path)? {
             let key = xattr.key();
-            // Make sure to only remove attributes corresponding to this namespace
-            if key.starts_with(WUTAG_NAMESPACE) {
-                return remove_xattr(path, key);
+            let val = xattr.val();
+
+            if val == val_hash {
+                remove_xattr(path, key)?;
+                let tag = Tag::try_from(xattr)?;
+                return path.tag(&tag, None);
             }
         }
 
         Err(Error::ValueNotFound(g!((self.name()))))
     }
 
+    /// Replace a [`Value`] with another [`Value`] for a given [`Tag`]
+    ///
+    /// # Errors
+    /// If the value doesn't exist the error [`TagValueNotFound`] is returned
+    ///
+    /// [`TagValueNotFound`]: crate::xattr::Error::TagValueNotFound
+    pub(crate) fn update<P>(&self, path: P, tag: &Tag, replacer: &Self) -> XResult<()>
+    where
+        P: AsRef<Path>,
+    {
+        let val_hash = self.hash()?;
+        let tag_hash = tag.hash()?;
+        let path = &path.as_ref().to_owned();
+        let tag_name = tag.name();
+
+        for xattr in list_xattrs(path)? {
+            let key = xattr.key();
+            let val = xattr.val();
+
+            println!("iter xattr: {:#?}", xattr);
+
+            // Make sure to only remove attributes corresponding to this tag
+            if key == tag_hash && val == val_hash {
+                println!("===== IS A MATCH =====");
+                // First, remove the tag (which removes the value(s))
+                remove_xattr(path, key)?;
+                return path.tag(tag, Some(replacer));
+            }
+        }
+
+        Err(Error::TagValueNotFound(g!((self.name())), g!(tag_name)))
+    }
+
     /// Parse an extended attribute in a [`Value`].
     /// This function also matches against a [`Tag`]
+    ///
+    /// # Errors
+    /// If the extended attribute fails to parse, a [`ValueNotFoundOnTag`] error
+    /// is thrown. This can happen because:
+    /// 1. [`Tag`] does not exist
+    /// 2. [`Tag`] does not have the [`Value`]
+    ///
+    /// If the extended attribute's namespace is not `wutag`, then an
+    /// [`InvalidValueVal`] or an [`InvalidTagKey`] will be thrown
+    ///
+    /// [`ValueNotFoundOnTag`]: crate::xattr::Error::ValueNotFoundOnTag
+    /// [`InvalidValueVal`]: crate::xattr::Error::InvalidValueVal
+    /// [`InvalidTagKey`]: crate::xattr::Error::InvalidTagKey
     pub(crate) fn parse_xattr<T>(xattr: &Xattr, tag: T) -> XResult<Self>
     where
         T: AsRef<str>,
@@ -220,7 +252,11 @@ where
         let mut values = Vec::new();
         let it = attrs
             .into_iter()
-            .filter(|xattr| xattr.key().starts_with(WUTAG_NAMESPACE))
+            .filter(|xattr| {
+                println!("XATTR; {:#?}", xattr);
+
+                xattr.key().starts_with(WUTAG_NAMESPACE)
+            })
             .map(Value::try_from);
 
         for value in it.flatten() {
@@ -243,7 +279,10 @@ where
         let mut values = Vec::new();
         let it = attrs
             .into_iter()
-            .filter(|xattr| xattr.key().starts_with(WUTAG_NAMESPACE))
+            .filter(|xattr| {
+                println!("Xattr value: {:#?}", xattr);
+                xattr.key().starts_with(WUTAG_NAMESPACE)
+            })
             .map(|value| Value::parse_xattr(&value, tag));
 
         for value in it.flatten() {
@@ -253,7 +292,19 @@ where
     })
 }
 
-// XXX: Finish
+/// Clear a single value
+pub(crate) fn clear_value<P>(path: P, xattr: Xattr) -> XResult<()>
+where
+    P: AsRef<Path>,
+{
+    let path = &path.as_ref().to_owned();
+    remove_xattr(path, xattr.key())?;
+    let tag = Tag::try_from(xattr)?;
+    path.tag(&tag, None);
+
+    Ok(())
+}
+
 /// Clears all [`Values`] of the file at the given `path`.
 ///
 /// # Errors
@@ -267,7 +318,10 @@ where
         .iter()
         .filter(|xattr| xattr.key().starts_with(WUTAG_NAMESPACE))
     {
-        remove_xattr(path.as_ref(), xattr.key())?;
+        let path = &path.as_ref().to_owned();
+        remove_xattr(path, xattr.key())?;
+        let tag = Tag::try_from(xattr.clone())?;
+        path.tag(&tag, None);
     }
 
     Ok(())

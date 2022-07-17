@@ -45,10 +45,6 @@ pub(crate) enum Error {
     #[error("Value({0}) doesn't exist")]
     ValueNotFound(ColoredString),
 
-    /// Failed untagging file on a path
-    #[error("failed to untag Tag({0}) on {1}")]
-    Untagging(String, String),
-
     /// General error
     #[error("error: {0}")]
     Other(String),

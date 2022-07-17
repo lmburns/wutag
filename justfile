@@ -29,7 +29,8 @@ version := `rg --color=never --pcre2 -oIN '^version = "\K(\d+\.?)+' Cargo.toml`
   just rr set -p 'xx=val' justfile
 
 @sset_1:
-  just rr set -p 'xx=ok' cliff.toml
+  just rr set -p 'xx=value' cliff.toml
+  just rr xattr cliff.toml
 
 @reset:
   just clear

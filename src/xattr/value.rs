@@ -15,7 +15,6 @@ use colored::Colorize;
 use std::{convert::TryFrom, path::Path};
 
 // TODO: If tag has multiple values
-// TODO: Removing value but keeping same tag
 
 /// Get the `next` item or return an `Error`
 macro_rules! next_or_else {
@@ -113,11 +112,8 @@ impl Value {
             let key = xattr.key();
             let val = xattr.val();
 
-            println!("iter xattr: {:#?}", xattr);
-
             // Make sure to only remove attributes corresponding to this tag
             if key == tag_hash && val == val_hash {
-                println!("===== IS A MATCH =====");
                 // First, remove the tag (which removes the value(s))
                 remove_xattr(path, key)?;
                 return path.tag(tag, Some(replacer));
@@ -125,6 +121,20 @@ impl Value {
         }
 
         Err(Error::TagValueNotFound(g!((self.name())), g!(tag_name)))
+    }
+
+    /// Add a [`Value`] to an already existing [`Tag`]
+    #[allow(clippy::unnecessary_wraps)]
+    pub(crate) fn add<P>(&self, path: P, tag: &Tag) -> XResult<()>
+    where
+        P: AsRef<Path>,
+    {
+        let val_hash = self.hash()?;
+        let tag_hash = tag.hash()?;
+        let path = &path.as_ref().to_owned();
+        let tag_name = tag.name();
+
+        Ok(())
     }
 
     /// Parse an extended attribute in a [`Value`].

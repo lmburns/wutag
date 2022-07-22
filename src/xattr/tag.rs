@@ -69,6 +69,11 @@ pub(crate) trait DirEntryExt {
     // ╭────────╮
     // │ Values │
     // ╰────────╯
+    // /// Add a [`Value`] to an already existing [`Tag`]
+    // ///
+    // /// # Errors
+    // /// If the [`Tag`] doesn't exist
+    // fn add_value(&self, tag: &Tag, value: &Value) -> XResult<()>;
     /// Remove a [`Value`] from a given path
     ///
     /// # Errors
@@ -397,35 +402,26 @@ impl Tag {
             value
         );
 
-        println!(
-            "XATTR: {}: saving Tag({}), Value({:?})",
-            path.display(),
-            self.name(),
-            value
-        );
-
         for tag in list_tags(&path)? {
             if &tag == self {
                 return Err(Error::TagExists(g!((tag.name()))));
             }
         }
 
+        // Check whether the value already exists on this Tag on this file
         if let Some(v) = value {
             for val in list_values(path, self)? {
-                println!("++++ ITER VALUE: {:#?}", val);
+                println!("save_to::value::{:?}", val);
                 if v == &val {
                     return Err(Error::ValueExists(g!((val.name())), g!((self.name()))));
                 }
             }
         }
 
-        println!("passed value: {:#?}", value);
         let val = value
             .map(Value::hash)
             .transpose()?
             .unwrap_or_else(|| "".to_owned());
-
-        println!("+++++ BUILT VALUE +++++: {:#?}", val);
 
         set_xattr(path, self.hash()?.as_str(), &val)
     }

@@ -85,14 +85,14 @@ impl App {
                         let value = path.get_value(tag, "value")?;
                         println!("GOT VALUES: {:#?}", value);
 
-                        path.update_value(tag, &value, &Value::new_noid("new"))?;
+                        // path.update_value(tag, &value, &Value::new_noid("new"))?;
 
                         // let list_vals = path.list_values(tag);
                         // println!("LIST VALUES: {:#?}", list_vals);
 
-                        // if let Err(e) = path.unvalue(tag, &value) {
-                        //     wutag_error!("{e}");
-                        // }
+                        if let Err(e) = path.unvalue(tag, &value) {
+                            wutag_error!("{e}");
+                        }
 
                         // if let Ok(value) = path.get_value(tag, "value") {
                         //     println!("GOT VALUE: {:#?}", value);

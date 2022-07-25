@@ -64,7 +64,7 @@ complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcomma
 complete -c wutag -n "__fish_seen_subcommand_from list; and __fish_seen_subcommand_from files" -s g -l global -d 'Apply operation to all tags and files instead of locally'
 complete -c wutag -n "__fish_seen_subcommand_from set" -s C -l color -d 'Explicitly select color for tag' -r
 complete -c wutag -n "__fish_seen_subcommand_from set" -s p -l pairs -d 'Specify any number of tag=value pairs' -r
-complete -c wutag -n "__fish_seen_subcommand_from set" -s V -l value -d 'Specify a value to set all the tag(s) to' -r
+complete -c wutag -n "__fish_seen_subcommand_from set" -s V -l value -d 'Specify an array of value(s) to add to tag(s)' -r
 complete -c wutag -n "__fish_seen_subcommand_from set" -s c -l clear -d 'Clear the tags on the match(es) before the new one(s) are set'
 complete -c wutag -n "__fish_seen_subcommand_from set" -s s -l stdin -d 'Arguments are expected to be passed through stdin'
 complete -c wutag -n "__fish_seen_subcommand_from set" -s h -l help -d 'Print help information'

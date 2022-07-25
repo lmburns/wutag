@@ -89,17 +89,19 @@ pub(crate) struct SetOpts {
     )]
     pub(crate) pairs: Vec<(String, String)>,
 
-    // TODO: Implement
-    /// Specify a value to set all the tag(s) to
+    /// Specify an array of value(s) to add to tag(s)
     #[clap(
         name = "value",
         long = "value",
         short = 'V',
         takes_value = true,
-        long_help = "Set a value to each of the matching tags. To set different values for different \
-                     tags, use the tag=value syntax"
+        multiple_values = true,
+        require_delimiter = true,
+        use_value_delimiter = true,
+        long_help = "Specify an array of values to attach to the tag(s). A comma is required between each \
+                     value (i.e., -V 'v1,v2,v3')"
     )]
-    pub(crate) value: Option<String>,
+    pub(crate) values: Vec<String>,
 
     /// A glob, regular expression, or fixed-string
     #[clap(
@@ -124,10 +126,10 @@ pub(crate) struct SetOpts {
 // TEST: Multiple tag=value pairs
 // TEST: -d  <dir> set ...
 
-// FEATURE: Pass one value for many tags
+// TODO: Pass one value for many tags
+// TODO: Differentiate between 'adding' and 'setting' values on a tag
 
 // TODO: Condense all this duplicate code
-// TODO: Write xattr as tag=value
 // TODO: Check file permissions
 
 impl App {
@@ -158,6 +160,7 @@ impl App {
 
         let reg = self.registry.lock().expect("poisoned lock");
 
+        // Pairs: --pair 'tag=value'
         let mut combos = opts
             .pairs
             .iter()
@@ -169,18 +172,42 @@ impl App {
             })
             .collect::<Vec<_>>();
 
-        let mut tags = opts
-            .tags
-            .iter()
-            .map(|t| {
-                (
-                    reg.tag_by_name(t).unwrap_or_else(|_| Tag::null(t)),
-                    Value::new_noid(""),
-                )
-            })
-            .collect::<Vec<_>>();
+        if opts.values.is_empty() {
+            // Tags: ... tag1 tag2
+            let mut tags = opts
+                .tags
+                .iter()
+                .map(|t| {
+                    (
+                        reg.tag_by_name(t).unwrap_or_else(|_| Tag::null(t)),
+                        Value::new_noid(""),
+                    )
+                })
+                .collect::<Vec<_>>();
 
-        combos.append(&mut tags);
+            combos.append(&mut tags);
+        } else {
+            // Tag, Value: --values 'v1,v2' <file> tag1
+            let mut tv = opts
+                .tags
+                .iter()
+                .map(|t| {
+                    opts.values
+                        .iter()
+                        .map(|v| {
+                            (
+                                reg.tag_by_name(t).unwrap_or_else(|_| Tag::null(t)),
+                                Value::new_noid(v),
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>()
+                .concat();
+
+            println!("Tv: {:#?}", tv);
+            combos.append(&mut tv);
+        }
 
         if (opts.stdin || atty::isnt(atty::Stream::Stdin)) && atty::is(atty::Stream::Stdout) {
             log::debug!("Using STDIN");
@@ -276,6 +303,7 @@ impl App {
 
                     // Value was not found in registry and is actually passed
                     if value.is_null_id() && !value.is_null_name() {
+                        println!("INSERTING NEW VALUE: {}", value.name());
                         log::debug!("creating new value: {}", value.name());
                         value = reg.insert_value(value)?;
                     }
@@ -441,6 +469,7 @@ impl App {
                     let mut print_newline = false;
 
                     for (mut tag, mut value) in combos.iter().cloned() {
+                        println!("== Set ==\nTag: {:#?}\nValue: {:#?}", tag, value);
                         // Tag was not found within the registry
                         // Check again, because it could've been cleared
                         if reg.tag(tag.id()).is_err() {

@@ -145,8 +145,8 @@ _arguments "${_arguments_options[@]}" \
 '--color=[Explicitly select color for tag]:color: ' \
 '(-V --value)*-p+[Specify any number of tag=value pairs]:pairs: ' \
 '(-V --value)*--pairs=[Specify any number of tag=value pairs]:pairs: ' \
-'-V+[Specify a value to set all the tag(s) to]:value: ' \
-'--value=[Specify a value to set all the tag(s) to]:value: ' \
+'*-V+[Specify an array of value(s) to add to tag(s)]:value: ' \
+'*--value=[Specify an array of value(s) to add to tag(s)]:value: ' \
 '-c[Clear the tags on the match(es) before the new one(s) are set]' \
 '--clear[Clear the tags on the match(es) before the new one(s) are set]' \
 '-s[Arguments are expected to be passed through stdin]' \

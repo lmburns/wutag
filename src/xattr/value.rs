@@ -152,13 +152,14 @@ impl Value {
     /// [`ValueNotFoundOnTag`]: crate::xattr::Error::ValueNotFoundOnTag
     /// [`InvalidValueVal`]: crate::xattr::Error::InvalidValueVal
     /// [`InvalidTagKey`]: crate::xattr::Error::InvalidTagKey
-    pub(crate) fn parse_xattr<T>(xattr: &Xattr, tag: T) -> XResult<Self>
+    pub(crate) fn parse_xattr<T>(xattr: &Xattr, tag: T) -> XResult<Vec<Self>>
     where
         T: AsRef<str>,
     {
         let key = xattr.key();
         let val = xattr.val();
 
+        // == Key
         let mut key_elems = key.split("wutag.");
         let ns = next_or_else!(key_elems, "missing namespace `user`")?;
         if ns != "user." {
@@ -171,6 +172,7 @@ impl Value {
         let tag_bytes = next_or_else!(key_elems, "missing value")?;
         let tag_decode: Tag = serde_cbor::from_slice(&base64::decode(tag_bytes.as_bytes())?)?;
 
+        // == Value
         let mut val_elems = val.split("wutag.");
         let ns = next_or_else!(val_elems, "missing namespace `user`")?;
         if ns != "user." {
@@ -180,15 +182,41 @@ impl Value {
             )));
         }
 
-        let value_bytes = next_or_else!(val_elems, "missing value")?;
-        let value = serde_cbor::from_slice(&base64::decode(value_bytes.as_bytes())?)?;
+        let value_rest = next_or_else!(val_elems, "missing value")?;
+        let mut new_elems = value_rest.split('.');
+        println!("=== SPLIT: {:#?} ===", new_elems);
+
+        let mut values = vec![];
+
+        for value in new_elems {
+            // match &base64::decode(value.as_bytes()) {
+            //     Ok(decode) => match serde_cbor::from_slice(decode) {
+            //         Ok(val) => {
+            //             values.push(val);
+            //         },
+            //         Err(e) => {
+            //             return Err(e.into());
+            //         },
+            //     },
+            //     Err(e) => {
+            //         return Err(e.clone().into());
+            //     },
+            // }
+
+            let val = serde_cbor::from_slice(&base64::decode(value.as_bytes())?)?;
+            values.push(val);
+        }
+
+        // let value_bytes = next_or_else!(val_elems, "missing value")?;
+        // let value =
+        // serde_cbor::from_slice(&base64::decode(value_bytes.as_bytes())?)?;
 
         if tag_decode.name() == tag.as_ref() {
-            return Ok(value);
+            return Ok(values);
         }
 
         Err(Error::ValueNotFoundOnTag(
-            String::from(value_bytes),
+            String::from(value_rest),
             String::from(tag_bytes),
         ))
     }
@@ -237,12 +265,14 @@ where
     let tag = tag.as_ref();
     let value = value.as_ref();
 
-    for value_ in list_xattrs(path)?
+    for values in list_xattrs(path)?
         .into_iter()
         .flat_map(|xattr| Value::parse_xattr(&xattr, tag))
     {
-        if value_.name() == value {
-            return Ok(value_);
+        for val in &values {
+            if val.name() == value {
+                return Ok(val.clone());
+            }
         }
     }
 
@@ -295,14 +325,20 @@ where
             })
             .map(|value| Value::parse_xattr(&value, tag));
 
-        for value in it.flatten() {
-            values.push(value);
+        for values_ in it.flatten() {
+            for val in &values_ {
+                values.push(val.clone());
+            }
         }
         values
     })
 }
 
-/// Clear a single value
+/// Clear a single [`Value`]
+///
+/// # Errors
+/// If a [`Tag`] is not found on the file
+/// If the [`Tag`] fails to clear from the file
 pub(crate) fn clear_value<P>(path: P, xattr: Xattr) -> XResult<()>
 where
     P: AsRef<Path>,
@@ -310,7 +346,7 @@ where
     let path = &path.as_ref().to_owned();
     remove_xattr(path, xattr.key())?;
     let tag = Tag::try_from(xattr)?;
-    path.tag(&tag, None);
+    path.tag(&tag, None)?;
 
     Ok(())
 }

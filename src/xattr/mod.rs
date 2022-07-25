@@ -113,6 +113,7 @@ impl From<io::Error> for Error {
     #[inline]
     fn from(err: io::Error) -> Self {
         match err.kind() {
+            // FIX: This displays 'Tag(File exists (os error 17)) already exists'
             io::ErrorKind::AlreadyExists => Self::TagExists(err.to_string().green().bold()),
             _ => match err.raw_os_error() {
                 Some(61_i32) => Self::TagNotFound("".to_owned()),

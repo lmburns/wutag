@@ -402,6 +402,8 @@ pub(crate) fn debug_registry_path(p: &Arc<Mutex<Registry>>) {
     log::debug!("{}", p.lock().expect("poisoned lock").path().display());
 }
 
+// TODO: Add support for tag=value1,value2
+
 /// Parse a single tag-value pair
 pub(crate) fn parse_tag_val<T>(s: &str) -> Result<(T, T), Box<dyn Error + Send + Sync + 'static>>
 where

@@ -7,6 +7,7 @@ use super::{
 };
 use anyhow::{anyhow, Result};
 use colored::Colorize;
+use itertools::Itertools;
 use rusqlite::{
     self as rsq,
     types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, ValueRef},
@@ -160,6 +161,12 @@ impl Values {
                     .then(|| name.to_lowercase())
                     .unwrap_or_else(|| name.to_string())
         })
+    }
+}
+
+impl fmt::Display for Values {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.iter().join("."))
     }
 }
 

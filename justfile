@@ -32,9 +32,16 @@ version := `rg --color=never --pcre2 -oIN '^version = "\K(\d+\.?)+' Cargo.toml`
   just rr set -p 'xx=value' cliff.toml
   just rr xattr cliff.toml
 
+@val:
+  just rr set -p 'tag1=value' cliff.toml
+  # just rr set -p 'tag1=value2' cliff.toml
+
+# just rr set -V 'v1,v2' cliff.toml tag2
+# just rr set -p 'tag1=value' cliff.toml
+
 @reset:
   just clear
-  just sset_1
+  just val
 
 # just rr list files -tV
 

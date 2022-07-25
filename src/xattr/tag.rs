@@ -11,6 +11,7 @@ use crate::{
     registry::types::{Tag, Value},
 };
 use colored::Colorize;
+use itertools::Itertools;
 use std::{
     convert::TryFrom,
     path::{Display, Path, PathBuf},
@@ -396,34 +397,77 @@ impl Tag {
     {
         let path = path.as_ref();
         log::debug!(
-            "XATTR: {}: saving Tag({}), Value({:?})",
+            "XATTR: {}: saving Tag({}), Value({})",
             path.display(),
             self.name(),
-            value
+            value.map_or("None", |v| v.name())
         );
 
+        println!(
+            "\n++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+XATTR: {}:
+Tag({})
+Value({})
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++",
+            path.display(),
+            self.name(),
+            value.map_or("None", |v| v.name())
+        );
+
+        let mut exists = false;
+
         for tag in list_tags(&path)? {
+            println!("iterTag: {:#?}", tag);
+            // Return an error if it is the same tag and no value
+            // If value, user probably wants to set more than one value on same tag
             if &tag == self {
-                return Err(Error::TagExists(g!((tag.name()))));
+                println!("{} == {}", tag.name(), self.name());
+                if value.is_none() {
+                    println!("ERROR: TagExists");
+                    return Err(Error::TagExists(g!((tag.name()))));
+                }
+
+                exists = true;
             }
         }
+
+        let mut values = vec![];
 
         // Check whether the value already exists on this Tag on this file
         if let Some(v) = value {
+            println!("There is some value");
             for val in list_values(path, self)? {
-                println!("save_to::value::{:?}", val);
+                println!("iterValue: {:?}", val);
                 if v == &val {
+                    println!("ERROR: ValueExists: {} == {}", v.name(), val.name());
                     return Err(Error::ValueExists(g!((val.name())), g!((self.name()))));
                 }
+
+                values.push(val);
             }
         }
 
-        let val = value
-            .map(Value::hash)
-            .transpose()?
-            .unwrap_or_else(|| "".to_owned());
+        // If the tag exists, rewrite it
+        if exists {
+            println!("EXISTS == TRUE");
+            // self.remove_from(path)?;
+        }
 
-        set_xattr(path, self.hash()?.as_str(), &val)
+        println!("VALUES: {:#?}", values);
+
+        let vals = values
+            .iter()
+            .map(|val| Value::hash(val).unwrap_or_else(|_| "".to_owned()))
+            .join(".");
+
+        println!("VALUES JOINED: {}", vals);
+
+        // let val = value
+        //     .map(Value::hash)
+        //     .transpose()?
+        //     .unwrap_or_else(|| "".to_owned());
+
+        set_xattr(path, self.hash()?.as_str(), &vals)
     }
 
     /// Removes this tag from the file at the given `path`.
@@ -544,7 +588,7 @@ where
             .filter(|xattr| {
                 log::trace!("XATTR: {:#?}", xattr);
 
-                // println!("Xattr: {:#?}", xattr);
+                println!("xattrTag: {:#?}", xattr);
                 xattr.key().starts_with(WUTAG_NAMESPACE)
             })
             .map(Tag::try_from);
